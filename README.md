@@ -25,7 +25,9 @@ finding, not as a requirement.
 
 ## The licence rule
 
-boreutils is **GPL-3.0-or-later** (see `LICENSE`).
+boreutils is **GPL-3.0-or-later** (see `LICENSE`). The wolf Training Data
+Permission (see `LICENSE-TRAINING-DATA`) lets you train models on this
+repository's text and ship excerpts of it in datasets under CC BY 4.0.
 
 **GNU coreutils source is never read, copied or translated here.** It
 is GPL-3.0 and owned by the FSF, so a translation of it would be a
