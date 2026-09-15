@@ -185,8 +185,11 @@ def main(argv):
                 gm = res["gnu"]["mean"] * 1000
                 bs = res["boreutils"]["stddev"] * 1000
                 gs = res["gnu"]["stddev"] * 1000
+                # At smoke scale both sides can round to zero, and a
+                # ratio taken there would be noise dressed as a number.
+                ratio = f"{gm / bm:.2f}" if bm >= 1.0 and gm >= 1.0 else "--"
                 report.append(f"| {b['name']} | {bm:.1f} ± {bs:.1f} | "
-                              f"{gm:.1f} ± {gs:.1f} | {gm / bm:.2f} |")
+                              f"{gm:.1f} ± {gs:.1f} | {ratio} |")
             report.append("")
     finally:
         if made and not keep:
