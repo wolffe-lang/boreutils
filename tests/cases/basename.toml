@@ -1,0 +1,183 @@
+# basename — GNU coreutils 9.11, black-box. Options do NOT permute
+# here: the first operand ends them.
+
+[[case]]
+name = "a path"
+args = ["/usr/bin/sort"]
+
+[[case]]
+name = "a suffix as the second operand"
+args = ["include/stdio.h", ".h"]
+
+[[case]]
+name = "no operand is a usage error"
+
+[[case]]
+name = "a third operand is an extra operand"
+args = ["a", "b", "c"]
+
+[[case]]
+name = "-a takes every operand as a name"
+args = ["-a", "any/str1", "any/str2"]
+
+[[case]]
+name = "-s implies -a"
+args = ["-s", ".h", "a.h", "b.h"]
+
+[[case]]
+name = "-z ends with NUL"
+args = ["-z", "a/b"]
+
+[[case]]
+name = "-za is a cluster"
+args = ["-za", "a/b", "c/d"]
+
+[[case]]
+name = "-s attached to its cluster"
+args = ["-sx", "a.x"]
+
+[[case]]
+name = "--suffix= inline"
+args = ["--suffix=.c", "x.c", "y.c"]
+
+[[case]]
+name = "a long option abbreviated"
+args = ["--mul", "a", "b"]
+
+[[case]]
+name = "options do not permute: an option after an operand is a suffix"
+args = ["x.c", "--suffix=.c"]
+
+[[case]]
+name = "options do not permute: -s after operands is an extra operand"
+args = ["a.h", "b.h", "-s", ".h"]
+
+[[case]]
+name = "root"
+args = ["/"]
+
+[[case]]
+name = "two slashes"
+args = ["//"]
+
+[[case]]
+name = "trailing slash"
+args = ["a/b/"]
+
+[[case]]
+name = "slashes everywhere"
+args = ["///a///"]
+
+[[case]]
+name = "the suffix is the whole name"
+args = [".h", ".h"]
+
+[[case]]
+name = "the suffix is the whole name, again"
+args = ["a.h", "a.h"]
+
+[[case]]
+name = "an empty name"
+args = [""]
+
+[[case]]
+name = "an empty suffix"
+args = ["-s", "", "x"]
+
+[[case]]
+name = "a slash suffix on a trailing-slash name"
+args = ["-s", "/", "a/"]
+
+[[case]]
+name = "root with a root suffix"
+args = ["/", "/"]
+
+[[case]]
+name = "end of options"
+args = ["--", "-a"]
+
+[[case]]
+name = "a lone dash is a name"
+args = ["-"]
+
+[[case]]
+name = "an unknown short option"
+args = ["-x", "a"]
+
+[[case]]
+name = "an unknown long option"
+args = ["--foo", "a"]
+
+[[case]]
+name = "an unknown long option with a value"
+args = ["--foo=1", "a"]
+
+[[case]]
+name = "three dashes"
+args = ["---", "a"]
+
+[[case]]
+name = "a long option that needs its argument"
+args = ["--suffix"]
+
+[[case]]
+name = "a short option that needs its argument"
+args = ["-s"]
+
+[[case]]
+name = "an option that takes no argument, given one"
+args = ["--zero=1", "a"]
+
+[[case]]
+name = "an abbreviated option that takes no argument, given one"
+args = ["--ze=1", "a"]
+
+[[case]]
+name = "an ambiguous abbreviation"
+args = ["--=x", "a"]
+
+[[case]]
+name = "help wins before a later error"
+args = ["--help", "-x"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "an earlier error wins before help"
+args = ["-x", "--help"]
+
+[[case]]
+name = "an operand that needs quoting in the diagnostic"
+args = ["a", "b", "c'd"]
+
+[[case]]
+name = "an operand with a tab in the diagnostic"
+args = ["a", "b", "c\td"]
+
+[[case]]
+name = "a non-ASCII operand in the diagnostic"
+args = ["a", "b", "cé"]
+
+[[case]]
+name = "a backslash operand in the diagnostic"
+args = ["a", "b", "c\\d"]
+
+[[case]]
+name = "help alone"
+args = ["--help"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "version alone"
+args = ["--version"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "version abbreviated"
+args = ["--ver"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "POSIXLY_CORRECT: an option before operands still parses"
+args = ["--help", "a"]
+env = { POSIXLY_CORRECT = "1" }
+compare = ["exit", "stderr"]

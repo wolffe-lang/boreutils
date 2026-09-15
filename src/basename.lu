@@ -1,0 +1,146 @@
+//! member: false
+//!
+//! basename — write a path with its directory, and optionally a
+//! suffix, removed.
+//!
+//! References consulted: POSIX.1-2024 `basename`; GNU coreutils 9.11
+//! `basename --help` and black-box runs of the GNU binary. Never GNU
+//! source.
+//!
+//! GNU's rules, each measured against coreutils 9.11:
+//!
+//! - Options do NOT permute here: the first operand ends them, so
+//!   `basename x.c --suffix=.c` writes `x.c` (two operands, the second
+//!   read as the suffix) where `basename --suffix=.c x.c` writes `x`.
+//!   This is unlike `dirname` and `yes`, which do permute.
+//! - Without `-a`/`-s`, one operand is a path and a second is a suffix;
+//!   a third is `extra operand 'x'`, and none is `missing operand`.
+//!   Both are status 1.
+//! - A suffix is removed only when it is not the whole name: `basename
+//!   .h .h` writes `.h`.
+//! - An all-slash path is `/`, and an empty path is empty.
+
+use bore
+
+fn main() -> int {
+    let spec = options()
+    let p = bore.parse(spec, env_args(), false)
+    var out = bore.stdout()
+    var multiple = false
+    var suffix = ""
+    var zero = false
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i]
+        if k == "help" {
+            bore.put(mut out, help()) else |_| {}
+            return bore.finish(mut out, "basename", 0)
+        }
+        if k == "version" {
+            bore.put(mut out, bore.version_text("basename")) else |_| {}
+            return bore.finish(mut out, "basename", 0)
+        }
+        if k == "multiple" {
+            multiple = true
+        }
+        if k == "suffix" {
+            multiple = true
+            suffix = p.values[i]
+        }
+        if k == "zero" {
+            zero = true
+        }
+        i += 1
+    }
+    if !bore.ok(p) {
+        return bore.usage_error("basename", p.error)
+    }
+    var names = p.operands
+    if names.len == 0 {
+        return bore.usage_error("basename", "missing operand")
+    }
+    if !multiple {
+        if names.len > 2 {
+            return bore.usage_error("basename", "extra operand {bore.quote(names[2])}")
+        }
+        if names.len == 2 {
+            suffix = names[1]
+            var one = List[str]()
+            (mut one).push(names[0])
+            names = one
+        }
+    }
+    write_names(mut out, names, suffix, zero) else |_| {
+        bore.warn("basename", "write error")
+        return 1
+    }
+    bore.finish(mut out, "basename", 0)
+}
+
+fn options() -> List[bore.Opt] {
+    var s = List[bore.Opt]()
+    (mut s).push(bore.flag("a", "multiple"))
+    (mut s).push(bore.takes("s", "suffix"))
+    (mut s).push(bore.flag("z", "zero"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    s
+}
+
+fn write_names(mut out: bore.Out, names: List[str], suffix: str, zero: bool) -> () ! {io} {
+    for n in names {
+        bore.put(mut out, base(n, suffix))?
+        if zero {
+            bore.put_byte(mut out, 0 as byte)?
+        } else {
+            bore.put(mut out, "\n")?
+        }
+    }
+}
+
+/// The last component of `path`, with `suffix` removed when it is not
+/// the whole of it.
+pub fn base(path: str, suffix: str) -> str {
+    if path.len == 0 {
+        return ""
+    }
+    let stripped = strip_slashes(path)
+    if stripped.len == 0 {
+        return "/"
+    }
+    var name = stripped
+    let cut = stripped.rfind("/") else -1
+    if cut >= 0 {
+        name = stripped[cut + 1..]
+    }
+    if suffix.len > 0 && name != suffix && name.ends_with(suffix) {
+        return name[0..name.len - suffix.len]
+    }
+    name
+}
+
+/// `s` without its trailing slashes.
+pub fn strip_slashes(s: str) -> str {
+    var end = s.len
+    while end > 0 && s[end - 1..end] == "/" {
+        end -= 1
+    }
+    s[0..end]
+}
+
+fn help() -> str {
+    """
+    Usage: basename NAME [SUFFIX]
+      or:  basename OPTION... NAME...
+    Write NAME without any leading directory, and without a trailing
+    SUFFIX when one is given and is not the whole name.
+
+      -a, --multiple       treat every operand as a NAME
+      -s, --suffix=SUFFIX  remove SUFFIX; implies -a
+      -z, --zero           end each line with NUL, not newline
+          --help           print this help and exit
+          --version        print the version and exit
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}
