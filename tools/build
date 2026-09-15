@@ -1,0 +1,35 @@
+#!/bin/sh
+# build — compile every utility to target/<tier>/<name>.
+#
+# A utility is a top-level `src/<name>.lu` marked `//! member: false`;
+# the shared module is `src/bore/`. Usage: tools/build [--dev] [name...]
+# The default tier is --release (LLVM); --dev is the fast backend.
+set -eu
+BORE_ROOT=$(cd "$(dirname "$0")/.." && pwd)
+export BORE_ROOT
+cd "$BORE_ROOT"
+. tools/lib-toolchain.sh
+
+tier=release
+flag=--release
+if [ "${1:-}" = "--dev" ]; then
+    tier=dev
+    flag=
+    shift
+fi
+
+if [ $# -eq 0 ]; then
+    set --
+    for f in src/*.lu; do
+        case "$f" in *_test.lu) continue ;; esac
+        n=$(basename "$f" .lu)
+        set -- "$@" "$n"
+    done
+fi
+
+mkdir -p "target/$tier"
+for n in "$@"; do
+    # shellcheck disable=SC2086
+    "$WOLF" build $flag --deny-warnings "src/$n.lu" -o "target/$tier/$n"
+    echo "build: target/$tier/$n"
+done
