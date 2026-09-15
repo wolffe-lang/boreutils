@@ -32,7 +32,6 @@ want=$(toml_value std rev)
 [ -f "$WOLF_STD/STD-REV" ] || fail_pin "no std tree at $WOLF_STD"
 have=$(cat "$WOLF_STD/STD-REV")
 [ "$have" = "$want" ] || fail_pin "std identity: have $have, pin wants $want"
-# The driver resolves `use std.…` under <root>/std/, so the root is the
-# tree's parent.
-WOLF_STD=$(dirname "$WOLF_STD")
+# $WOLF_STD names the std directory itself (measured at 0.2.14: the
+# tree's parent does not resolve `use std.…`).
 export WOLF WOLF_STD
