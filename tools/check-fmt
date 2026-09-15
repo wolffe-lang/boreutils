@@ -1,0 +1,8 @@
+#!/bin/sh
+# check-fmt — wolf fmt --check over every .lu in the tree.
+set -eu
+BORE_ROOT=$(cd "$(dirname "$0")/.." && pwd)
+export BORE_ROOT
+cd "$BORE_ROOT"
+. tools/lib-toolchain.sh
+"$WOLF" fmt --check src

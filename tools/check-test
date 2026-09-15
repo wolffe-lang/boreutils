@@ -1,0 +1,8 @@
+#!/bin/sh
+# check-test — the unit tests (`*_test.lu`) on the native tier.
+set -eu
+BORE_ROOT=$(cd "$(dirname "$0")/.." && pwd)
+export BORE_ROOT
+cd "$BORE_ROOT"
+. tools/lib-toolchain.sh
+"$WOLF" test

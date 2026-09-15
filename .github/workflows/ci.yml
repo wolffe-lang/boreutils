@@ -1,0 +1,79 @@
+# boreutils — CI.
+#
+# Two hosts, because the oracle differs on them: linux runs GNU
+# coreutils natively, macOS runs Homebrew's g-prefixed build. Windows is
+# out of scope for this project (the byte-IO route boreutils uses is
+# `/dev/stdout` and `/dev/stdin`), so there is no windows job.
+#
+# The toolchain is acquired from the release archives BY DIGEST
+# (tools/fetch-toolchain refuses on a mismatch); nothing is built from
+# source. Every lane runs bare and its exit code is read directly — no
+# pipes, so nothing can mask a failure.
+
+name: ci
+
+on:
+  push:
+    branches: [trunk]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gauntlet:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            gnu_prefix: ""
+          - os: macos-latest
+            gnu_prefix: "g"
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    env:
+      BORE_GNU_PREFIX: ${{ matrix.gnu_prefix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: the oracle and the bench tool
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            brew install --quiet coreutils hyperfine
+          else
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq hyperfine || {
+              echo "::notice::no hyperfine package; taking the release binary"
+              v=1.19.0
+              url="https://github.com/sharkdp/hyperfine/releases/download/v$v/hyperfine_${v}_amd64.deb"
+              curl -sSfL -o /tmp/hyperfine.deb "$url"
+              sudo dpkg -i /tmp/hyperfine.deb
+            }
+          fi
+          "${BORE_GNU_PREFIX}true" --version | head -1
+          hyperfine --version
+
+      - name: the pinned toolchain, by digest
+        run: tools/fetch-toolchain
+
+      - name: wolf fmt --check
+        run: tools/check-fmt
+
+      - name: build (release)
+        run: tools/build
+
+      - name: wolf test
+        run: tools/check-test
+
+      - name: the differential suite against GNU
+        run: tools/difftest
+
+      - name: the harness sees a difference (the planted red)
+        run: tools/difftest-selftest
+
+      - name: smoke bench
+        run: tools/bench --scale 0.0005 --runs 3
