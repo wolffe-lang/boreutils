@@ -1,0 +1,46 @@
+# boreutils — the pinned toolchain.
+#
+# wolf and lupin come from their RELEASE ARCHIVES, pinned by sha256
+# digest, never from a source build. `tools/fetch-toolchain` downloads
+# the archive for this host, refuses on a digest mismatch, and stages
+# the whole archive into `.wolf-bin/` (gitignored). The native tier
+# needs `libwolf_rt.a` beside the driver, which is why the whole
+# archive is staged and not just the binary.
+#
+# Identity is the FIRST line of `--version` (lobo's lib-toolchain
+# rule): `tools/lib-toolchain.sh` refuses when it drifts from
+# `version_line`. `rev` is information: the commit the tag names.
+#
+# One row per host target the archives ship. Windows is out of scope
+# for boreutils, so its archive is not pinned.
+#
+# Bumps are deliberate: their own commit, every lane green at the new
+# pin, this note saying what the bump changes.
+
+[wolf]
+version = "0.2.14"
+repo = "wolffe-lang/wolf-lang"
+rev = "30731a6509443ade03724707345da9ceb86a88bf"
+version_line = "wolf 0.2.14 (wolfgang, pin 30731a6)"
+aarch64-apple-darwin = "80407e31b89cae684163fd9fd79c3935a5fe63873dcb16376c36c8596af61b54"
+x86_64-unknown-linux-gnu = "13b4de6d0d37fe31a719e4b89033f8e55791e2a99afe6b4c83db686f93c60d05"
+aarch64-unknown-linux-gnu = "5bb8a943a1fa4a3d0de3b2dfcc2af525d9ae01b8c31ca9115863a7e9a64e7fdd"
+
+[lupin]
+# The reference interpreter wolf 0.2.14 declares as its pairing.
+version = "0.1.36"
+repo = "wolffe-lang/wolf-interp"
+rev = "6e94436b2cae285bf2ffc19477600535e33ccbbb"
+version_line = "lupin 0.1.36 (wolf-interp, reference interpreter at pin a7f517e)"
+aarch64-apple-darwin = "41f21002598dec61cd8600fe3ab28e3a882c41b482a35ca417e2467e20fc8e2a"
+x86_64-unknown-linux-gnu = "31f97dac00961b8b598696f85b2fefc4601d9c746e86f9eb8ccd28c1c1257d24"
+aarch64-unknown-linux-gnu = "0372e8d4d2a7e7c70d271ac5bc1c60c2c2257c44d6cd7b368824ade50fbc4a1c"
+
+[std]
+# wolf-std ships no release archive, so the tree is pinned by commit:
+# git's object hash is the digest. This is the rev lobo pins against
+# wolf 0.2.14. `use std.…` resolves against `.wolf-bin/std` through
+# the driver's own $WOLF_STD, and `STD-REV` beside it is the tree's
+# identity.
+repo = "wolffe-lang/wolf-std"
+rev = "2d1021996da6cde7b14c41ee4ef9d10125182e13"
