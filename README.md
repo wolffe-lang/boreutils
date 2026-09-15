@@ -67,15 +67,19 @@ linux and macOS.
 Every utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus. "vs GNU" is wall-clock from `tools/bench`,
 GNU's time divided by ours, so above 1.00 is faster than GNU; it is a
-measurement on one host, not a promise.
+measurement on one host, not a promise. The numbers below are nomad-1
+(macOS arm64, 18 cpus, load 8.8), GNU coreutils 9.11, release tier,
+5 runs: `yes` writes 1 GiB of `y` into `head -c` in 238 ms against
+GNU's 652 ms, and the utilities that only start up and exit take about
+2 ms either way.
 
 | utility | status | vs GNU |
 |---|---|---|
 | `true` | done | start-up only |
 | `false` | done | start-up only |
-| `echo` | done | start-up only |
-| `basename` | done | start-up only |
+| `echo` | done | 1.04x |
+| `basename` | done | 1.04x |
 | `dirname` | done | start-up only |
-| `yes` | done | 1.93x on 1 GiB (nomad-1) |
+| `yes` | done | **2.74x** |
 | `cat` | next (bu01) | — |
 | `wc` | next (bu02) | — |
