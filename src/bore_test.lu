@@ -1,0 +1,75 @@
+//! The option parser and the quoting, on the shapes GNU's getopt_long
+//! answers (each expectation below was read off GNU coreutils 9.11).
+
+use bore
+
+fn spec() -> List[bore.Opt] {
+    var s = List[bore.Opt]()
+    (mut s).push(bore.flag("a", "multiple"))
+    (mut s).push(bore.takes("s", "suffix"))
+    (mut s).push(bore.flag("z", "zero"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    s
+}
+
+fn words(a: str, b: str, c: str) -> List[str] {
+    var xs = List[str]()
+    if a.len > 0 || b.len > 0 || c.len > 0 {
+        (mut xs).push(a)
+    }
+    if b.len > 0 || c.len > 0 {
+        (mut xs).push(b)
+    }
+    if c.len > 0 {
+        (mut xs).push(c)
+    }
+    xs
+}
+
+fn joined(xs: List[str]) -> str {
+    var out = ""
+    for x in xs {
+        out += "[{x}]"
+    }
+    out
+}
+
+fn check(args: List[str], permute: bool, want: str) {
+    let p = bore.parse(spec(), args, permute)
+    let got = "k={joined(p.keys)} v={joined(p.values)} o={joined(p.operands)} e={p.error}"
+    assert(got == want, "parse {joined(args)}: got {got}, want {want}")
+}
+
+fn main() {
+    check(words("a/b", "", ""), true, "k= v= o=[a/b] e=")
+    check(words("-za", "x", ""), true, "k=[zero][multiple] v=[][] o=[x] e=")
+    check(words("-s.h", "x", ""), true, "k=[suffix] v=[.h] o=[x] e=")
+    check(words("-s", ".h", "x"), true, "k=[suffix] v=[.h] o=[x] e=")
+    check(words("-as", ".c", "x"), true, "k=[multiple][suffix] v=[][.c] o=[x] e=")
+    check(words("--suf=.h", "x", ""), true, "k=[suffix] v=[.h] o=[x] e=")
+    check(words("--suffix", ".h", ""), true, "k=[suffix] v=[.h] o= e=")
+    check(words("--mul", "x", ""), true, "k=[multiple] v=[] o=[x] e=")
+    check(words("x", "-a", ""), true, "k=[multiple] v=[] o=[x] e=")
+    check(words("x", "-a", ""), false, "k= v= o=[x][-a] e=")
+    check(words("--", "-a", ""), true, "k= v= o=[-a] e=")
+    check(words("-", "", ""), true, "k= v= o=[-] e=")
+    check(words("-x", "--help", ""), true, "k= v= o= e=invalid option -- 'x'")
+    check(words("--help", "-x", ""), true, "k=[help] v=[] o= e=invalid option -- 'x'")
+    check(words("-s", "", ""), true, "k= v= o= e=option requires an argument -- 's'")
+    check(words("--suf", "", ""), true, "k= v= o= e=option '--suffix' requires an argument")
+    check(words("--ze=1", "", ""), true, "k= v= o= e=option '--zero' doesn't allow an argument")
+    check(words("--foo=1", "", ""), true, "k= v= o= e=unrecognized option '--foo=1'")
+    check(words("---", "", ""), true, "k= v= o= e=unrecognized option '---'")
+    check(
+        words("--=x", "", ""),
+        true,
+        "k= v= o= e=option '--=x' is ambiguous; possibilities: '--multiple' '--suffix' '--zero' '--help' '--version'",
+    )
+    assert(bore.quote("c") == "'c'", "quote plain")
+    assert(bore.quote("c d") == "'c d'", "quote with a space")
+    assert(bore.quote("c'd") == "'c\\'d'", "quote with a single quote")
+    assert(bore.quote("c\\d") == "'c\\\\d'", "quote with a backslash")
+    assert(bore.quote("c\td") == "'c\\td'", "quote with a tab")
+    assert(bore.quote("cé") == "'c\\303\\251'", "quote with a non-ASCII byte")
+}

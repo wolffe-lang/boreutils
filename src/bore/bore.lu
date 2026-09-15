@@ -1,0 +1,392 @@
+//! bore — what every boreutils program shares.
+//!
+//! Three things, and nothing that belongs to one utility:
+//!
+//! - **Options** in GNU's getopt_long shape: short clusters (`-za`), a
+//!   short option's argument attached or separate (`-s.h`, `-s .h`),
+//!   long options abbreviated to any unique prefix (`--mul`), their
+//!   argument after `=` or as the next word, `--` ending the options,
+//!   and operands permuted among options unless `POSIXLY_CORRECT` is set.
+//! - **Diagnostics** in GNU's shape: `prog: message`, and for a usage
+//!   error the `Try 'prog --help' for more information.` line after it.
+//! - **Output** as bytes, buffered: `/dev/stdout` reopened in append
+//!   mode, written in 64 KiB chunks with `fs.write_chunk`.
+//!
+//! References consulted: POSIX.1-2024 XBD 12.2 (Utility Syntax
+//! Guidelines); GNU coreutils 9.11's `--help` output and black-box runs
+//! of its binaries (macOS Homebrew and linux native, glibc). Never GNU
+//! source.
+//!
+//! **Why `/dev/stdout` and not `print_raw`.** `print_raw` takes a `str`,
+//! so it cannot write bytes that are not UTF-8; it makes one `write` per
+//! call; and it discards write errors, so a full disk looks like success.
+//! wolf 0.2.14 has no builtin that writes descriptor 1 as bytes, and
+//! reopening `/dev/stdout` is the route to one. On linux that route
+//! fails when standard output is a socket (the reopen is refused), and
+//! then this module falls back to `print_raw` for UTF-8 output.
+
+use std.env
+
+/// The version every boreutils `--version` reports.
+pub fn version() -> str {
+    "0.1.0"
+}
+
+/// The bytes a buffer holds before it is written.
+fn chunk() -> int {
+    65536
+}
+
+// ---------------------------------------------------------------- options
+
+/// One option a program accepts: a one-character short name, a long
+/// name, or both (`""` for the one it lacks), and whether it takes an
+/// argument.
+pub struct Opt {
+    short: str,
+    long: str,
+    arg: bool,
+}
+
+/// An option that takes no argument.
+pub fn flag(short: str, long: str) -> Opt {
+    Opt { short: short, long: long, arg: false }
+}
+
+/// An option that takes an argument.
+pub fn takes(short: str, long: str) -> Opt {
+    Opt { short: short, long: long, arg: true }
+}
+
+/// The result of `parse`: the options in the order they were given,
+/// the operands in order, and the first error, if any.
+///
+/// `keys[i]` is the long name of the i-th option given (its short name
+/// when it has no long name) and `values[i]` its argument, `""` when it
+/// takes none. Parsing stops at the first error, so every option before
+/// it is present: a program that acts on `--help` in order behaves as
+/// GNU's does for `--help -x` (help) and `-x --help` (the error).
+pub struct Parsed {
+    keys: List[str],
+    values: List[str],
+    operands: List[str],
+    error: str,
+}
+
+/// Whether parsing succeeded.
+pub fn ok(p: Parsed) -> bool {
+    p.error.len == 0
+}
+
+/// Whether option operands permute: GNU permutes unless
+/// `POSIXLY_CORRECT` is set, when the first operand ends the options.
+pub fn permute() -> bool {
+    !env.has("POSIXLY_CORRECT")
+}
+
+/// Parse `args` against `spec`.
+///
+/// Never traps and has no rows: a malformed command line is data, and
+/// the message GNU's getopt would print (without the `prog: ` prefix) is
+/// in `error`.
+pub fn parse(spec: List[Opt], args: List[str], permute: bool) -> Parsed {
+    var p = Parsed {
+        keys: List[str](),
+        values: List[str](),
+        operands: List[str](),
+        error: "",
+    }
+    var i = 0
+    var rest_are_operands = false
+    while i < args.len {
+        let a = args[i]
+        i += 1
+        if rest_are_operands {
+            (mut p.operands).push(a)
+        } else if a == "--" {
+            rest_are_operands = true
+        } else if a.starts_with("--") {
+            let body = a[2..]
+            let eq = body.find("=") else -1
+            var name = body
+            var inline = ""
+            if eq >= 0 {
+                name = body[0..eq]
+                inline = body[eq + 1..]
+            }
+            let k = find_long(spec, name)
+            if k == -1 {
+                p.error = "unrecognized option '{a}'"
+                return p
+            }
+            if k == -2 {
+                p.error = "option '{a}' is ambiguous; possibilities:{possible(spec, name)}"
+                return p
+            }
+            let o = copy spec[k]
+            var value = ""
+            if o.arg {
+                if eq >= 0 {
+                    value = inline
+                } else if i < args.len {
+                    value = args[i]
+                    i += 1
+                } else {
+                    p.error = "option '--{o.long}' requires an argument"
+                    return p
+                }
+            } else if eq >= 0 {
+                p.error = "option '--{o.long}' doesn't allow an argument"
+                return p
+            }
+            (mut p.keys).push(o.long)
+            (mut p.values).push(value)
+        } else if a.starts_with("-") && a.len > 1 {
+            var off = 1
+            var done = false
+            while !done && off < a.len {
+                let c = next_char(a, off)
+                off += c.len
+                let k = find_short(spec, c)
+                if k < 0 {
+                    p.error = "invalid option -- '{c}'"
+                    return p
+                }
+                let o = copy spec[k]
+                var value = ""
+                if o.arg {
+                    if off < a.len {
+                        value = a[off..]
+                    } else if i < args.len {
+                        value = args[i]
+                        i += 1
+                    } else {
+                        p.error = "option requires an argument -- '{c}'"
+                        return p
+                    }
+                    done = true
+                }
+                (mut p.keys).push(key_of(o))
+                (mut p.values).push(value)
+            }
+        } else {
+            (mut p.operands).push(a)
+            if !permute {
+                rest_are_operands = true
+            }
+        }
+    }
+    p
+}
+
+fn key_of(o: Opt) -> str {
+    if o.long.len > 0 {
+        return o.long
+    }
+    o.short
+}
+
+/// The character of `s` starting at byte `off`, as a `str`.
+fn next_char(s: str, off: int) -> str {
+    for c in s[off..].chars() {
+        return "{c}"
+    }
+    ""
+}
+
+fn find_short(spec: List[Opt], c: str) -> int {
+    var k = 0
+    for o in spec {
+        if o.short.len > 0 && o.short == c {
+            return k
+        }
+        k += 1
+    }
+    -1
+}
+
+/// The index of the long option `name` names: exactly, or as the one
+/// option it is a prefix of. -1 when none matches, -2 when it is
+/// ambiguous.
+fn find_long(spec: List[Opt], name: str) -> int {
+    var k = 0
+    var found = -1
+    var count = 0
+    for o in spec {
+        if o.long.len > 0 {
+            if o.long == name {
+                return k
+            }
+            if o.long.starts_with(name) {
+                found = k
+                count += 1
+            }
+        }
+        k += 1
+    }
+    if count > 1 {
+        return -2
+    }
+    found
+}
+
+fn possible(spec: List[Opt], name: str) -> str {
+    var out = List[byte]()
+    for o in spec {
+        if o.long.len > 0 && o.long.starts_with(name) {
+            for b in " '--{o.long}'".bytes() {
+                (mut out).push(b)
+            }
+        }
+    }
+    str_from_utf8(out) else ""
+}
+
+// ------------------------------------------------------------ diagnostics
+
+/// Write `prog: msg` to standard error.
+pub fn warn(prog: str, msg: str) {
+    eprint("{prog}: {msg}")
+}
+
+/// Report a usage error in GNU's shape and answer the status to exit
+/// with (1, as GNU's basename, dirname and yes do).
+pub fn usage_error(prog: str, msg: str) -> int {
+    eprint("{prog}: {msg}\nTry '{prog} --help' for more information.")
+    1
+}
+
+/// `s` quoted as GNU quotes an operand in a diagnostic under `LC_ALL=C`
+/// (measured against coreutils 9.11: shell-escape style — always single
+/// quotes, a backslash before a backslash or a single quote, C escapes
+/// for the control characters that have one, and a three-digit octal
+/// escape for every other byte outside printable ASCII, so `é` prints as
+/// `'\303\251'`).
+pub fn quote(s: str) -> str {
+    var out = List[byte]()
+    (mut out).push(39 as byte)
+    for b in s.bytes() {
+        let n = b as int
+        if n == 92 || n == 39 {
+            (mut out).push(92 as byte)
+            (mut out).push(b)
+        } else if n >= 32 && n < 127 {
+            (mut out).push(b)
+        } else {
+            for e in escape(n).bytes() {
+                (mut out).push(e)
+            }
+        }
+    }
+    (mut out).push(39 as byte)
+    str_from_utf8(out) else "'?'"
+}
+
+/// The escape GNU prints for the byte `n`, backslash included.
+fn escape(n: int) -> str {
+    if n == 7 {
+        return "\\a"
+    }
+    if n == 8 {
+        return "\\b"
+    }
+    if n == 9 {
+        return "\\t"
+    }
+    if n == 10 {
+        return "\\n"
+    }
+    if n == 11 {
+        return "\\v"
+    }
+    if n == 12 {
+        return "\\f"
+    }
+    if n == 13 {
+        return "\\r"
+    }
+    let digits = "01234567"
+    let a = digits[n / 64..n / 64 + 1]
+    let b = digits[n / 8 % 8..n / 8 % 8 + 1]
+    let c = digits[n % 8..n % 8 + 1]
+    "\\{a}{b}{c}"
+}
+
+/// The first line of `--version`, and the lines after it.
+pub fn version_text(prog: str) -> str {
+    "{prog} (boreutils) {version()}\nLicence GPL-3.0-or-later. There is no warranty.\n"
+}
+
+// ----------------------------------------------------------------- output
+
+/// Buffered byte output to standard output.
+pub struct Out {
+    fd: int,
+    direct: bool,
+    buf: List[byte],
+}
+
+/// Standard output, ready to buffer.
+///
+/// Open it before any other file: when descriptor 1 is closed, a file
+/// opened first takes descriptor 1 and `/dev/stdout` then names it.
+pub fn stdout() -> Out {
+    let fd = fs_open_mode("/dev/stdout", 2) else |_| {
+        return Out { fd: -1, direct: false, buf: List[byte]() }
+    }
+    Out { fd: fd, direct: true, buf: List[byte]() }
+}
+
+/// Append `s` to the buffer, writing when it is full.
+pub fn put(mut o: Out, s: str) -> () ! {io} {
+    for b in s.bytes() {
+        (mut o.buf).push(b)
+    }
+    if o.buf.len >= chunk() {
+        flush(mut o)?
+    }
+}
+
+/// Append one byte, writing when the buffer is full.
+pub fn put_byte(mut o: Out, b: byte) -> () ! {io} {
+    (mut o.buf).push(b)
+    if o.buf.len >= chunk() {
+        flush(mut o)?
+    }
+}
+
+/// Write what is buffered, then `bytes`, without copying `bytes`.
+pub fn write_all(mut o: Out, bytes: List[byte]) -> () ! {io} {
+    flush(mut o)?
+    emit(o, bytes)?
+}
+
+/// Write what is buffered.
+///
+/// Rows: `io` when the write fails, or, on the `print_raw` fallback,
+/// when the bytes are not UTF-8 and so cannot be written at all.
+pub fn flush(mut o: Out) -> () ! {io} {
+    if o.buf.len == 0 {
+        return
+    }
+    emit(o, o.buf)?
+    o.buf = List[byte]()
+}
+
+fn emit(o: Out, bytes: List[byte]) -> () ! {io} {
+    if o.direct {
+        fs_write_chunk(o.fd, bytes) else |_| { return io }
+        return
+    }
+    let text = str_from_utf8(bytes) else |_| { return io }
+    print_raw(text)
+}
+
+/// Flush `o` and answer `status`, or report the write error and answer 1.
+pub fn finish(mut o: Out, prog: str, status: int) -> int {
+    flush(mut o) else |_| {
+        warn(prog, "write error")
+        return 1
+    }
+    status
+}
