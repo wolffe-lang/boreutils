@@ -1,0 +1,10 @@
+# echo — start-up cost. echo writes a few bytes and exits, so this is
+# process start plus one write; it is the floor every utility pays.
+
+[[bench]]
+name = "one short string"
+command = "{prog} boreutils"
+
+[[bench]]
+name = "200 arguments with escapes"
+command = "{prog} -e a\\tb a\\tb a\\tb a\\tb a\\tb a\\tb a\\tb a\\tb a\\tb a\\tb a\\tb a\\tb a\\tb a\\tb a\\tb a\\tb a\\tb a\\tb a\\tb a\\tb > /dev/null"

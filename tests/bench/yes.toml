@@ -1,0 +1,11 @@
+# yes — the throughput bench. `yes` produces output and nothing else, so
+# it measures exactly what a buffered writer buys over one write(2) per
+# line, against a GNU utility written for the same purpose.
+
+[[bench]]
+name = "1 GiB of `y` into head -c"
+command = "{prog} | head -c {bytes:1073741824} > /dev/null"
+
+[[bench]]
+name = "1 GiB of a 40-byte line into head -c"
+command = "{prog} boreutils is a coreutils in wolf | head -c {bytes:1073741824} > /dev/null"
