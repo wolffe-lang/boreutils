@@ -1,0 +1,25 @@
+#!/bin/sh
+# difftest-selftest — prove the differential harness can see a difference.
+#
+# A gate nobody has watched fail is not a gate. This runs difftest over
+# tests/selftest/, whose cases are deliberately wrong about GNU (they
+# run the WRONG GNU utility against ours), and passes only when difftest
+# reports a failure and exits 1.
+set -eu
+BORE_ROOT=$(cd "$(dirname "$0")/.." && pwd)
+cd "$BORE_ROOT"
+
+out=$(BORE_SELFTEST=1 tools/difftest --cases tests/selftest 2>&1) && status=0 || status=$?
+if [ "$status" -ne 1 ]; then
+    echo "difftest-selftest: REFUSED — difftest exited $status over the planted"
+    echo "difftest-selftest: mismatch; it must exit 1. Output was:"
+    echo "$out"
+    exit 1
+fi
+if ! echo "$out" | grep -q '^FAIL '; then
+    echo "difftest-selftest: REFUSED — difftest exited 1 but printed no FAIL line:"
+    echo "$out"
+    exit 1
+fi
+echo "$out" | grep -E '^(FAIL|difftest:)'
+echo "difftest-selftest: the harness saw the planted difference"

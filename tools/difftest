@@ -39,7 +39,11 @@ GNU's name per host: plain on linux, g-prefixed on macOS (Homebrew's
 coreutils). $BORE_GNU_PREFIX overrides. The GNU version is printed in
 the header, because behaviour differs across GNU releases.
 
-usage: tools/difftest [--bin DIR] [util ...]
+  gnu_util = "false"             # self-test only ($BORE_SELFTEST): run
+                                 #   THIS GNU utility as the oracle, so a
+                                 #   case can plant a known difference
+
+usage: tools/difftest [--bin DIR] [--cases DIR] [util ...]
 """
 
 import os
@@ -56,7 +60,7 @@ CASES = os.path.join(ROOT, "tests", "cases")
 FIXTURES = os.path.join(ROOT, "tests", "fixtures")
 ALL = ("stdout", "stderr", "exit")
 KEYS = {"name", "args", "stdin", "stdin_file", "env", "compare",
-        "stdout_bytes", "skip", "timeout"}
+        "stdout_bytes", "skip", "timeout", "gnu_util"}
 
 
 def die(msg):
@@ -160,12 +164,16 @@ def load(path):
 
 def main(argv):
     bindir = os.path.join(ROOT, "target", "release")
-    if argv[:1] == ["--bin"]:
+    cases = CASES
+    while argv[:1] in (["--bin"], ["--cases"]):
         if len(argv) < 2:
-            die("--bin needs a directory")
-        bindir = os.path.abspath(argv[1])
+            die(f"{argv[0]} needs a directory")
+        if argv[0] == "--bin":
+            bindir = os.path.abspath(argv[1])
+        else:
+            cases = os.path.abspath(argv[1])
         argv = argv[2:]
-    utils = argv or sorted(f[:-5] for f in os.listdir(CASES)
+    utils = argv or sorted(f[:-5] for f in os.listdir(cases)
                            if f.endswith(".toml"))
     prefix = gnu_prefix()
     probe = shutil.which(prefix + "true")
@@ -179,14 +187,19 @@ def main(argv):
 
     passed = failed = skipped = 0
     for util in utils:
-        cases = load(os.path.join(CASES, util + ".toml"))
+        entries = load(os.path.join(cases, util + ".toml"))
         bore = os.path.join(bindir, util)
-        gnu = shutil.which(prefix + util)
         if not os.access(bore, os.X_OK):
             die(f"no boreutils binary at {bore} (run tools/build)")
-        if gnu is None:
-            die(f"GNU '{prefix}{util}' not found on PATH")
-        for case in cases:
+        for case in entries:
+            oracle = util
+            if "gnu_util" in case:
+                if not os.environ.get("BORE_SELFTEST"):
+                    die(f"{util}: gnu_util is for the self-test only")
+                oracle = case["gnu_util"]
+            gnu = shutil.which(prefix + oracle)
+            if gnu is None:
+                die(f"GNU '{prefix}{oracle}' not found on PATH")
             label = f"{util}: {case['name']}"
             if "skip" in case:
                 skipped += 1
@@ -194,7 +207,7 @@ def main(argv):
                 continue
             fields = case.get("compare", ALL)
             b = run(bore, util, case)
-            g = run(gnu, prefix + util, case)
+            g = run(gnu, prefix + oracle, case)
             ok = (b is not None and g is not None
                   and all(b[f] == g[f] for f in fields))
             if ok:
