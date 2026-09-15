@@ -1,0 +1,40 @@
+//! member: false
+//!
+//! false — do nothing, unsuccessfully.
+//!
+//! References consulted: POSIX.1-2024 `false`; GNU coreutils 9.11
+//! `false --help` and black-box runs. Never GNU source.
+//!
+//! GNU's rule, measured: `--help` and `--version` are honoured only as
+//! the sole argument and only spelled in full (`--ver` is ignored);
+//! every other command line is ignored. The status is 1 either way, even after `--help`.
+
+use bore
+
+fn main() -> int {
+    let status = 1
+    let args = env_args()
+    if args.len != 1 {
+        return status
+    }
+    var out = bore.stdout()
+    if args[0] == "--help" {
+        bore.put(mut out, help()) else |_| {}
+    } else if args[0] == "--version" {
+        bore.put(mut out, bore.version_text("false")) else |_| {}
+    }
+    bore.finish(mut out, "false", status)
+}
+
+fn help() -> str {
+    """
+    Usage: false [ignored arguments]
+      or:  false --help | --version
+    Exit with status 1, doing nothing.
+
+          --help     print this help and exit
+          --version  print the version and exit
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}

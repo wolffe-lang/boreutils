@@ -1,0 +1,43 @@
+# true — GNU coreutils 9.11, black-box. `--help` and `--version` are
+# honoured only spelled in full and only as the sole argument; every
+# other command line is ignored and the status is 0.
+#
+# The help and version TEXT is ours, not GNU's (the licence rule), so
+# those cases compare the exit status only.
+
+[[case]]
+name = "no arguments"
+
+[[case]]
+name = "arguments are ignored"
+args = ["x", "-y", "--zebra"]
+
+[[case]]
+name = "help is the sole argument"
+args = ["--help"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "version is the sole argument"
+args = ["--version"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "help is not abbreviated"
+args = ["--ver"]
+
+[[case]]
+name = "help is not honoured beside another argument"
+args = ["--help", "x"]
+
+[[case]]
+name = "version twice is ignored"
+args = ["--version", "--version"]
+
+[[case]]
+name = "a lone dash is ignored"
+args = ["-"]
+
+[[case]]
+name = "end of options is ignored"
+args = ["--"]
