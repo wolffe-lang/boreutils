@@ -1,0 +1,176 @@
+# echo — GNU coreutils 9.11, black-box. Options are leading arguments
+# made only of -n, -e and -E; the first argument that is not one ends
+# them. --help and --version are honoured only in full and only alone.
+# The help and version TEXT is ours, so those compare the exit only.
+
+[[case]]
+name = "no arguments"
+
+[[case]]
+name = "one word"
+args = ["hello"]
+
+[[case]]
+name = "words are joined by single spaces"
+args = ["a", "b", "c"]
+
+[[case]]
+name = "-n drops the newline"
+args = ["-n", "a", "b"]
+
+[[case]]
+name = "-e interprets escapes"
+args = ["-e", "a\tb"]
+
+[[case]]
+name = "-E is the default"
+args = ["-E", "a\tb"]
+
+[[case]]
+name = "a cluster applies in order and the last of -e -E wins"
+args = ["-neE", "a\tb"]
+
+[[case]]
+name = "-eE and -Ee differ"
+args = ["-eE", "a\tb"]
+
+[[case]]
+name = "-Ee interprets"
+args = ["-Ee", "a\tb"]
+
+[[case]]
+name = "separate -e -n"
+args = ["-e", "-n", "a\tb"]
+
+[[case]]
+name = "an unknown letter makes it an operand"
+args = ["-nx", "a"]
+
+[[case]]
+name = "end of options is written out"
+args = ["--", "a"]
+
+[[case]]
+name = "a lone dash is written out"
+args = ["-"]
+
+[[case]]
+name = "help alone"
+args = ["--help"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "version alone"
+args = ["--version"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "help is not abbreviated"
+args = ["--ver"]
+
+[[case]]
+name = "help beside another argument is an operand"
+args = ["--help", "x"]
+
+[[case]]
+name = "help after another argument is an operand"
+args = ["x", "--help"]
+
+[[case]]
+name = "escape: named escapes"
+args = ["-e", "\\a\\b\\f\\n\\r\\t\\v\\\\"]
+
+[[case]]
+name = "escape: \\e is escape"
+args = ["-e", "[\\e]"]
+
+[[case]]
+name = "escape: \\c stops everything"
+args = ["-e", "a\\cb", "c"]
+
+[[case]]
+name = "escape: \\c in a later argument"
+args = ["-e", "a", "b\\cd", "e"]
+
+[[case]]
+name = "escape: octal with a leading zero"
+args = ["-e", "\\0101\\0102"]
+
+[[case]]
+name = "escape: octal without a leading zero"
+args = ["-e", "\\101"]
+
+[[case]]
+name = "escape: octal is taken modulo 256"
+args = ["-e", "\\400"]
+
+[[case]]
+name = "escape: three digits then a literal"
+args = ["-e", "\\1234"]
+
+[[case]]
+name = "escape: \\0 alone is NUL"
+args = ["-e", "\\0"]
+
+[[case]]
+name = "escape: hex, one and two digits"
+args = ["-e", "\\x41\\x4\\xFF"]
+
+[[case]]
+name = "escape: bare \\x is literal"
+args = ["-e", "[\\x]"]
+
+[[case]]
+name = "escape: unknown escape is literal"
+args = ["-e", "\\q\\8"]
+
+[[case]]
+name = "escape: trailing backslash is literal"
+args = ["-e", "a\\"]
+
+[[case]]
+name = "escapes are not interpreted without -e"
+args = ["a\\tb\\n"]
+
+[[case]]
+name = "empty arguments keep their separators"
+args = ["", "", "a", ""]
+
+[[case]]
+name = "a non-ASCII argument passes through"
+args = ["héllo", "→"]
+
+[[case]]
+name = "POSIXLY_CORRECT: escapes are always on"
+args = ["a\\tb"]
+env = { POSIXLY_CORRECT = "1" }
+
+[[case]]
+name = "POSIXLY_CORRECT: -e is an operand"
+args = ["-e", "a\\tb"]
+env = { POSIXLY_CORRECT = "1" }
+
+[[case]]
+name = "POSIXLY_CORRECT: -n still drops the newline"
+args = ["-n", "a"]
+env = { POSIXLY_CORRECT = "1" }
+
+[[case]]
+name = "POSIXLY_CORRECT: -n twice"
+args = ["-n", "-n", "a"]
+env = { POSIXLY_CORRECT = "1" }
+
+[[case]]
+name = "POSIXLY_CORRECT: -ne is an operand"
+args = ["-ne", "a\\tb"]
+env = { POSIXLY_CORRECT = "1" }
+
+[[case]]
+name = "POSIXLY_CORRECT: -n after an operand is an operand"
+args = ["a", "-n"]
+env = { POSIXLY_CORRECT = "1" }
+
+[[case]]
+name = "POSIXLY_CORRECT: --help is an operand"
+args = ["--help"]
+env = { POSIXLY_CORRECT = "1" }
