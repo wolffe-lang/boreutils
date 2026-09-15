@@ -1,0 +1,214 @@
+#!/usr/bin/env python3
+"""difftest - the differential harness: boreutils against GNU coreutils.
+
+Every case in tests/cases/<util>.toml runs twice, once through the
+boreutils binary and once through GNU's, and the two are compared on:
+
+  stdout  byte for byte
+  exit    the exit status (a signal death compares as 128+N, the shell's
+          spelling, so SIGPIPE is 141 on both sides)
+  stderr  byte for byte after the program name is normalized: each
+          side's argv[0] becomes PROG, so "gbasename: missing operand"
+          and "basename: missing operand" compare equal
+
+A mismatch prints both sides. The exit status is 0 when every case
+passes, 1 when any case fails, and 2 when the harness itself cannot run
+(a missing binary, a malformed case file).
+
+Case file (TOML, one file per utility, any number of [[case]] tables):
+
+  [[case]]
+  name = "suffix removed"        # required, unique in the file
+  args = ["include/stdio.h", ".h"]
+  stdin = "inline text"          # optional; or stdin_file = "name"
+                                 #   (relative to tests/fixtures/)
+  env = { POSIXLY_CORRECT = "1" }  # optional
+  compare = ["exit"]             # optional; default all three
+  stdout_bytes = 64              # optional: read this many bytes of
+                                 #   stdout, then close the pipe (for
+                                 #   programs that never stop, like yes)
+  skip = "reason"                # optional: reported, not run
+  timeout = 10                   # optional, seconds
+
+The environment is built from scratch for every run: PATH, LC_ALL=C,
+then the case's env (which may override LC_ALL). Nothing else leaks in
+from the host, so a POSIXLY_CORRECT in the caller's shell cannot change
+a verdict.
+
+GNU's name per host: plain on linux, g-prefixed on macOS (Homebrew's
+coreutils). $BORE_GNU_PREFIX overrides. The GNU version is printed in
+the header, because behaviour differs across GNU releases.
+
+usage: tools/difftest [--bin DIR] [util ...]
+"""
+
+import os
+import platform
+import re
+import shutil
+import signal
+import subprocess
+import sys
+import tomllib
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CASES = os.path.join(ROOT, "tests", "cases")
+FIXTURES = os.path.join(ROOT, "tests", "fixtures")
+ALL = ("stdout", "stderr", "exit")
+KEYS = {"name", "args", "stdin", "stdin_file", "env", "compare",
+        "stdout_bytes", "skip", "timeout"}
+
+
+def die(msg):
+    print(f"difftest: {msg}", file=sys.stderr)
+    sys.exit(2)
+
+
+def gnu_prefix():
+    if "BORE_GNU_PREFIX" in os.environ:
+        return os.environ["BORE_GNU_PREFIX"]
+    return "g" if platform.system() == "Darwin" else ""
+
+
+def status(code):
+    return 128 - code if code < 0 else code
+
+
+def run(exe, argv0, case):
+    env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "LC_ALL": "C"}
+    env.update(case.get("env", {}))
+    stdin = subprocess.DEVNULL
+    data = None
+    if "stdin" in case:
+        stdin = subprocess.PIPE
+        data = case["stdin"].encode()
+    elif "stdin_file" in case:
+        stdin = open(os.path.join(FIXTURES, case["stdin_file"]), "rb")
+    limit = case.get("stdout_bytes")
+    timeout = case.get("timeout", 10)
+    proc = subprocess.Popen(
+        [argv0] + case.get("args", []), executable=exe, env=env,
+        stdin=stdin, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        # the child gets the default SIGPIPE disposition, as a shell gives
+        restore_signals=True)
+    try:
+        if limit is None:
+            out, err = proc.communicate(data, timeout=timeout)
+        else:
+            if data is not None:
+                proc.stdin.write(data)
+                proc.stdin.close()
+            out = b""
+            while len(out) < limit:
+                chunk = proc.stdout.read(limit - len(out))
+                if not chunk:
+                    break
+                out += chunk
+            proc.stdout.close()
+            proc.wait(timeout=timeout)
+            err = proc.stderr.read()
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait()
+        return None
+    finally:
+        if hasattr(stdin, "close"):
+            stdin.close()
+    return {"stdout": out, "stderr": normalize(err, argv0),
+            "exit": status(proc.returncode)}
+
+
+def normalize(err, argv0):
+    return re.sub(rb"(?<![\w-])" + re.escape(argv0.encode()) + rb"(?![\w-])",
+                  b"PROG", err)
+
+
+def show(side, result, fields):
+    if result is None:
+        return f"    {side}: TIMED OUT"
+    lines = []
+    for f in fields:
+        v = result[f]
+        if isinstance(v, bytes) and len(v) > 400:
+            v = v[:400] + b"...(%d bytes)" % len(result[f])
+        lines.append(f"    {side} {f}: {v!r}")
+    return "\n".join(lines)
+
+
+def load(path):
+    try:
+        with open(path, "rb") as fh:
+            doc = tomllib.load(fh)
+    except (OSError, tomllib.TOMLDecodeError) as e:
+        die(f"{path}: {e}")
+    cases = doc.get("case", [])
+    seen = set()
+    for c in cases:
+        extra = set(c) - KEYS
+        if "name" not in c or extra:
+            die(f"{path}: case {c.get('name', '?')!r} is malformed "
+                f"(unknown keys {sorted(extra)})" if extra else
+                f"{path}: a case has no name")
+        if c["name"] in seen:
+            die(f"{path}: duplicate case name {c['name']!r}")
+        seen.add(c["name"])
+        for f in c.get("compare", ALL):
+            if f not in ALL:
+                die(f"{path}: case {c['name']!r} compares unknown {f!r}")
+    return cases
+
+
+def main(argv):
+    bindir = os.path.join(ROOT, "target", "release")
+    if argv[:1] == ["--bin"]:
+        if len(argv) < 2:
+            die("--bin needs a directory")
+        bindir = os.path.abspath(argv[1])
+        argv = argv[2:]
+    utils = argv or sorted(f[:-5] for f in os.listdir(CASES)
+                           if f.endswith(".toml"))
+    prefix = gnu_prefix()
+    probe = shutil.which(prefix + "true")
+    if probe is None:
+        die(f"GNU coreutils not found as '{prefix}true' on PATH")
+    version = subprocess.run([probe, "--version"], capture_output=True,
+                             text=True).stdout.splitlines()[0]
+    print(f"difftest: gnu = {version} (prefix {prefix!r}) on "
+          f"{platform.system()} {platform.machine()}")
+    print(f"difftest: bore = {bindir}")
+
+    passed = failed = skipped = 0
+    for util in utils:
+        cases = load(os.path.join(CASES, util + ".toml"))
+        bore = os.path.join(bindir, util)
+        gnu = shutil.which(prefix + util)
+        if not os.access(bore, os.X_OK):
+            die(f"no boreutils binary at {bore} (run tools/build)")
+        if gnu is None:
+            die(f"GNU '{prefix}{util}' not found on PATH")
+        for case in cases:
+            label = f"{util}: {case['name']}"
+            if "skip" in case:
+                skipped += 1
+                print(f"SKIP {label} ({case['skip']})")
+                continue
+            fields = case.get("compare", ALL)
+            b = run(bore, util, case)
+            g = run(gnu, prefix + util, case)
+            ok = (b is not None and g is not None
+                  and all(b[f] == g[f] for f in fields))
+            if ok:
+                passed += 1
+                print(f"ok   {label}")
+            else:
+                failed += 1
+                print(f"FAIL {label}  args={case.get('args', [])!r}")
+                print(show("bore", b, fields))
+                print(show("gnu ", g, fields))
+    print(f"difftest: {passed} passed, {failed} failed, {skipped} skipped")
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+    sys.exit(main(sys.argv[1:]))
