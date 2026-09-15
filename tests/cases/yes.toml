@@ -1,0 +1,80 @@
+# yes — GNU coreutils 9.11, black-box. Every case that produces output
+# reads a bounded prefix and then closes the pipe, so the comparison
+# also pins the SIGPIPE status: 141 on both sides.
+
+[[case]]
+name = "the default line"
+stdout_bytes = 4096
+
+[[case]]
+name = "operands joined by single spaces"
+args = ["a", "b"]
+stdout_bytes = 4096
+
+[[case]]
+name = "an empty operand"
+args = [""]
+stdout_bytes = 4096
+
+[[case]]
+name = "end of options"
+args = ["--", "a"]
+stdout_bytes = 4096
+
+[[case]]
+name = "end of options protects --help"
+args = ["--", "--help"]
+stdout_bytes = 4096
+
+[[case]]
+name = "a lone dash is an operand"
+args = ["-"]
+stdout_bytes = 4096
+
+[[case]]
+name = "a long line"
+args = ["boreutils", "is", "a", "coreutils", "in", "wolf", "and", "this", "line", "is", "long"]
+stdout_bytes = 65536
+
+[[case]]
+name = "a non-ASCII operand"
+args = ["é→"]
+stdout_bytes = 4096
+
+[[case]]
+name = "options permute after an operand"
+args = ["a", "--version"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "an unknown short option"
+args = ["-x"]
+
+[[case]]
+name = "an unknown long option"
+args = ["--foo"]
+
+[[case]]
+name = "an ambiguous abbreviation"
+args = ["--=x"]
+
+[[case]]
+name = "help alone"
+args = ["--help"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "help abbreviated"
+args = ["--he"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "version alone"
+args = ["--version"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "POSIXLY_CORRECT: an operand ends the options"
+args = ["a", "--version"]
+env = { POSIXLY_CORRECT = "1" }
+stdout_bytes = 4096
