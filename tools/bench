@@ -1,0 +1,203 @@
+#!/usr/bin/env python3
+"""bench - hyperfine, boreutils against GNU coreutils, on named inputs.
+
+Not a CI gate. CI runs one smoke bench (--scale 0.001) so the harness
+stays alive; the numbers of record are taken by hand on a stated host.
+
+Bench file (TOML), tests/bench/<util>.toml:
+
+  [[bench]]
+  name = "1 GiB of output into head -c"
+  command = "{prog} | head -c {bytes:1073741824} > /dev/null"
+  input = "big"          # optional: big | lines | noise
+
+Placeholders: {prog} is the program under test (the boreutils binary or
+GNU's), {input} the generated input file's path, {bytes:N} the integer
+N times --scale (at least 1).
+
+Named inputs, generated deterministically (a fixed seed; the same bytes
+on every host and every run) into a scratch directory, never committed,
+and deleted when the run ends unless --keep:
+
+  big    1 GiB of text: lowercase words, spaces, lines of about 64 bytes
+  lines  64 MiB of very short lines: 0 to 7 letters each
+  noise  256 MiB of uniformly random bytes
+
+--scale multiplies every size, so --scale 0.001 is a smoke run.
+
+Output: a markdown table per utility, headed by the host, the GNU
+version and the build tier.
+
+usage: tools/bench [--scale F] [--runs N] [--keep] [--dir D] [--bin DIR]
+                   [--out FILE] [util ...]
+"""
+
+import json
+import os
+import platform
+import random
+import shutil
+import subprocess
+import sys
+import tempfile
+import tomllib
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BENCH = os.path.join(ROOT, "tests", "bench")
+MIB = 1 << 20
+SIZES = {"big": 1024 * MIB, "lines": 64 * MIB, "noise": 256 * MIB}
+SEEDS = {"big": 0xB0BE, "lines": 0x11E5, "noise": 0x5EED}
+BLOCK = 4 * MIB
+
+
+def die(msg):
+    print(f"bench: {msg}", file=sys.stderr)
+    sys.exit(2)
+
+
+def text_table(newline_every):
+    # 256 byte values onto letters, spaces and newlines, in fixed ratios
+    t = bytearray()
+    for i in range(256):
+        if i % newline_every == 0:
+            t.append(10)
+        elif i % 6 == 0:
+            t.append(32)
+        else:
+            t.append(97 + i % 26)
+    return bytes(t)
+
+
+def generate(name, path, size):
+    rng = random.Random(SEEDS[name])
+    table = {"big": text_table(64), "lines": text_table(4)}.get(name)
+    with open(path, "wb") as fh:
+        left = size
+        while left > 0:
+            n = min(BLOCK, left)
+            block = rng.randbytes(n)
+            fh.write(block if table is None else block.translate(table))
+            left -= n
+
+
+def gnu_prefix():
+    if "BORE_GNU_PREFIX" in os.environ:
+        return os.environ["BORE_GNU_PREFIX"]
+    return "g" if platform.system() == "Darwin" else ""
+
+
+def expand(command, prog, inp, scale):
+    out = command.replace("{prog}", prog).replace("{input}", inp or "")
+    while "{bytes:" in out:
+        i = out.index("{bytes:")
+        j = out.index("}", i)
+        n = max(1, int(int(out[i + 7:j]) * scale))
+        out = out[:i] + str(n) + out[j + 1:]
+    return out
+
+
+def main(argv):
+    scale, runs, keep, scratch, out_path = 1.0, 10, False, None, None
+    bindir = os.path.join(ROOT, "target", "release")
+    utils = []
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a in ("--scale", "--runs", "--dir", "--bin", "--out"):
+            if i + 1 >= len(argv):
+                die(f"{a} needs a value")
+            v = argv[i + 1]
+            i += 1
+            if a == "--scale":
+                scale = float(v)
+            elif a == "--runs":
+                runs = int(v)
+            elif a == "--dir":
+                scratch = v
+            elif a == "--bin":
+                bindir = os.path.abspath(v)
+            else:
+                out_path = v
+        elif a == "--keep":
+            keep = True
+        else:
+            utils.append(a)
+        i += 1
+    if shutil.which("hyperfine") is None:
+        die("hyperfine not found on PATH")
+    utils = utils or sorted(f[:-5] for f in os.listdir(BENCH)
+                            if f.endswith(".toml"))
+    prefix = gnu_prefix()
+    gnu_true = shutil.which(prefix + "true") or die("GNU coreutils not found")
+    gnu_version = subprocess.run([gnu_true, "--version"], capture_output=True,
+                                 text=True).stdout.splitlines()[0]
+    wolf_line = "wolf ?"
+    wolf = os.path.join(ROOT, ".wolf-bin", "wolf")
+    if os.access(wolf, os.X_OK):
+        wolf_line = subprocess.run([wolf, "--version"], capture_output=True,
+                                   text=True).stdout.splitlines()[0]
+    tier = os.path.basename(bindir)
+    host = f"{platform.node().split('.')[0]} ({platform.system()} " \
+           f"{platform.machine()}, {os.cpu_count()} cpus)"
+
+    made = scratch is None
+    scratch = scratch or tempfile.mkdtemp(prefix="bore-bench-")
+    os.makedirs(scratch, exist_ok=True)
+    report = []
+    generated = {}
+    try:
+        for util in utils:
+            with open(os.path.join(BENCH, util + ".toml"), "rb") as fh:
+                benches = tomllib.load(fh).get("bench", [])
+            bore = os.path.join(bindir, util)
+            gnu = shutil.which(prefix + util)
+            if not os.access(bore, os.X_OK):
+                die(f"no boreutils binary at {bore}")
+            if gnu is None:
+                die(f"GNU '{prefix}{util}' not found")
+            report.append(f"## {util}\n")
+            report.append(f"- host: {host}")
+            report.append(f"- GNU: {gnu_version}")
+            report.append(f"- boreutils: {tier} tier, {wolf_line}")
+            report.append(f"- scale: {scale}, runs: {runs}\n")
+            report.append("| bench | boreutils (ms) | GNU (ms) | GNU / boreutils |")
+            report.append("|---|---:|---:|---:|")
+            for b in benches:
+                inp = None
+                if b.get("input"):
+                    name = b["input"]
+                    if name not in SIZES:
+                        die(f"{util}: unknown input {name!r}")
+                    inp = os.path.join(scratch, name)
+                    if name not in generated:
+                        generate(name, inp, max(1, int(SIZES[name] * scale)))
+                        generated[name] = True
+                export = os.path.join(scratch, "hyperfine.json")
+                cmds = [expand(b["command"], p, inp, scale) for p in (bore, gnu)]
+                subprocess.run(
+                    ["hyperfine", "--style", "none", "--warmup", "1",
+                     "--runs", str(runs), "--export-json", export,
+                     "-n", "boreutils", cmds[0], "-n", "gnu", cmds[1]],
+                    check=True, stdout=subprocess.DEVNULL)
+                with open(export) as fh:
+                    res = {r["command"]: r for r in json.load(fh)["results"]}
+                bm = res["boreutils"]["mean"] * 1000
+                gm = res["gnu"]["mean"] * 1000
+                bs = res["boreutils"]["stddev"] * 1000
+                gs = res["gnu"]["stddev"] * 1000
+                report.append(f"| {b['name']} | {bm:.1f} ± {bs:.1f} | "
+                              f"{gm:.1f} ± {gs:.1f} | {gm / bm:.2f} |")
+            report.append("")
+    finally:
+        if made and not keep:
+            shutil.rmtree(scratch, ignore_errors=True)
+    text = "\n".join(report)
+    print(text)
+    if out_path:
+        with open(out_path, "w") as fh:
+            fh.write(text + "\n")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
