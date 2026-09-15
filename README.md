@@ -42,7 +42,40 @@ written from these sources only:
 The header of each utility records which of these references were
 consulted.
 
+## Building it
+
+The toolchain is pinned by digest and fetched, never built:
+
+```sh
+tools/fetch-toolchain     # wolf + lupin release archives, sha256-checked
+tools/build               # every utility into target/release/
+tools/difftest            # the differential suite against GNU coreutils
+tools/bench --scale 0.01  # hyperfine against GNU on generated inputs
+```
+
+GNU coreutils is the oracle and must be installed: natively on linux,
+`brew install coreutils` on macOS, where the harness uses the
+`g`-prefixed names.
+
+**Windows is out of scope.** The only byte-exact route to standard
+input and output in wolf 0.2.14 is reopening `/dev/stdin` and
+`/dev/stdout` (wolf-lang#405), which windows does not have. CI runs on
+linux and macOS.
+
 ## Status
+
+Every utility below is byte-for-byte identical to GNU coreutils 9.11 on
+its differential corpus. "vs GNU" is wall-clock from `tools/bench`,
+GNU's time divided by ours, so above 1.00 is faster than GNU; it is a
+measurement on one host, not a promise.
 
 | utility | status | vs GNU |
 |---|---|---|
+| `true` | done | start-up only |
+| `false` | done | start-up only |
+| `echo` | done | start-up only |
+| `basename` | done | start-up only |
+| `dirname` | done | start-up only |
+| `yes` | done | 1.93x on 1 GiB (nomad-1) |
+| `cat` | next (bu01) | — |
+| `wc` | next (bu02) | — |
