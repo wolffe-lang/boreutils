@@ -1,0 +1,101 @@
+# dirname — GNU coreutils 9.11, black-box. Options DO permute here,
+# unlike basename's.
+
+[[case]]
+name = "no operand is a usage error"
+
+[[case]]
+name = "a directory with a trailing slash"
+args = ["/usr/bin/"]
+
+[[case]]
+name = "several operands"
+args = ["a", "b/c"]
+
+[[case]]
+name = "no slash is a dot"
+args = ["stdio.h"]
+
+[[case]]
+name = "root"
+args = ["/"]
+
+[[case]]
+name = "two slashes"
+args = ["//"]
+
+[[case]]
+name = "three slashes"
+args = ["///"]
+
+[[case]]
+name = "a name under two slashes"
+args = ["//a"]
+
+[[case]]
+name = "doubled inner slashes"
+args = ["a//b//"]
+
+[[case]]
+name = "an empty operand"
+args = [""]
+
+[[case]]
+name = "dot and dot-dot"
+args = [".", ".."]
+
+[[case]]
+name = "a name with a trailing slash"
+args = ["a/"]
+
+[[case]]
+name = "-z ends with NUL"
+args = ["-z", "a/b", "c"]
+
+[[case]]
+name = "--zero abbreviated"
+args = ["--ze", "a/b"]
+
+[[case]]
+name = "options permute after an operand"
+args = ["a", "--zero", "b"]
+
+[[case]]
+name = "end of options"
+args = ["--", "-x/y"]
+
+[[case]]
+name = "end of options with nothing after it"
+args = ["--"]
+
+[[case]]
+name = "an unknown short option"
+args = ["-x"]
+
+[[case]]
+name = "an option that takes no argument, given one"
+args = ["--zero="]
+
+[[case]]
+name = "an ambiguous abbreviation"
+args = ["--=x", "a"]
+
+[[case]]
+name = "help wins before a later error"
+args = ["--help", "--bogus"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "help alone"
+args = ["--help"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "version alone"
+args = ["--version"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "POSIXLY_CORRECT: an operand ends the options"
+args = ["a", "-z", "b"]
+env = { POSIXLY_CORRECT = "1" }

@@ -1,0 +1,114 @@
+//! member: false
+//!
+//! dirname — write a path with its last component removed.
+//!
+//! References consulted: POSIX.1-2024 `dirname`; GNU coreutils 9.11
+//! `dirname --help` and black-box runs of the GNU binary. Never GNU
+//! source.
+//!
+//! GNU's rules, each measured against coreutils 9.11:
+//!
+//! - Options permute with operands (`dirname a --zero b` writes both
+//!   with NUL endings), unless `POSIXLY_CORRECT` is set. `basename`
+//!   differs: there the first operand ends the options.
+//! - No operand is `missing operand`, status 1.
+//! - A path with no slash is `.`, an all-slash path is `/`, and an
+//!   empty path is `.`. Trailing slashes are ignored: `a//b//` is `a`.
+
+use bore
+
+fn main() -> int {
+    let spec = options()
+    let p = bore.parse(spec, env_args(), bore.permute())
+    var out = bore.stdout()
+    var zero = false
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i]
+        if k == "help" {
+            bore.put(mut out, help()) else |_| {}
+            return bore.finish(mut out, "dirname", 0)
+        }
+        if k == "version" {
+            bore.put(mut out, bore.version_text("dirname")) else |_| {}
+            return bore.finish(mut out, "dirname", 0)
+        }
+        if k == "zero" {
+            zero = true
+        }
+        i += 1
+    }
+    if !bore.ok(p) {
+        return bore.usage_error("dirname", p.error)
+    }
+    if p.operands.len == 0 {
+        return bore.usage_error("dirname", "missing operand")
+    }
+    write_dirs(mut out, p.operands, zero) else |_| {
+        bore.warn("dirname", "write error")
+        return 1
+    }
+    bore.finish(mut out, "dirname", 0)
+}
+
+fn options() -> List[bore.Opt] {
+    var s = List[bore.Opt]()
+    (mut s).push(bore.flag("z", "zero"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    s
+}
+
+fn write_dirs(mut out: bore.Out, paths: List[str], zero: bool) -> () ! {io} {
+    for p in paths {
+        bore.put(mut out, dir(p))?
+        if zero {
+            bore.put_byte(mut out, 0 as byte)?
+        } else {
+            bore.put(mut out, "\n")?
+        }
+    }
+}
+
+/// `path` without its last component.
+pub fn dir(path: str) -> str {
+    let stripped = strip_slashes(path)
+    if stripped.len == 0 {
+        if path.len == 0 {
+            return "."
+        }
+        return "/"
+    }
+    let cut = stripped.rfind("/") else -1
+    if cut < 0 {
+        return "."
+    }
+    let head = strip_slashes(stripped[0..cut])
+    if head.len == 0 {
+        return "/"
+    }
+    head
+}
+
+/// `s` without its trailing slashes.
+fn strip_slashes(s: str) -> str {
+    var end = s.len
+    while end > 0 && s[end - 1..end] == "/" {
+        end -= 1
+    }
+    s[0..end]
+}
+
+fn help() -> str {
+    """
+    Usage: dirname [OPTION] NAME...
+    Write each NAME without its last component: the directory it names.
+    A NAME with no slash is `.`.
+
+      -z, --zero     end each line with NUL, not newline
+          --help     print this help and exit
+          --version  print the version and exit
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}
