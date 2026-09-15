@@ -65,21 +65,32 @@ linux and macOS.
 ## Status
 
 Every utility below is byte-for-byte identical to GNU coreutils 9.11 on
-its differential corpus. "vs GNU" is wall-clock from `tools/bench`,
-GNU's time divided by ours, so above 1.00 is faster than GNU; it is a
-measurement on one host, not a promise. The numbers below are nomad-1
-(macOS arm64, 18 cpus, load 8.8), GNU coreutils 9.11, release tier,
-5 runs: `yes` writes 1 GiB of `y` into `head -c` in 238 ms against
-GNU's 652 ms, and the utilities that only start up and exit take about
-2 ms either way.
+its differential corpus, on both hosts: 143 differential cases, macOS
+arm64 and linux x86-64.
+
+"vs GNU" is wall-clock from `tools/bench`, GNU's time divided by ours,
+so above 1.00 is faster than GNU. It is a measurement on a stated host,
+never a promise, and the two hosts do not agree: GNU's `yes` is twice
+as fast on linux as it is on macOS, so the same boreutils binary wins
+on one and loses on the other. Both numbers are below; neither is "the"
+number.
+
+Release tier, 5 runs, GNU coreutils 9.11. `yes` writes 1 GiB of `y`
+into `head -c`; the rest start up, write a few bytes and exit.
+
+| bench | nomad-1 (macOS arm64, load 8.8) | kasumi (linux x86-64, load 3.5) |
+|---|---|---|
+| `yes`, 1 GiB | 238 ms vs GNU 652 ms (**2.74x**) | 198 ms vs GNU 124 ms (0.63x) |
+| `echo`, one string | 1.9 ms vs GNU 2.0 ms (1.04x) | — |
+| `basename`, one path | 1.6 ms vs GNU 1.7 ms (1.04x) | — |
 
 | utility | status | vs GNU |
 |---|---|---|
 | `true` | done | start-up only |
 | `false` | done | start-up only |
-| `echo` | done | 1.04x |
-| `basename` | done | 1.04x |
+| `echo` | done | 1.04x (macOS) |
+| `basename` | done | 1.04x (macOS) |
 | `dirname` | done | start-up only |
-| `yes` | done | **2.74x** |
+| `yes` | done | 2.74x (macOS), 0.63x (linux) |
 | `cat` | next (bu01) | — |
 | `wc` | next (bu02) | — |
