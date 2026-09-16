@@ -1,0 +1,709 @@
+# wc — GNU coreutils 9.11, black-box. Every expectation here was read
+# off the GNU binary on BOTH hosts (macOS arm64 Homebrew `gwc`, linux
+# x86-64 native `wc`), which agreed on every case in this file.
+#
+# The fixtures under tests/fixtures/ are committed data, not generated:
+#   two.txt   29 B, 2 lines, 5 words        one.txt   2 B
+#   empty.txt 0 B                           nonl.txt  19 B, no newline
+#   tabs.txt  tab stops                     ctrl.txt  CR, BS, NUL-ish, tabs
+#   utf8.txt  valid multibyte               wide.txt  CJK, combining, emoji
+#   bad.dat   invalid UTF-8                 bin.dat   every byte value
+#   k9999.txt 9999 B, so that the SUM of sizes (10001) has one more
+#             digit than the largest (9999) and the width rule is pinned
+#   names0*   NUL-separated name lists for --files0-from
+#
+# File operands are written relative to the repository root, which is
+# where difftest runs them from.
+#
+# --help and --version print OUR text, so they compare the exit status
+# and stderr only. --debug compares stdout and the exit only: GNU prints
+# which SIMD kernel its line counter chose (linux says "using avx512
+# hardware support"), and boreutils has no such kernel to report.
+
+# ---------------------------------------------------------------- basics
+
+[[case]]
+name = "one file, the default counts"
+args = ["tests/fixtures/two.txt"]
+
+[[case]]
+name = "stdin from a pipe"
+stdin = "a b\nc\n"
+
+[[case]]
+name = "stdin from a regular file"
+stdin_file = "two.txt"
+
+[[case]]
+name = "a dash operand reads stdin and is labelled"
+args = ["-"]
+stdin = "a b\nc\n"
+
+[[case]]
+name = "a dash beside a file"
+args = ["-", "tests/fixtures/two.txt"]
+stdin = "a b\nc\n"
+
+[[case]]
+name = "empty file"
+args = ["tests/fixtures/empty.txt"]
+
+[[case]]
+name = "empty stdin"
+stdin = ""
+
+[[case]]
+name = "a last line with no newline still counts words and bytes"
+args = ["tests/fixtures/nonl.txt"]
+
+[[case]]
+name = "binary input, every byte value"
+args = ["tests/fixtures/bin.dat"]
+
+[[case]]
+name = "binary input on stdin"
+stdin_file = "bin.dat"
+
+# ----------------------------------------------------------- each flag
+
+[[case]]
+name = "-l alone"
+args = ["-l", "tests/fixtures/two.txt"]
+
+[[case]]
+name = "-w alone"
+args = ["-w", "tests/fixtures/two.txt"]
+
+[[case]]
+name = "-c alone"
+args = ["-c", "tests/fixtures/two.txt"]
+
+[[case]]
+name = "-m alone"
+args = ["-m", "tests/fixtures/two.txt"]
+
+[[case]]
+name = "-L alone"
+args = ["-L", "tests/fixtures/two.txt"]
+
+[[case]]
+name = "--lines long"
+args = ["--lines", "tests/fixtures/two.txt"]
+
+[[case]]
+name = "--bytes long"
+args = ["--bytes", "tests/fixtures/two.txt"]
+
+[[case]]
+name = "--chars long"
+args = ["--chars", "tests/fixtures/two.txt"]
+
+[[case]]
+name = "--words long"
+args = ["--words", "tests/fixtures/two.txt"]
+
+[[case]]
+name = "--max-line-length long"
+args = ["--max-line-length", "tests/fixtures/two.txt"]
+
+[[case]]
+name = "a long option abbreviated to a unique prefix"
+args = ["--max", "tests/fixtures/two.txt"]
+
+[[case]]
+name = "a short cluster"
+args = ["-lwc", "tests/fixtures/two.txt"]
+
+[[case]]
+name = "the print order is fixed whatever order the flags come in"
+args = ["-L", "-m", "-c", "-w", "-l", "tests/fixtures/two.txt"]
+
+[[case]]
+name = "the print order, the other way round"
+args = ["-l", "-w", "-m", "-c", "-L", "tests/fixtures/two.txt"]
+
+[[case]]
+name = "-c and -l together"
+args = ["-c", "-l", "tests/fixtures/two.txt"]
+
+[[case]]
+name = "a repeated flag counts once"
+args = ["-l", "-l", "-l", "tests/fixtures/two.txt"]
+
+[[case]]
+name = "-c on a file is an fstat here, and must still agree"
+args = ["-c", "tests/fixtures/k9999.txt"]
+
+[[case]]
+name = "-m in the C locale equals -c"
+args = ["-m", "-c", "tests/fixtures/bin.dat"]
+
+# ------------------------------------------------------------ the widths
+
+[[case]]
+name = "width: one file, one column, is not padded"
+args = ["-l", "tests/fixtures/k9999.txt"]
+
+[[case]]
+name = "width: one file, two columns, pads to the file size"
+args = ["-l", "-w", "tests/fixtures/k9999.txt"]
+
+[[case]]
+name = "width: one file, three columns"
+args = ["tests/fixtures/k9999.txt"]
+
+[[case]]
+name = "width: two files pads to the SUM of the sizes, not the largest"
+args = ["-l", "tests/fixtures/k9999.txt", "tests/fixtures/one.txt"]
+
+[[case]]
+name = "width: two files, all three columns"
+args = ["tests/fixtures/k9999.txt", "tests/fixtures/one.txt"]
+
+[[case]]
+name = "width: three files"
+args = [
+    "tests/fixtures/two.txt",
+    "tests/fixtures/one.txt",
+    "tests/fixtures/k9999.txt",
+]
+
+[[case]]
+name = "width: the same file twice"
+args = ["tests/fixtures/two.txt", "tests/fixtures/two.txt"]
+
+[[case]]
+name = "width: a pipe on stdin is 7 when more than one column"
+stdin = "x\n"
+
+[[case]]
+name = "width: a pipe on stdin, one column, is not padded"
+args = ["-l"]
+stdin = "x\n"
+
+[[case]]
+name = "width: a regular file on stdin pads to its size"
+stdin_file = "k9999.txt"
+
+[[case]]
+name = "width: a pipe beside a regular file is 7"
+args = ["-", "tests/fixtures/k9999.txt"]
+stdin = "x\n"
+
+[[case]]
+name = "width: a character device is not a regular file, so 7"
+args = ["-c", "/dev/null", "tests/fixtures/two.txt"]
+
+[[case]]
+name = "width: a directory operand forces 7"
+args = ["-l", "src", "tests/fixtures/k9999.txt"]
+
+[[case]]
+name = "width: a missing operand contributes nothing and does not force 7"
+args = ["-l", "tests/fixtures/nosuch", "tests/fixtures/one.txt"]
+
+[[case]]
+name = "width: an empty file among files"
+args = [
+    "tests/fixtures/two.txt",
+    "tests/fixtures/empty.txt",
+    "tests/fixtures/nonl.txt",
+]
+
+# --------------------------------------------------------------- errors
+
+[[case]]
+name = "a missing file"
+args = ["tests/fixtures/nosuch"]
+
+[[case]]
+name = "a missing file among good ones is skipped, the rest still count"
+args = [
+    "tests/fixtures/two.txt",
+    "tests/fixtures/nosuch",
+    "tests/fixtures/one.txt",
+]
+
+[[case]]
+name = "a directory prints a line of zeros and then the error"
+args = ["src"]
+
+[[case]]
+name = "a directory among files joins the total as zeros"
+args = ["tests/fixtures/two.txt", "src"]
+
+[[case]]
+name = "a directory under -l"
+args = ["-l", "src"]
+
+[[case]]
+name = "an unreadable file"
+args = ["/etc/sudoers"]
+
+[[case]]
+name = "a missing path component"
+args = ["tests/fixtures/two.txt/x"]
+skip = "ENOTDIR: GNU says 'Not a directory', the wolf fs rows have no errno behind them and answer `io`, so boreutils says 'Input/output error' (wolf-lang#407)"
+
+[[case]]
+name = "a symlink loop"
+args = ["tests/fixtures/loopself"]
+skip = "ELOOP: GNU says 'Too many levels of symbolic links', the wolf fs rows answer `io` (wolf-lang#407)"
+
+[[case]]
+name = "a missing file under a name that needs quoting"
+args = ["tests/fixtures/no such"]
+
+# --------------------------------------------------------- usage errors
+
+[[case]]
+name = "an unknown short option"
+args = ["-q"]
+
+[[case]]
+name = "an unknown long option"
+args = ["--nope"]
+
+[[case]]
+name = "an unknown short option beside a file"
+args = ["-q", "tests/fixtures/two.txt"]
+
+[[case]]
+name = "an ambiguous abbreviation"
+args = ["--=x"]
+
+[[case]]
+name = "a long option that does not take an argument"
+args = ["--lines=3", "tests/fixtures/two.txt"]
+
+[[case]]
+name = "--total with no argument"
+args = ["--total"]
+
+[[case]]
+name = "help alone"
+args = ["--help"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "version alone"
+args = ["--version"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "--debug is accepted"
+args = ["--debug", "-l", "tests/fixtures/two.txt"]
+compare = ["stdout", "exit"]
+
+# ----------------------------------------------------------- the totals
+
+[[case]]
+name = "--total=auto with one file prints no total"
+args = ["--total=auto", "tests/fixtures/two.txt"]
+
+[[case]]
+name = "--total=auto with two files prints one"
+args = ["--total=auto", "tests/fixtures/two.txt", "tests/fixtures/one.txt"]
+
+[[case]]
+name = "--total=always with one file"
+args = ["--total=always", "tests/fixtures/two.txt"]
+
+[[case]]
+name = "--total=always with two files"
+args = ["--total=always", "tests/fixtures/two.txt", "tests/fixtures/one.txt"]
+
+[[case]]
+name = "--total=never with two files"
+args = ["--total=never", "tests/fixtures/two.txt", "tests/fixtures/one.txt"]
+
+[[case]]
+name = "--total=only prints the total alone, unpadded and unlabelled"
+args = ["--total=only", "tests/fixtures/two.txt", "tests/fixtures/one.txt"]
+
+[[case]]
+name = "--total=only with one file"
+args = ["--total=only", "tests/fixtures/two.txt"]
+
+[[case]]
+name = "--total=only with one column"
+args = ["--total=only", "-l", "tests/fixtures/k9999.txt", "tests/fixtures/one.txt"]
+
+[[case]]
+name = "--total=only still reports a bad operand"
+args = ["--total=only", "tests/fixtures/two.txt", "tests/fixtures/nosuch"]
+
+[[case]]
+name = "--total=only with a directory"
+args = ["--total=only", "tests/fixtures/two.txt", "src"]
+
+[[case]]
+name = "--total abbreviated to a unique prefix"
+args = ["--total=onl", "tests/fixtures/two.txt", "tests/fixtures/one.txt"]
+
+[[case]]
+name = "--total=alw"
+args = ["--total=alw", "tests/fixtures/two.txt"]
+
+[[case]]
+name = "--total with an invalid argument"
+args = ["--total=bogus", "tests/fixtures/two.txt"]
+
+[[case]]
+name = "--total with an ambiguous argument"
+args = ["--total=a", "tests/fixtures/two.txt"]
+
+[[case]]
+name = "--total with an empty argument"
+args = ["--total=", "tests/fixtures/two.txt"]
+
+[[case]]
+name = "--total=auto on stdin prints no total"
+stdin = "a\n"
+
+# ---------------------------------------------------------- files0-from
+
+[[case]]
+name = "--files0-from reads a NUL-separated list"
+args = ["--files0-from=tests/fixtures/names0"]
+
+[[case]]
+name = "--files0-from with one name prints no total"
+args = ["--files0-from=tests/fixtures/names0one"]
+
+[[case]]
+name = "--files0-from without a trailing NUL"
+args = ["--files0-from=tests/fixtures/names0n"]
+
+[[case]]
+name = "--files0-from with an empty name reports its ordinal and goes on"
+args = ["--files0-from=tests/fixtures/names0e"]
+
+[[case]]
+name = "--files0-from naming a missing file"
+args = ["--files0-from=tests/fixtures/names0m"]
+
+[[case]]
+name = "--files0-from on an empty list produces nothing"
+args = ["--files0-from=tests/fixtures/empty.txt"]
+
+[[case]]
+name = "--files0-from on a missing list"
+args = ["--files0-from=tests/fixtures/nosuch"]
+
+[[case]]
+name = "--files0-from cannot be combined with operands"
+args = ["--files0-from=tests/fixtures/names0", "tests/fixtures/two.txt"]
+
+[[case]]
+name = "--files0-from=- reads names from stdin, and the width is 1"
+args = ["--files0-from=-"]
+stdin = "tests/fixtures/two.txt\u0000tests/fixtures/one.txt\u0000"
+
+[[case]]
+name = "--files0-from=- refuses a name of -"
+args = ["--files0-from=-"]
+stdin = "-\u0000"
+
+[[case]]
+name = "--files0-from=- with one name"
+args = ["--files0-from=-"]
+stdin = "tests/fixtures/two.txt\u0000"
+
+[[case]]
+name = "--files0-from with -l"
+args = ["-l", "--files0-from=tests/fixtures/names0"]
+
+[[case]]
+name = "--files0-from with --total=only"
+args = ["--total=only", "--files0-from=tests/fixtures/names0"]
+
+# -------------------------------------------------------------- -L rules
+
+[[case]]
+name = "-L: a tab advances to the next multiple of eight"
+args = ["-L", "tests/fixtures/tabs.txt"]
+
+[[case]]
+name = "-L: carriage return resets the width, backspace does not"
+args = ["-L", "tests/fixtures/ctrl.txt"]
+
+[[case]]
+name = "-L: a line with no newline is measured"
+args = ["-L", "tests/fixtures/nonl.txt"]
+
+[[case]]
+name = "-L: an empty file"
+args = ["-L", "tests/fixtures/empty.txt"]
+
+[[case]]
+name = "-L: binary bytes are not printable and have width 0"
+args = ["-L", "tests/fixtures/bin.dat"]
+
+[[case]]
+name = "-L: on a pipe"
+args = ["-L"]
+stdin = "short\nlonger line\nmid\n"
+
+[[case]]
+name = "-L: the longest line wins whichever it is"
+args = ["-L"]
+stdin = "aaaaaaaaaaaa\nb\n"
+
+# ------------------------------------------------------- words and lines
+
+[[case]]
+name = "words: every C-locale whitespace byte separates"
+args = ["-w"]
+stdin = "a\tb\u000Bc\fd\re f\n"
+
+[[case]]
+name = "words: a line of only spaces has none"
+args = ["-w"]
+stdin = "   \n"
+
+[[case]]
+name = "words: no trailing newline"
+args = ["-w"]
+stdin = "a  b"
+
+[[case]]
+name = "words: leading and trailing whitespace"
+args = ["-w"]
+stdin = "   a b   \n"
+
+[[case]]
+name = "lines: a file of newlines"
+args = ["-l"]
+stdin = "\n\n\n\n"
+
+[[case]]
+name = "lines: CRLF counts once per LF"
+args = ["-l", "-w"]
+stdin = "a\r\nb\r\n"
+
+# -------------------------------------------------------------- locales
+
+[[case]]
+name = "UTF-8: -m counts characters where -c counts bytes"
+args = ["-m", "-c", "tests/fixtures/utf8.txt"]
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "C: -m is bytes on the same file"
+args = ["-m", "-c", "tests/fixtures/utf8.txt"]
+env = { LC_ALL = "C" }
+
+[[case]]
+name = "UTF-8: every count on a multibyte file"
+args = ["-l", "-w", "-m", "-c", "-L", "tests/fixtures/utf8.txt"]
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "UTF-8: wide characters, a combining mark and an emoji"
+args = ["-l", "-w", "-m", "-c", "-L", "tests/fixtures/wide.txt"]
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "C: the same wide file is bytes and zero display width"
+args = ["-l", "-w", "-m", "-c", "-L", "tests/fixtures/wide.txt"]
+env = { LC_ALL = "C" }
+
+[[case]]
+name = "UTF-8: an invalid byte counts as no character but joins a word"
+args = ["-l", "-w", "-m", "-c", "-L", "tests/fixtures/bad.dat"]
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "C: the same invalid bytes"
+args = ["-l", "-w", "-m", "-c", "-L", "tests/fixtures/bad.dat"]
+env = { LC_ALL = "C" }
+
+[[case]]
+name = "UTF-8: binary input, every byte value"
+args = ["-l", "-w", "-m", "-c", "-L", "tests/fixtures/bin.dat"]
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "C: byte 160 separates words"
+args = ["-w"]
+stdin = "a\u00A0b\n"
+env = { LC_ALL = "C" }
+
+[[case]]
+name = "UTF-8: U+00A0 separates words"
+args = ["-w"]
+stdin = "a\u00A0b\n"
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "UTF-8: U+3000 separates words and is two columns wide"
+args = ["-w", "-L"]
+stdin = "a\u3000b\n"
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "UTF-8: U+0085 does not separate words"
+args = ["-w"]
+stdin = "a\u0085b\n"
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "UTF-8: U+200B does not separate words and has width 0"
+args = ["-w", "-L"]
+stdin = "a\u200Bb\n"
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "UTF-8: a multibyte character split across a read is still one"
+args = ["-m", "-c"]
+stdin_file = "utf8.txt"
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "LC_CTYPE is used when LC_ALL is unset"
+args = ["-m", "-c", "tests/fixtures/utf8.txt"]
+env = { LC_CTYPE = "C.UTF-8", LC_ALL = "" }
+
+[[case]]
+name = "LANG is used when neither LC_ALL nor LC_CTYPE is set"
+args = ["-m", "-c", "tests/fixtures/utf8.txt"]
+env = { LANG = "C.UTF-8", LC_ALL = "" }
+
+[[case]]
+name = "LC_ALL beats LC_CTYPE"
+args = ["-m", "-c", "tests/fixtures/utf8.txt"]
+env = { LC_ALL = "C", LC_CTYPE = "C.UTF-8" }
+
+# ---------------------------------------------------------- POSIXLY_CORRECT
+
+[[case]]
+name = "options permute after an operand by default"
+args = ["tests/fixtures/two.txt", "-l"]
+
+[[case]]
+name = "POSIXLY_CORRECT: an operand ends the options"
+args = ["tests/fixtures/two.txt", "-l"]
+env = { POSIXLY_CORRECT = "1" }
+
+[[case]]
+name = "end of options"
+args = ["--", "tests/fixtures/two.txt"]
+
+[[case]]
+name = "end of options protects a file named like an option"
+args = ["--", "-l"]
+
+# ------------------------------------------------- the -L width table
+#
+# One case per range of the compact width table in wc.lu's `width_of`,
+# so that GNU — not this program's own expectations — pins each range.
+# The line is a<CODE POINT>b, so -L is 2 plus the width of the point.
+
+[[case]]
+name = "width table: U+0591, a Hebrew accent"
+args = ["-L", "-m", "-w"]
+stdin = "a\u0591b\n"
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "width table: U+0301, a combining acute"
+args = ["-L", "-m", "-w"]
+stdin = "a\u0301b\n"
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "width table: U+1160, a Hangul Jamo medial"
+args = ["-L", "-m", "-w"]
+stdin = "a\u1160b\n"
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "width table: U+20D0, a combining mark for symbols"
+args = ["-L", "-m", "-w"]
+stdin = "a\u20D0b\n"
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "width table: U+3099, a combining kana mark"
+args = ["-L", "-m", "-w"]
+stdin = "a\u3099b\n"
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "width table: U+FB1E, a Hebrew point"
+args = ["-L", "-m", "-w"]
+stdin = "a\uFB1Eb\n"
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "width table: U+FE0F, a variation selector"
+args = ["-L", "-m", "-w"]
+stdin = "a\uFE0Fb\n"
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "width table: U+2E80, a CJK radical"
+args = ["-L", "-m", "-w"]
+stdin = "a\u2E80b\n"
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "width table: U+4E00, a CJK ideograph"
+args = ["-L", "-m", "-w"]
+stdin = "a\u4E00b\n"
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "width table: U+AC00, a Hangul syllable"
+args = ["-L", "-m", "-w"]
+stdin = "a\uAC00b\n"
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "width table: U+FF21, a fullwidth letter"
+args = ["-L", "-m", "-w"]
+stdin = "a\uFF21b\n"
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "width table: U+FFE5, a fullwidth sign"
+args = ["-L", "-m", "-w"]
+stdin = "a\uFFE5b\n"
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "width table: U+1F600, an emoji"
+args = ["-L", "-m", "-w"]
+stdin = "a\u1F600b\n"
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "width table: U+1F900, a later emoji"
+args = ["-L", "-m", "-w"]
+stdin = "a\u1F900b\n"
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "width table: U+2003, an em space"
+args = ["-L", "-m", "-w"]
+stdin = "a\u2003b\n"
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "width table: U+00AD, a soft hyphen"
+args = ["-L", "-m", "-w"]
+stdin = "a\u00ADb\n"
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "width table: U+0700, a Syriac mark"
+args = ["-L", "-m", "-w"]
+stdin = "a\u0700b\n"
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "width table: U+070F, a Syriac abbreviation mark"
+args = ["-L", "-m", "-w"]
+stdin = "a܏b\n"
+env = { LC_ALL = "C.UTF-8" }
