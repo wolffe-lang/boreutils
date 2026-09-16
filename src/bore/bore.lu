@@ -609,6 +609,21 @@ pub fn write_all(mut o: Out, bytes: List[byte]) -> () ! {io} {
     emit(o, bytes)?
 }
 
+/// Write `bytes` straight out, unbuffered and uncopied.
+///
+/// Takes `o` by READ, and that is the whole point: a caller streaming
+/// inside a `region` block cannot hand its region-local bytes to
+/// `write_all`, because passing a region-allocated list to a call that
+/// also holds a `mut` parameter is E1010 — the compiler must assume the
+/// list could be stored in that parameter and outlive the block. With
+/// `o` read-only there is nowhere for it to be stored.
+///
+/// The caller owns the ordering: this does NOT flush what `put` has
+/// buffered, so a program must use one route or the other, not both.
+pub fn write_direct(o: Out, bytes: List[byte]) -> () ! {io} {
+    emit(o, bytes)?
+}
+
 /// Write what is buffered.
 ///
 /// Rows: `io` when the write fails, or, on the `print_raw` fallback,
