@@ -352,54 +352,93 @@ fn wide(n: int) -> bool {
 
 // ---------------------------------------------------------- the counting
 
-/// Count `fd` to end of file.
+/// Count `src` to end of input.
 ///
-/// Three loops, because the hot ones must stay tight: bytes only, lines
-/// only, and the general one. Measured on 256 MiB (nomad-1, release):
-/// reading alone is 0.06 s, lines 0.14 s, lines and words 0.42 s.
-fn scan(fd: int, sel: Sel, utf8: bool) -> Counts ! {io} {
+/// Four loops, because the hot ones must stay tight: bytes only, lines
+/// only, the C-locale default, and the general one. Measured on 256 MiB
+/// (nomad-1, release): reading alone is 0.06 s, lines 0.14 s, lines and
+/// words 0.42 s.
+///
+/// Every one of them reads inside one `region` per chunk.
+/// `fs_read_chunk` allocates the list it answers and the ambient region
+/// frees nothing until the frame ends, so without the block a count of
+/// 256 MiB peaked at 271 MB of RSS against GNU's 1.8 MB; with it, at
+/// 1.9 MB, with identical counts (wolf-lang#416, found by bu01's `cat`).
+/// Nothing may outlive the block, which is why only the scalar counters
+/// cross it.
+fn scan(src: bore.In, sel: Sel, utf8: bool) -> Counts ! {io} {
     let want_chars = sel.chars && utf8
     if !sel.lines && !sel.words && !sel.maxline && !want_chars {
-        return scan_bytes(fd)?
+        return scan_bytes(src)?
     }
     if sel.lines && !sel.words && !sel.maxline && !want_chars {
-        return scan_lines(fd)?
+        return scan_lines(src)?
     }
     if !utf8 && !sel.maxline {
-        return scan_c(fd)?
+        return scan_c(src)?
     }
-    scan_general(fd, utf8)?
+    scan_general(src, utf8)?
 }
 
 /// Bytes only: no byte is looked at.
-fn scan_bytes(fd: int) -> Counts ! {io} {
-    var c = zero()
-    loop {
-        let piece = fs_read_chunk(fd, chunk()) else |e| match e {
-            eof => { break },
-            io => { return io },
+fn scan_bytes(src: bore.In) -> Counts ! {io} {
+    var bytes: int = 0
+    var stop = false
+    var failed = false
+    while !stop {
+        region pass {
+            let piece = bore.read_chunk(src, chunk()) else |e| match e {
+                eof => { stop = true; List[byte]() },
+                io => {
+                    stop = true
+                    failed = true
+                    List[byte]()
+                },
+            }
+            if piece.len == 0 {
+                stop = true
+            }
+            bytes += piece.len
         }
-        c.bytes += piece.len
     }
-    c.chars = c.bytes
+    if failed {
+        return io
+    }
+    var c = zero()
+    c.bytes = bytes
+    c.chars = bytes
     c
 }
 
 /// Lines and bytes.
-fn scan_lines(fd: int) -> Counts ! {io} {
+fn scan_lines(src: bore.In) -> Counts ! {io} {
     var lines: int = 0
     var bytes: int = 0
-    loop {
-        let piece = fs_read_chunk(fd, chunk()) else |e| match e {
-            eof => { break },
-            io => { return io },
-        }
-        bytes += piece.len
-        for b in piece {
-            if b as int == 10 {
-                lines += 1
+    var stop = false
+    var failed = false
+    while !stop {
+        region pass {
+            let piece = bore.read_chunk(src, chunk()) else |e| match e {
+                eof => { stop = true; List[byte]() },
+                io => {
+                    stop = true
+                    failed = true
+                    List[byte]()
+                },
+            }
+            if piece.len == 0 {
+                stop = true
+            }
+            bytes += piece.len
+            for b in piece {
+                if b as int == 10 {
+                    lines += 1
+                }
             }
         }
+    }
+    if failed {
+        return io
     }
     var c = zero()
     c.lines = lines
@@ -412,29 +451,43 @@ fn scan_lines(fd: int) -> Counts ! {io} {
 /// the one loop worth keeping tight. A comparison chain beat a
 /// 256-entry class table by 0.07 s per 256 MiB on nomad-1, so the
 /// chain stays.
-fn scan_c(fd: int) -> Counts ! {io} {
+fn scan_c(src: bore.In) -> Counts ! {io} {
     var lines: int = 0
     var words: int = 0
     var bytes: int = 0
     var inword = false
-    loop {
-        let piece = fs_read_chunk(fd, chunk()) else |e| match e {
-            eof => { break },
-            io => { return io },
-        }
-        bytes += piece.len
-        for b in piece {
-            let n = b as int
-            if n == 10 {
-                lines += 1
+    var stop = false
+    var failed = false
+    while !stop {
+        region pass {
+            let piece = bore.read_chunk(src, chunk()) else |e| match e {
+                eof => { stop = true; List[byte]() },
+                io => {
+                    stop = true
+                    failed = true
+                    List[byte]()
+                },
             }
-            if n == 32 || n >= 9 && n <= 13 || n == 160 {
-                inword = false
-            } else if !inword {
-                inword = true
-                words += 1
+            if piece.len == 0 {
+                stop = true
+            }
+            bytes += piece.len
+            for b in piece {
+                let n = b as int
+                if n == 10 {
+                    lines += 1
+                }
+                if n == 32 || n >= 9 && n <= 13 || n == 160 {
+                    inword = false
+                } else if !inword {
+                    inword = true
+                    words += 1
+                }
             }
         }
+    }
+    if failed {
+        return io
     }
     var c = zero()
     c.lines = lines
@@ -447,7 +500,7 @@ fn scan_c(fd: int) -> Counts ! {io} {
 /// Everything else: the longest line, or a UTF-8 locale, or both. The
 /// UTF-8 decoder carries its state across chunk boundaries, because a
 /// character may straddle one.
-fn scan_general(fd: int, utf8: bool) -> Counts ! {io} {
+fn scan_general(src: bore.In, utf8: bool) -> Counts ! {io} {
     var lines: int = 0
     var words: int = 0
     var chars: int = 0
@@ -458,144 +511,158 @@ fn scan_general(fd: int, utf8: bool) -> Counts ! {io} {
     // the UTF-8 decoder's state
     var pending = 0
     var cp: int = 0
-    loop {
-        let piece = fs_read_chunk(fd, chunk()) else |e| match e {
-            eof => { break },
-            io => { return io },
-        }
-        bytes += piece.len
-        for b in piece {
-            let n = b as int
-            if !utf8 {
-                chars += 1
-                if n == 10 {
-                    if pos > maxline {
-                        maxline = pos
-                    }
-                    lines += 1
-                    pos = 0
-                } else if n == 13 || n == 12 {
-                    if pos > maxline {
-                        maxline = pos
-                    }
-                    pos = 0
-                } else if n == 9 {
-                    pos = (pos / 8 + 1) * 8
-                } else if n >= 32 && n < 127 {
-                    pos += 1
-                }
-                if byte_space(n) {
-                    inword = false
-                } else if !inword {
-                    inword = true
-                    words += 1
-                }
-                continue
+    var stop = false
+    var failed = false
+    while !stop {
+        region pass {
+            let piece = bore.read_chunk(src, chunk()) else |e| match e {
+                eof => { stop = true; List[byte]() },
+                io => {
+                    stop = true
+                    failed = true
+                    List[byte]()
+                },
             }
-            if pending == 0 && n < 128 {
-                // The ASCII fast path: one byte, one character, and the
-                // C-locale rules are the UTF-8 rules below 128.
-                chars += 1
-                if n == 10 {
-                    if pos > maxline {
-                        maxline = pos
-                    }
-                    lines += 1
-                    pos = 0
-                } else if n == 13 || n == 12 {
-                    if pos > maxline {
-                        maxline = pos
-                    }
-                    pos = 0
-                } else if n == 9 {
-                    pos = (pos / 8 + 1) * 8
-                } else if n >= 32 && n < 127 {
-                    pos += 1
-                }
-                if n == 32 || n >= 9 && n <= 13 {
-                    inword = false
-                } else if !inword {
-                    inword = true
-                    words += 1
-                }
-                continue
+            if piece.len == 0 {
+                stop = true
             }
-            // UTF-8: finish a pending sequence, or start one.
-            var point = -1
-            var invalid = false
-            if pending > 0 {
-                if n >= 128 && n < 192 {
-                    cp = cp * 64 + (n - 128)
-                    pending -= 1
-                    if pending == 0 {
-                        point = cp
+            bytes += piece.len
+            for b in piece {
+                let n = b as int
+                if !utf8 {
+                    chars += 1
+                    if n == 10 {
+                        if pos > maxline {
+                            maxline = pos
+                        }
+                        lines += 1
+                        pos = 0
+                    } else if n == 13 || n == 12 {
+                        if pos > maxline {
+                            maxline = pos
+                        }
+                        pos = 0
+                    } else if n == 9 {
+                        pos = (pos / 8 + 1) * 8
+                    } else if n >= 32 && n < 127 {
+                        pos += 1
                     }
-                } else {
-                    // the pending sequence was truncated: it counted
-                    // nothing, and this byte starts again.
-                    pending = 0
-                    if n < 128 {
-                        point = n
-                    } else if n >= 194 && n < 224 {
-                        pending = 1
-                        cp = n - 192
-                    } else if n >= 224 && n < 240 {
-                        pending = 2
-                        cp = n - 224
-                    } else if n >= 240 && n < 245 {
-                        pending = 3
-                        cp = n - 240
+                    if byte_space(n) {
+                        inword = false
+                    } else if !inword {
+                        inword = true
+                        words += 1
+                    }
+                    continue
+                }
+                if pending == 0 && n < 128 {
+                    // The ASCII fast path: one byte, one character, and the
+                    // C-locale rules are the UTF-8 rules below 128.
+                    chars += 1
+                    if n == 10 {
+                        if pos > maxline {
+                            maxline = pos
+                        }
+                        lines += 1
+                        pos = 0
+                    } else if n == 13 || n == 12 {
+                        if pos > maxline {
+                            maxline = pos
+                        }
+                        pos = 0
+                    } else if n == 9 {
+                        pos = (pos / 8 + 1) * 8
+                    } else if n >= 32 && n < 127 {
+                        pos += 1
+                    }
+                    if n == 32 || n >= 9 && n <= 13 {
+                        inword = false
+                    } else if !inword {
+                        inword = true
+                        words += 1
+                    }
+                    continue
+                }
+                // UTF-8: finish a pending sequence, or start one.
+                var point = -1
+                var invalid = false
+                if pending > 0 {
+                    if n >= 128 && n < 192 {
+                        cp = cp * 64 + (n - 128)
+                        pending -= 1
+                        if pending == 0 {
+                            point = cp
+                        }
                     } else {
-                        invalid = true
+                        // the pending sequence was truncated: it counted
+                        // nothing, and this byte starts again.
+                        pending = 0
+                        if n < 128 {
+                            point = n
+                        } else if n >= 194 && n < 224 {
+                            pending = 1
+                            cp = n - 192
+                        } else if n >= 224 && n < 240 {
+                            pending = 2
+                            cp = n - 224
+                        } else if n >= 240 && n < 245 {
+                            pending = 3
+                            cp = n - 240
+                        } else {
+                            invalid = true
+                        }
                     }
-                }
-            } else if n < 128 {
-                point = n
-            } else if n >= 194 && n < 224 {
-                pending = 1
-                cp = n - 192
-            } else if n >= 224 && n < 240 {
-                pending = 2
-                cp = n - 224
-            } else if n >= 240 && n < 245 {
-                pending = 3
-                cp = n - 240
-            } else {
-                invalid = true
-            }
-            if invalid {
-                // An invalid byte is consumed alone: no character, but
-                // it belongs to a word and has width 0 (measured).
-                if !inword {
-                    inword = true
-                    words += 1
-                }
-            } else if point >= 0 {
-                chars += 1
-                if point == 10 {
-                    if pos > maxline {
-                        maxline = pos
-                    }
-                    lines += 1
-                    pos = 0
-                } else if point == 13 || point == 12 {
-                    if pos > maxline {
-                        maxline = pos
-                    }
-                    pos = 0
-                } else if point == 9 {
-                    pos = (pos / 8 + 1) * 8
+                } else if n < 128 {
+                    point = n
+                } else if n >= 194 && n < 224 {
+                    pending = 1
+                    cp = n - 192
+                } else if n >= 224 && n < 240 {
+                    pending = 2
+                    cp = n - 224
+                } else if n >= 240 && n < 245 {
+                    pending = 3
+                    cp = n - 240
                 } else {
-                    pos += width_of(point)
+                    invalid = true
                 }
-                if wide_space(point) {
-                    inword = false
-                } else if !inword {
-                    inword = true
-                    words += 1
+                if invalid {
+                    // An invalid byte is consumed alone: no character, but
+                    // it belongs to a word and has width 0 (measured).
+                    if !inword {
+                        inword = true
+                        words += 1
+                    }
+                } else if point >= 0 {
+                    chars += 1
+                    if point == 10 {
+                        if pos > maxline {
+                            maxline = pos
+                        }
+                        lines += 1
+                        pos = 0
+                    } else if point == 13 || point == 12 {
+                        if pos > maxline {
+                            maxline = pos
+                        }
+                        pos = 0
+                    } else if point == 9 {
+                        pos = (pos / 8 + 1) * 8
+                    } else {
+                        pos += width_of(point)
+                    }
+                    if wide_space(point) {
+                        inword = false
+                    } else if !inword {
+                        inword = true
+                        words += 1
+                    }
                 }
             }
         }
+    }
+    if failed {
+        return io
     }
     if pos > maxline {
         maxline = pos
@@ -703,7 +770,14 @@ fn shape_of(path: str) -> int {
 }
 
 /// The shared column width. See the header for the rule.
-fn width_for(inputs: List[Input], stdin_fd: int, ncols: int, only: bool, from_stream: bool) -> int {
+fn width_for(
+    inputs: List[Input],
+    stdin_in: bore.In,
+    have_stdin: bool,
+    ncols: int,
+    only: bool,
+    from_stream: bool,
+) -> int {
     if only || from_stream {
         return 1
     }
@@ -713,10 +787,10 @@ fn width_for(inputs: List[Input], stdin_fd: int, ncols: int, only: bool, from_st
     var total: int = 0
     for inp in inputs {
         if inp.stdin {
-            if stdin_fd < 0 {
+            if !have_stdin {
                 return 7
             }
-            let st = fs_fstat(stdin_fd) else |_| {
+            let st = fs_fstat(stdin_in.fd) else |_| {
                 return 7
             }
             if st[0] != 0 {
@@ -736,22 +810,6 @@ fn width_for(inputs: List[Input], stdin_fd: int, ncols: int, only: bool, from_st
     digits(total)
 }
 
-/// The GNU wording for a row that came from opening or reading a file.
-/// There is no `strerror` behind a row at 0.2.14 (wolf-lang#407), so
-/// each row maps to the message GNU prints for the errno it stands for.
-fn reason(tag: str) -> str {
-    if tag == "not_found" {
-        return "No such file or directory"
-    }
-    if tag == "denied" {
-        return "Permission denied"
-    }
-    if tag == "isdir" {
-        return "Is a directory"
-    }
-    "Input/output error"
-}
-
 /// The options, in the order GNU's own table declares them: the order
 /// decides how `option '--=x' is ambiguous; possibilities: …` reads, and
 /// that message is compared byte for byte.
@@ -768,41 +826,6 @@ fn options() -> List[bore.Opt] {
     (mut s).push(bore.flag("", "help"))
     (mut s).push(bore.flag("", "version"))
     s
-}
-
-/// Whether GNU leaves the byte `n` unquoted in a per-file diagnostic.
-/// Measured against coreutils 9.11 over every ASCII punctuation mark on
-/// both hosts: alphanumerics and `. - _ + , % @ # ] { } ~ /` are bare,
-/// everything else — a space, `= : ! $ & ( ) * ? [ | ; < > ^` and the
-/// quotes, control bytes and non-ASCII — makes the whole name quoted.
-fn plain_byte(n: int) -> bool {
-    if n >= 48 && n <= 57 || n >= 65 && n <= 90 || n >= 97 && n <= 122 {
-        return true
-    }
-    n == 46 ||
-        n == 45 ||
-        n == 95 ||
-        n == 43 ||
-        n == 44 ||
-        n == 37 ||
-        n == 64 ||
-        n == 35 ||
-        n == 93 ||
-        n == 123 ||
-        n == 125 ||
-        n == 126 ||
-        n == 47
-}
-
-/// A file name as a diagnostic shows it: bare when it needs no quoting,
-/// and in `bore.quote`'s shell style when it does.
-fn shown(name: str) -> str {
-    for b in name.bytes() {
-        if !plain_byte(b as int) {
-            return bore.quote(name)
-        }
-    }
-    name
 }
 
 /// `--total=WHEN`, matched as GNU matches it: exactly, or as the unique
@@ -933,7 +956,8 @@ fn main() -> int {
 
     // The inputs, and standard input's handle when one is needed.
     var inputs = List[Input]()
-    var stdin_fd = -1
+    var stdin_in = bore.In { fd: -1, name: "-" }
+    var have_stdin = false
     var from_stream = false
     if has_from {
         if p.operands.len > 0 {
@@ -945,14 +969,25 @@ fn main() -> int {
         var raw = List[byte]()
         if from == "-" {
             from_stream = true
-            stdin_fd = fs_open("/dev/stdin") else |_| {
-                bore.warn("wc", "-: {reason("io")}")
+            stdin_in = bore.open_input("-") else |_| {
+                bore.input_error("wc", "-", bore.io_error())
                 return bore.finish(mut out, "wc", 1)
             }
-            loop {
-                let piece = fs_read_chunk(stdin_fd, chunk()) else |e| match e {
-                    eof => { break },
-                    io => { break },
+            have_stdin = true
+            // No `region` here, unlike the counting loops: the names
+            // must outlive the read, and pushing into a list that was
+            // born outside the block is E1010 anyway — the compiler
+            // must assume the pushed bytes land in the region. A name
+            // list is a few kilobytes, so the chunks it retains do not
+            // matter the way a 256 MiB count's would.
+            var stop = false
+            while !stop {
+                let piece = bore.read_chunk(stdin_in, chunk()) else |e| match e {
+                    eof => { stop = true; List[byte]() },
+                    io => { stop = true; List[byte]() },
+                }
+                if piece.len == 0 {
+                    stop = true
                 }
                 for b in piece {
                     (mut raw).push(b)
@@ -963,19 +998,19 @@ fn main() -> int {
                 not_found => {
                     bore.warn(
                         "wc",
-                        "cannot open {bore.quote(from)} for reading: {reason("not_found")}",
+                        "cannot open {bore.quote(from)} for reading: {bore.no_such_file()}",
                     )
                     return bore.finish(mut out, "wc", 1)
                 },
                 denied => {
                     bore.warn(
                         "wc",
-                        "cannot open {bore.quote(from)} for reading: {reason("denied")}",
+                        "cannot open {bore.quote(from)} for reading: {bore.permission_denied()}",
                     )
                     return bore.finish(mut out, "wc", 1)
                 },
                 io => {
-                    bore.warn("wc", "cannot open {bore.quote(from)} for reading: {reason("io")}")
+                    bore.warn("wc", "cannot open {bore.quote(from)} for reading: {bore.io_error()}")
                     return bore.finish(mut out, "wc", 1)
                 },
             }
@@ -1016,18 +1051,19 @@ fn main() -> int {
             needs_stdin = true
         }
     }
-    if needs_stdin && stdin_fd < 0 {
-        stdin_fd = fs_open("/dev/stdin") else |_| {
-            -1
+    if needs_stdin && !have_stdin {
+        stdin_in = bore.open_input("-") else |_| {
+            bore.In { fd: -1, name: "-" }
         }
+        have_stdin = stdin_in.fd >= 0
     }
 
     let only = mode == 2
-    let width = width_for(inputs, stdin_fd, columns(sel), only, from_stream)
+    let width = width_for(inputs, stdin_in, have_stdin, columns(sel), only, from_stream)
     var total = zero()
     var counted = 0
     for inp in inputs {
-        let one = count_one(inp, stdin_fd, sel, utf8, mut out, width, only) else |_| {
+        let one = count_one(inp, stdin_in, have_stdin, sel, utf8, mut out, width, only) else |_| {
             status = 1
             continue
         }
@@ -1056,9 +1092,15 @@ fn main() -> int {
 
 /// Count one input and print its line. The row says the line was not
 /// printed and the status must become 1; the message is already out.
+///
+/// The opening, the rows and the wording are `bore`'s: `open_input`
+/// answers `is_dir` for a directory (`fs_open` accepts one and only the
+/// read fails, with the same `io` row a real failure raises), and
+/// `input_error` quotes the name as GNU quotes it.
 fn count_one(
     inp: Input,
-    stdin_fd: int,
+    stdin_in: bore.In,
+    have_stdin: bool,
     sel: Sel,
     utf8: bool,
     mut out: bore.Out,
@@ -1069,75 +1111,67 @@ fn count_one(
     if only {
         label = ""
     }
-    var fd = stdin_fd
-    if !inp.stdin {
-        fd = fs_open(inp.path) else |e| match e {
+    var src = stdin_in
+    if inp.stdin {
+        if !have_stdin {
+            bore.input_error("wc", inp.label, bore.io_error())
+            return failed
+        }
+    } else {
+        src = bore.open_input(inp.path) else |e| match e {
             not_found => {
-                bore.warn("wc", "{shown(inp.label)}: {reason("not_found")}")
+                bore.input_error("wc", inp.label, bore.no_such_file())
                 return failed
             },
             denied => {
-                bore.warn("wc", "{shown(inp.label)}: {reason("denied")}")
+                bore.input_error("wc", inp.label, bore.permission_denied())
+                return failed
+            },
+            is_dir => {
+                // GNU prints a line of zeros first, and those zeros
+                // join the total.
+                if !only {
+                    emit(mut out, zero(), sel, width, label) else |_| {}
+                }
+                bore.input_error("wc", inp.label, bore.directory_reason())
                 return failed
             },
             io => {
-                bore.warn("wc", "{shown(inp.label)}: {reason("io")}")
+                bore.input_error("wc", inp.label, bore.io_error())
                 return failed
             },
         }
     }
-    if fd < 0 {
-        bore.warn("wc", "{shown(inp.label)}: {reason("io")}")
-        return failed
-    }
-    // A directory opens but cannot be read: GNU prints a line of zeros
-    // and then the error, and the zeros join the total.
-    var kind = 0
-    var size: int = -1
-    let st = fs_fstat(fd) else |_| {
-        var none = List[int]()
-        none
-    }
-    if st.len >= 2 {
-        kind = st[0]
-        size = st[1]
-    }
-    if kind == 1 {
-        if !inp.stdin {
-            fs_close(fd) else |_| {}
-        }
-        if !only {
-            emit(mut out, zero(), sel, width, label) else |_| {}
-        }
-        bore.warn("wc", "{shown(inp.label)}: {reason("isdir")}")
-        return failed
-    }
-    // `-c` (and `-m` in the C locale) on a regular file we opened is an
-    // fstat, not a read: the handle is ours, so its offset is 0. Never
-    // for standard input, which may already have been read from.
+    // `-c`, and `-m` in the C locale, on a regular file THIS program
+    // opened is an fstat rather than a read: the handle is ours, so its
+    // offset is 0. Never for standard input, whose offset may already
+    // have moved and which wolf cannot ask about (wolf-lang#405).
     let bytes_only = !sel.lines && !sel.words && !sel.maxline && !(sel.chars && utf8)
-    if bytes_only && !inp.stdin && kind == 0 && size >= 0 {
-        fs_close(fd) else |_| {}
-        var c = zero()
-        c.bytes = size
-        c.chars = size
-        if !only {
-            emit(mut out, c, sel, width, label) else |_| {
-                bore.warn("wc", "write error")
-                return failed
+    if bytes_only && !inp.stdin {
+        let size = regular_size(src)
+        if size >= 0 {
+            bore.close_input(src)
+            var c = zero()
+            c.bytes = size
+            c.chars = size
+            if !only {
+                emit(mut out, c, sel, width, label) else |_| {
+                    bore.warn("wc", "write error")
+                    return failed
+                }
             }
+            return c
         }
-        return c
     }
-    let c = scan(fd, sel, utf8) else |_| {
+    let c = scan(src, sel, utf8) else |_| {
         if !inp.stdin {
-            fs_close(fd) else |_| {}
+            bore.close_input(src)
         }
-        bore.warn("wc", "{shown(inp.label)}: {reason("io")}")
+        bore.input_error("wc", inp.label, bore.io_error())
         return failed
     }
     if !inp.stdin {
-        fs_close(fd) else |_| {}
+        bore.close_input(src)
     }
     if !only {
         emit(mut out, c, sel, width, label) else |_| {
@@ -1146,6 +1180,25 @@ fn count_one(
         }
     }
     c
+}
+
+/// The size of `src` when it is a regular file, or -1.
+///
+/// `bore.In` carries the descriptor and `bore` has no size accessor, so
+/// the handle's own metadata is read here rather than adding one to the
+/// shared module mid-wave.
+fn regular_size(src: bore.In) -> int {
+    let st = fs_fstat(src.fd) else |_| {
+        var none = List[int]()
+        none
+    }
+    if st.len < 2 {
+        return -1
+    }
+    if st[0] != 0 {
+        return -1
+    }
+    st[1]
 }
 
 fn help() -> str {
