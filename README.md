@@ -65,7 +65,7 @@ linux and macOS.
 ## Status
 
 Every utility below is byte-for-byte identical to GNU coreutils 9.11 on
-its differential corpus, on both hosts: 143 differential cases, macOS
+its differential corpus, on both hosts: 252 differential cases, macOS
 arm64 and linux x86-64.
 
 "vs GNU" is wall-clock from `tools/bench`, GNU's time divided by ours,
@@ -84,6 +84,32 @@ into `head -c`; the rest start up, write a few bytes and exit.
 | `echo`, one string | 1.9 ms vs GNU 2.0 ms (1.04x) | — |
 | `basename`, one path | 1.6 ms vs GNU 1.7 ms (1.04x) | — |
 
+`cat` has a table of its own, because it is the first utility that moves
+bulk data and the two hosts disagree sharply about it. Release tier, GNU
+coreutils 9.11, 10 runs (50 for start-up), nomad-1 at load 7.4 and
+kasumi at load 5.9. The large file is 256 MiB of text; the short-line
+file is 16 MiB of nought-to-seven-letter lines.
+
+| bench | nomad-1 (macOS arm64) | kasumi (linux x86-64) |
+|---|---|---|
+| `cat`, start-up | 1.82 ms vs GNU 2.14 ms (**1.18x**) | 0.26 ms vs GNU 0.25 ms (0.97x) |
+| `cat`, 256 MiB to /dev/null | 27.4 ms vs GNU 17.6 ms (0.64x) | 54.1 ms vs GNU 8.5 ms (0.16x) |
+| `cat`, 256 MiB to a file | 591 ms vs GNU 569 ms (0.96x) | 123 ms vs GNU 86 ms (0.70x) |
+| `cat -n`, 16 MiB of short lines | 94.2 ms vs GNU 54.1 ms (0.57x) | 232 ms vs GNU 61.5 ms (0.26x) |
+
+So `cat` starts up level with GNU on both hosts and loses on bulk
+copying, by 1.6x on macOS and by 6x on linux. GNU moves the bytes
+without a round trip through user space where the host allows it, and
+wolf 0.2.14 exposes neither `splice` nor `copy_file_range`, so every
+byte we copy is read into a list and written back out.
+
+Memory is level, and flat in the size of the input either way: copying
+256 MiB peaks at 2.4 MB of RSS on nomad-1 against GNU's 1.9 MB, and at
+2.8 MB on kasumi against 2.3 MB; `cat -n` peaks at 3.9 MB against
+2.2 MB, and at 3.7 MB against 2.7 MB. That costs one `region` block per
+chunk — without it the same copy peaked at 340 MB and `cat -n` at
+1.1 GB, because the ambient region never frees what each read allocates.
+
 | utility | status | vs GNU |
 |---|---|---|
 | `true` | done | start-up only |
@@ -92,5 +118,5 @@ into `head -c`; the rest start up, write a few bytes and exit.
 | `basename` | done | 1.04x (macOS) |
 | `dirname` | done | start-up only |
 | `yes` | done | 2.74x (macOS), 0.63x (linux) |
-| `cat` | next (bu01) | — |
+| `cat` | done | start-up 1.18x (macOS), 0.97x (linux); bulk copy 0.64x, 0.16x |
 | `wc` | next (bu02) | — |
