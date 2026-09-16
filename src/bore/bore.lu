@@ -312,6 +312,254 @@ fn escape(n: int) -> str {
     "\\{a}{b}{c}"
 }
 
+/// `s` as GNU renders a FILE NAME in a diagnostic under `LC_ALL=C`:
+/// shell-escape style, quoted only when it has to be. `quote` above is
+/// the always-quote style GNU uses for an operand it names in a usage
+/// error; this is the one it uses for a path it could not open, so
+/// `cat missing` says `missing` bare while `cat ""` says `''`.
+///
+/// Measured against coreutils 9.11 over every printable byte, in both
+/// the leading and an inner position. Three shapes:
+///
+/// - a name holding a byte outside printable ASCII splices
+///   single-quoted runs with `$'…'` escapes: `a<TAB>b` is
+///   `'a'$'\t''b'`, and `é` alone is `''$'\303\251'`;
+/// - a name holding a single quote and nothing that rules out double
+///   quotes takes double quotes: `a'b` is `"a'b"`;
+/// - anything else that needs quoting takes single quotes, with each
+///   `'` written `'\''`.
+pub fn quote_name(s: str) -> str {
+    if s.len == 0 {
+        return "''"
+    }
+    var nonprint = false
+    var needs = false
+    var has_quote = false
+    var no_dquote = false
+    var i = 0
+    for b in s.bytes() {
+        let n = b as int
+        if n < 32 || n >= 127 {
+            nonprint = true
+        }
+        if needs_quoting(n, i == 0) {
+            needs = true
+        }
+        if n == 39 {
+            has_quote = true
+        }
+        if breaks_dquote(n) {
+            no_dquote = true
+        }
+        i += 1
+    }
+    if nonprint {
+        return spliced(s)
+    }
+    if !needs {
+        return s
+    }
+    if has_quote && !no_dquote {
+        return "\"{s}\""
+    }
+    single_quoted(s)
+}
+
+/// Whether the byte `n` makes a name need quoting at all. The measured
+/// set is space ! " $ & ' ( ) * : ; < = > ? [ \ ^ ` | anywhere, and #
+/// or ~ in the first position only.
+fn needs_quoting(n: int, first: bool) -> bool {
+    if first && (n == 35 || n == 126) {
+        return true
+    }
+    if n == 32 || n == 33 || n == 34 || n == 36 || n == 38 || n == 39 {
+        return true
+    }
+    if n == 40 || n == 41 || n == 42 || n == 58 || n == 59 || n == 60 {
+        return true
+    }
+    if n == 61 || n == 62 || n == 63 || n == 91 || n == 92 || n == 94 {
+        return true
+    }
+    n == 96 || n == 124
+}
+
+/// Whether the byte `n` rules out the double-quoted shape. The measured
+/// set is ! " # $ & ( ) * ; < = > ? [ \ ^ ` { | } ~ — deliberately NOT
+/// the set above: a space and a colon keep double quotes, while #, {, }
+/// and ~ forbid them even though they need no quoting on their own.
+fn breaks_dquote(n: int) -> bool {
+    if n == 33 || n == 34 || n == 35 || n == 36 || n == 38 || n == 40 {
+        return true
+    }
+    if n == 41 || n == 42 || n == 59 || n == 60 || n == 61 || n == 62 {
+        return true
+    }
+    if n == 63 || n == 91 || n == 92 || n == 94 || n == 96 || n == 123 {
+        return true
+    }
+    n == 124 || n == 125 || n == 126
+}
+
+fn single_quoted(s: str) -> str {
+    var out = List[byte]()
+    push_str(mut out, "'")
+    for b in s.bytes() {
+        if b as int == 39 {
+            push_str(mut out, "'\\''")
+        } else {
+            (mut out).push(b)
+        }
+    }
+    push_str(mut out, "'")
+    str_from_utf8(out) else "'?'"
+}
+
+/// The spliced shape: single-quoted runs of printable bytes joined to
+/// `$'…'` runs of escaped ones. The opening quote is always written, so
+/// a name starting with a non-printable byte opens with an empty `''`.
+fn spliced(s: str) -> str {
+    var out = List[byte]()
+    push_str(mut out, "'")
+    var open = true
+    var escaping = false
+    for b in s.bytes() {
+        let n = b as int
+        if n >= 32 && n < 127 {
+            if escaping {
+                push_str(mut out, "''")
+                escaping = false
+                open = true
+            }
+            if n == 39 {
+                push_str(mut out, "'\\''")
+            } else {
+                (mut out).push(b)
+            }
+        } else {
+            if open {
+                push_str(mut out, "'")
+                open = false
+            }
+            if !escaping {
+                push_str(mut out, "$'")
+                escaping = true
+            }
+            push_str(mut out, escape(n))
+        }
+    }
+    push_str(mut out, "'")
+    str_from_utf8(out) else "'?'"
+}
+
+fn push_str(mut out: List[byte], s: str) {
+    for b in s.bytes() {
+        (mut out).push(b)
+    }
+}
+
+/// Report `prog: NAME: why`, with NAME quoted as GNU quotes a path.
+pub fn input_error(prog: str, name: str, why: str) {
+    eprint("{prog}: {quote_name(name)}: {why}")
+}
+
+/// GNU's wording for a missing path.
+pub fn no_such_file() -> str {
+    "No such file or directory"
+}
+
+/// GNU's wording for a path the host refused.
+pub fn permission_denied() -> str {
+    "Permission denied"
+}
+
+/// GNU's wording for a directory offered where a file was wanted.
+///
+/// Named for what it produces, not `is_a_directory`, which W0311 reads
+/// as a predicate that ought to answer `bool`.
+pub fn directory_reason() -> str {
+    "Is a directory"
+}
+
+/// The stand-in for every other host failure.
+///
+/// GNU prints `strerror(errno)` here and wolf 0.2.14 has no errno text
+/// behind a row (wolf-lang#407), so this one wording covers every `io`
+/// row. It is the one diagnostic in this module that is NOT known to
+/// match GNU byte for byte; no differential case can reach it, because
+/// nothing in the corpus can provoke a read failure that is not already
+/// `not_found`, `denied` or `is_dir`.
+pub fn io_error() -> str {
+    "Input/output error"
+}
+
+// ------------------------------------------------------------------ input
+
+/// Why an input could not be opened. Named rather than spelled at each
+/// signature: W0602 denies an anonymous multi-tag row on a `pub` item,
+/// because the tag set is API the moment a caller matches on it.
+pub error OpenFailed = {not_found, denied, is_dir, io}
+
+/// Why a read stopped. `eof` is an outcome, not a failure.
+pub error ReadFailed = {eof, io}
+
+/// One input stream: a named file, or standard input for the operand
+/// `-`.
+///
+/// Standard input is reached by reopening `/dev/stdin`, because no
+/// builtin at 0.2.14 reads descriptor 0 as bytes (wolf-lang#405). Open
+/// standard OUTPUT before the first input: with descriptor 1 closed,
+/// the first file opened takes descriptor 1.
+pub struct In {
+    fd: int,
+    name: str,
+}
+
+/// The name this stream was opened under, for a diagnostic.
+pub fn name_of(i: In) -> str {
+    i.name
+}
+
+/// Open `path` for reading, `-` meaning standard input.
+///
+/// Rows: `not_found`, `denied` and `io` as the builtin answers them,
+/// and `is_dir` for a directory. Measured at 0.2.14: `fs_open` ACCEPTS
+/// a directory and only the following `fs_read_chunk` fails, with the
+/// same `io` row a real read failure raises, so the kind is read from
+/// `fs_fstat` (0 regular, 1 directory, 2 device) while the two can
+/// still be told apart.
+pub fn open_input(path: str) -> In ! OpenFailed {
+    if path == "-" {
+        return In { fd: fs_open("/dev/stdin")?, name: "-" }
+    }
+    let fd = fs_open(path)?
+    let st = fs_fstat(fd) else |_| {
+        fs_close(fd) else |_| {}
+        return io
+    }
+    if st[0] == 1 {
+        fs_close(fd) else |_| {}
+        return is_dir
+    }
+    In { fd: fd, name: path }
+}
+
+/// The next chunk of `i`, at most `n` bytes.
+///
+/// Rows: `eof` at the end of the stream, `io` on a read failure.
+/// Measured at 0.2.14: the end of a file arrives as the `eof` ROW, not
+/// as a zero-length answer — but a zero-length answer at a positive `n`
+/// means the same thing, so a caller must end on both.
+pub fn read_chunk(i: In, n: int) -> List[byte] ! ReadFailed {
+    fs_read_chunk(i.fd, n)?
+}
+
+/// Close `i`. A close failure is not reportable and is dropped, as GNU
+/// drops it for an input.
+pub fn close_input(i: In) {
+    fs_close(i.fd) else |_| {}
+}
+
 /// The first line of `--version`, and the lines after it.
 pub fn version_text(prog: str) -> str {
     "{prog} (boreutils) {version()}\nLicence GPL-3.0-or-later. There is no warranty.\n"

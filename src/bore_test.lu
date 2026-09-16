@@ -72,4 +72,37 @@ fn main() {
     assert(bore.quote("c\\d") == "'c\\\\d'", "quote with a backslash")
     assert(bore.quote("c\td") == "'c\\td'", "quote with a tab")
     assert(bore.quote("cé") == "'c\\303\\251'", "quote with a non-ASCII byte")
+    // quote_name is the OTHER style: the one GNU uses for a path it
+    // could not open, quoted only when it has to be. Every expectation
+    // below was read off `gcat NAME` under LC_ALL=C.
+    assert(bore.quote_name("ab") == "ab", "name needing no quotes")
+    assert(bore.quote_name("") == "''", "the empty name")
+    assert(bore.quote_name("no,such+file%here") == "no,such+file%here", "name of safe punctuation")
+    assert(bore.quote_name("a b") == "'a b'", "name with a space")
+    assert(bore.quote_name("a:b") == "'a:b'", "name with a colon")
+    assert(bore.quote_name("a\\b") == "'a\\b'", "name with a backslash")
+    assert(bore.quote_name("a\"b") == "'a\"b'", "name with a double quote")
+    // # and ~ need quoting only where a shell would read them.
+    assert(bore.quote_name("a#b") == "a#b", "hash inside a name")
+    assert(bore.quote_name("#ab") == "'#ab'", "hash starting a name")
+    assert(bore.quote_name("a~b") == "a~b", "tilde inside a name")
+    assert(bore.quote_name("~ab") == "'~ab'", "tilde starting a name")
+    // A single quote takes double quotes, unless something else in the
+    // name rules them out.
+    assert(bore.quote_name("a'b") == "\"a'b\"", "name with a single quote")
+    assert(bore.quote_name("a'b c") == "\"a'b c\"", "a single quote and a space")
+    assert(bore.quote_name("a'b:c") == "\"a'b:c\"", "a single quote and a colon")
+    assert(bore.quote_name("a'b$c") == "'a'\\''b$c'", "a single quote and a dollar")
+    assert(bore.quote_name("a'b{{c}}") == "'a'\\''b{{c}}'", "a single quote and a brace")
+    assert(bore.quote_name("a'b!c") == "'a'\\''b!c'", "a single quote and a bang")
+    // A byte outside printable ASCII splices $'…' runs in.
+    assert(bore.quote_name("a\tb") == "'a'$'\\t''b'", "a tab inside a name")
+    assert(bore.quote_name("\t") == "''$'\\t'", "a name that is one tab")
+    assert(bore.quote_name("ab\t") == "'ab'$'\\t'", "a tab ending a name")
+    assert(bore.quote_name("\tab") == "''$'\\t''ab'", "a tab starting a name")
+    assert(bore.quote_name("a\tb\tc") == "'a'$'\\t''b'$'\\t''c'", "two tabs")
+    assert(bore.quote_name("\t\t") == "''$'\\t\\t'", "one run of two tabs")
+    assert(bore.quote_name("é") == "''$'\\303\\251'", "a name that is one non-ASCII char")
+    assert(bore.quote_name("a'b\tc") == "'a'\\''b'$'\\t''c'", "a single quote and a tab")
+    assert(bore.quote_name("a\\b\tc") == "'a\\b'$'\\t''c'", "a backslash and a tab")
 }
