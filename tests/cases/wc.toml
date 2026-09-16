@@ -15,6 +15,24 @@
 # File operands are written relative to the repository root, which is
 # where difftest runs them from.
 #
+# GNU's behaviour differs across ITS OWN releases, and the hosts do not
+# agree on which one they have: ubuntu-latest ships 9.4 where Homebrew
+# and Arch ship 9.11. Eight cases below carry gnu_min = "9.11" because
+# 9.4 answers them differently:
+#
+#   - `wc -w`: 9.4 SKIPS a byte that is not printable, so it neither
+#     joins a word nor breaks one, while 9.11 counts it as a word
+#     character except byte 160, which 9.11 treats as whitespace. So
+#     `a<c2><a0>b` is one word to 9.4 and two to 9.11, and 256 bytes of
+#     binary noise are 2 words to 9.4 and 8 to 9.11.
+#   - 9.4 says "when reading file names from stdin"; 9.11 says "from
+#     standard input".
+#
+# boreutils implements 9.11: it is what both development hosts run and
+# what every other expectation in this file was read from. The exact
+# release that changed the word rule was not bisected, so the bound is
+# the version actually measured rather than the first that would pass.
+#
 # --help and --version print OUR text, so they compare the exit status
 # and stderr only. --debug compares stdout and the exit only: GNU prints
 # which SIMD kernel its line counter chose (linux says "using avx512
@@ -59,10 +77,12 @@ args = ["tests/fixtures/nonl.txt"]
 [[case]]
 name = "binary input, every byte value"
 args = ["tests/fixtures/bin.dat"]
+gnu_min = "9.11"
 
 [[case]]
 name = "binary input on stdin"
 stdin_file = "bin.dat"
+gnu_min = "9.11"
 
 # ----------------------------------------------------------- each flag
 
@@ -404,6 +424,7 @@ stdin = "tests/fixtures/two.txt\u0000tests/fixtures/one.txt\u0000"
 name = "--files0-from=- refuses a name of -"
 args = ["--files0-from=-"]
 stdin = "-\u0000"
+gnu_min = "9.11"
 
 [[case]]
 name = "--files0-from=- with one name"
@@ -508,27 +529,32 @@ env = { LC_ALL = "C.UTF-8" }
 name = "C: the same wide file is bytes and zero display width"
 args = ["-l", "-w", "-m", "-c", "-L", "tests/fixtures/wide.txt"]
 env = { LC_ALL = "C" }
+gnu_min = "9.11"
 
 [[case]]
 name = "UTF-8: an invalid byte counts as no character but joins a word"
 args = ["-l", "-w", "-m", "-c", "-L", "tests/fixtures/bad.dat"]
 env = { LC_ALL = "C.UTF-8" }
+gnu_min = "9.11"
 
 [[case]]
 name = "C: the same invalid bytes"
 args = ["-l", "-w", "-m", "-c", "-L", "tests/fixtures/bad.dat"]
 env = { LC_ALL = "C" }
+gnu_min = "9.11"
 
 [[case]]
 name = "UTF-8: binary input, every byte value"
 args = ["-l", "-w", "-m", "-c", "-L", "tests/fixtures/bin.dat"]
 env = { LC_ALL = "C.UTF-8" }
+gnu_min = "9.11"
 
 [[case]]
 name = "C: byte 160 separates words"
 args = ["-w"]
 stdin = "a\u00A0b\n"
 env = { LC_ALL = "C" }
+gnu_min = "9.11"
 
 [[case]]
 name = "UTF-8: U+00A0 separates words"

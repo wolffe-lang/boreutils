@@ -21,6 +21,12 @@
 //!   U+200B or U+FEFF.
 //! - `-l` counts newline BYTES, so a last line with no newline is not
 //!   counted, but its words, bytes and length are.
+//! - **Which GNU.** This is 9.11's behaviour, and 9.11 is not 9.4:
+//!   ubuntu-latest still ships 9.4, where `-w` SKIPS a byte that is not
+//!   printable — it neither joins a word nor breaks one — and where
+//!   byte 160 is an ordinary character. 9.11 counts such a byte as part
+//!   of a word and treats 160 as whitespace, which is what this program
+//!   does. Eight differential cases carry `gnu_min = "9.11"` for it.
 //! - `-L` is a display width, not a count: a tab advances to the next
 //!   multiple of 8, `\r` and `\f` reset the width to zero, `\n` ends
 //!   the line, and a byte that is not printable has width 0. The
