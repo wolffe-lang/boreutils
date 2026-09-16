@@ -1,0 +1,40 @@
+# cat — the throughput bench. GNU's `cat` is already fast and reaches
+# for `copy_file_range`/`splice` where the host has them, so beating it
+# is a finding rather than a target.
+#
+# The last row wants MANY SMALL files, where per-operand `open`/`close`
+# and not throughput is the cost, so run it at a small `--scale`: at
+# `--scale 0.0005` the generated `lines` file is about 32 KiB and the 64
+# operands are the whole of the work. The first three rows want a large
+# file, so run them at a large scale. State the scale beside any number
+# taken from this file; `tools/bench` prints it in the header.
+
+[[bench]]
+name = "a large file to /dev/null"
+command = "{prog} {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "a large file to a file"
+command = "{prog} {input} > {input}.out"
+input = "big"
+
+[[bench]]
+name = "-n over short lines, to /dev/null"
+command = "{prog} -n {input} > /dev/null"
+input = "lines"
+
+[[bench]]
+name = "64 operands, to /dev/null"
+command = """
+{prog} {input} {input} {input} {input} {input} {input} {input} {input} \
+{input} {input} {input} {input} {input} {input} {input} {input} \
+{input} {input} {input} {input} {input} {input} {input} {input} \
+{input} {input} {input} {input} {input} {input} {input} {input} \
+{input} {input} {input} {input} {input} {input} {input} {input} \
+{input} {input} {input} {input} {input} {input} {input} {input} \
+{input} {input} {input} {input} {input} {input} {input} {input} \
+{input} {input} {input} {input} {input} {input} {input} {input} \
+> /dev/null\
+"""
+input = "lines"
