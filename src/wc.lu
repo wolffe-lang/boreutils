@@ -206,9 +206,7 @@ pub fn width_of(n: int) -> int {
 
 fn zero_width(n: int) -> bool {
     if n < 768 {
-        // SOFT HYPHEN is the one zero-width point below the combining
-        // blocks (measured: GNU gives `a<U+00AD>b` a display width of 2).
-        return n == 173
+        return false
     }
     if n <= 879 {
         return true
@@ -235,9 +233,6 @@ fn zero_width(n: int) -> bool {
         return true
     }
     if n >= 1840 && n <= 1866 {
-        return true
-    }
-    if n == 1807 {
         return true
     }
     if n >= 2027 && n <= 2035 {
@@ -468,22 +463,50 @@ fn scan_general(fd: int, utf8: bool) -> Counts ! {io} {
             if !utf8 {
                 chars += 1
                 if n == 10 {
+                    if pos > maxline {
+                        maxline = pos
+                    }
                     lines += 1
                     pos = 0
                 } else if n == 13 || n == 12 {
+                    if pos > maxline {
+                        maxline = pos
+                    }
                     pos = 0
                 } else if n == 9 {
                     pos = (pos / 8 + 1) * 8
-                    if pos > maxline {
-                        maxline = pos
-                    }
                 } else if n >= 32 && n < 127 {
                     pos += 1
+                }
+                if byte_space(n) {
+                    inword = false
+                } else if !inword {
+                    inword = true
+                    words += 1
+                }
+                continue
+            }
+            if pending == 0 && n < 128 {
+                // The ASCII fast path: one byte, one character, and the
+                // C-locale rules are the UTF-8 rules below 128.
+                chars += 1
+                if n == 10 {
                     if pos > maxline {
                         maxline = pos
                     }
+                    lines += 1
+                    pos = 0
+                } else if n == 13 || n == 12 {
+                    if pos > maxline {
+                        maxline = pos
+                    }
+                    pos = 0
+                } else if n == 9 {
+                    pos = (pos / 8 + 1) * 8
+                } else if n >= 32 && n < 127 {
+                    pos += 1
                 }
-                if byte_space(n) {
+                if n == 32 || n >= 9 && n <= 13 {
                     inword = false
                 } else if !inword {
                     inword = true
@@ -544,20 +567,20 @@ fn scan_general(fd: int, utf8: bool) -> Counts ! {io} {
             } else if point >= 0 {
                 chars += 1
                 if point == 10 {
+                    if pos > maxline {
+                        maxline = pos
+                    }
                     lines += 1
                     pos = 0
                 } else if point == 13 || point == 12 {
+                    if pos > maxline {
+                        maxline = pos
+                    }
                     pos = 0
                 } else if point == 9 {
                     pos = (pos / 8 + 1) * 8
-                    if pos > maxline {
-                        maxline = pos
-                    }
                 } else {
                     pos += width_of(point)
-                    if pos > maxline {
-                        maxline = pos
-                    }
                 }
                 if wide_space(point) {
                     inword = false
@@ -567,6 +590,9 @@ fn scan_general(fd: int, utf8: bool) -> Counts ! {io} {
                 }
             }
         }
+    }
+    if pos > maxline {
+        maxline = pos
     }
     var c = zero()
     c.lines = lines
