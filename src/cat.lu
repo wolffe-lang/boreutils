@@ -212,9 +212,10 @@ fn one(out: bore.Out, path: str, f: Fmt, mut st: State, plain: bool) -> str {
 /// the list it answers and the ambient region never frees one. Measured
 /// on 256 MiB, release tier, nomad-1: without the block this peaked at
 /// 340 MB of RSS against GNU's 1.9 MB, and with it at 1.8 MB, with the
-/// bytes identical either way. See wolf-lang#409 — there is no builtin
-/// that reads into a buffer the caller owns, so the allocation per read
-/// cannot be avoided, only scoped.
+/// bytes identical either way. There is no builtin that reads into a
+/// buffer the caller already owns, so the allocation per read cannot be
+/// avoided here, only scoped — the gap is reported to the orchestrator
+/// for filing against wolf-lang and has no issue number yet.
 ///
 /// Nothing may outlive the block, and that is why the write goes
 /// through `write_direct`, which takes the writer by READ: handing a
