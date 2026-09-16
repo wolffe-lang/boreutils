@@ -65,7 +65,7 @@ linux and macOS.
 ## Status
 
 Every utility below is byte-for-byte identical to GNU coreutils 9.11 on
-its differential corpus, on both hosts: CASECOUNT differential cases,
+its differential corpus, on both hosts: 394 differential cases,
 macOS arm64 and linux x86-64. Four `wc` cases are skipped and say why in
 the case file: two errno shapes that no wolf fs row can carry
 (wolf-lang#407), and two code points whose display width the two hosts'
@@ -81,28 +81,56 @@ on one and loses on the other. Both numbers are below; neither is "the"
 number.
 
 Release tier, 5 runs, GNU coreutils 9.11. `yes` writes 1 GiB of `y`
-into `head -c`; `wc` reads 256 MiB of generated text under `LC_ALL=C`;
-the rest start up, write a few bytes and exit.
+into `head -c`; the rest start up, write a few bytes and exit.
 
 | bench | nomad-1 (macOS arm64, load 6.7) | kasumi (linux x86-64, load 1.6) |
 |---|---|---|
 | `yes`, 1 GiB | 238 ms vs GNU 652 ms (**2.74x**) | 198 ms vs GNU 124 ms (0.63x) |
 | `echo`, one string | 1.9 ms vs GNU 2.0 ms (1.04x) | — |
 | `basename`, one path | 1.6 ms vs GNU 1.7 ms (1.04x) | — |
-| `wc -w`, 256 MiB | 413 ms vs GNU 483 ms (**1.17x**) | 663 ms vs GNU 516 ms (0.78x) |
-| `wc`, 256 MiB | 420 ms vs GNU 464 ms (**1.11x**) | 759 ms vs GNU 634 ms (0.83x) |
-| `wc -l`, 256 MiB | 151 ms vs GNU 83 ms (0.55x) | 204 ms vs GNU 27 ms (0.13x) |
-| `wc -L`, 256 MiB | 654 ms vs GNU 480 ms (0.73x) | 1064 ms vs GNU 581 ms (0.55x) |
-| `wc -c`, a file | 1.6 ms vs GNU 1.9 ms (1.22x) | 0.3 ms vs GNU 0.3 ms (tie) |
+
+`wc` has a table of its own too. Release tier, GNU coreutils 9.11, 5
+runs, 256 MiB of generated text under `LC_ALL=C`, nomad-1 at load 13.9
+and kasumi idle.
+
+| bench | nomad-1 (macOS arm64) | kasumi (linux x86-64) |
+|---|---|---|
+| `wc -w` | 466 ms vs GNU 592 ms (**1.27x**) | 529 ms vs GNU 464 ms (0.88x) |
+| `wc`, the default counts | 463 ms vs GNU 574 ms (**1.24x**) | 528 ms vs GNU 465 ms (0.88x) |
+| `wc -l` | 174 ms vs GNU 160 ms (0.92x) | 128 ms vs GNU 22 ms (0.17x) |
+| `wc -L` | 719 ms vs GNU 613 ms (0.85x) | 834 ms vs GNU 464 ms (0.56x) |
+| `wc -c`, a file | 5.7 ms vs GNU 7.0 ms (1.23x) | 0.2 ms vs GNU 0.2 ms (tie) |
+| `wc -c`, through `<` | 74 ms vs GNU 7 ms (0.10x) | 36 ms vs GNU 0.5 ms (0.01x) |
 
 `wc` is the first utility whose flags had to be benched separately,
-because each takes a different path. Where the work is a byte-at-a-time
-state machine that GNU cannot vectorize either — `-w`, and the default
-counts — wolf is ahead of C on macOS and behind on linux. Where GNU
-reaches for SIMD, it wins by a lot: `wc --debug -l` reports `using
-avx512 hardware support` on kasumi, and no bulk byte scan is expressible
-in pure wolf today (wolf-lang#411, filed with the measurements). `-c` is
-an `fstat` on both sides, so it measures start-up.
+because each takes a different path, and the first whose locale had to
+be stated: the C loop reads a byte where the UTF-8 loop decodes a
+character, and under `LC_ALL=C.UTF-8` the same four rows read 0.91x to
+0.95x on nomad-1 and 0.71x on kasumi.
+
+Where the work is a byte-at-a-time state machine that GNU cannot
+vectorize either — `-w`, and the default counts — wolf is ahead of C.
+Where GNU reaches for SIMD it wins by a lot: `wc --debug -l` reports
+`using avx512 hardware support` on kasumi, and no bulk byte scan is
+expressible in pure wolf today (wolf-lang#411, filed with every
+alternative measured). `-c` on a file operand is an `fstat` on both
+sides, so it measures start-up; through a redirect GNU still `fstat`s
+and we must read, because `wc -c` owes size minus the current offset and
+wolf has no seek or tell (wolf-lang#405).
+
+**Read the macOS column with its load.** nomad-1 was at load 13.9 with
+other lanes on it, and contention flatters every ratio there, because
+GNU's vectorized line counter loses more to a busy machine than our
+scalar loop does: the same `-l` comparison read 0.55x at load 6.7.
+kasumi was idle.
+
+Memory is flat in the size of the input: counting 256 MiB peaks at
+5.7 MB of RSS on nomad-1 against GNU's 1.8 MB, and 4.3 MB on kasumi
+against 2.8 MB, and 16 MiB peaks at the same 5.7 MB. That costs one
+`region` per chunk, and about 5% of the time; without it the same count
+peaked at **271 MB**, because the ambient region never frees what each
+read allocates (wolf-lang#416). `-c` never reads at all and peaks at
+1.7 MB.
 
 `cat` has a table of its own, because it is the first utility that moves
 bulk data and the two hosts disagree sharply about it. Release tier, GNU
@@ -139,4 +167,4 @@ chunk — without it the same copy peaked at 340 MB and `cat -n` at
 | `dirname` | done | start-up only |
 | `yes` | done | 2.74x (macOS), 0.63x (linux) |
 | `cat` | done | start-up 1.18x (macOS), 0.97x (linux); bulk copy 0.64x, 0.16x |
-| `wc` | done | `-w` 1.17x, `-l` 0.55x (macOS); 0.78x, 0.13x (linux) |
+| `wc` | done | `-w` 1.27x, `-l` 0.92x (macOS, load 13.9); 0.88x, 0.17x (linux) |
