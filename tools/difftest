@@ -93,6 +93,10 @@ def run(exe, argv0, case):
     proc = subprocess.Popen(
         [argv0] + case.get("args", []), executable=exe, env=env,
         stdin=stdin, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        # Every case runs from the repository root, so a case naming a
+        # file operand writes it as tests/fixtures/NAME and means the
+        # same thing however difftest itself was invoked.
+        cwd=ROOT,
         # the child gets the default SIGPIPE disposition, as a shell gives
         restore_signals=True)
     try:
