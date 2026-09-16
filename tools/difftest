@@ -29,6 +29,15 @@ Case file (TOML, one file per utility, any number of [[case]] tables):
                                  #   programs that never stop, like yes)
   skip = "reason"                # optional: reported, not run
   timeout = 10                   # optional, seconds
+  gnu_min = "9.11"               # optional: run only when the GNU oracle
+  gnu_max = "9.4"                #   is in this version range. GNU's
+                                 #   behaviour differs across releases and
+                                 #   the hosts do not agree: ubuntu-latest
+                                 #   ships 9.4 where Homebrew and Arch ship
+                                 #   9.11, and the two disagree about (for
+                                 #   one) how `wc -w` treats a byte that is
+                                 #   not printable. A case outside the
+                                 #   range is reported as a SKIP.
 
 The environment is built from scratch for every run: PATH, LC_ALL=C,
 then the case's env (which may override LC_ALL). Nothing else leaks in
@@ -60,7 +69,25 @@ CASES = os.path.join(ROOT, "tests", "cases")
 FIXTURES = os.path.join(ROOT, "tests", "fixtures")
 ALL = ("stdout", "stderr", "exit")
 KEYS = {"name", "args", "stdin", "stdin_file", "env", "compare",
-        "stdout_bytes", "skip", "timeout", "gnu_util"}
+        "stdout_bytes", "skip", "timeout", "gnu_util", "gnu_min", "gnu_max"}
+
+
+def gnu_version(line):
+    """The version at the end of GNU's first --version line, as a tuple.
+
+    GNU's behaviour differs across releases, so a case may name the range
+    it describes with gnu_min / gnu_max. ubuntu-latest ships 9.4 where a
+    current Homebrew or Arch ships 9.11, and they do not agree about, for
+    one, how `wc -w` treats a byte that is not printable.
+    """
+    m = re.search(r"(\d+(?:\.\d+)*)\s*$", line.strip())
+    if not m:
+        return None
+    return tuple(int(n) for n in m.group(1).split("."))
+
+
+def version_tuple(text):
+    return tuple(int(n) for n in str(text).split("."))
 
 
 def die(msg):
@@ -185,6 +212,7 @@ def main(argv):
         die(f"GNU coreutils not found as '{prefix}true' on PATH")
     version = subprocess.run([probe, "--version"], capture_output=True,
                              text=True).stdout.splitlines()[0]
+    have = gnu_version(version)
     print(f"difftest: gnu = {version} (prefix {prefix!r}) on "
           f"{platform.system()} {platform.machine()}")
     print(f"difftest: bore = {bindir}")
@@ -208,6 +236,17 @@ def main(argv):
             if "skip" in case:
                 skipped += 1
                 print(f"SKIP {label} ({case['skip']})")
+                continue
+            bound = None
+            if have is not None and "gnu_min" in case \
+                    and have < version_tuple(case["gnu_min"]):
+                bound = f"needs GNU >= {case['gnu_min']}, this is {version}"
+            if have is not None and "gnu_max" in case \
+                    and have > version_tuple(case["gnu_max"]):
+                bound = f"needs GNU <= {case['gnu_max']}, this is {version}"
+            if bound is not None:
+                skipped += 1
+                print(f"SKIP {label} ({bound})")
                 continue
             fields = case.get("compare", ALL)
             b = run(bore, util, case)
