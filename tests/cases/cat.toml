@@ -1,0 +1,492 @@
+# cat — GNU coreutils 9.11, black-box. Every expectation here was read
+# off the GNU binary under LC_ALL=C, never off its source.
+#
+# File operands are written relative to the repository root, which is
+# where difftest runs every case from.
+
+# ------------------------------------------------------------ streaming
+
+[[case]]
+name = "no operand reads standard input"
+stdin = "one\ntwo\n"
+
+[[case]]
+name = "a lone dash is standard input"
+args = ["-"]
+stdin = "one\ntwo\n"
+
+[[case]]
+name = "standard input with no trailing newline"
+args = ["-"]
+stdin = "tail"
+
+[[case]]
+name = "empty standard input"
+args = ["-"]
+stdin = ""
+
+[[case]]
+name = "one file"
+args = ["tests/fixtures/plain.txt"]
+
+[[case]]
+name = "two files"
+args = ["tests/fixtures/plain.txt", "tests/fixtures/second.txt"]
+
+[[case]]
+name = "the same file twice"
+args = ["tests/fixtures/plain.txt", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "an empty file"
+args = ["tests/fixtures/empty.txt"]
+
+[[case]]
+name = "an empty file between two others"
+args = [
+    "tests/fixtures/plain.txt",
+    "tests/fixtures/empty.txt",
+    "tests/fixtures/second.txt",
+]
+
+[[case]]
+name = "a file with no trailing newline"
+args = ["tests/fixtures/nonl.txt"]
+
+[[case]]
+name = "an unterminated file runs into the next one"
+args = ["tests/fixtures/nonl.txt", "tests/fixtures/second.txt"]
+
+[[case]]
+name = "a file, then standard input, then the file again"
+args = ["tests/fixtures/plain.txt", "-", "tests/fixtures/plain.txt"]
+stdin = "MIDDLE\n"
+
+[[case]]
+name = "two dashes read standard input once"
+args = ["-", "-"]
+stdin = "only\n"
+
+[[case]]
+name = "every byte value, byte for byte"
+args = ["tests/fixtures/binary.bin"]
+
+[[case]]
+name = "every byte value through standard input"
+args = ["-"]
+stdin_file = "binary.bin"
+
+[[case]]
+name = "multibyte UTF-8"
+args = ["tests/fixtures/utf8.txt"]
+
+# -------------------------------------------------------------- renderings
+
+[[case]]
+name = "-E on plain text"
+args = ["-E", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "-E shows only the carriage return that meets the newline"
+args = ["-E", "tests/fixtures/crlf.txt"]
+
+[[case]]
+name = "-E on a file with no trailing newline"
+args = ["-E", "tests/fixtures/nonl.txt"]
+
+[[case]]
+name = "-T on tabs"
+args = ["-T", "tests/fixtures/tabs.txt"]
+
+[[case]]
+name = "-v on every byte value"
+args = ["-v", "tests/fixtures/binary.bin"]
+
+[[case]]
+name = "-v on multibyte UTF-8"
+args = ["-v", "tests/fixtures/utf8.txt"]
+
+[[case]]
+name = "-v shows every carriage return"
+args = ["-v", "tests/fixtures/crlf.txt"]
+
+[[case]]
+name = "-A is -vET"
+args = ["-A", "tests/fixtures/binary.bin"]
+
+[[case]]
+name = "-A on tabs"
+args = ["-A", "tests/fixtures/tabs.txt"]
+
+[[case]]
+name = "-A on carriage returns"
+args = ["-A", "tests/fixtures/crlf.txt"]
+
+[[case]]
+name = "-e is -vE"
+args = ["-e", "tests/fixtures/binary.bin"]
+
+[[case]]
+name = "-e on carriage returns"
+args = ["-e", "tests/fixtures/crlf.txt"]
+
+[[case]]
+name = "-t is -vT"
+args = ["-t", "tests/fixtures/binary.bin"]
+
+[[case]]
+name = "-t on tabs"
+args = ["-t", "tests/fixtures/tabs.txt"]
+
+[[case]]
+name = "-vET spelled out equals -A"
+args = ["-v", "-E", "-T", "tests/fixtures/binary.bin"]
+
+# --------------------------------------------------------------- numbering
+
+[[case]]
+name = "-n numbers every line"
+args = ["-n", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "-n numbers empty lines too"
+args = ["-n", "tests/fixtures/blanks.txt"]
+
+[[case]]
+name = "-b numbers only the lines that are not empty"
+args = ["-b", "tests/fixtures/blanks.txt"]
+
+[[case]]
+name = "-b overrides -n"
+args = ["-bn", "tests/fixtures/blanks.txt"]
+
+[[case]]
+name = "-n before -b is still -b"
+args = ["-nb", "tests/fixtures/blanks.txt"]
+
+[[case]]
+name = "-b after -n as separate words"
+args = ["-n", "-b", "tests/fixtures/blanks.txt"]
+
+[[case]]
+name = "numbering runs on across operands"
+args = ["-n", "tests/fixtures/plain.txt", "tests/fixtures/second.txt"]
+
+[[case]]
+name = "numbering treats an unterminated line as a line"
+args = ["-n", "tests/fixtures/nonl.txt"]
+
+[[case]]
+name = "numbering continues through an unterminated file"
+args = ["-n", "tests/fixtures/nonl.txt", "tests/fixtures/second.txt"]
+
+[[case]]
+name = "-b on an unterminated file"
+args = ["-b", "tests/fixtures/nonl.txt"]
+
+[[case]]
+name = "-n on an empty file"
+args = ["-n", "tests/fixtures/empty.txt"]
+
+[[case]]
+name = "-n on a file that is one newline"
+args = ["-n", "-"]
+stdin = "\n"
+
+[[case]]
+name = "-b on a file that is one newline"
+args = ["-b", "-"]
+stdin = "\n"
+
+[[case]]
+name = "a carriage-return line is not empty for -b"
+args = ["-b", "-"]
+stdin = "a\n\r\n\r\nb\n"
+
+[[case]]
+name = "-bE on carriage returns"
+args = ["-bE", "-"]
+stdin = "a\n\r\n\r\nb\n"
+
+# ---------------------------------------------------------------- squeeze
+
+[[case]]
+name = "-s collapses runs of empty lines"
+args = ["-s", "tests/fixtures/blanks.txt"]
+
+[[case]]
+name = "-s leaves a file with no empty lines alone"
+args = ["-s", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "-s does not squeeze lines holding a space"
+args = ["-s", "-"]
+stdin = "a\n \n \n\n\nb\n"
+
+[[case]]
+name = "-s does not squeeze carriage-return lines"
+args = ["-s", "-"]
+stdin = "a\n\r\n\r\nb\n"
+
+[[case]]
+name = "-s squeezes leading and trailing runs"
+args = ["-s", "-"]
+stdin = "\n\n\nlead\n\n\n"
+
+[[case]]
+name = "-s squeezes across an operand boundary"
+args = ["-s", "tests/fixtures/nonl.txt", "-"]
+stdin = "\n\n\nz\n"
+
+[[case]]
+name = "-s squeezes before -n numbers"
+args = ["-sn", "tests/fixtures/blanks.txt"]
+
+[[case]]
+name = "-s with -b"
+args = ["-sb", "tests/fixtures/blanks.txt"]
+
+[[case]]
+name = "-s with -A"
+args = ["-sA", "tests/fixtures/blanks.txt"]
+
+# ------------------------------------------------------------ option shape
+
+[[case]]
+name = "-u is accepted and ignored"
+args = ["-u", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "every option clustered"
+args = ["-benstuvAET", "tests/fixtures/blanks.txt"]
+
+[[case]]
+name = "the long spellings"
+args = [
+    "--show-all",
+    "--number",
+    "--squeeze-blank",
+    "tests/fixtures/blanks.txt",
+]
+
+[[case]]
+name = "--number-nonblank spelled out"
+args = ["--number-nonblank", "tests/fixtures/blanks.txt"]
+
+[[case]]
+name = "--show-ends and --show-tabs"
+args = ["--show-ends", "--show-tabs", "tests/fixtures/tabs.txt"]
+
+[[case]]
+name = "--show-nonprinting"
+args = ["--show-nonprinting", "tests/fixtures/binary.bin"]
+
+[[case]]
+name = "a long option abbreviated to a unique prefix"
+args = ["--number-n", "tests/fixtures/blanks.txt"]
+
+[[case]]
+name = "--squeeze abbreviated"
+args = ["--squeeze", "tests/fixtures/blanks.txt"]
+
+[[case]]
+name = "--show-a abbreviated"
+args = ["--show-a", "tests/fixtures/tabs.txt"]
+
+[[case]]
+name = "the same option twice"
+args = ["-n", "-n", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "end of options"
+args = ["--", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "end of options with nothing after it reads standard input"
+args = ["--"]
+stdin = "S\n"
+
+[[case]]
+name = "options permute after an operand"
+args = ["tests/fixtures/plain.txt", "-n"]
+
+[[case]]
+name = "POSIXLY_CORRECT: an operand ends the options"
+args = ["tests/fixtures/plain.txt", "-n"]
+env = { POSIXLY_CORRECT = "1" }
+
+# ----------------------------------------------------------- usage errors
+
+[[case]]
+name = "an unknown short option"
+args = ["-Z"]
+
+[[case]]
+name = "an unknown long option"
+args = ["--nope"]
+
+[[case]]
+name = "a long option with no long form for it"
+args = ["--u", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "an ambiguous abbreviation between the two numbering options"
+args = ["--nu", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "an ambiguous abbreviation among the showing options"
+args = ["--s", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "an ambiguous abbreviation among four"
+args = ["--sh", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "the empty abbreviation lists every long option in order"
+args = ["--=x"]
+
+[[case]]
+name = "an option that takes no argument, given one"
+args = ["--number=x", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "an equals sign inside a short cluster"
+args = ["-n=x", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "help alone"
+args = ["--help"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "version alone"
+args = ["--version"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "help wins before a later error"
+args = ["--help", "-Z"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "an error before help still loses"
+args = ["-Z", "--help"]
+
+[[case]]
+name = "help after an operand"
+args = ["tests/fixtures/plain.txt", "--help"]
+compare = ["exit", "stderr"]
+
+# -------------------------------------------------------- operand failures
+
+[[case]]
+name = "a missing file"
+args = ["tests/fixtures/no-such-file"]
+
+[[case]]
+name = "a missing file does not stop the operands after it"
+args = [
+    "tests/fixtures/plain.txt",
+    "tests/fixtures/no-such-file",
+    "tests/fixtures/second.txt",
+]
+
+[[case]]
+name = "a directory"
+args = ["tests/fixtures"]
+
+[[case]]
+name = "a directory between two files"
+args = ["tests/fixtures/plain.txt", "tests/fixtures", "tests/fixtures/second.txt"]
+
+[[case]]
+name = "a file the host refuses"
+args = ["/etc/sudoers"]
+
+[[case]]
+name = "an empty operand"
+args = [""]
+
+[[case]]
+name = "a missing name needing no quotes"
+args = ["no,such+file%here"]
+
+[[case]]
+name = "a missing name holding a space"
+args = ["no such file"]
+
+[[case]]
+name = "a missing name holding a single quote"
+args = ["no'such"]
+
+[[case]]
+name = "a missing name holding a single quote and a space"
+args = ["no'such file"]
+
+[[case]]
+name = "a missing name holding a single quote and a dollar"
+args = ["no'such$file"]
+
+[[case]]
+name = "a missing name holding a backslash"
+args = ["no\\such"]
+
+[[case]]
+name = "a missing name holding a double quote"
+args = ["no\"such"]
+
+[[case]]
+name = "a missing name starting with a hash"
+args = ["#nosuch"]
+
+[[case]]
+name = "a missing name with a hash inside it"
+args = ["no#such"]
+
+[[case]]
+name = "a missing name starting with a tilde"
+args = ["~nosuch"]
+
+[[case]]
+name = "a missing name with a tilde inside it"
+args = ["no~such"]
+
+[[case]]
+name = "a missing name holding a tab"
+args = ["no\tsuch"]
+
+[[case]]
+name = "a missing name holding a non-ASCII byte"
+args = ["noséuch"]
+
+[[case]]
+name = "a missing name that is only a tab"
+args = ["\t"]
+
+[[case]]
+name = "a missing name holding a quote and a tab"
+args = ["no'such\tfile"]
+
+[[case]]
+name = "a missing name holding a brace"
+args = ["no{such}"]
+
+[[case]]
+name = "a missing name holding a colon"
+args = ["no:such"]
+
+[[case]]
+name = "a dash after the end of options is a file name"
+args = ["--", "-"]
+
+# ---------------------------------------------------------------- SIGPIPE
+
+[[case]]
+name = "a stream cut short by the reader dies on SIGPIPE"
+args = ["/dev/zero"]
+stdout_bytes = 4096
+
+[[case]]
+name = "a rendered stream cut short by the reader dies on SIGPIPE"
+args = ["-v", "/dev/zero"]
+stdout_bytes = 4096

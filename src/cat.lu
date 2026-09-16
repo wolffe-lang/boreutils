@@ -1,0 +1,460 @@
+//! member: false
+//!
+//! cat — concatenate files and write them to standard output.
+//!
+//! References consulted: POSIX.1-2024 `cat`; GNU coreutils 9.11's
+//! `cat --help`, the info manual's option descriptions, and black-box
+//! runs of the GNU binary (Homebrew's `gcat` on macOS arm64, under
+//! `LC_ALL=C`). uutils/coreutils (MIT) and toybox (0BSD) were available
+//! as design references and neither was needed. Never GNU source.
+//!
+//! GNU's rules, each measured against coreutils 9.11:
+//!
+//! - `-A` is `-vET`, `-e` is `-vE`, `-t` is `-vT`, and `-u` is accepted
+//!   and ignored.
+//! - `-b` overrides `-n`, in either order. Both number with six columns
+//!   and a tab, widening rather than truncating past 999999, and the
+//!   count runs on ACROSS operands instead of restarting per file.
+//! - A line is blank, for `-b` and for `-s`, only when it is empty. A
+//!   line holding one space is not, and neither is one holding a lone
+//!   carriage return.
+//! - `-s` collapses a run of empty lines to one BEFORE `-n` numbers
+//!   what is left, and it collapses across an operand boundary.
+//! - `-E` alone shows a carriage return as `^M` only where it is the
+//!   byte immediately before the newline, so `x\r\r\n` is `x\r^M$\n`.
+//!   Under `-v` every carriage return shows as `^M` regardless.
+//! - `-v` shows a byte below 32 as `^X` except tab and newline, 127 as
+//!   `^?`, and 128 and above as `M-` before that same rendering of the
+//!   low seven bits. The tab and newline exemptions do NOT apply inside
+//!   `M-`: byte 137 is `M-^I` and byte 138 is `M-^J`.
+//! - A file that does not end in a newline gets no `$` and no newline
+//!   added, and the next operand continues the same line.
+//! - A missing, unreadable or directory operand prints
+//!   `cat: NAME: REASON` and sets status 1, and the operands after it
+//!   still run. NAME is quoted only when it has to be (`bore.quote_name`).
+//! - Options permute with operands unless `POSIXLY_CORRECT` is set.
+//! - A usage error is status 1, not 2 (GNU's whole basename/dirname/yes
+//!   family answers 1).
+//!
+//! With no formatting option at all, `cat` is a pure byte copy: one
+//! 64 KiB read and one write per chunk, with the chunk handed to the
+//! writer uncopied. Every option turns on the byte-at-a-time path.
+
+use bore
+
+/// Which renderings are on.
+struct Fmt {
+    ends: bool,
+    tabs: bool,
+    nonprint: bool,
+    number: bool,
+    nonblank: bool,
+    squeeze: bool,
+}
+
+/// What survives between bytes, chunks and operands.
+struct State {
+    line_start: bool,
+    pending_cr: bool,
+    blanks: int,
+    num: int,
+}
+
+fn main() -> int {
+    let spec = options()
+    let p = bore.parse(spec, env_args(), bore.permute())
+    // Standard output first: with descriptor 1 closed, the first file
+    // opened would take it (wolf-lang#405).
+    var out = bore.stdout()
+    var f = Fmt {
+        ends: false,
+        tabs: false,
+        nonprint: false,
+        number: false,
+        nonblank: false,
+        squeeze: false,
+    }
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i]
+        if k == "help" {
+            bore.put(mut out, help()) else |_| {}
+            return bore.finish(mut out, "cat", 0)
+        }
+        if k == "version" {
+            bore.put(mut out, bore.version_text("cat")) else |_| {}
+            return bore.finish(mut out, "cat", 0)
+        }
+        if k == "show-all" {
+            f.ends = true
+            f.tabs = true
+            f.nonprint = true
+        }
+        if k == "e" {
+            f.ends = true
+            f.nonprint = true
+        }
+        if k == "t" {
+            f.tabs = true
+            f.nonprint = true
+        }
+        if k == "show-ends" {
+            f.ends = true
+        }
+        if k == "show-tabs" {
+            f.tabs = true
+        }
+        if k == "show-nonprinting" {
+            f.nonprint = true
+        }
+        if k == "number" {
+            f.number = true
+        }
+        if k == "number-nonblank" {
+            f.nonblank = true
+        }
+        if k == "squeeze-blank" {
+            f.squeeze = true
+        }
+        i += 1
+    }
+    if !bore.ok(p) {
+        return bore.usage_error("cat", p.error)
+    }
+    var paths = List[str]()
+    for a in p.operands {
+        (mut paths).push(a)
+    }
+    if paths.len == 0 {
+        (mut paths).push("-")
+    }
+    // `-b` numbers only non-blank lines and overrides `-n` outright.
+    if f.nonblank {
+        f.number = false
+    }
+    let plain = !f.ends && !f.tabs && !f.nonprint && !f.number && !f.nonblank && !f.squeeze
+    var st = State { line_start: true, pending_cr: false, blanks: 0, num: 1 }
+    var status = 0
+    for path in paths {
+        let why = one(out, path, f, mut st, plain)
+        if why.len > 0 {
+            bore.input_error("cat", path, why)
+            status = 1
+        }
+    }
+    // A carriage return held back for `-E` that never met its newline.
+    if st.pending_cr {
+        bore.put_byte(mut out, 13 as byte) else |_| {
+            bore.warn("cat", "write error")
+            return 1
+        }
+    }
+    bore.finish(mut out, "cat", status)
+}
+
+fn options() -> List[bore.Opt] {
+    // The long options are in GNU's own table order, which is what its
+    // "ambiguous; possibilities:" line reports and so is observable:
+    // `cat --nu` names --number-nonblank before --number.
+    var s = List[bore.Opt]()
+    (mut s).push(bore.flag("b", "number-nonblank"))
+    (mut s).push(bore.flag("n", "number"))
+    (mut s).push(bore.flag("s", "squeeze-blank"))
+    (mut s).push(bore.flag("v", "show-nonprinting"))
+    (mut s).push(bore.flag("E", "show-ends"))
+    (mut s).push(bore.flag("T", "show-tabs"))
+    (mut s).push(bore.flag("A", "show-all"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    // Short-only, so they never appear in an ambiguity list.
+    (mut s).push(bore.flag("e", ""))
+    (mut s).push(bore.flag("t", ""))
+    (mut s).push(bore.flag("u", ""))
+    s
+}
+
+/// The bytes asked of the host per read.
+///
+/// Swept against GNU on one 256 MiB file (nomad-1, release tier, mean
+/// of 7 runs): 64 KiB 48.6 ms, 256 KiB 31.4 ms, 1 MiB 34.0 ms, 4 MiB
+/// 32.4 ms, against GNU's 19.0 ms, for a max RSS of 1.9, 2.7, 4.6 and
+/// 4.7 MB. 256 KiB is the knee: everything larger buys nothing and
+/// costs memory. The rendering path is unmoved by the size (806 ms at
+/// 64 KiB against 867 ms at 256 KiB, inside the run-to-run noise),
+/// because there the per-byte work dominates the reads.
+fn read_size() -> int {
+    262144
+}
+
+/// Copy one operand. Answers `""` on success, or GNU's reason for the
+/// failure, which the caller reports and counts.
+fn one(out: bore.Out, path: str, f: Fmt, mut st: State, plain: bool) -> str {
+    let src = bore.open_input(path) else |e| match e {
+        not_found => { return bore.no_such_file() },
+        denied => { return bore.permission_denied() },
+        is_dir => { return bore.directory_reason() },
+        io => { return bore.io_error() },
+    }
+    var why = ""
+    if plain {
+        why = copy_bytes(out, src)
+    } else {
+        why = copy_shown(out, src, f, mut st)
+    }
+    bore.close_input(src)
+    why
+}
+
+/// The fast path: no option is on, so the bytes go straight through.
+/// The chunk is handed to the writer whole and uncopied.
+///
+/// The body is one `region` per chunk because `fs_read_chunk` allocates
+/// the list it answers and the ambient region never frees one. Measured
+/// on 256 MiB, release tier, nomad-1: without the block this peaked at
+/// 340 MB of RSS against GNU's 1.9 MB, and with it at 1.8 MB, with the
+/// bytes identical either way. See wolf-lang#409 — there is no builtin
+/// that reads into a buffer the caller owns, so the allocation per read
+/// cannot be avoided, only scoped.
+///
+/// Nothing may outlive the block, and that is why the write goes
+/// through `write_direct`, which takes the writer by READ: handing a
+/// region-local list to `write_all`, whose writer is `mut`, is E1010.
+fn copy_bytes(out: bore.Out, src: bore.In) -> str {
+    var why = ""
+    var stop = false
+    while !stop {
+        region pass {
+            let chunk = bore.read_chunk(src, read_size()) else |e| match e {
+                eof => { stop = true; List[byte]() },
+                io => {
+                    stop = true
+                    why = bore.io_error()
+                    List[byte]()
+                },
+            }
+            if chunk.len == 0 {
+                stop = true
+            } else {
+                bore.write_direct(out, chunk) else |_| {
+                    stop = true
+                    why = bore.io_error()
+                }
+            }
+        }
+    }
+    why
+}
+
+/// The rendering path: every byte through the state machine.
+///
+/// One `region` per chunk holds both the chunk `fs_read_chunk`
+/// allocated and the rendered bytes it becomes, and the rendered bytes
+/// are written before the block ends, so nothing outlives it.
+///
+/// The buffer inside `bore.Out` is deliberately NOT used here. Growing
+/// it from inside the block would put its storage in the region that is
+/// about to die, and wolf 0.2.14 offers no way to pre-grow it outside:
+/// `list.reserve` is blocked because `List` exposes no capacity at all
+/// (wolf-std F-0011), and `list.clear` is `xs = List[T]()`, which
+/// reallocates. A region-local buffer sidesteps the question, and costs
+/// one `fs_write_chunk` per chunk instead of one per 64 KiB of output.
+///
+/// The state travels in and out as scalars, and the struct the renderer
+/// mutates is rebuilt inside the block: a call holding both a
+/// region-local list and a `mut` struct from outside the block is
+/// E1010, because the compiler must assume the list is stored in it.
+fn copy_shown(out: bore.Out, src: bore.In, f: Fmt, mut st: State) -> str {
+    var why = ""
+    var stop = false
+    var line_start = st.line_start
+    var pending_cr = st.pending_cr
+    var blanks = st.blanks
+    var num = st.num
+    while !stop {
+        region pass {
+            let chunk = bore.read_chunk(src, read_size()) else |e| match e {
+                eof => { stop = true; List[byte]() },
+                io => {
+                    stop = true
+                    why = bore.io_error()
+                    List[byte]()
+                },
+            }
+            if chunk.len == 0 {
+                stop = true
+            } else {
+                var buf = List[byte]()
+                var s = State {
+                    line_start: line_start,
+                    pending_cr: pending_cr,
+                    blanks: blanks,
+                    num: num,
+                }
+                for b in chunk {
+                    show(mut buf, b, f, mut s)
+                }
+                line_start = s.line_start
+                pending_cr = s.pending_cr
+                blanks = s.blanks
+                num = s.num
+                bore.write_direct(out, buf) else |_| {
+                    stop = true
+                    why = bore.io_error()
+                }
+            }
+        }
+    }
+    st.line_start = line_start
+    st.pending_cr = pending_cr
+    st.blanks = blanks
+    st.num = num
+    why
+}
+
+/// One input byte, rendered into `buf`.
+///
+/// Total: the renderings cannot fail, because the bytes only go into a
+/// list. Everything that can fail is the write at the end of the chunk.
+fn show(mut buf: List[byte], b: byte, f: Fmt, mut st: State) {
+    let n = b as int
+    if st.pending_cr {
+        // A carriage return held back by `-E`: it is `^M` only when the
+        // newline follows it immediately.
+        st.pending_cr = false
+        if n == 10 {
+            emit_str(mut buf, "^M")
+            end_line(mut buf, f, mut st)
+            return
+        }
+        (mut buf).push(13 as byte)
+    }
+    if st.line_start {
+        if n == 10 {
+            if f.squeeze {
+                st.blanks += 1
+                if st.blanks > 1 {
+                    return
+                }
+            }
+            // `-b` does not number an empty line; `-n` does.
+            if f.number {
+                number(mut buf, mut st)
+            }
+            end_line(mut buf, f, mut st)
+            return
+        }
+        st.blanks = 0
+        if f.number || f.nonblank {
+            number(mut buf, mut st)
+        }
+        st.line_start = false
+    }
+    if n == 10 {
+        end_line(mut buf, f, mut st)
+        return
+    }
+    if n == 13 && f.ends && !f.nonprint {
+        st.pending_cr = true
+        return
+    }
+    put_shown(mut buf, b, f)
+}
+
+fn end_line(mut buf: List[byte], f: Fmt, mut st: State) {
+    if f.ends {
+        (mut buf).push(36 as byte)
+    }
+    (mut buf).push(10 as byte)
+    st.line_start = true
+}
+
+/// The line number, right-aligned in six columns, then a tab.
+///
+/// The digits are pushed one at a time rather than built as a `str`:
+/// an interpolation per line would allocate once per line, and a
+/// million-line file is exactly this program's bench.
+fn number(mut buf: List[byte], mut st: State) {
+    let v: int = st.num
+    var width: int = 1
+    var scale: int = 10
+    while v >= scale {
+        width += 1
+        scale = scale * 10
+    }
+    var pad: int = 6 - width
+    while pad > 0 {
+        (mut buf).push(32 as byte)
+        pad -= 1
+    }
+    var div: int = scale / 10
+    while div > 0 {
+        (mut buf).push((48 + v / div % 10) as byte)
+        div = div / 10
+    }
+    (mut buf).push(9 as byte)
+    st.num += 1
+}
+
+fn emit_str(mut buf: List[byte], s: str) {
+    for b in s.bytes() {
+        (mut buf).push(b)
+    }
+}
+
+/// One ordinary byte, under `-T` and `-v`.
+fn put_shown(mut buf: List[byte], b: byte, f: Fmt) {
+    let n = b as int
+    if n == 9 {
+        if f.tabs {
+            emit_str(mut buf, "^I")
+            return
+        }
+        (mut buf).push(b)
+        return
+    }
+    if !f.nonprint {
+        (mut buf).push(b)
+        return
+    }
+    var v = n
+    if v >= 128 {
+        emit_str(mut buf, "M-")
+        v -= 128
+    }
+    if v < 32 {
+        (mut buf).push(94 as byte)
+        (mut buf).push((v + 64) as byte)
+        return
+    }
+    if v == 127 {
+        emit_str(mut buf, "^?")
+        return
+    }
+    (mut buf).push(v as byte)
+}
+
+fn help() -> str {
+    """
+    Usage: cat [OPTION]... [FILE]...
+    Write each FILE to standard output, one after another. With no FILE,
+    or when FILE is -, read standard input.
+
+      -A, --show-all           the same as -vET
+      -b, --number-nonblank    number the lines that are not empty;
+                                 overrides -n
+      -e                       the same as -vE
+      -E, --show-ends          write $ at the end of each line
+      -n, --number             number every line
+      -s, --squeeze-blank      write no more than one of a run of empty
+                                 lines
+      -t                       the same as -vT
+      -T, --show-tabs          write a tab as ^I
+      -u                       accepted and ignored
+      -v, --show-nonprinting   write control and high bytes as ^X and
+                                 M-X, leaving tab and newline alone
+          --help               print this help and exit
+          --version            print the version and exit
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}
