@@ -132,6 +132,13 @@ fn main() -> int {
     if f.nonblank {
         f.number = false
     }
+    // GNU checks standard output BEFORE the operands and says so in its
+    // own words: `cat nope` with descriptor 1 closed prints
+    // `cat: standard output: Bad file descriptor` and never reports the
+    // missing file. Measured at 9.11 on both hosts.
+    if !bore.output_ok(out, "cat") {
+        return 1
+    }
     let plain = !f.ends && !f.tabs && !f.nonprint && !f.number && !f.nonblank && !f.squeeze
     var st = State { line_start: true, pending_cr: false, blanks: 0, num: 1 }
     var status = 0
@@ -145,7 +152,7 @@ fn main() -> int {
     // A carriage return held back for `-E` that never met its newline.
     if st.pending_cr {
         bore.put_byte(mut out, 13 as byte) else |_| {
-            bore.warn("cat", "write error")
+            bore.write_error(out, "cat", "write error")
             return 1
         }
     }
