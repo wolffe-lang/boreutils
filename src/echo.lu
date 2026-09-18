@@ -41,7 +41,7 @@ fn main() -> int {
         }
     }
     write_args(mut out, args, posix) else |_| {
-        bore.warn("echo", "write error")
+        bore.write_error(out, "echo", "write error")
         return 1
     }
     bore.finish(mut out, "echo", 0)
