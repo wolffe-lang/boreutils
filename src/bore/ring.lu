@@ -1,0 +1,116 @@
+//! bore.ring — the byte ring the streaming trio keeps its tail in.
+//!
+//! `tail -n 10` and `head -n -10` both have to answer a question about
+//! the END of a stream, and wolf 0.2.14 has no seek and no tell in the
+//! fs family (wolf-lang#405), so neither can start at the end: they
+//! read forward and keep a window. This is that window.
+//!
+//! It is a ring rather than a list so that dropping the oldest line
+//! costs two integers instead of a copy of everything behind it, and it
+//! grows by doubling so that the storage a whole run allocates is twice
+//! the peak rather than the sum of every intermediate size.
+//!
+//! **Where the growth lands.** `push` allocates when the ring is full,
+//! and a streaming caller runs it inside a `region` block that dies at
+//! the end of every chunk. Growing there is E1010 — measured, not
+//! guessed — so a caller keeps a long-lived `let keeper = region()` and
+//! wraps its pushes in `in keeper { … }`. The per-chunk block still
+//! frees what `fs_read_chunk` allocated (wolf-lang#416); only the ring
+//! outlives it.
+
+/// A circular byte buffer that grows by doubling and never shrinks.
+pub struct Ring {
+    data: List[byte],
+    /// Where the oldest live byte sits in `data`.
+    start: int,
+    /// How many bytes are live.
+    len: int,
+    /// How many bytes `data` holds.
+    cap: int,
+}
+
+/// An empty ring. It allocates nothing until its first `push`.
+pub fn ring() -> Ring {
+    Ring { data: List[byte](), start: 0, len: 0, cap: 0 }
+}
+
+/// How many bytes are live.
+pub fn ring_len(r: Ring) -> int {
+    r.len
+}
+
+/// The `i`-th live byte, counting from the oldest.
+///
+/// Traps `bounds` on an index past the live length, which is a broken
+/// contract rather than bad data.
+pub fn ring_at(r: Ring, i: int) -> byte {
+    var k = r.start + i
+    if k >= r.cap {
+        k -= r.cap
+    }
+    r.data[k]
+}
+
+/// Append one byte, growing when the ring is full.
+///
+/// Allocates only on a growth. See the header for where that allocation
+/// has to be allowed to live.
+pub fn ring_push(mut r: Ring, b: byte) {
+    if r.len == r.cap {
+        ring_grow(mut r)
+    }
+    var k = r.start + r.len
+    if k >= r.cap {
+        k -= r.cap
+    }
+    r.data[k] = b
+    r.len += 1
+}
+
+/// Double the storage, unrolling the ring into it so `start` is 0 again.
+///
+/// The new list is built with `push` rather than sized and assigned:
+/// `List` exposes no capacity surface at 0.2.14 (wolf-std F-0011), so
+/// there is no way to make a list of a given length except to push.
+fn ring_grow(mut r: Ring) {
+    var cap = r.cap * 2
+    if cap < 4096 {
+        cap = 4096
+    }
+    var next = List[byte]()
+    var i = 0
+    while i < r.len {
+        (mut next).push(ring_at(r, i))
+        i += 1
+    }
+    while i < cap {
+        (mut next).push(0 as byte)
+        i += 1
+    }
+    r.data = next
+    r.start = 0
+    r.cap = cap
+}
+
+/// Forget the oldest `n` bytes. Never allocates.
+pub fn ring_drop(mut r: Ring, n: int) {
+    var k = r.start + n
+    if k >= r.cap {
+        k -= r.cap
+    }
+    r.start = k
+    r.len -= n
+}
+
+/// The length of the oldest line: the bytes up to and including the
+/// first `delim`, or every live byte when there is none.
+pub fn ring_first_line(r: Ring, delim: byte) -> int {
+    var i = 0
+    while i < r.len {
+        if ring_at(r, i) == delim {
+            return i + 1
+        }
+        i += 1
+    }
+    r.len
+}
