@@ -135,11 +135,17 @@ fn main() -> int {
         let k = p.keys[i]
         let v = p.values[i]
         if k == "help" {
-            emit(out, help()) else |_| {}
+            emit(out, help()) else |_| {
+                bore.write_error(out, "tail", "write error")
+                return 1
+            }
             return bore.finish(mut out, "tail", 0)
         }
         if k == "version" {
-            emit(out, bore.version_text("tail")) else |_| {}
+            emit(out, bore.version_text("tail")) else |_| {
+                bore.write_error(out, "tail", "write error")
+                return 1
+            }
             return bore.finish(mut out, "tail", 0)
         }
         if k == "bytes" || k == "lines" {
@@ -209,13 +215,24 @@ fn main() -> int {
     }
     let show = o.verbose || !o.quiet && paths.len > 1
     var status = 0
+    var wfail = false
     var first = true
     var held = List[bore.In]()
     var names = List[str]()
     for path in paths {
-        if one(out, path, o, show, mut first, mut held, mut names) != 0 {
+        let code = one(out, path, o, show, mut first, mut held, mut names)
+        if code != 0 {
             status = 1
         }
+        if code == 2 {
+            wfail = true
+        }
+    }
+    if wfail {
+        // One message, after every operand, status 1. `head`'s comment
+        // carries the measurement; `tail` answers the same.
+        bore.write_error(out, "tail", "write error")
+        return 1
     }
     if o.follow && held.len > 0 {
         follow_all(out, held, names, o, show)
@@ -443,8 +460,10 @@ fn parse_seconds(s: str) -> int ! {invalid} {
     whole * 1000 + frac
 }
 
-/// Write one operand. Answers 0 or 1, the status it contributes, and
-/// keeps the input open in `held` when `-f` will follow it.
+/// Write one operand. Answers 0 for success, 1 for a failure of this
+/// operand, or 2 for a failed write to standard output, which is the
+/// whole program's failure. Keeps the input open in `held` when `-f`
+/// will follow it.
 fn one(
     out: bore.Out,
     path: str,
@@ -480,12 +499,11 @@ fn one(
     if show {
         bore.banner(out, first, label) else |_| {
             bore.close_input(src)
-            bore.warn("tail", "write error")
-            return 1
+            return 2
         }
         first = false
     }
-    var why = ""
+    var why = 0
     if o.plus {
         // From line or byte K onwards: a skip, then a copy. No window.
         var skip = o.count - 1
@@ -515,10 +533,12 @@ fn one(
     } else {
         why = last_lines(out, src, o.count, o.delim)
     }
-    if why.len > 0 {
+    if why != 0 {
         bore.close_input(src)
-        bore.cannot_read("tail", path, why)
-        return 1
+        if why == 1 {
+            bore.cannot_read("tail", path, bore.io_error())
+        }
+        return why
     }
     // Only a regular file is followed. GNU stops at the end of a pipe
     // (measured: `printf 'a\n' | tail -f` exits 0), so a pipe is closed
@@ -533,9 +553,9 @@ fn one(
 }
 
 /// Everything after the first `skip` bytes.
-fn from_byte(out: bore.Out, src: bore.In, skip: int) -> str {
+fn from_byte(out: bore.Out, src: bore.In, skip: int) -> int {
     var left = skip
-    var why = ""
+    var why = 0
     var stop = false
     while !stop {
         region pass {
@@ -546,7 +566,7 @@ fn from_byte(out: bore.Out, src: bore.In, skip: int) -> str {
                 },
                 io => {
                     stop = true
-                    why = bore.io_error()
+                    why = 1
                     List[byte]()
                 },
             }
@@ -560,12 +580,12 @@ fn from_byte(out: bore.Out, src: bore.In, skip: int) -> str {
                 if from == 0 {
                     bore.write_direct(out, chunk) else |_| {
                         stop = true
-                        why = bore.io_error()
+                        why = 2
                     }
                 } else {
                     bore.write_direct(out, chunk[from..]) else |_| {
                         stop = true
-                        why = bore.io_error()
+                        why = 2
                     }
                 }
             }
@@ -575,9 +595,9 @@ fn from_byte(out: bore.Out, src: bore.In, skip: int) -> str {
 }
 
 /// Everything after the first `skip` delimiters.
-fn from_line(out: bore.Out, src: bore.In, skip: int, delim: byte) -> str {
+fn from_line(out: bore.Out, src: bore.In, skip: int, delim: byte) -> int {
     var left = skip
-    var why = ""
+    var why = 0
     var stop = false
     while !stop {
         region pass {
@@ -588,7 +608,7 @@ fn from_line(out: bore.Out, src: bore.In, skip: int, delim: byte) -> str {
                 },
                 io => {
                     stop = true
-                    why = bore.io_error()
+                    why = 1
                     List[byte]()
                 },
             }
@@ -609,12 +629,12 @@ fn from_line(out: bore.Out, src: bore.In, skip: int, delim: byte) -> str {
                 if from == 0 {
                     bore.write_direct(out, chunk) else |_| {
                         stop = true
-                        why = bore.io_error()
+                        why = 2
                     }
                 } else if from < chunk.len {
                     bore.write_direct(out, chunk[from..]) else |_| {
                         stop = true
-                        why = bore.io_error()
+                        why = 2
                     }
                 }
             }
@@ -624,10 +644,10 @@ fn from_line(out: bore.Out, src: bore.In, skip: int, delim: byte) -> str {
 }
 
 /// The last `n` bytes, through a window `n` bytes wide.
-fn last_bytes(out: bore.Out, src: bore.In, n: int) -> str {
+fn last_bytes(out: bore.Out, src: bore.In, n: int) -> int {
     let keeper = region()
     var r = bore.ring()
-    var why = ""
+    var why = 0
     var stop = n <= 0
     while !stop {
         region pass {
@@ -638,7 +658,7 @@ fn last_bytes(out: bore.Out, src: bore.In, n: int) -> str {
                 },
                 io => {
                     stop = true
-                    why = bore.io_error()
+                    why = 1
                     List[byte]()
                 },
             }
@@ -656,7 +676,7 @@ fn last_bytes(out: bore.Out, src: bore.In, n: int) -> str {
             bore.ring_drop(mut r, bore.ring_len(r) - n)
         }
     }
-    if why.len == 0 && bore.ring_len(r) > 0 {
+    if why == 0 && bore.ring_len(r) > 0 {
         why = spill(out, mut r)
     }
     why
@@ -670,12 +690,12 @@ fn last_bytes(out: bore.Out, src: bore.In, n: int) -> str {
 /// `head -n -K` runs the same invariant and WRITES that line instead of
 /// dropping it, which is what makes the two the exact complement of
 /// each other.
-fn last_lines(out: bore.Out, src: bore.In, n: int, delim: byte) -> str {
+fn last_lines(out: bore.Out, src: bore.In, n: int, delim: byte) -> int {
     let keeper = region()
     var r = bore.ring()
     var delims = 0
     var last = -1
-    var why = ""
+    var why = 0
     var stop = n <= 0
     while !stop {
         region pass {
@@ -686,7 +706,7 @@ fn last_lines(out: bore.Out, src: bore.In, n: int, delim: byte) -> str {
                 },
                 io => {
                     stop = true
-                    why = bore.io_error()
+                    why = 1
                     List[byte]()
                 },
             }
@@ -714,19 +734,19 @@ fn last_lines(out: bore.Out, src: bore.In, n: int, delim: byte) -> str {
         let k = bore.ring_first_line(r, delim)
         bore.ring_drop(mut r, k)
     }
-    if why.len == 0 && bore.ring_len(r) > 0 {
+    if why == 0 && bore.ring_len(r) > 0 {
         why = spill(out, mut r)
     }
     why
 }
 
 /// Write the whole window out and empty it.
-fn spill(out: bore.Out, mut r: bore.Ring) -> str {
-    var why = ""
+fn spill(out: bore.Out, mut r: bore.Ring) -> int {
+    var why = 0
     var written = 0
     // `take` is one of the 50 reserved words, so the obvious name for
     // this is not available.
-    while written < bore.ring_len(r) && why.len == 0 {
+    while written < bore.ring_len(r) && why == 0 {
         var span = bore.ring_len(r) - written
         if span > read_size() {
             span = read_size()
@@ -740,7 +760,7 @@ fn spill(out: bore.Out, mut r: bore.Ring) -> str {
                 i += 1
             }
             bore.write_direct(out, buf) else |_| {
-                why = bore.io_error()
+                why = 2
             }
         }
         written += span

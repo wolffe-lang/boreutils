@@ -243,6 +243,7 @@ args = ["-c", "1K3", "tests/fixtures/twelve.txt"]
 [[case]]
 name = "a count that overflows is not an error"
 args = ["-n", "99999999999999999999999", "tests/fixtures/twelve.txt"]
+gnu_min = "9.11"
 
 [[case]]
 name = "a leading zero is decimal, not octal"
@@ -507,3 +508,47 @@ args = ["-3cl", "tests/fixtures/twelve.txt"]
 [[case]]
 name = "obsolete l then c"
 args = ["-3lc", "tests/fixtures/twelve.txt"]
+
+# A closed standard output (`head … >&-`). GNU coreutils 9.11 on both
+# hosts: ONE `head: write error: Bad file descriptor` after every
+# operand has been tried, and status 1. An operand that could not be
+# opened is reported FIRST, and an operand that is the only one and
+# cannot be opened writes nothing, so it earns no write error at all.
+# `head` is not `cat`: it does not check standard output before it
+# starts, so the message is `write error`, never `standard output`.
+
+[[case]]
+name = "standard output closed"
+args = ["-n", "1", "tests/fixtures/plain.txt"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, two operands, one message"
+args = ["-n", "1", "tests/fixtures/plain.txt", "tests/fixtures/second.txt"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, nothing was written"
+args = ["-n", "1", "tests/fixtures/nope.txt"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, the open error comes first"
+args = ["-n", "1", "tests/fixtures/plain.txt", "tests/fixtures/nope.txt"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, version"
+args = ["--version"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, a usage error comes first"
+args = ["-Q", "tests/fixtures/plain.txt"]
+stdout_closed = true
+
+[[case]]
+name = "a write error on a live descriptor"
+args = ["-n", "1", "tests/fixtures/plain.txt"]
+stdout_file = "/dev/full"
+compare = ["exit"]

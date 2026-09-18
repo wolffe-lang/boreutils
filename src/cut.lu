@@ -115,11 +115,17 @@ fn main() -> int {
         let k = p.keys[i]
         let v = p.values[i]
         if k == "help" {
-            emit(out, help()) else |_| {}
+            emit(out, help()) else |_| {
+                bore.write_error(out, "cut", "write error")
+                return 1
+            }
             return bore.finish(mut out, "cut", 0)
         }
         if k == "version" {
-            emit(out, bore.version_text("cut")) else |_| {}
+            emit(out, bore.version_text("cut")) else |_| {
+                bore.write_error(out, "cut", "write error")
+                return 1
+            }
             return bore.finish(mut out, "cut", 0)
         }
         if k == "bytes" || k == "characters" || k == "fields" {
@@ -196,10 +202,21 @@ fn main() -> int {
         (mut paths).push("-")
     }
     var status = 0
+    var wfail = false
     for path in paths {
-        if one(out, path, o, spans) != 0 {
+        let code = one(out, path, o, spans)
+        if code != 0 {
             status = 1
         }
+        if code == 2 {
+            wfail = true
+        }
+    }
+    if wfail {
+        // One message, after every operand, status 1, as `head`'s
+        // comment measures.
+        bore.write_error(out, "cut", "write error")
+        return 1
     }
     bore.finish(mut out, "cut", status)
 }
@@ -485,7 +502,9 @@ fn complement(spans: List[Span]) -> List[Span] {
 
 // ----------------------------------------------------------- the stream
 
-/// Cut one operand. Answers 0 or 1, the status it contributes.
+/// Cut one operand. Answers 0 for success, 1 for a failure of this
+/// operand, or 2 for a failed write to standard output, which is the
+/// whole program's failure and is reported once at the end.
 fn one(out: bore.Out, path: str, o: Opts, spans: List[Span]) -> int {
     let src = bore.open_input(path) else |e| match e {
         not_found => {
@@ -507,11 +526,10 @@ fn one(out: bore.Out, path: str, o: Opts, spans: List[Span]) -> int {
     }
     let why = run(out, src, o, spans)
     bore.close_input(src)
-    if why.len > 0 {
-        bore.input_error("cut", path, why)
-        return 1
+    if why == 1 {
+        bore.input_error("cut", path, bore.io_error())
     }
-    0
+    why
 }
 
 /// Read the stream a chunk at a time and cut each line out of the
@@ -522,10 +540,10 @@ fn one(out: bore.Out, path: str, o: Opts, spans: List[Span]) -> int {
 /// chunk itself lives in a `region` that dies every pass, which is what
 /// keeps `fs_read_chunk`'s per-call allocation from accumulating
 /// (wolf-lang#416).
-fn run(out: bore.Out, src: bore.In, o: Opts, spans: List[Span]) -> str {
+fn run(out: bore.Out, src: bore.In, o: Opts, spans: List[Span]) -> int {
     let keeper = region()
     var r = bore.ring()
-    var why = ""
+    var why = 0
     var stop = false
     while !stop {
         region pass {
@@ -536,7 +554,7 @@ fn run(out: bore.Out, src: bore.In, o: Opts, spans: List[Span]) -> str {
                 },
                 io => {
                     stop = true
-                    why = bore.io_error()
+                    why = 1
                     List[byte]()
                 },
             }
@@ -550,13 +568,13 @@ fn run(out: bore.Out, src: bore.In, o: Opts, spans: List[Span]) -> str {
                 }
             }
         }
-        while why.len == 0 && has_line(r, o.line_delim) {
+        while why == 0 && has_line(r, o.line_delim) {
             let k = bore.ring_first_line(r, o.line_delim)
             why = cut_line(out, r, k - 1, o, spans)
             bore.ring_drop(mut r, k)
         }
     }
-    if why.len == 0 && bore.ring_len(r) > 0 {
+    if why == 0 && bore.ring_len(r) > 0 {
         let k = bore.ring_len(r)
         why = cut_line(out, r, k, o, spans)
         bore.ring_drop(mut r, k)
@@ -582,8 +600,8 @@ fn has_line(r: bore.Ring, delim: byte) -> bool {
 /// line did not: measured, `cut -b1` of a file with no final newline
 /// answers one WITH a final newline, unlike `head`, `tail` and `cat`,
 /// which all pass the absence through.
-fn cut_line(out: bore.Out, r: bore.Ring, len: int, o: Opts, spans: List[Span]) -> str {
-    var why = ""
+fn cut_line(out: bore.Out, r: bore.Ring, len: int, o: Opts, spans: List[Span]) -> int {
+    var why = 0
     region line {
         var buf = List[byte]()
         if o.mode == 3 {
@@ -598,7 +616,7 @@ fn cut_line(out: bore.Out, r: bore.Ring, len: int, o: Opts, spans: List[Span]) -
         if write {
             (mut buf).push(o.line_delim)
             bore.write_direct(out, buf) else |_| {
-                why = bore.io_error()
+                why = 2
             }
         }
     }

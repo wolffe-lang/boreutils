@@ -447,6 +447,7 @@ args = ["-b1-2", "-b4", "tests/fixtures/fields.txt"]
 [[case]]
 name = "a delimiter without fields"
 args = ["-d:", "-b1", "tests/fixtures/fields.txt"]
+gnu_min = "9.11"
 
 [[case]]
 name = "only-delimited without fields"
@@ -539,3 +540,47 @@ compare = ["exit", "stderr"]
 [[case]]
 name = "an ambiguous long option"
 args = ["--c", "tests/fixtures/fields.txt"]
+
+# A closed standard output (`cut … >&-`). GNU coreutils 9.11 on both
+# hosts: ONE `cut: write error: Bad file descriptor` after every
+# operand has been tried, and status 1. An operand that could not be
+# opened is reported FIRST, and an operand that is the only one and
+# cannot be opened writes nothing, so it earns no write error at all.
+# `cut` is not `cat`: it does not check standard output before it
+# starts, so the message is `write error`, never `standard output`.
+
+[[case]]
+name = "standard output closed"
+args = ["-b1", "tests/fixtures/plain.txt"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, two operands, one message"
+args = ["-b1", "tests/fixtures/plain.txt", "tests/fixtures/second.txt"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, nothing was written"
+args = ["-b1", "tests/fixtures/nope.txt"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, the open error comes first"
+args = ["-b1", "tests/fixtures/plain.txt", "tests/fixtures/nope.txt"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, version"
+args = ["--version"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, a usage error comes first"
+args = ["-Q", "tests/fixtures/plain.txt"]
+stdout_closed = true
+
+[[case]]
+name = "a write error on a live descriptor"
+args = ["-b1", "tests/fixtures/plain.txt"]
+stdout_file = "/dev/full"
+compare = ["exit"]

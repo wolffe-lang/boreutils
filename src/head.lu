@@ -108,11 +108,17 @@ fn main() -> int {
         let k = p.keys[i]
         let v = p.values[i]
         if k == "help" {
-            emit(out, help()) else |_| {}
+            emit(out, help()) else |_| {
+                bore.write_error(out, "head", "write error")
+                return 1
+            }
             return bore.finish(mut out, "head", 0)
         }
         if k == "version" {
-            emit(out, bore.version_text("head")) else |_| {}
+            emit(out, bore.version_text("head")) else |_| {
+                bore.write_error(out, "head", "write error")
+                return 1
+            }
             return bore.finish(mut out, "head", 0)
         }
         if k == "bytes" || k == "lines" {
@@ -150,11 +156,25 @@ fn main() -> int {
     }
     let show = o.verbose || !o.quiet && paths.len > 1
     var status = 0
+    var wfail = false
     var first = true
     for path in paths {
-        if one(out, path, o, show, mut first) != 0 {
+        let code = one(out, path, o, show, mut first)
+        if code != 0 {
             status = 1
         }
+        if code == 2 {
+            wfail = true
+        }
+    }
+    if wfail {
+        // GNU reports a failed write ONCE, after every operand, and
+        // exits 1: measured on both hosts, `head f missing >&-` prints
+        // the open error first and one `write error` last, and
+        // `head missing >&-` prints only the open error, because
+        // nothing was ever written.
+        bore.write_error(out, "head", "write error")
+        return 1
     }
     bore.finish(mut out, "head", status)
 }
@@ -290,7 +310,9 @@ fn digit_option(err: str) -> str {
     "invalid trailing option -- {c}"
 }
 
-/// Write one operand. Answers 0 or 1, the status it contributes.
+/// Write one operand. Answers 0 for success, 1 for a failure of this
+/// operand, or 2 for a failed write to standard output, which is the
+/// whole program's failure and is reported once at the end.
 fn one(out: bore.Out, path: str, o: Opts, show: bool, mut first: bool) -> int {
     let label = if path == "-" then bore.stdin_label() else path
     let src = bore.open_input(path) else |e| match e {
@@ -320,12 +342,11 @@ fn one(out: bore.Out, path: str, o: Opts, show: bool, mut first: bool) -> int {
     if show {
         bore.banner(out, first, label) else |_| {
             bore.close_input(src)
-            bore.warn("head", "write error")
-            return 1
+            return 2
         }
         first = false
     }
-    var why = ""
+    var why = 0
     if o.minus {
         if o.bytes {
             // The `fstat` route: a named regular file knows its size,
@@ -350,17 +371,16 @@ fn one(out: bore.Out, path: str, o: Opts, show: bool, mut first: bool) -> int {
         why = first_lines(out, src, o.count, o.delim)
     }
     bore.close_input(src)
-    if why.len > 0 {
-        bore.cannot_read("head", path, why)
-        return 1
+    if why == 1 {
+        bore.cannot_read("head", path, bore.io_error())
     }
-    0
+    why
 }
 
 /// The first `n` bytes, and not one byte more off the host.
-fn first_bytes(out: bore.Out, src: bore.In, n: int) -> str {
+fn first_bytes(out: bore.Out, src: bore.In, n: int) -> int {
     var left = n
-    var why = ""
+    var why = 0
     var stop = left <= 0
     while !stop {
         region pass {
@@ -375,7 +395,7 @@ fn first_bytes(out: bore.Out, src: bore.In, n: int) -> str {
                 },
                 io => {
                     stop = true
-                    why = bore.io_error()
+                    why = 1
                     List[byte]()
                 },
             }
@@ -388,7 +408,7 @@ fn first_bytes(out: bore.Out, src: bore.In, n: int) -> str {
                 }
                 bore.write_direct(out, chunk) else |_| {
                     stop = true
-                    why = bore.io_error()
+                    why = 2
                 }
             }
         }
@@ -397,9 +417,9 @@ fn first_bytes(out: bore.Out, src: bore.In, n: int) -> str {
 }
 
 /// Up to and including the `n`-th delimiter, then stop reading.
-fn first_lines(out: bore.Out, src: bore.In, n: int, delim: byte) -> str {
+fn first_lines(out: bore.Out, src: bore.In, n: int, delim: byte) -> int {
     var left = n
-    var why = ""
+    var why = 0
     var stop = left <= 0
     while !stop {
         region pass {
@@ -410,7 +430,7 @@ fn first_lines(out: bore.Out, src: bore.In, n: int, delim: byte) -> str {
                 },
                 io => {
                     stop = true
-                    why = bore.io_error()
+                    why = 1
                     List[byte]()
                 },
             }
@@ -434,12 +454,12 @@ fn first_lines(out: bore.Out, src: bore.In, n: int, delim: byte) -> str {
                 if cut == chunk.len {
                     bore.write_direct(out, chunk) else |_| {
                         stop = true
-                        why = bore.io_error()
+                        why = 2
                     }
                 } else {
                     bore.write_direct(out, chunk[0..cut]) else |_| {
                         stop = true
-                        why = bore.io_error()
+                        why = 2
                     }
                 }
             }
@@ -453,10 +473,10 @@ fn first_lines(out: bore.Out, src: bore.In, n: int, delim: byte) -> str {
 /// The window lives in `keeper`, a region of its own: `ring_push` can
 /// allocate, the chunk loop's `region pass` dies every chunk, and a
 /// value that outlives its region is E1010 — measured, not guessed.
-fn drop_last_bytes(out: bore.Out, src: bore.In, n: int) -> str {
+fn drop_last_bytes(out: bore.Out, src: bore.In, n: int) -> int {
     let keeper = region()
     var r = bore.ring()
-    var why = ""
+    var why = 0
     var stop = false
     while !stop {
         region pass {
@@ -467,7 +487,7 @@ fn drop_last_bytes(out: bore.Out, src: bore.In, n: int) -> str {
                 },
                 io => {
                     stop = true
-                    why = bore.io_error()
+                    why = 1
                     List[byte]()
                 },
             }
@@ -481,7 +501,7 @@ fn drop_last_bytes(out: bore.Out, src: bore.In, n: int) -> str {
                 }
             }
         }
-        if bore.ring_len(r) > n && why.len == 0 {
+        if bore.ring_len(r) > n && why == 0 {
             // `ring_drop` runs OUTSIDE the block on purpose: a call
             // taking a `mut` parameter inside a region is E1010 even
             // when the callee only assigns integers, because the
@@ -496,7 +516,7 @@ fn drop_last_bytes(out: bore.Out, src: bore.In, n: int) -> str {
                     i += 1
                 }
                 bore.write_direct(out, buf) else |_| {
-                    why = bore.io_error()
+                    why = 2
                     stop = true
                 }
             }
@@ -513,12 +533,12 @@ fn drop_last_bytes(out: bore.Out, src: bore.In, n: int) -> str {
 /// line than it has delimiters, so one more line leaves the window —
 /// and for `head` that line is output, because it is not among the last
 /// `n`. `tail` runs the same invariant and discards instead.
-fn drop_last_lines(out: bore.Out, src: bore.In, n: int, delim: byte) -> str {
+fn drop_last_lines(out: bore.Out, src: bore.In, n: int, delim: byte) -> int {
     let keeper = region()
     var r = bore.ring()
     var delims = 0
     var last = -1
-    var why = ""
+    var why = 0
     var stop = false
     while !stop {
         region pass {
@@ -529,7 +549,7 @@ fn drop_last_lines(out: bore.Out, src: bore.In, n: int, delim: byte) -> str {
                 },
                 io => {
                     stop = true
-                    why = bore.io_error()
+                    why = 1
                     List[byte]()
                 },
             }
@@ -547,7 +567,7 @@ fn drop_last_lines(out: bore.Out, src: bore.In, n: int, delim: byte) -> str {
                 last = chunk[chunk.len - 1] as int
             }
         }
-        if delims > n && why.len == 0 {
+        if delims > n && why == 0 {
             var shed = 0
             var taken = 0
             region emit {
@@ -561,7 +581,7 @@ fn drop_last_lines(out: bore.Out, src: bore.In, n: int, delim: byte) -> str {
                     taken += 1
                 }
                 bore.write_direct(out, buf) else |_| {
-                    why = bore.io_error()
+                    why = 2
                     stop = true
                 }
             }
@@ -569,7 +589,7 @@ fn drop_last_lines(out: bore.Out, src: bore.In, n: int, delim: byte) -> str {
             delims -= shed
         }
     }
-    if why.len == 0 && n > 0 && last >= 0 && last != delim as int && delims == n {
+    if why == 0 && n > 0 && last >= 0 && last != delim as int && delims == n {
         var k = bore.ring_first_line(r, delim)
         region emit {
             var buf = List[byte]()
@@ -579,7 +599,7 @@ fn drop_last_lines(out: bore.Out, src: bore.In, n: int, delim: byte) -> str {
                 i += 1
             }
             bore.write_direct(out, buf) else |_| {
-                why = bore.io_error()
+                why = 2
             }
         }
         bore.ring_drop(mut r, k)
