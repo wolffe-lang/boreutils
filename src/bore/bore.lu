@@ -24,6 +24,40 @@
 //! reopening `/dev/stdout` is the route to one. On linux that route
 //! fails when standard output is a socket (the reopen is refused), and
 //! then this module falls back to `print_raw` for UTF-8 output.
+//!
+//! ## The exit convention, which every boreutils program honours
+//!
+//! Measured black-box against GNU coreutils 9.11 on both hosts, with
+//! descriptor 1 closed (`prog >&-`) and with the reader of a pipe gone.
+//! Six rules, and the first four are what a new utility must follow:
+//!
+//! 1. **Open standard output first**, with `stdout()`, before any input
+//!    file: with descriptor 1 closed the first file opened takes it.
+//! 2. **All output goes through `Out`**, never `print`/`print_raw`,
+//!    which discard write errors (wolf-lang#408).
+//! 3. **The last act is `finish(mut out, prog, status)`**, and so is
+//!    every early return that has written anything. On the common path
+//!    that is the whole convention.
+//! 4. **A failed write is status 1 and one diagnostic**, whatever the
+//!    program's own status would have been:
+//!    `prog: write error: Bad file descriptor`. `finish` does both.
+//! 5. **Writing nothing never fails.** `true >&-` is 0 and `false >&-`
+//!    is 1, because neither writes; `true --version >&-` is 1. The
+//!    failure belongs to the write, not to the descriptor, which is why
+//!    `Out` tracks whether the program wrote at all.
+//! 6. **A broken pipe is not this module's business.** SIGPIPE kills a
+//!    native wolf program exactly as it kills GNU's, with status 141
+//!    and nothing on stderr, and wolf cannot observe or ignore it: the
+//!    signal surface is `RELOAD`/`TERMINATE`/`QUIT`/`UPGRADE` only, so
+//!    no boreutils program can ever take the EPIPE path GNU takes under
+//!    `trap '' PIPE` (`yes: standard output: Broken pipe`, status 1).
+//!    Filed upstream as wolf-lang#423 with its witness; for `yes | head
+//!    -1` the default disposition is the CORRECT behaviour and matches
+//!    GNU, so nothing here works around it.
+//!
+//! A program that streams rather than buffers — `cat` and `yes` are the
+//! two — adds one line, `output_ok`, and GNU's own wording follows from
+//! it; see that function.
 
 use std.env
 
@@ -568,9 +602,17 @@ pub fn version_text(prog: str) -> str {
 // ----------------------------------------------------------------- output
 
 /// Buffered byte output to standard output.
+///
+/// `closed` says descriptor 1 was not open when the program started;
+/// `wrote` says the program has tried to write at least one byte. Both
+/// are needed to answer GNU's question, which is not "is the descriptor
+/// good" but "did a write fail": `true >&-` writes nothing and exits 0,
+/// where `true --version >&-` writes and exits 1.
 pub struct Out {
     fd: int,
     direct: bool,
+    closed: bool,
+    wrote: bool,
     buf: List[byte],
 }
 
@@ -578,15 +620,79 @@ pub struct Out {
 ///
 /// Open it before any other file: when descriptor 1 is closed, a file
 /// opened first takes descriptor 1 and `/dev/stdout` then names it.
+///
+/// **Telling a closed descriptor from a refused reopen.** The reopen is
+/// the only handle wolf gives us on descriptor 1 — `fs_fstat` indexes
+/// the runtime's OWN handle table, not the process's descriptors, so
+/// `fs_fstat(1)` answers `io` whatever descriptor 1 is (measured at
+/// 0.2.14 on both hosts; the first `fs_open_mode` of a program answers
+/// the handle 0 — wolf-lang#424). So the row the reopen raises is the
+/// evidence, and it
+/// is host-shaped. Measured at 0.2.14 against wolf's own builtin:
+///
+/// | descriptor 1 | linux | macOS |
+/// |---|---|---|
+/// | a regular file, a pipe | opens | opens |
+/// | a socket | `denied` or `io` | opens |
+/// | closed | `not_found` | `io` |
+///
+/// linux reaches descriptor 1 through `/proc/self/fd/1`, which does not
+/// EXIST when the descriptor is closed — so `not_found` there means
+/// closed and means nothing else. macOS's `/dev/stdout` is a devfs node
+/// that always exists and dups descriptor 1, so it fails only when
+/// there is no descriptor 1 to dup. The one ambiguous row is `io`, and
+/// the two hosts are told apart by the thing that causes the
+/// difference: linux publishes `/proc/self/fd` and macOS has no `/proc`
+/// at all.
 pub fn stdout() -> Out {
-    let fd = fs_open_mode("/dev/stdout", 2) else |_| {
-        return Out { fd: -1, direct: false, buf: List[byte]() }
+    let fd = fs_open_mode("/dev/stdout", 2) else |e| match e {
+        not_found => { return shut() },
+        denied => { return refused() },
+        exists => { return refused() },
+        invalid => { return refused() },
+        io => { return refused() },
     }
-    Out { fd: fd, direct: true, buf: List[byte]() }
+    Out { fd: fd, direct: true, closed: false, wrote: false, buf: List[byte]() }
+}
+
+/// A stream whose descriptor 1 is closed: every write fails.
+fn shut() -> Out {
+    Out { fd: -1, direct: false, closed: true, wrote: false, buf: List[byte]() }
+}
+
+/// A stream whose reopen was refused for a reason other than a missing
+/// descriptor 1. On linux that is a live socket and `print_raw` still
+/// reaches it; on macOS nothing but a closed descriptor refuses.
+fn refused() -> Out {
+    if has_proc() {
+        return Out { fd: -1, direct: false, closed: false, wrote: false, buf: List[byte]() }
+    }
+    shut()
+}
+
+/// Whether this host publishes `/proc/self/fd` — that is, whether it is
+/// linux. Reached only when the reopen has already failed, so it cannot
+/// be the open that steals descriptor 1 from a program that still has
+/// one.
+fn has_proc() -> bool {
+    let d = fs_open("/proc/self/fd") else |_| {
+        return false
+    }
+    fs_close(d) else |_| {}
+    true
 }
 
 /// Append `s` to the buffer, writing when it is full.
+///
+/// A stream whose descriptor is closed buffers NOTHING and fails here,
+/// at the write the program asked for, because that is where GNU fails:
+/// `wc FILE nope` with descriptor 1 closed reports the failed write and
+/// never opens `nope`.
 pub fn put(mut o: Out, s: str) -> () ! {io} {
+    o.wrote = true
+    if o.closed {
+        return io
+    }
     for b in s.bytes() {
         (mut o.buf).push(b)
     }
@@ -597,6 +703,10 @@ pub fn put(mut o: Out, s: str) -> () ! {io} {
 
 /// Append one byte, writing when the buffer is full.
 pub fn put_byte(mut o: Out, b: byte) -> () ! {io} {
+    o.wrote = true
+    if o.closed {
+        return io
+    }
     (mut o.buf).push(b)
     if o.buf.len >= chunk() {
         flush(mut o)?
@@ -605,6 +715,10 @@ pub fn put_byte(mut o: Out, b: byte) -> () ! {io} {
 
 /// Write what is buffered, then `bytes`, without copying `bytes`.
 pub fn write_all(mut o: Out, bytes: List[byte]) -> () ! {io} {
+    o.wrote = true
+    if o.closed {
+        return io
+    }
     flush(mut o)?
     emit(o, bytes)?
 }
@@ -620,15 +734,23 @@ pub fn write_all(mut o: Out, bytes: List[byte]) -> () ! {io} {
 ///
 /// The caller owns the ordering: this does NOT flush what `put` has
 /// buffered, so a program must use one route or the other, not both.
+///
+/// Read-only also means it cannot MARK the stream as written to, so a
+/// program that streams this way calls `output_ok` before it starts —
+/// which is the shape GNU's `cat` has anyway.
 pub fn write_direct(o: Out, bytes: List[byte]) -> () ! {io} {
     emit(o, bytes)?
 }
 
 /// Write what is buffered.
 ///
-/// Rows: `io` when the write fails, or, on the `print_raw` fallback,
-/// when the bytes are not UTF-8 and so cannot be written at all.
+/// Rows: `io` when the write fails, when descriptor 1 is closed and the
+/// program has written to it, or, on the `print_raw` fallback, when the
+/// bytes are not UTF-8 and so cannot be written at all.
 pub fn flush(mut o: Out) -> () ! {io} {
+    if o.closed && o.wrote {
+        return io
+    }
     if o.buf.len == 0 {
         return
     }
@@ -637,6 +759,9 @@ pub fn flush(mut o: Out) -> () ! {io} {
 }
 
 fn emit(o: Out, bytes: List[byte]) -> () ! {io} {
+    if o.closed {
+        return io
+    }
     if o.direct {
         fs_write_chunk(o.fd, bytes) else |_| { return io }
         return
@@ -645,10 +770,66 @@ fn emit(o: Out, bytes: List[byte]) -> () ! {io} {
     print_raw(text)
 }
 
+/// GNU's wording for a descriptor that is not open.
+pub fn bad_descriptor() -> str {
+    "Bad file descriptor"
+}
+
+/// The reason to print after a failed write's message.
+///
+/// A closed descriptor is the one reason this module DETECTS rather
+/// than reads from the host, so it is the one GNU wording it can match:
+/// everything else falls back to `io_error`, because wolf 0.2.14 has no
+/// `strerror` text behind an `io` row (wolf-lang#407). GNU's
+/// `write error: No space left on device` is therefore
+/// `write error: Input/output error` here, and no differential case can
+/// assert it.
+fn write_reason(o: Out) -> str {
+    if o.closed {
+        return bad_descriptor()
+    }
+    io_error()
+}
+
+/// Report a failed write to standard output in GNU's shape,
+/// `prog: MESSAGE: reason`.
+///
+/// Measured against coreutils 9.11 on both hosts with descriptor 1
+/// closed, MESSAGE is `write error` for every utility — `echo`, `wc`,
+/// `basename`, `dirname`, `head`, `tail`, `cut`, `tr`, `uniq`, `seq`,
+/// `nl`, `tac`, `paste`, `fold`, `expand`, `od`, `printf`, `pwd`,
+/// `sum`, `cksum` all say it — EXCEPT where a program checks standard
+/// output before it starts streaming, where it is `standard output`:
+/// that is `cat FILE` and `yes`, and it is `output_ok` below.
+/// `cat --version` takes the ordinary route and says `write error`.
+pub fn write_error(o: Out, prog: str, message: str) {
+    warn(prog, "{message}: {write_reason(o)}")
+}
+
+/// Whether a program that is about to stream may start, reporting GNU's
+/// `prog: standard output: …` on stderr when it may not.
+///
+/// This is `cat`'s and `yes`'s shape and nobody else's, and it is
+/// observable: `cat nope` with descriptor 1 closed prints ONLY
+/// `cat: standard output: Bad file descriptor` and never reports the
+/// missing operand, so the check is before the operands, not among
+/// them. A program that answers `false` here returns 1 at once.
+pub fn output_ok(o: Out, prog: str) -> bool {
+    if o.closed {
+        warn(prog, "standard output: {bad_descriptor()}")
+        return false
+    }
+    true
+}
+
 /// Flush `o` and answer `status`, or report the write error and answer 1.
+///
+/// This is the last act of every boreutils program, and on the common
+/// path it is the WHOLE of the exit convention: a program that only
+/// buffers with `put` needs nothing else.
 pub fn finish(mut o: Out, prog: str, status: int) -> int {
     flush(mut o) else |_| {
-        warn(prog, "write error")
+        write_error(o, prog, "write error")
         return 1
     }
     status
