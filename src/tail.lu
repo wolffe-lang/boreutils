@@ -1,0 +1,852 @@
+//! member: false
+//!
+//! tail — write the last part of each file.
+//!
+//! References consulted: POSIX.1-2024 `tail`; GNU coreutils 9.11's
+//! `tail --help`, the info manual's option descriptions, and black-box
+//! runs of the GNU binary (Homebrew `gtail` on macOS arm64 and native
+//! `tail` on linux x86-64, both 9.11, under `LC_ALL=C`);
+//! uutils/coreutils (MIT) and toybox (0BSD) as design references for
+//! the shape of a last-K window. Never GNU source.
+//!
+//! **Seeking backwards, and why this program does not.** GNU `tail`
+//! reads the END of a regular file: it `lseek`s to the end, walks
+//! backwards a block at a time and touches only the last few kilobytes
+//! of a ten gigabyte file. **wolf 0.2.14 has no seek, no tell and no
+//! positional read** — `fs_open`, `fs_read_chunk`, `fs_write_chunk` and
+//! `fs_fstat` are the whole surface, and none of them names an offset
+//! (wolf-lang#405; this lane filed the positional-read half of it with
+//! its own witness). So boreutils `tail` reads the file FORWARD, from
+//! the first byte to the last, and keeps a window of the last K lines
+//! or bytes in `bore/ring.lu`.
+//!
+//! That is a real loss and the lane report measures it rather than
+//! hiding it: on a file large enough for the difference to show,
+//! `tail -n 10` is O(size) here and O(1) for GNU. It is the one place
+//! in the streaming trio where wolf cannot express what C expresses.
+//!
+//! **When the input is a pipe, GNU cannot seek either**, and there the
+//! two implementations do the same work: both read every byte and both
+//! hold a window. `tail -n 10` on a pipe is the comparison that is
+//! actually fair, and the bench table gives both.
+//!
+//! **`-c K` on a named regular file is the one case the `fstat` saves.**
+//! The size is known, so the program skips `size - K` bytes and holds
+//! nothing — it still READS them, because there is no seek, but the
+//! window never has to exist. Not taken for `-`: what a reader owes on
+//! a descriptor is size minus the CURRENT OFFSET and there is no tell
+//! (bu02 made the same call for `wc -c`).
+//!
+//! GNU's rules, each measured against coreutils 9.11 on both hosts:
+//!
+//! - `-n K` is the last K lines, `-n +K` is from line K onwards, and a
+//!   leading `-` is the default meaning rather than a second sign, so
+//!   `-n -3` is `-n 3`. `+K` and `-K` parse differently and
+//!   `bore.parse_count` says why.
+//! - `-n +0` and `-n +1` are both the whole file; `-n 0` and `-c 0` are
+//!   nothing at all.
+//! - A line is delimiter-terminated, and a final run with no delimiter
+//!   is a line too: `tail -n 2` of `a\nb\nc` is `b\nc`.
+//! - The banner, the quoting and the diagnostics are `head`'s, in
+//!   `bore/stream.lu`.
+//! - `tail +3` is NOT the obsolete from-line-3 spelling any more: it is
+//!   an operand, and GNU says `cannot open '+3' for reading`. Only
+//!   `tail -NUM…` survives, first argument only.
+//! - `--retry` and `--pid` without `-f` are warnings on stderr and
+//!   status 0, not errors.
+//!
+//! **`-f` is implemented, and only because the surface turned out to
+//! exist.** The contract for this lane said to follow only if the
+//! toolchain could, and the measurement is this: after `fs_read_chunk`
+//! answers the `eof` row, a later `fs_read_chunk` ON THE SAME
+//! DESCRIPTOR returns bytes appended since. So following is a real
+//! poll of a live descriptor rather than a re-read of the whole file,
+//! `time.sleep` supplies the interval, and nothing here is faked.
+//!
+//! What follows is `--follow=descriptor`, which is `-f`'s own default.
+//! **`--follow=name`, `-F`, `--retry` and `--max-unchanged-stats` are
+//! accepted and follow the descriptor instead**, because re-opening a
+//! rotated file needs an inode identity that `fs_fstat`'s
+//! `[kind, size, modified_ms]` triple does not carry; **`--pid` is
+//! accepted and ignored**, because wolf has no pid surface at all
+//! (wolf-lang#141). Each of those is in the README's status table.
+
+use bore
+use std.time
+
+/// What the command line asked for.
+struct Opts {
+    /// `-c` rather than `-n`.
+    bytes: bool,
+    /// The count carried a leading `+`: from the start, not the end.
+    plus: bool,
+    count: int,
+    /// 10 for a newline, 0 under `-z`.
+    delim: byte,
+    quiet: bool,
+    verbose: bool,
+    follow: bool,
+    /// The `-s` interval in milliseconds.
+    sleep_ms: int,
+    warn_retry: bool,
+    warn_pid: bool,
+}
+
+fn main() -> int {
+    // Standard output first: with descriptor 1 closed, the first file
+    // opened would take it (wolf-lang#405).
+    var out = bore.stdout()
+    var o = Opts {
+        bytes: false,
+        plus: false,
+        count: 10,
+        delim: 10 as byte,
+        quiet: false,
+        verbose: false,
+        follow: false,
+        sleep_ms: 1000,
+        warn_retry: false,
+        warn_pid: false,
+    }
+    var args = List[str]()
+    var argv = env_args()
+    if argv.len > 0 && obsolete_shaped(argv[0]) {
+        let rewritten = expand_obsolete(argv)
+        if rewritten.len == 0 {
+            bore.warn("tail", invalid_context(argv[0]))
+            return 1
+        }
+        for a in rewritten {
+            (mut args).push(a)
+        }
+        var i = 1
+        while i < argv.len {
+            (mut args).push(rewrite_follow(argv[i]))
+            i += 1
+        }
+    } else {
+        for a in argv {
+            (mut args).push(rewrite_follow(a))
+        }
+    }
+    let p = bore.parse(options(), args, bore.permute())
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i]
+        let v = p.values[i]
+        if k == "help" {
+            emit(out, help()) else |_| {}
+            return bore.finish(mut out, "tail", 0)
+        }
+        if k == "version" {
+            emit(out, bore.version_text("tail")) else |_| {}
+            return bore.finish(mut out, "tail", 0)
+        }
+        if k == "bytes" || k == "lines" {
+            let what = if k == "bytes" then "bytes" else "lines"
+            let c = bore.parse_count(v) else |_| {
+                bore.warn("tail", "invalid number of {what}: {bore.quote_always(v)}")
+                return 1
+            }
+            o.bytes = k == "bytes"
+            o.plus = bore.count_plus(c)
+            o.count = bore.count_value(c)
+        }
+        if k == "sleep-interval" {
+            o.sleep_ms = parse_seconds(v) else |_| {
+                bore.warn("tail", "invalid number of seconds: {bore.quote_always(v)}")
+                return 1
+            }
+        }
+        if k == "follow" || k == "F" {
+            o.follow = true
+        }
+        if k == "retry" {
+            o.warn_retry = true
+        }
+        if k == "pid" {
+            o.warn_pid = true
+        }
+        if k == "quiet" || k == "silent" {
+            o.quiet = true
+            o.verbose = false
+        }
+        if k == "verbose" {
+            o.verbose = true
+            o.quiet = false
+        }
+        if k == "zero-terminated" {
+            o.delim = 0 as byte
+        }
+        i += 1
+    }
+    if !bore.ok(p) {
+        // A `-3` getopt met as an option is GNU's "invalid context",
+        // with no `Try 'tail --help'` line after it. Only `bore.parse`
+        // knows which `-3` is an option and which is `-n`'s argument,
+        // so the mapping happens on its answer rather than on argv.
+        let d = digit_option(p.error)
+        if d.len > 0 {
+            bore.warn("tail", d)
+            return 1
+        }
+        return bore.usage_error("tail", p.error)
+    }
+    if !o.follow {
+        if o.warn_retry {
+            bore.warn("tail", "warning: --retry ignored; --retry is useful only when following")
+        }
+        if o.warn_pid {
+            bore.warn("tail", "warning: PID ignored; --pid=PID is useful only when following")
+        }
+    }
+    var paths = List[str]()
+    for a in p.operands {
+        (mut paths).push(a)
+    }
+    if paths.len == 0 {
+        (mut paths).push("-")
+    }
+    let show = o.verbose || !o.quiet && paths.len > 1
+    var status = 0
+    var first = true
+    var held = List[bore.In]()
+    var names = List[str]()
+    for path in paths {
+        if one(out, path, o, show, mut first, mut held, mut names) != 0 {
+            status = 1
+        }
+    }
+    if o.follow && held.len > 0 {
+        follow_all(out, held, names, o, show)
+    }
+    bore.finish(mut out, "tail", status)
+}
+
+fn options() -> List[bore.Opt] {
+    // GNU's own long-option table order, which its
+    // "ambiguous; possibilities:" line reports and so is observable.
+    var s = List[bore.Opt]()
+    (mut s).push(bore.takes("c", "bytes"))
+    (mut s).push(bore.flag("f", "follow"))
+    (mut s).push(bore.takes("n", "lines"))
+    (mut s).push(bore.takes("", "max-unchanged-stats"))
+    (mut s).push(bore.takes("", "pid"))
+    (mut s).push(bore.flag("q", "quiet"))
+    (mut s).push(bore.flag("", "retry"))
+    (mut s).push(bore.flag("", "silent"))
+    (mut s).push(bore.takes("s", "sleep-interval"))
+    (mut s).push(bore.flag("v", "verbose"))
+    (mut s).push(bore.flag("z", "zero-terminated"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    // Short-only, so it never appears in an ambiguity list.
+    (mut s).push(bore.flag("F", ""))
+    s
+}
+
+/// The bytes asked of the host per read (bu01's measured knee).
+fn read_size() -> int {
+    262144
+}
+
+/// `--follow[=WORD]` flattened to `-f`.
+///
+/// `bore.parse` has no OPTIONAL-argument option: `Opt.arg` is a `bool`,
+/// so `--follow` either always takes a word or never does, and GNU's
+/// `-f` is the third thing. Reported to the orchestrator as a gap in
+/// `bore`, not in wolf; until it closes, `--follow=name` is rewritten
+/// here, which is safe because `follow` is the only long option `tail`
+/// has that starts with `f`.
+fn rewrite_follow(a: str) -> str {
+    if !a.starts_with("--f") {
+        return a
+    }
+    let eq = a.find("=") else -1
+    if eq < 0 {
+        return a
+    }
+    if !"follow".starts_with(a[2..eq]) {
+        return a
+    }
+    "-f"
+}
+
+/// Whether `a` is the obsolete `-NUM…` spelling.
+fn obsolete_shaped(a: str) -> bool {
+    if !a.starts_with("-") || a.len < 2 {
+        return false
+    }
+    let b = a.bytes()
+    b[1] as int >= 48 && b[1] as int <= 57
+}
+
+/// The obsolete spelling rewritten into ordinary options, or an empty
+/// list when this command line may not carry one.
+///
+/// `tail`'s obsolete form is FAR narrower than `head`'s, and every
+/// clause below was run against coreutils 9.11 on both hosts:
+///
+/// - the grammar is `-NUM` then at most one of `b`, `c` or `l`, then an
+///   optional `f`. `-3lf` and `-3bf` are fine; `-3fl`, `-3ll`, `-3bc`,
+///   `-3k`, `-3m`, `-3q`, `-3v` and `-3z` are all refused, even though
+///   `head` takes several of them.
+/// - it must be the FIRST argument, it must be the ONLY option on the
+///   line, and it may be followed by at most ONE operand. `tail -3 -q`,
+///   `tail -q -3`, `tail -3 -n 2`, `tail -3 f g` and `tail f -3` are
+///   each `option used in invalid context -- 3`, while `tail -3 -- f`
+///   is fine.
+/// - `b` is 512-BYTE BLOCKS here, not 512 lines: `tail` takes its units
+///   from POSIX's `-[NUM][bcl]` where `head` took a multiplier.
+///
+/// **`tail +NUM` is not supported, and that is a decision.** The two
+/// hosts disagree at the SAME GNU version: Arch's native 9.11 reads
+/// `tail +3 f` as "from line 3" while Homebrew's 9.11 reads `+3` as a
+/// file name and fails to open it. `+NUM` is absent from POSIX.1-2024
+/// and from GNU's own `--help`, so boreutils follows the documented
+/// surface and treats it as an operand. `tests/cases/tail.toml` carries
+/// the case as a SKIP with that reasoning, because a per-host bound is
+/// not something `difftest` can express — it bounds by version, and the
+/// version is the same on both sides.
+fn expand_obsolete(argv: List[str]) -> List[str] {
+    let a = argv[0]
+    let b = a.bytes()
+    var num = ""
+    var i = 1
+    while i < a.len && b[i] as int >= 48 && b[i] as int <= 57 {
+        num += a[i..i + 1]
+        i += 1
+    }
+    var unit = ""
+    if i < a.len {
+        let c = a.get(i..i + 1) else ""
+        if c == "b" || c == "c" || c == "l" {
+            unit = c
+            i += 1
+        }
+    }
+    var follow = false
+    if i < a.len {
+        let c = a.get(i..i + 1) else ""
+        if c != "f" {
+            return List[str]()
+        }
+        follow = true
+        i += 1
+    }
+    if i != a.len {
+        return List[str]()
+    }
+    // Every other argument must be an operand, and there may be one.
+    var operands = 0
+    var rest_are_operands = false
+    var k = 1
+    while k < argv.len {
+        let x = argv[k]
+        if !rest_are_operands && x == "--" {
+            rest_are_operands = true
+        } else if !rest_are_operands && x.starts_with("-") && x.len > 1 {
+            return List[str]()
+        } else {
+            operands += 1
+        }
+        k += 1
+    }
+    if operands > 1 {
+        return List[str]()
+    }
+    var out = List[str]()
+    if unit == "c" {
+        (mut out).push("-c")
+        (mut out).push(num)
+    } else if unit == "b" {
+        (mut out).push("-c")
+        (mut out).push(num + "b")
+    } else {
+        (mut out).push("-n")
+        (mut out).push(num)
+    }
+    if follow {
+        (mut out).push("-f")
+    }
+    out
+}
+
+/// GNU's complaint about an obsolete spelling it cannot use. It names
+/// the DIGITS, not the letter that spoiled them, and carries no
+/// `Try 'tail --help'` line — both measured, and both unlike `head`.
+fn invalid_context(a: str) -> str {
+    let b = a.bytes()
+    var digits = ""
+    var i = 1
+    while i < a.len && b[i] as int >= 48 && b[i] as int <= 57 {
+        digits += a[i..i + 1]
+        i += 1
+    }
+    "option used in invalid context -- {digits}"
+}
+
+/// GNU's "invalid context" complaint for a `-3` that `bore.parse` met
+/// as an option, or `""` when the error was about something else.
+fn digit_option(err: str) -> str {
+    let head = "invalid option -- '"
+    if !err.starts_with(head) || err.len != head.len + 2 {
+        return ""
+    }
+    let c = err[head.len..head.len + 1]
+    let n = c.bytes()[0] as int
+    if n < 48 || n > 57 {
+        return ""
+    }
+    "option used in invalid context -- {c}"
+}
+
+/// `-s`'s interval, in milliseconds.
+///
+/// GNU takes a decimal here (`-s 0.5`), so this is the one number in
+/// the program that is not an integer. Everything past three decimal
+/// places is below `time.millis`'s resolution and is dropped.
+fn parse_seconds(s: str) -> int ! {invalid} {
+    let bs = s.bytes()
+    var i = 0
+    if i < bs.len && (bs[i] as int == 43 || bs[i] as int == 45) {
+        if bs[i] as int == 45 {
+            return invalid
+        }
+        i += 1
+    }
+    var whole: int = 0
+    var digits = 0
+    while i < bs.len && bs[i] as int >= 48 && bs[i] as int <= 57 {
+        if whole < 100000000 {
+            whole = whole * 10 + (bs[i] as int - 48)
+        }
+        digits += 1
+        i += 1
+    }
+    var frac: int = 0
+    var scale = 100
+    if i < bs.len && bs[i] as int == 46 {
+        i += 1
+        while i < bs.len && bs[i] as int >= 48 && bs[i] as int <= 57 {
+            if scale > 0 {
+                frac += (bs[i] as int - 48) * scale
+                scale = scale / 10
+            }
+            digits += 1
+            i += 1
+        }
+    }
+    if digits == 0 || i != bs.len {
+        return invalid
+    }
+    whole * 1000 + frac
+}
+
+/// Write one operand. Answers 0 or 1, the status it contributes, and
+/// keeps the input open in `held` when `-f` will follow it.
+fn one(
+    out: bore.Out,
+    path: str,
+    o: Opts,
+    show: bool,
+    mut first: bool,
+    mut held: List[bore.In],
+    mut names: List[str],
+) -> int {
+    let label = if path == "-" then bore.stdin_label() else path
+    let src = bore.open_input(path) else |e| match e {
+        not_found => {
+            bore.cannot_open("tail", path, bore.no_such_file())
+            return 1
+        },
+        denied => {
+            bore.cannot_open("tail", path, bore.permission_denied())
+            return 1
+        },
+        is_dir => {
+            if show {
+                bore.banner(out, first, label) else |_| {}
+                first = false
+            }
+            bore.cannot_read("tail", path, bore.directory_reason())
+            return 1
+        },
+        io => {
+            bore.cannot_open("tail", path, bore.io_error())
+            return 1
+        },
+    }
+    if show {
+        bore.banner(out, first, label) else |_| {
+            bore.close_input(src)
+            bore.warn("tail", "write error")
+            return 1
+        }
+        first = false
+    }
+    var why = ""
+    if o.plus {
+        // From line or byte K onwards: a skip, then a copy. No window.
+        var skip = o.count - 1
+        if skip < 0 {
+            skip = 0
+        }
+        if o.bytes {
+            why = from_byte(out, src, skip)
+        } else {
+            why = from_line(out, src, skip, o.delim)
+        }
+    } else if o.bytes {
+        // The `fstat` route: a named regular file knows its size, so
+        // the last K bytes are the bytes after the first size-K, and
+        // the window never has to exist. The read still costs O(size):
+        // skipping is reading, because there is no seek.
+        let size = if path == "-" then -1 else bore.stat_size(src)
+        if size >= 0 {
+            var skip = size - o.count
+            if skip < 0 {
+                skip = 0
+            }
+            why = from_byte(out, src, skip)
+        } else {
+            why = last_bytes(out, src, o.count)
+        }
+    } else {
+        why = last_lines(out, src, o.count, o.delim)
+    }
+    if why.len > 0 {
+        bore.close_input(src)
+        bore.cannot_read("tail", path, why)
+        return 1
+    }
+    // Only a regular file is followed. GNU stops at the end of a pipe
+    // (measured: `printf 'a\n' | tail -f` exits 0), so a pipe is closed
+    // here like any other input.
+    if o.follow && bore.is_regular(src) {
+        (mut held).push(src)
+        (mut names).push(label)
+        return 0
+    }
+    bore.close_input(src)
+    0
+}
+
+/// Everything after the first `skip` bytes.
+fn from_byte(out: bore.Out, src: bore.In, skip: int) -> str {
+    var left = skip
+    var why = ""
+    var stop = false
+    while !stop {
+        region pass {
+            let chunk = bore.read_chunk(src, read_size()) else |e| match e {
+                eof => {
+                    stop = true
+                    List[byte]()
+                },
+                io => {
+                    stop = true
+                    why = bore.io_error()
+                    List[byte]()
+                },
+            }
+            if chunk.len == 0 {
+                stop = true
+            } else if left >= chunk.len {
+                left -= chunk.len
+            } else {
+                let from = left
+                left = 0
+                if from == 0 {
+                    bore.write_direct(out, chunk) else |_| {
+                        stop = true
+                        why = bore.io_error()
+                    }
+                } else {
+                    bore.write_direct(out, chunk[from..]) else |_| {
+                        stop = true
+                        why = bore.io_error()
+                    }
+                }
+            }
+        }
+    }
+    why
+}
+
+/// Everything after the first `skip` delimiters.
+fn from_line(out: bore.Out, src: bore.In, skip: int, delim: byte) -> str {
+    var left = skip
+    var why = ""
+    var stop = false
+    while !stop {
+        region pass {
+            let chunk = bore.read_chunk(src, read_size()) else |e| match e {
+                eof => {
+                    stop = true
+                    List[byte]()
+                },
+                io => {
+                    stop = true
+                    why = bore.io_error()
+                    List[byte]()
+                },
+            }
+            if chunk.len == 0 {
+                stop = true
+            } else {
+                var from = 0
+                if left > 0 {
+                    var i = 0
+                    while i < chunk.len && left > 0 {
+                        if chunk[i] == delim {
+                            left -= 1
+                        }
+                        i += 1
+                    }
+                    from = i
+                }
+                if from == 0 {
+                    bore.write_direct(out, chunk) else |_| {
+                        stop = true
+                        why = bore.io_error()
+                    }
+                } else if from < chunk.len {
+                    bore.write_direct(out, chunk[from..]) else |_| {
+                        stop = true
+                        why = bore.io_error()
+                    }
+                }
+            }
+        }
+    }
+    why
+}
+
+/// The last `n` bytes, through a window `n` bytes wide.
+fn last_bytes(out: bore.Out, src: bore.In, n: int) -> str {
+    let keeper = region()
+    var r = bore.ring()
+    var why = ""
+    var stop = n <= 0
+    while !stop {
+        region pass {
+            let chunk = bore.read_chunk(src, read_size()) else |e| match e {
+                eof => {
+                    stop = true
+                    List[byte]()
+                },
+                io => {
+                    stop = true
+                    why = bore.io_error()
+                    List[byte]()
+                },
+            }
+            if chunk.len == 0 {
+                stop = true
+            } else {
+                in keeper {
+                    for b in chunk {
+                        bore.ring_push(mut r, b)
+                    }
+                }
+            }
+        }
+        if bore.ring_len(r) > n {
+            bore.ring_drop(mut r, bore.ring_len(r) - n)
+        }
+    }
+    if why.len == 0 && bore.ring_len(r) > 0 {
+        why = spill(out, mut r)
+    }
+    why
+}
+
+/// The last `n` lines, through a window `n` lines deep.
+///
+/// The invariant is that the window holds at most `n` delimiters. A
+/// stream that did NOT end with a delimiter has one more line than it
+/// has delimiters, so at the end one more line leaves the window —
+/// `head -n -K` runs the same invariant and WRITES that line instead of
+/// dropping it, which is what makes the two the exact complement of
+/// each other.
+fn last_lines(out: bore.Out, src: bore.In, n: int, delim: byte) -> str {
+    let keeper = region()
+    var r = bore.ring()
+    var delims = 0
+    var last = -1
+    var why = ""
+    var stop = n <= 0
+    while !stop {
+        region pass {
+            let chunk = bore.read_chunk(src, read_size()) else |e| match e {
+                eof => {
+                    stop = true
+                    List[byte]()
+                },
+                io => {
+                    stop = true
+                    why = bore.io_error()
+                    List[byte]()
+                },
+            }
+            if chunk.len == 0 {
+                stop = true
+            } else {
+                in keeper {
+                    for b in chunk {
+                        bore.ring_push(mut r, b)
+                        if b == delim {
+                            delims += 1
+                        }
+                    }
+                }
+                last = chunk[chunk.len - 1] as int
+            }
+        }
+        while delims > n {
+            let k = bore.ring_first_line(r, delim)
+            bore.ring_drop(mut r, k)
+            delims -= 1
+        }
+    }
+    if last >= 0 && last != delim as int && delims == n {
+        let k = bore.ring_first_line(r, delim)
+        bore.ring_drop(mut r, k)
+    }
+    if why.len == 0 && bore.ring_len(r) > 0 {
+        why = spill(out, mut r)
+    }
+    why
+}
+
+/// Write the whole window out and empty it.
+fn spill(out: bore.Out, mut r: bore.Ring) -> str {
+    var why = ""
+    var written = 0
+    // `take` is one of the 50 reserved words, so the obvious name for
+    // this is not available.
+    while written < bore.ring_len(r) && why.len == 0 {
+        var span = bore.ring_len(r) - written
+        if span > read_size() {
+            span = read_size()
+        }
+        let at = written
+        region pass {
+            var buf = List[byte]()
+            var i = 0
+            while i < span {
+                (mut buf).push(bore.ring_at(r, at + i))
+                i += 1
+            }
+            bore.write_direct(out, buf) else |_| {
+                why = bore.io_error()
+            }
+        }
+        written += span
+    }
+    bore.ring_drop(mut r, written)
+    why
+}
+
+/// Poll every followed descriptor for ever, writing what appears.
+///
+/// Following is a poll of a LIVE DESCRIPTOR, not a re-read: measured at
+/// 0.2.14, a `fs_read_chunk` that answered the `eof` row answers bytes
+/// again once the file grows. That is the whole reason `-f` is in this
+/// program rather than in its list of gaps.
+fn follow_all(out: bore.Out, held: List[bore.In], names: List[str], o: Opts, show: bool) {
+    var current = names.len - 1
+    loop {
+        time.sleep(time.millis(o.sleep_ms))
+        var i = 0
+        while i < held.len {
+            if drained(out, held[i], show && i != current) {
+                current = i
+            }
+            i += 1
+        }
+    }
+}
+
+/// Read everything available on one followed input. Answers whether any
+/// byte was written, so the caller knows when the banner has to move.
+fn drained(out: bore.Out, src: bore.In, want_banner: bool) -> bool {
+    var any = false
+    var stop = false
+    var banner_done = !want_banner
+    while !stop {
+        region pass {
+            let chunk = bore.read_chunk(src, read_size()) else |e| match e {
+                eof => {
+                    stop = true
+                    List[byte]()
+                },
+                io => {
+                    stop = true
+                    List[byte]()
+                },
+            }
+            if chunk.len == 0 {
+                stop = true
+            } else {
+                if !banner_done {
+                    banner_done = true
+                    bore.banner(out, false, bore.name_of(src)) else |_| {}
+                }
+                any = true
+                bore.write_direct(out, chunk) else |_| {
+                    stop = true
+                }
+            }
+        }
+    }
+    any
+}
+
+/// Write `s` straight out. `tail` uses the direct route throughout, as
+/// `head` does, so that a chunk can go from the reader to the host
+/// uncopied.
+fn emit(out: bore.Out, s: str) -> () ! {io} {
+    var b = List[byte]()
+    for x in s.bytes() {
+        (mut b).push(x)
+    }
+    bore.write_direct(out, b)?
+}
+
+fn help() -> str {
+    """
+    Usage: tail [OPTION]... [FILE]...
+    Write the last 10 lines of each FILE to standard output. With more
+    than one FILE, write a banner naming each. With no FILE, or when
+    FILE is -, read standard input.
+
+      -c, --bytes=[+]NUM       write the last NUM bytes; with a leading
+                                 +, write from byte NUM onwards
+      -f, --follow[=descriptor]
+                               write appended data as the file grows
+      -F                       the same as -f here; see the README for
+                                 what boreutils does not do about a
+                                 renamed file
+      -n, --lines=[+]NUM       write the last NUM lines instead of 10;
+                                 with a leading +, from line NUM onwards
+          --max-unchanged-stats=N
+                               accepted; the descriptor is followed
+          --pid=PID            accepted and ignored: wolf has no pid
+                                 surface yet (wolf-lang#141)
+      -q, --quiet, --silent    never write a banner
+          --retry              accepted; the descriptor is followed
+      -s, --sleep-interval=N   seconds between polls while following
+      -v, --verbose            always write a banner
+      -z, --zero-terminated    the line delimiter is NUL, not newline
+          --help               print this help and exit
+          --version            print the version and exit
+
+    NUM may carry a multiplier: b is 512, k or K is 1024, M, G, T, P,
+    E, Z, Y, R and Q are the powers above it, and a kB or MB spelling
+    is the power of 1000 instead.
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}
