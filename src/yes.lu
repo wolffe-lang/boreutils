@@ -43,8 +43,15 @@ fn main() -> int {
     if p.operands.len > 0 {
         line = join(p.operands)
     }
+    // GNU checks standard output before it starts, and a program that
+    // writes for ever must not loop for ever against a descriptor it
+    // cannot write. Measured at 9.11 on both hosts: `yes >&-` prints
+    // `yes: standard output: Bad file descriptor` at once and exits 1.
+    if !bore.output_ok(out, "yes") {
+        return 1
+    }
     repeat(mut out, line) else |_| {
-        bore.warn("yes", "standard output: write error")
+        bore.write_error(out, "yes", "standard output")
         return 1
     }
     0
