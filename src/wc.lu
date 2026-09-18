@@ -1063,9 +1063,23 @@ fn main() -> int {
     var total = zero()
     var counted = 0
     for inp in inputs {
-        let one = count_one(inp, stdin_in, have_stdin, sel, utf8, mut out, width, only) else |_| {
-            status = 1
-            continue
+        let one = count_one(
+            inp,
+            stdin_in,
+            have_stdin,
+            sel,
+            utf8,
+            mut out,
+            width,
+            only,
+        ) else |e| match e {
+            // An input this program could not read is counted and the
+            // walk goes on, which is GNU's shape for `wc good bad`.
+            failed => { status = 1; continue },
+            // A write it could not make is not: GNU stops at the first
+            // one, so `wc FILE nope` with descriptor 1 closed reports
+            // the write and never opens `nope`. The message is out.
+            unwritable => { return 1 },
         }
         total.lines += one.lines
         total.words += one.words
@@ -1083,7 +1097,7 @@ fn main() -> int {
             label = ""
         }
         emit(mut out, total, sel, width, label) else |_| {
-            bore.warn("wc", "write error")
+            bore.write_error(out, "wc", "write error")
             return 1
         }
     }
@@ -1106,7 +1120,7 @@ fn count_one(
     mut out: bore.Out,
     width: int,
     only: bool,
-) -> Counts ! {failed} {
+) -> Counts ! {failed, unwritable} {
     var label = inp.label
     if only {
         label = ""
@@ -1156,8 +1170,8 @@ fn count_one(
             c.chars = size
             if !only {
                 emit(mut out, c, sel, width, label) else |_| {
-                    bore.warn("wc", "write error")
-                    return failed
+                    bore.write_error(out, "wc", "write error")
+                    return unwritable
                 }
             }
             return c
@@ -1175,8 +1189,8 @@ fn count_one(
     }
     if !only {
         emit(mut out, c, sel, width, label) else |_| {
-            bore.warn("wc", "write error")
-            return failed
+            bore.write_error(out, "wc", "write error")
+            return unwritable
         }
     }
     c
