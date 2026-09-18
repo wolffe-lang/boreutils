@@ -17,7 +17,7 @@
 #
 # GNU's behaviour differs across ITS OWN releases, and the hosts do not
 # agree on which one they have: ubuntu-latest ships 9.4 where Homebrew
-# and Arch ship 9.11. Eight cases below carry gnu_min = "9.11" because
+# and Arch ship 9.11. NINE cases below carry gnu_min = "9.11" because
 # 9.4 answers them differently:
 #
 #   - `wc -w`: 9.4 SKIPS a byte that is not printable, so it neither
@@ -27,6 +27,11 @@
 #     binary noise are 2 words to 9.4 and 8 to 9.11.
 #   - 9.4 says "when reading file names from stdin"; 9.11 says "from
 #     standard input".
+#   - with descriptor 1 closed, 9.11 STOPS at the first write that
+#     fails and 9.4 does not: `wc FILE nope >&-` reports only the write
+#     on 9.11, and reports the missing file too on 9.4. Found by CI's
+#     `field` leg on the first run it ever made, which is the argument
+#     for keeping that leg (B44).
 #
 # boreutils implements 9.11: it is what both development hosts run and
 # what every other expectation in this file was read from. The exact
@@ -751,6 +756,7 @@ stdout_closed = true
 name = "standard output closed, a later operand is never reached"
 args = ["tests/fixtures/plain.txt", "nope"]
 stdout_closed = true
+gnu_min = "9.11"
 
 [[case]]
 name = "standard output closed, standard input"
