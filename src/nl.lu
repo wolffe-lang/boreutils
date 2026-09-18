@@ -1,0 +1,925 @@
+//! member: false
+//!
+//! nl — number the lines of a file, by logical page and section.
+//!
+//! References consulted: POSIX.1-2024 `nl` (including its BRE reference,
+//! XBD 9.3); GNU coreutils 9.11's `nl --help`, the info manual's option
+//! descriptions, and black-box runs of the GNU binary on macOS arm64
+//! (Homebrew `gnl`) and linux x86-64 (native `nl`), under `LC_ALL=C`;
+//! uutils/coreutils (MIT) and toybox (0BSD) as design references for the
+//! shape of the section loop. Never GNU source.
+//!
+//! **The page-section machinery is the part everyone forgets**, and it
+//! is most of this program. Measured against coreutils 9.11 on BOTH
+//! hosts, which agreed on every case below:
+//!
+//! - A line that is EXACTLY the delimiter three times starts a HEADER,
+//!   twice a BODY, once a FOOTER. The delimiter is `\:` by default, so
+//!   those lines are `\:\:\:`, `\:\:` and `\:`.
+//! - **A delimiter line is not printed. An EMPTY line is printed in its
+//!   place**, and it is not numbered and does not count as a line.
+//! - **The line number resets at EVERY section**, not only at a new
+//!   page: two body sections in a row both start at 1. `-p` is what
+//!   stops that, and then the count runs on across sections and across
+//!   files.
+//! - The three sections have their own styles — `-h`, `-b`, `-f` — and
+//!   their defaults are `n`, `t`, `n`: a header and a footer are not
+//!   numbered and a body line is numbered when it is not empty.
+//! - `-d` takes the delimiter CHARACTERS. One character implies a
+//!   second of `:`, so `-d @` looks for `@:@:@:`, not `@@@`; the empty
+//!   string turns section matching off entirely; and more than two
+//!   characters is a GNU extension that works as written.
+//! - **An unnumbered line still gets the number field's room**: the
+//!   width plus the separator's own length, in spaces. `-s ''` makes an
+//!   unnumbered line start six columns in, not seven.
+//! - `-l N` numbers only every Nth line of a RUN of empty lines, and a
+//!   non-empty line starts the run again. It bites style `a` alone,
+//!   because `t` never numbers an empty line anyway. A line holding one
+//!   space is NOT empty.
+//! - The number widens past `-w` rather than being cut, `rz` puts the
+//!   sign before the zeros (`-00001`), and `-i` may be zero or
+//!   negative, so the numbers may stand still or count down.
+//! - Numbering runs on across FILE operands; only a section resets it.
+//! - Three of the numeric refusals carry `Try 'nl --help'` and three do
+//!   not, and this program follows GNU either way.
+//! - Usage errors exit 1 (not 2), as bu00 measured for this family.
+//!
+//! **The `p` styles take a Basic Regular Expression, and this one is a
+//! documented subset**: `^` and `$` as anchors where BRE makes them
+//! anchors, `.`, `*`, and bracket expressions with ranges, negation and
+//! the `[:class:]` names. Not implemented: `\(…\)` groups, `\{n,m\}`
+//! intervals and back references. A pattern using one of those is
+//! matched as the literal characters it is written with rather than
+//! refused, which is the one place `nl` here is known to differ from
+//! GNU, and the corpus records it in a skipped case. wolf 0.2.14 has no
+//! regular-expression surface at all (wolf-std has `std.search` for
+//! substrings only), which is what makes the subset a choice rather
+//! than a wrapper.
+//!
+//! **Memory** follows `uniq`'s shape: one `region` per chunk read, the
+//! partial line at a chunk boundary carried in a first-class region and
+//! overwritten in place, and the output of a chunk built in a
+//! region-local buffer and written with `bore.write_direct`.
+
+use bore
+
+// ------------------------------------------------ basic regular expressions
+
+/// One compiled atom of a BRE: a byte set, with `star` for `*`.
+///
+/// `kind` is 0 for a set (the common case, which covers a literal, `.`
+/// and a bracket expression), 1 for `^` and 2 for `$`.
+struct Atom {
+    kind: int,
+    set: List[bool],
+    star: bool,
+}
+
+/// A compiled pattern, or the reason it would not compile.
+struct Regex {
+    atoms: List[Atom],
+    error: str,
+    /// Matches everything, which is what an empty pattern does.
+    always: bool,
+}
+
+fn any_set() -> List[bool] {
+    var t = List[bool]()
+    var i = 0
+    while i < 256 {
+        (mut t).push(true)
+        i += 1
+    }
+    t
+}
+
+fn one_set(b: int) -> List[bool] {
+    var t = List[bool]()
+    var i = 0
+    while i < 256 {
+        (mut t).push(i == b)
+        i += 1
+    }
+    t
+}
+
+fn empty_regex() -> Regex {
+    Regex { atoms: List[Atom](), error: "", always: true }
+}
+
+/// Whether the byte `n` belongs to the named POSIX class, in the C
+/// locale. The same twelve names `tr` knows.
+fn class_has(name: str, n: int) -> bool {
+    let lower = n >= 97 && n <= 122
+    let upper = n >= 65 && n <= 90
+    let digit = n >= 48 && n <= 57
+    if name == "alnum" {
+        return lower || upper || digit
+    }
+    if name == "alpha" {
+        return lower || upper
+    }
+    if name == "blank" {
+        return n == 9 || n == 32
+    }
+    if name == "cntrl" {
+        return n < 32 || n == 127
+    }
+    if name == "digit" {
+        return digit
+    }
+    if name == "graph" {
+        return n > 32 && n < 127
+    }
+    if name == "lower" {
+        return lower
+    }
+    if name == "print" {
+        return n >= 32 && n < 127
+    }
+    if name == "punct" {
+        return n > 32 && n < 127 && !lower && !upper && !digit
+    }
+    if name == "space" {
+        return n == 32 || n >= 9 && n <= 13
+    }
+    if name == "upper" {
+        return upper
+    }
+    if name == "xdigit" {
+        return digit || n >= 65 && n <= 70 || n >= 97 && n <= 102
+    }
+    false
+}
+
+/// Compile a BRE. The subset is the one the header names.
+pub fn compile(pattern: str) -> Regex {
+    var re = empty_regex()
+    let bs = pattern.bytes()
+    if bs.len == 0 {
+        return re
+    }
+    re.always = false
+    var i = 0
+    while i < bs.len {
+        let n = bs[i] as int
+        if n == 94 && i == 0 {
+            (mut re.atoms).push(Atom { kind: 1, set: List[bool](), star: false })
+            i += 1
+            continue
+        }
+        if n == 36 && i == bs.len - 1 {
+            (mut re.atoms).push(Atom { kind: 2, set: List[bool](), star: false })
+            i += 1
+            continue
+        }
+        var set = List[bool]()
+        if n == 46 {
+            set = any_set()
+            i += 1
+        } else if n == 91 {
+            let br = bracket(bs, i)
+            if br.error.len > 0 {
+                re.error = br.error
+                return re
+            }
+            set = br.set
+            i = br.next
+        } else if n == 92 && i + 1 < bs.len {
+            set = one_set(bs[i + 1] as int)
+            i += 2
+        } else {
+            // A `*` with nothing to repeat is an ordinary character in a
+            // BRE, which is why this branch takes it.
+            set = one_set(n)
+            i += 1
+        }
+        var star = false
+        if i < bs.len && bs[i] as int == 42 && re.atoms.len + 1 > 0 {
+            star = true
+            i += 1
+        }
+        (mut re.atoms).push(Atom { kind: 0, set: set, star: star })
+    }
+    re
+}
+
+/// What a `[` turned into.
+struct Bracket {
+    set: List[bool],
+    next: int,
+    error: str,
+}
+
+fn bracket(bs: List[byte], at: int) -> Bracket {
+    var set = List[bool]()
+    var i = 0
+    while i < 256 {
+        (mut set).push(false)
+        i += 1
+    }
+    var k = at + 1
+    var negate = false
+    if k < bs.len && bs[k] as int == 94 {
+        negate = true
+        k += 1
+    }
+    var first = true
+    var closed = false
+    while k < bs.len {
+        let n = bs[k] as int
+        if n == 93 && !first {
+            closed = true
+            k += 1
+            break
+        }
+        first = false
+        if n == 91 && k + 1 < bs.len && bs[k + 1] as int == 58 {
+            var j = k + 2
+            var name = List[byte]()
+            while j + 1 < bs.len && !(bs[j] as int == 58 && bs[j + 1] as int == 93) {
+                (mut name).push(bs[j])
+                j += 1
+            }
+            if j + 1 >= bs.len {
+                return Bracket { set: set, next: k, error: "Invalid regular expression" }
+            }
+            let text = str_from_utf8(name) else ""
+            var c = 0
+            while c < 256 {
+                if class_has(text, c) {
+                    set[c] = true
+                }
+                c += 1
+            }
+            k = j + 2
+            continue
+        }
+        if k + 2 < bs.len && bs[k + 1] as int == 45 && bs[k + 2] as int != 93 {
+            let hi = bs[k + 2] as int
+            var v = n
+            while v <= hi {
+                set[v] = true
+                v += 1
+            }
+            k += 3
+            continue
+        }
+        set[n] = true
+        k += 1
+    }
+    if !closed {
+        return Bracket { set: set, next: k, error: "Invalid regular expression" }
+    }
+    if negate {
+        var v = 0
+        while v < 256 {
+            set[v] = !set[v]
+            v += 1
+        }
+    }
+    Bracket { set: set, next: k, error: "" }
+}
+
+/// Whether `re` matches anywhere in `line[0..n]`.
+pub fn matches(re: Regex, line: List[byte], n: int) -> bool {
+    if re.always {
+        return true
+    }
+    if re.atoms.len == 0 {
+        return true
+    }
+    var start = 0
+    while start <= n {
+        if match_at(re, 0, line, n, start) {
+            return true
+        }
+        if (copy re.atoms[0]).kind == 1 {
+            return false
+        }
+        start += 1
+    }
+    false
+}
+
+/// Backtracking match of `re` from atom `a` at offset `at`.
+fn match_at(re: Regex, a: int, line: List[byte], n: int, at: int) -> bool {
+    if a >= re.atoms.len {
+        return true
+    }
+    let atom = copy re.atoms[a]
+    if atom.kind == 1 {
+        if at != 0 {
+            return false
+        }
+        return match_at(re, a + 1, line, n, at)
+    }
+    if atom.kind == 2 {
+        if at != n {
+            return false
+        }
+        return match_at(re, a + 1, line, n, at)
+    }
+    if !atom.star {
+        if at >= n {
+            return false
+        }
+        if !atom.set[line[at] as int] {
+            return false
+        }
+        return match_at(re, a + 1, line, n, at + 1)
+    }
+    // Greedy, then give back one at a time.
+    var most = at
+    while most < n && atom.set[line[most] as int] {
+        most += 1
+    }
+    var k = most
+    while k >= at {
+        if match_at(re, a + 1, line, n, k) {
+            return true
+        }
+        k -= 1
+    }
+    false
+}
+
+// ---------------------------------------------------------- the numbering
+
+/// One section's style: 0 all, 1 non-empty, 2 none, 3 the regex.
+struct Style {
+    kind: int,
+    re: Regex,
+}
+
+/// Everything the command line asked for.
+struct Conf {
+    header: Style,
+    body: Style,
+    footer: Style,
+    /// 0 ln, 1 rn, 2 rz.
+    format: int,
+    width: int,
+    sep: str,
+    start: int,
+    step: int,
+    join: int,
+    renumber: bool,
+    delim: str,
+}
+
+fn chunk() -> int {
+    1048576
+}
+
+fn spaces(n: int) -> str {
+    var out = List[byte]()
+    var i = 0
+    while i < n {
+        (mut out).push(32 as byte)
+        i += 1
+    }
+    str_from_utf8(out) else ""
+}
+
+/// The line number, in the field `-n` and `-w` ask for.
+pub fn numbered(n: int, format: int, width: int) -> str {
+    let body = "{n}"
+    if body.len >= width {
+        return body
+    }
+    if format == 0 {
+        return "{body}{spaces(width - body.len)}"
+    }
+    if format == 1 {
+        return "{spaces(width - body.len)}{body}"
+    }
+    if body.starts_with("-") {
+        return "-{zeros(width - body.len)}{body[1..]}"
+    }
+    "{zeros(width - body.len)}{body}"
+}
+
+fn zeros(n: int) -> str {
+    var out = List[byte]()
+    var i = 0
+    while i < n {
+        (mut out).push(48 as byte)
+        i += 1
+    }
+    str_from_utf8(out) else ""
+}
+
+/// `text` as a signed integer, or the `parse` row.
+pub fn to_int_signed(text: str) -> int ! {parse} {
+    text.to_int()?
+}
+
+// ------------------------------------------------------------- the options
+
+fn options() -> List[bore.Opt] {
+    var s = List[bore.Opt]()
+    (mut s).push(bore.takes("b", "body-numbering"))
+    (mut s).push(bore.takes("d", "section-delimiter"))
+    (mut s).push(bore.takes("f", "footer-numbering"))
+    (mut s).push(bore.takes("h", "header-numbering"))
+    (mut s).push(bore.takes("i", "line-increment"))
+    (mut s).push(bore.takes("l", "join-blank-lines"))
+    (mut s).push(bore.takes("n", "number-format"))
+    (mut s).push(bore.flag("p", "no-renumber"))
+    (mut s).push(bore.takes("s", "number-separator"))
+    (mut s).push(bore.takes("v", "starting-line-number"))
+    (mut s).push(bore.takes("w", "number-width"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    s
+}
+
+/// A style word: `a`, `t`, `n` or `pBRE`.
+fn read_style(v: str) -> Style {
+    if v == "a" {
+        return Style { kind: 0, re: empty_regex() }
+    }
+    if v == "t" {
+        return Style { kind: 1, re: empty_regex() }
+    }
+    if v == "n" {
+        return Style { kind: 2, re: empty_regex() }
+    }
+    if v.starts_with("p") {
+        return Style { kind: 3, re: compile(v[1..]) }
+    }
+    Style { kind: -1, re: empty_regex() }
+}
+
+/// Whether `--help`, or an unambiguous prefix of it, is still reachable
+/// in `args`.
+///
+/// `nl` is the one utility in this set whose option loop does NOT stop
+/// at an unrecognized option: `nl -Q --help` prints the getopt message
+/// on stderr, then the help on stdout, and exits 0, while `nl -Q` alone
+/// exits 1 with the `Try` line. `tr`, `uniq` and `seq` all exit 1 for
+/// the same command line. `bore.parse` stops at the first error, so the
+/// question is asked here instead, with the arguments of the ten options
+/// that take one stepped over.
+pub fn wants_help(args: List[str]) -> bool {
+    var takes_arg = "bdfhilnsvw"
+    var i = 0
+    while i < args.len {
+        let a = args[i]
+        if a == "--" {
+            return false
+        }
+        if a.starts_with("--") && a.len > 2 {
+            var name = a[2..]
+            let eq = name.find("=") else -1
+            if eq >= 0 {
+                name = name[0..eq]
+            }
+            if name.len > 0 && "help".starts_with(name) {
+                return true
+            }
+            if eq < 0 && long_takes_arg(name) {
+                i += 1
+            }
+        } else if a.starts_with("-") && a.len > 1 {
+            // A short cluster: only its LAST character can take the
+            // next word, and only when nothing follows it here.
+            let last = a[a.len - 1..]
+            if takes_arg.contains(last) {
+                i += 1
+            }
+        }
+        i += 1
+    }
+    false
+}
+
+fn long_takes_arg(name: str) -> bool {
+    var names = List[str]()
+    (mut names).push("body-numbering")
+    (mut names).push("section-delimiter")
+    (mut names).push("footer-numbering")
+    (mut names).push("header-numbering")
+    (mut names).push("line-increment")
+    (mut names).push("join-blank-lines")
+    (mut names).push("number-format")
+    (mut names).push("number-separator")
+    (mut names).push("starting-line-number")
+    (mut names).push("number-width")
+    for n in names {
+        if n.starts_with(name) {
+            return true
+        }
+    }
+    false
+}
+
+fn main() -> int {
+    let p = bore.parse(options(), env_args(), bore.permute())
+    var c = Conf {
+        header: Style { kind: 2, re: empty_regex() },
+        body: Style { kind: 1, re: empty_regex() },
+        footer: Style { kind: 2, re: empty_regex() },
+        format: 1,
+        width: 6,
+        sep: "\t",
+        start: 1,
+        step: 1,
+        join: 1,
+        renumber: true,
+        delim: "\\:",
+    }
+    var bad = ""
+    var bad_usage = ""
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i]
+        let v = p.values[i]
+        if k == "help" {
+            var h = bore.stdout()
+            bore.put(mut h, help_text()) else |_| {}
+            return bore.finish(mut h, "nl", 0)
+        }
+        if k == "version" {
+            var h = bore.stdout()
+            bore.put(mut h, bore.version_text("nl")) else |_| {}
+            return bore.finish(mut h, "nl", 0)
+        }
+        if k == "body-numbering" || k == "header-numbering" || k == "footer-numbering" {
+            let st = read_style(v)
+            var which = "body"
+            if k == "header-numbering" {
+                which = "header"
+            }
+            if k == "footer-numbering" {
+                which = "footer"
+            }
+            if st.kind < 0 {
+                if bad_usage.len == 0 {
+                    bad_usage = "invalid {which} numbering style: {bore.quote(v)}"
+                }
+            } else if st.re.error.len > 0 {
+                if bad.len == 0 {
+                    bad = st.re.error
+                }
+            } else if k == "body-numbering" {
+                c.body = st
+            } else if k == "header-numbering" {
+                c.header = st
+            } else {
+                c.footer = st
+            }
+        } else if k == "number-format" {
+            if v == "ln" {
+                c.format = 0
+            } else if v == "rn" {
+                c.format = 1
+            } else if v == "rz" {
+                c.format = 2
+            } else if bad_usage.len == 0 {
+                bad_usage = "invalid line numbering format: {bore.quote(v)}"
+            }
+        } else if k == "number-width" {
+            let n = to_int_signed(v) else |_| {
+                if bad.len == 0 {
+                    bad = "invalid line number field width: {bore.quote(v)}"
+                }
+                1
+            }
+            if n < 1 {
+                if bad.len == 0 {
+                    bad = "invalid line number field width: {bore.quote(v)}: {range_reason()}"
+                }
+            } else {
+                c.width = n
+            }
+        } else if k == "starting-line-number" {
+            c.start = to_int_signed(v) else |_| {
+                if bad.len == 0 {
+                    bad = "invalid starting line number: {bore.quote(v)}"
+                }
+                1
+            }
+        } else if k == "line-increment" {
+            c.step = to_int_signed(v) else |_| {
+                if bad.len == 0 {
+                    bad = "invalid line number increment: {bore.quote(v)}"
+                }
+                1
+            }
+        } else if k == "join-blank-lines" {
+            let n = to_int_signed(v) else |_| {
+                if bad.len == 0 {
+                    bad = "invalid line number of blank lines: {bore.quote(v)}"
+                }
+                1
+            }
+            if n < 1 {
+                c.join = 1
+            } else {
+                c.join = n
+            }
+        } else if k == "number-separator" {
+            c.sep = v
+        } else if k == "section-delimiter" {
+            if v.len == 1 {
+                c.delim = "{v}:"
+            } else {
+                c.delim = v
+            }
+        } else if k == "no-renumber" {
+            c.renumber = false
+        }
+        i += 1
+    }
+    if !bore.ok(p) {
+        if wants_help(env_args()) {
+            bore.warn("nl", p.error)
+            var h = bore.stdout()
+            bore.put(mut h, help_text()) else |_| {}
+            return bore.finish(mut h, "nl", 0)
+        }
+        return bore.usage_error("nl", p.error)
+    }
+    if bad_usage.len > 0 {
+        return bore.usage_error("nl", bad_usage)
+    }
+    if bad.len > 0 {
+        bore.warn("nl", bad)
+        return 1
+    }
+
+    var out = bore.stdout()
+    var names = List[str]()
+    for o in p.operands {
+        (mut names).push(o)
+    }
+    if names.len == 0 {
+        (mut names).push("-")
+    }
+    var at = Where { num: c.start, section: 1 }
+    var status = 0
+    for name in names {
+        let src = bore.open_input(name) else |e| match e {
+            not_found => {
+                bore.input_error("nl", name, bore.no_such_file())
+                status = 1
+                continue
+            },
+            denied => {
+                bore.input_error("nl", name, bore.permission_denied())
+                status = 1
+                continue
+            },
+            is_dir => {
+                bore.input_error("nl", name, bore.directory_reason())
+                status = 1
+                continue
+            },
+            io => {
+                bore.input_error("nl", name, bore.io_error())
+                status = 1
+                continue
+            },
+        }
+        at = number_file(out, src, c, at)
+        bore.close_input(src)
+    }
+    bore.finish(mut out, "nl", status)
+}
+
+/// GNU's wording for a width that will not fit. The two hosts print
+/// their own C library's `strerror(ERANGE)` here — "Numerical result out
+/// of range" under glibc and "Result too large" under Apple's — so this
+/// one message cannot match both, and the corpus records it in a skipped
+/// case rather than pinning either.
+fn range_reason() -> str {
+    "Numerical result out of range"
+}
+
+/// Where the next file picks up: the line number, and the section the
+/// last one ended in. GNU does not start a new file in the body — a
+/// file that ended in a FOOTER leaves the next one's lines unnumbered.
+struct Where {
+    num: int,
+    section: int,
+}
+
+/// Number one file, answering where the next one starts.
+fn number_file(out: bore.Out, src: bore.In, c: Conf, at: Where) -> Where {
+    let keep = region()
+    var pending = List[byte]()
+    in keep {
+        pending = List[byte]()
+    }
+    var pending_len = 0
+    var num = at.num
+    var section = at.section
+    var blanks = 0
+    var stop = false
+    let head = "{c.delim}{c.delim}{c.delim}"
+    let body = "{c.delim}{c.delim}"
+    let foot = c.delim
+    while !stop {
+        region pass {
+            let piece = bore.read_chunk(src, chunk()) else |err| match err {
+                eof => { stop = true; List[byte]() },
+                io => { stop = true; List[byte]() },
+            }
+            if piece.len == 0 {
+                stop = true
+            }
+            var buf = List[byte]()
+            var at = 0
+            var k = 0
+            while k < piece.len {
+                if piece[k] as int == 10 {
+                    var line = List[byte]()
+                    var j = 0
+                    while j < pending_len {
+                        (mut line).push(pending[j])
+                        j += 1
+                    }
+                    j = at
+                    while j < k {
+                        (mut line).push(piece[j])
+                        j += 1
+                    }
+                    pending_len = 0
+                    let text = str_from_utf8(line) else ""
+                    var marked = -1
+                    // An empty -d is NOT "off": every one of the three
+                    // delimiter lines is then the empty string, so an
+                    // empty line starts a HEADER, which is what GNU does
+                    // (`nl -d '' -h a -b a` numbers the line after one).
+                    if text == head {
+                        marked = 0
+                    } else if text == body {
+                        marked = 1
+                    } else if text == foot {
+                        marked = 2
+                    }
+                    if marked >= 0 {
+                        section = marked
+                        blanks = 0
+                        if c.renumber {
+                            num = c.start
+                        }
+                        (mut buf).push(10 as byte)
+                    } else {
+                        var style = copy c.body
+                        if section == 0 {
+                            style = copy c.header
+                        }
+                        if section == 2 {
+                            style = copy c.footer
+                        }
+                        var show = false
+                        let n = line.len
+                        if style.kind == 0 {
+                            if n == 0 {
+                                blanks += 1
+                                if blanks >= c.join {
+                                    blanks = 0
+                                    show = true
+                                }
+                            } else {
+                                blanks = 0
+                                show = true
+                            }
+                        } else if style.kind == 1 {
+                            blanks = 0
+                            show = n > 0
+                        } else if style.kind == 3 {
+                            blanks = 0
+                            show = matches(style.re, line, n)
+                        } else {
+                            blanks = 0
+                        }
+                        if show {
+                            for b in numbered(num, c.format, c.width).bytes() {
+                                (mut buf).push(b)
+                            }
+                            for b in c.sep.bytes() {
+                                (mut buf).push(b)
+                            }
+                            num += c.step
+                        } else {
+                            for b in spaces(c.width + c.sep.len).bytes() {
+                                (mut buf).push(b)
+                            }
+                        }
+                        var t = 0
+                        while t < n {
+                            (mut buf).push(line[t])
+                            t += 1
+                        }
+                        (mut buf).push(10 as byte)
+                    }
+                    at = k + 1
+                }
+                k += 1
+            }
+            if at < piece.len {
+                in keep {
+                    var j = at
+                    while j < piece.len {
+                        if pending_len < pending.len {
+                            pending[pending_len] = piece[j]
+                        } else {
+                            (mut pending).push(piece[j])
+                        }
+                        pending_len += 1
+                        j += 1
+                    }
+                }
+            }
+            bore.write_direct(out, buf) else |_| {
+                stop = true
+            }
+        }
+    }
+    // A last line with no newline still gets one.
+    region tail {
+        var buf = List[byte]()
+        if pending_len > 0 {
+            var style = copy c.body
+            if section == 0 {
+                style = copy c.header
+            }
+            if section == 2 {
+                style = copy c.footer
+            }
+            var show = false
+            if style.kind == 0 {
+                blanks = 0
+                show = true
+            } else if style.kind == 1 {
+                show = true
+            } else if style.kind == 3 {
+                show = matches(style.re, pending, pending_len)
+            }
+            if show {
+                for b in numbered(num, c.format, c.width).bytes() {
+                    (mut buf).push(b)
+                }
+                for b in c.sep.bytes() {
+                    (mut buf).push(b)
+                }
+                num += c.step
+            } else {
+                for b in spaces(c.width + c.sep.len).bytes() {
+                    (mut buf).push(b)
+                }
+            }
+            var t = 0
+            while t < pending_len {
+                (mut buf).push(pending[t])
+                t += 1
+            }
+            (mut buf).push(10 as byte)
+        }
+        bore.write_direct(out, buf) else |_| {}
+    }
+    Where { num: num, section: section }
+}
+
+fn help_text() -> str {
+    """
+    Usage: nl [OPTION]... [FILE]...
+    Write each FILE to standard output with line numbers added. With no
+    FILE, or when FILE is -, read standard input.
+
+      -b, --body-numbering=STYLE    how to number a body line
+      -d, --section-delimiter=CC    the characters a section line is
+                                    built from
+      -f, --footer-numbering=STYLE  how to number a footer line
+      -h, --header-numbering=STYLE  how to number a header line
+      -i, --line-increment=N        add N at each numbered line
+      -l, --join-blank-lines=N      number only every Nth line of a run
+                                    of empty ones
+      -n, --number-format=FORMAT    ln, rn or rz
+      -p, --no-renumber             do not start again at each section
+      -s, --number-separator=STR    what follows the number
+      -v, --starting-line-number=N  the first number of each section
+      -w, --number-width=N          how many columns the number takes
+          --help                    print this help and exit
+          --version                 print the version and exit
+
+    The defaults are -bt -d'\\:' -fn -hn -i1 -l1 -nrn -s<TAB> -v1 -w6.
+
+    A STYLE is one of:
+      a       number every line
+      t       number every line that is not empty
+      n       number no line
+      pBRE    number every line holding a match for the basic regular
+              expression BRE
+
+    A logical page has a header, a body and a footer. A line that is
+    exactly CC three times starts the header, twice the body and once
+    the footer; such a line is replaced by an empty one.
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}

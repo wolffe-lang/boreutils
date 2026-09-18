@@ -1,0 +1,497 @@
+# nl — GNU coreutils 9.11, black-box. Every expectation here was read off
+# the GNU binary on BOTH hosts (macOS arm64 Homebrew `gnl`, linux x86-64
+# native `nl`), which agreed on every case in this file but one, which is
+# skipped below and says why.
+#
+# The fixtures are committed data:
+#   pages.txt    one logical page: a header, a body with an empty line in
+#                it, and a footer, with the default \: delimiter
+#   pages2.txt   two pages, the second with two body sections in a row
+#   atsigns.txt  @@@ / @@ / @ for the -d cases
+#   blanks.txt   runs of three, three and five empty lines, for -l
+#   plain.txt    three ordinary lines
+#   two.txt      two ordinary lines
+#
+# --help and --version print OUR text (GNU's is the FSF's prose), so
+# their cases compare the exit status and stderr only.
+
+# ------------------------------------------------------------ the defaults
+
+[[case]]
+name = "the default styles number a non-empty body line"
+args = ["tests/fixtures/plain.txt"]
+
+[[case]]
+name = "an empty line is not numbered by default"
+stdin = "one\ntwo\n\nthree\n"
+
+[[case]]
+name = "standard input by default"
+stdin = "a\nb\n"
+
+[[case]]
+name = "a dash operand is standard input"
+args = ["-"]
+stdin = "a\nb\n"
+
+[[case]]
+name = "two file operands keep counting"
+args = ["tests/fixtures/two.txt", "tests/fixtures/two.txt"]
+
+[[case]]
+name = "a last line with no newline still gets one"
+stdin = "no newline at the end"
+
+[[case]]
+name = "empty input"
+stdin = ""
+
+[[case]]
+name = "-- ends the options"
+args = ["--", "tests/fixtures/plain.txt"]
+
+# -------------------------------------------------------------- the styles
+
+[[case]]
+name = "-b a numbers every line"
+args = ["-b", "a"]
+stdin = "one\ntwo\n\nthree\n"
+
+[[case]]
+name = "-b t numbers only a non-empty line"
+args = ["-b", "t"]
+stdin = "one\ntwo\n\nthree\n"
+
+[[case]]
+name = "-b n numbers nothing"
+args = ["-b", "n"]
+stdin = "one\ntwo\n\nthree\n"
+
+[[case]]
+name = "--body-numbering"
+args = ["--body-numbering=a"]
+stdin = "a\n\nb\n"
+
+[[case]]
+name = "a line holding one space is not empty"
+args = ["-b", "t"]
+stdin = "a\n \nb\n"
+
+[[case]]
+name = "-b p with a plain word"
+args = ["-b", "ptwo"]
+stdin = "one\ntwo\n\nthree\n"
+
+[[case]]
+name = "-b p anchored at the start"
+args = ["-b", "p^t"]
+stdin = "one\ntwo\n\nthree\n"
+
+[[case]]
+name = "-b p anchored at the end"
+args = ["-b", "pe$"]
+stdin = "one\ntwo\nthree\nfour\n"
+
+[[case]]
+name = "-b p with a dot"
+args = ["-b", "pt.o"]
+stdin = "two\ntwo\ntao\ntoo\n"
+
+[[case]]
+name = "-b p with a star"
+args = ["-b", "pao*b"]
+stdin = "ab\naob\naoob\nacb\n"
+
+[[case]]
+name = "-b p with a bracket expression"
+args = ["-b", "p[aeiou]"]
+stdin = "sky\nsea\nxyz\n"
+
+[[case]]
+name = "-b p with a negated bracket expression"
+args = ["-b", "p[^aeiou]"]
+stdin = "aei\nsea\nou\n"
+
+[[case]]
+name = "-b p with a range"
+args = ["-b", "p[0-9]"]
+stdin = "abc\na1c\nxyz\n"
+
+[[case]]
+name = "-b p with a character class"
+args = ["-b", "p[[:digit:]]"]
+stdin = "abc\na1c\nxyz\n"
+
+[[case]]
+name = "-b p with an escaped dot"
+args = ["-b", 'p\.']
+stdin = "abc\na.c\nxyz\n"
+
+[[case]]
+name = "-b p with an empty pattern matches everything"
+args = ["-b", "p"]
+stdin = "a\nb\n"
+
+[[case]]
+name = "-b p anchored both ends"
+args = ["-b", "p^ab$"]
+stdin = "ab\nabc\nxab\n"
+
+[[case]]
+name = "a star at the start of a pattern is an ordinary character"
+args = ["-b", "p*a"]
+stdin = "*a\na\n"
+
+# -------------------------------------------------------- the number field
+
+[[case]]
+name = "-n ln"
+args = ["-n", "ln"]
+stdin = "one\ntwo\n"
+
+[[case]]
+name = "-n rn"
+args = ["-n", "rn"]
+stdin = "one\ntwo\n"
+
+[[case]]
+name = "-n rz"
+args = ["-n", "rz"]
+stdin = "one\ntwo\n"
+
+[[case]]
+name = "--number-format"
+args = ["--number-format=rz"]
+stdin = "one\n"
+
+[[case]]
+name = "-w 3"
+args = ["-w", "3"]
+stdin = "one\ntwo\n\nthree\n"
+
+[[case]]
+name = "-w 1"
+args = ["-w", "1"]
+stdin = "one\n\ntwo\n"
+
+[[case]]
+name = "--number-width"
+args = ["--number-width=2"]
+stdin = "one\n"
+
+[[case]]
+name = "a number wider than -w widens the field"
+args = ["-w", "2", "-v", "12345"]
+stdin = "x\n"
+
+[[case]]
+name = "-s a single character"
+args = ["-s", "X"]
+stdin = "one\n\ntwo\n"
+
+[[case]]
+name = "-s empty, which also narrows the unnumbered field"
+args = ["-s", ""]
+stdin = "one\n\ntwo\n"
+
+[[case]]
+name = "-s more than one character"
+args = ["-s", "||"]
+stdin = "one\n\ntwo\n"
+
+[[case]]
+name = "--number-separator"
+args = ["--number-separator=: "]
+stdin = "one\n"
+
+[[case]]
+name = "-v"
+args = ["-v", "10"]
+stdin = "one\ntwo\n"
+
+[[case]]
+name = "-v negative"
+args = ["-v", "-5"]
+stdin = "one\ntwo\nthree\n"
+
+[[case]]
+name = "-v negative with rz puts the sign first"
+args = ["-v", "-1", "-n", "rz"]
+stdin = "x\n"
+
+[[case]]
+name = "-v negative with ln"
+args = ["-v", "-1", "-n", "ln"]
+stdin = "x\n"
+
+[[case]]
+name = "--starting-line-number"
+args = ["--starting-line-number=7"]
+stdin = "x\n"
+
+[[case]]
+name = "-i 2"
+args = ["-i", "2"]
+stdin = "one\ntwo\nthree\n"
+
+[[case]]
+name = "-i negative counts down"
+args = ["-i", "-1"]
+stdin = "one\ntwo\nthree\n"
+
+[[case]]
+name = "-i zero stands still"
+args = ["-i", "0"]
+stdin = "one\ntwo\n"
+
+[[case]]
+name = "--line-increment"
+args = ["--line-increment=3"]
+stdin = "a\nb\n"
+
+[[case]]
+name = "every number option at once, by long name"
+args = ["--body-numbering=a", "--number-format=rz", "--number-width=3", "--number-separator=:", "--starting-line-number=7", "--line-increment=2"]
+stdin = "x\ny\n"
+
+# ------------------------------------------------------------ blank runs
+
+[[case]]
+name = "-l 2 over runs of empty lines"
+args = ["-b", "a", "-l", "2", "tests/fixtures/blanks.txt"]
+
+[[case]]
+name = "-l 3 over the same runs"
+args = ["-b", "a", "-l", "3", "tests/fixtures/blanks.txt"]
+
+[[case]]
+name = "-l 1 is the default, numbering every empty line under -b a"
+args = ["-b", "a", "-l", "1", "tests/fixtures/blanks.txt"]
+
+[[case]]
+name = "-l without -b a changes nothing, because t never numbers an empty line"
+args = ["-l", "2", "tests/fixtures/blanks.txt"]
+
+[[case]]
+name = "--join-blank-lines"
+args = ["-b", "a", "--join-blank-lines=2", "tests/fixtures/blanks.txt"]
+
+[[case]]
+name = "a non-empty line starts the run again"
+args = ["-b", "a", "-l", "2"]
+stdin = "a\n\nb\n\n\nc\n"
+
+# -------------------------------------------------------- the page sections
+
+[[case]]
+name = "a page with the default styles"
+args = ["tests/fixtures/pages.txt"]
+
+[[case]]
+name = "a page with every section numbered"
+args = ["-b", "a", "-h", "a", "-f", "a", "tests/fixtures/pages.txt"]
+
+[[case]]
+name = "-h alone"
+args = ["-h", "a", "tests/fixtures/pages.txt"]
+
+[[case]]
+name = "-f alone"
+args = ["-f", "a", "tests/fixtures/pages.txt"]
+
+[[case]]
+name = "--header-numbering and --footer-numbering"
+args = ["--header-numbering=a", "--footer-numbering=a", "tests/fixtures/pages.txt"]
+
+[[case]]
+name = "the number resets at every section"
+args = ["-b", "a", "-h", "a", "tests/fixtures/pages2.txt"]
+
+[[case]]
+name = "-p runs the count on across sections"
+args = ["-b", "a", "-h", "a", "-p", "tests/fixtures/pages2.txt"]
+
+[[case]]
+name = "--no-renumber"
+args = ["-b", "a", "-h", "a", "--no-renumber", "tests/fixtures/pages2.txt"]
+
+[[case]]
+name = "two body sections in a row both start at one"
+args = ["-b", "a", "tests/fixtures/pages2.txt"]
+
+[[case]]
+name = "-v sets the number each section starts at"
+args = ["-b", "a", "-h", "a", "-v", "100", "tests/fixtures/pages2.txt"]
+
+[[case]]
+name = "-d of two characters stops the default delimiter matching"
+args = ["-d", "::", "tests/fixtures/pages.txt"]
+
+[[case]]
+name = "-d of one character implies a colon, so @@@ is not a header"
+args = ["-d", "@", "-b", "a", "-h", "a", "-f", "a", "tests/fixtures/atsigns.txt"]
+
+[[case]]
+name = "-d @: is what -d @ means"
+args = ["-d", "@:", "-b", "a", "-h", "a", "-f", "a", "tests/fixtures/atsigns.txt"]
+
+[[case]]
+name = "-d of more than two characters"
+args = ["-d", "xyz", "-b", "a"]
+stdin = "xyzxyzxyz\nH\nxyzxyz\nB\n"
+
+[[case]]
+name = "-d empty makes every empty line a section line"
+args = ["-d", "", "-b", "a", "tests/fixtures/pages.txt"]
+
+[[case]]
+name = "-d empty starts a HEADER, not a footer"
+args = ["-d", "", "-h", "a", "-b", "a"]
+stdin = "a\n\nb\n"
+
+[[case]]
+name = "-d empty with -f a leaves the section a header"
+args = ["-d", "", "-f", "a", "-b", "a"]
+stdin = "a\n\nb\n"
+
+[[case]]
+name = "--section-delimiter"
+args = ["--section-delimiter=::", "tests/fixtures/pages.txt"]
+
+[[case]]
+name = "a footer delimiter alone"
+args = ["-f", "a", "-b", "a"]
+stdin = "body\n\\:\nfooter\n"
+
+[[case]]
+name = "a delimiter line that is nearly one is an ordinary line"
+args = ["-b", "a"]
+stdin = "\\: x\nplain\n"
+
+[[case]]
+name = "the section carries into the next file operand"
+args = ["-b", "a", "-h", "a", "tests/fixtures/pages.txt", "tests/fixtures/two.txt"]
+
+[[case]]
+name = "the section carries, and -f a shows it"
+args = ["-b", "a", "-h", "a", "-f", "a", "tests/fixtures/pages.txt", "tests/fixtures/two.txt"]
+
+# ------------------------------------------------------------- the errors
+
+[[case]]
+name = "an invalid body style"
+args = ["-b", "q"]
+stdin = "a\n"
+
+[[case]]
+name = "an invalid header style"
+args = ["-h", "q"]
+stdin = "a\n"
+
+[[case]]
+name = "an invalid footer style"
+args = ["-f", "q"]
+stdin = "a\n"
+
+[[case]]
+name = "an invalid number format"
+args = ["-n", "q"]
+stdin = "a\n"
+
+[[case]]
+name = "a width that is not a number"
+args = ["-w", "x"]
+stdin = "a\n"
+
+[[case]]
+name = "a starting number that is not a number"
+args = ["-v", "x"]
+stdin = "a\n"
+
+[[case]]
+name = "an increment that is not a number"
+args = ["-i", "x"]
+stdin = "a\n"
+
+[[case]]
+name = "a blank-line count that is not a number"
+args = ["-l", "x"]
+stdin = "a\n"
+
+[[case]]
+name = "an unterminated bracket expression"
+args = ["-b", "p["]
+stdin = "a\n"
+
+[[case]]
+name = "a missing file"
+args = ["tests/fixtures/nosuch.txt"]
+
+[[case]]
+name = "a missing file does not stop the ones after it"
+args = ["tests/fixtures/nosuch.txt", "tests/fixtures/two.txt"]
+
+[[case]]
+name = "a directory operand"
+args = ["tests/fixtures"]
+
+[[case]]
+name = "an invalid option"
+args = ["-Q"]
+stdin = "a\n"
+
+[[case]]
+name = "an unrecognized long option"
+args = ["--bogus"]
+stdin = "a\n"
+
+# ------------------------------------------------------- help and version
+
+[[case]]
+name = "--help"
+args = ["--help"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "--version"
+args = ["--version"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "--help wins when it comes first"
+args = ["--help", "-Q"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "a bad option before --help does NOT stop nl printing the help"
+args = ["-Q", "--help"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "a bad option alone is still an error"
+args = ["-Q"]
+stdin = "a\n"
+
+[[case]]
+name = "a bad option before another option is still an error"
+args = ["-Q", "-b", "a"]
+stdin = "a\n"
+
+[[case]]
+name = "an option argument that looks like --help is an argument"
+args = ["-s", "--help"]
+stdin = "a\n"
+
+# ---------------------------------------- what this nl does not answer as GNU
+
+[[case]]
+name = "a width of zero"
+args = ["-w", "0"]
+stdin = "a\n"
+skip = "GNU appends its C library's strerror(ERANGE) to the message, and the two hosts word it differently at one coreutils release: 'Numerical result out of range' under glibc and 'Result too large' under Apple's. boreutils prints glibc's, so this case cannot pass on both hosts."
+
+[[case]]
+name = "a BRE interval, which this nl does not implement"
+args = ["-b", 'pa\{2\}']
+stdin = "a\naa\n"
+skip = "The BRE subset here is ^ $ . * and bracket expressions. An interval \\{n,m\\}, a group \\(…\\) or a back reference is matched as the literal characters it is written with, so GNU numbers the 'aa' line and boreutils numbers neither. wolf 0.2.14 has no regular-expression surface to borrow, so the subset is written out rather than wrapped."
