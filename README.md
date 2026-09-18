@@ -48,30 +48,84 @@ The toolchain is pinned by digest and fetched, never built:
 
 ```sh
 tools/fetch-toolchain     # wolf + lupin release archives, sha256-checked
+tools/fetch-oracle        # GNU coreutils 9.11, sha256-checked, if needed
 tools/build               # every utility into target/release/
-tools/difftest            # the differential suite against GNU coreutils
+tools/difftest            # the differential suite against the oracle
 tools/bench --scale 0.01  # hyperfine against GNU on generated inputs
 ```
 
 GNU coreutils is the oracle and must be installed: natively on linux,
 `brew install coreutils` on macOS, where the harness uses the
-`g`-prefixed names.
+`g`-prefixed names. It must be the version `gnu-oracle.toml` names, and
+`tools/difftest` says so and stops when it is not — see **The oracle of
+record** below.
 
 **Windows is out of scope.** The only byte-exact route to standard
 input and output in wolf 0.2.14 is reopening `/dev/stdin` and
 `/dev/stdout` (wolf-lang#405), which windows does not have. CI runs on
 linux and macOS.
 
+## Standard output, and the exit convention
+
+Every boreutils program writes through one shared buffered writer, and
+honours one convention, stated in full at the top of `src/bore/bore.lu`
+and measured black-box against GNU:
+
+- **A write that fails is status 1 and one diagnostic.** `basename a/b
+  >&-` is `basename: write error: Bad file descriptor`, exit 1, exactly
+  as GNU's is.
+- **Writing nothing never fails.** `true >&-` is 0 and `false >&-` is 1,
+  because neither writes a byte; `true --version >&-` is 1.
+- **A broken pipe is not the program's business.** `yes | head -1` dies
+  of SIGPIPE with status 141 and an empty stderr on both sides. wolf
+  cannot observe or ignore SIGPIPE at all (wolf-lang#423), and for this
+  shape the default disposition is the right answer, so nothing here
+  works around it.
+
+Two things GNU says that boreutils cannot yet say. The reason text
+after a failed write is `strerror(errno)`, and wolf 0.2.14 carries no
+errno text behind an `io` row (wolf-lang#407), so a full disk is
+`write error: Input/output error` here against GNU's `write error: No
+space left on device`; the status is the same and the differential case
+compares it. And on linux, when standard output is a socket, the
+`/dev/stdout` reopen is refused and output falls back to `print_raw`,
+which discards write errors (wolf-lang#408) — output still arrives, but
+a write error on that one path is invisible.
+
+## The oracle of record
+
+`gnu-oracle.toml` names the GNU coreutils release boreutils is drop-in
+for. It is **9.11**, and it is the pin that makes "drop-in" mean
+something: GNU releases differ from each other, ubuntu-latest ships 9.4
+where Homebrew and Arch ship 9.11, and a differential suite whose
+verdict depends on which host ran it is a matrix rather than an oracle.
+
+- `tools/difftest` **asserts** the version and returns no verdict
+  against any other. `BORE_ORACLE_ANY=1` runs anyway and says on every
+  run that the result is information.
+- `tools/fetch-oracle` installs the oracle by sha256 digest where the
+  host does not already ship it. CI does this and caches it.
+- Where an older GNU still in the field behaves differently, the case
+  names the range it describes with `gnu_min` / `gnu_max`, and CI's
+  non-blocking `field` job runs the distro's own GNU so those ranges
+  stay honest.
+
+The oracle is a binary we run, never a source we read; building it
+derives no boreutils code from GPL source.
+
 ## Status
 
 Every utility below is byte-for-byte identical to GNU coreutils 9.11 on
-its differential corpus, on both hosts: 394 differential cases,
+its differential corpus, on both hosts: 421 differential cases,
 macOS arm64 and linux x86-64. Four `wc` cases are skipped and say why in
 the case file: two errno shapes that no wolf fs row can carry
 (wolf-lang#407), and two code points whose display width the two hosts'
-own `wcwidth` disagree about. Eight more name the GNU version they
-describe, because ubuntu-latest still ships coreutils 9.4 and 9.4
-counts words differently from 9.11.
+own `wcwidth` disagree about. Five more run only on a host with
+`/dev/full`, which is how a write error on a LIVE descriptor is reached
+at all, and so are skipped on macOS. Eight `wc` cases name the GNU
+version they describe with `gnu_min`, because 9.4 counts words
+differently from 9.11 — those cases are a record of the field, not of
+the oracle, which is 9.11 everywhere the gauntlet runs.
 
 "vs GNU" is wall-clock from `tools/bench`, GNU's time divided by ours,
 so above 1.00 is faster than GNU. It is a measurement on a stated host,
