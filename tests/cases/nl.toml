@@ -495,3 +495,45 @@ name = "a BRE interval, which this nl does not implement"
 args = ["-b", 'pa\{2\}']
 stdin = "a\naa\n"
 skip = "The BRE subset here is ^ $ . * and bracket expressions. An interval \\{n,m\\}, a group \\(…\\) or a back reference is matched as the literal characters it is written with, so GNU numbers the 'aa' line and boreutils numbers neither. wolf 0.2.14 has no regular-expression surface to borrow, so the subset is written out rather than wrapped."
+
+# ------------------------------------------- a standard output that fails
+#
+# The exit convention `src/bore/bore.lu` states. `nl` streams, so the
+# write-failure flag rides out of every file operand and one message is
+# printed after all of them.
+
+[[case]]
+name = "standard output closed"
+args = ["tests/fixtures/plain.txt"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, two operands, one message"
+args = ["tests/fixtures/plain.txt", "tests/fixtures/two.txt"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, nothing was written"
+args = ["tests/fixtures/nosuch.txt"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, the open error comes first"
+args = ["tests/fixtures/plain.txt", "tests/fixtures/nosuch.txt"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, version"
+args = ["--version"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, a usage error comes first"
+args = ["-b", "q"]
+stdout_closed = true
+
+[[case]]
+name = "a write error on a live descriptor"
+args = ["tests/fixtures/plain.txt"]
+stdout_file = "/dev/full"
+compare = ["exit"]

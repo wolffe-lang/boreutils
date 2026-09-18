@@ -1386,14 +1386,19 @@ fn walk(
             if wrote && done {
                 (mut buf).push(10 as byte)
             }
-            bore.write_direct(out, buf) else |_| {
-                failed = true
-                done = true
+            if buf.len > 0 {
+                bore.write_direct(out, buf) else |_| {
+                    failed = true
+                    done = true
+                }
             }
         }
     }
     if failed {
-        bore.warn("seq", "write error")
+        // Streaming through `bore.write_direct` cannot mark the writer
+        // as written to, so `bore.finish` would answer 0 here; the
+        // failure is reported once, in GNU's wording, instead.
+        bore.write_error(out, "seq", "write error")
         return 1
     }
     0

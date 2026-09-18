@@ -634,6 +634,13 @@ fn chunk() -> int {
 /// Run the whole stream through the table, the delete set and the
 /// squeeze set, in that order.
 ///
+/// Answers 0, 1 for a read that failed, or 2 for a WRITE that failed —
+/// which is the whole program's failure and is reported once, in
+/// `bore.write_error`'s wording, by the caller. Streaming through
+/// `bore.write_direct` takes the writer by READ and so cannot mark it
+/// as written to, which is why `bore.finish` alone would leave this
+/// program exiting 0 where GNU exits 1.
+///
 /// One `region` per chunk holds the chunk and the bytes it becomes, and
 /// the result is written before the block ends. `last` — the byte most
 /// recently written, which `-s` compares against — crosses the block as
@@ -646,8 +653,8 @@ fn run(
     deleting: bool,
     sq: List[bool],
     squeezing: bool,
-) -> str {
-    var why = ""
+) -> int {
+    var why = 0
     var stop = false
     var last = -1
     while !stop {
@@ -656,7 +663,7 @@ fn run(
                 eof => { stop = true; List[byte]() },
                 io => {
                     stop = true
-                    why = bore.io_error()
+                    why = 1
                     List[byte]()
                 },
             }
@@ -676,9 +683,14 @@ fn run(
                     last = n
                     (mut buf).push(n as byte)
                 }
-                bore.write_direct(out, buf) else |_| {
-                    stop = true
-                    why = bore.io_error()
+                // Nothing written is never a failure, which is rule
+                // five of the exit convention: `tr a b < /dev/null >&-`
+                // exits 0 on both sides.
+                if buf.len > 0 {
+                    bore.write_direct(out, buf) else |_| {
+                        stop = true
+                        why = 2
+                    }
                 }
             }
         }
@@ -859,8 +871,12 @@ fn main() -> int {
     }
     let why = run(out, src, table, del, deleting, sq, squeezing)
     bore.close_input(src)
-    if why.len > 0 {
-        bore.warn("tr", "read error")
+    if why == 2 {
+        bore.write_error(out, "tr", "write error")
+        return 1
+    }
+    if why == 1 {
+        bore.input_error("tr", "-", bore.io_error())
         return 1
     }
     bore.finish(mut out, "tr", 0)

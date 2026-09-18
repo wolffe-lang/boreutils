@@ -704,3 +704,51 @@ name = "a complementing stream cut short by the reader dies on SIGPIPE"
 args = ["-c", "a", "X"]
 stdin_file = "/dev/zero"
 stdout_bytes = 4096
+
+# ------------------------------------------- a standard output that fails
+#
+# The exit convention `src/bore/bore.lu` states. `tr` streams through
+# `bore.write_direct`, which takes the writer by READ and so cannot mark
+# it as written to, so `bore.finish` alone would leave this program
+# exiting 0 where GNU exits 1: the failure rides out of the stream loop
+# as its own code and is reported once, in GNU's wording.
+
+[[case]]
+name = "standard output closed"
+args = ["a", "b"]
+stdin = "aaa\n"
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, nothing to write"
+args = ["a", "b"]
+stdin = ""
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, deleting everything"
+args = ["-d", "a"]
+stdin = "aaa\n"
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, version"
+args = ["--version"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, a usage error comes first"
+args = ["-Q", "a", "b"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, an array error comes first"
+args = ["c-a", "XYZ"]
+stdout_closed = true
+
+[[case]]
+name = "a write error on a live descriptor"
+args = ["a", "b"]
+stdin = "aaa\n"
+stdout_file = "/dev/full"
+compare = ["exit"]

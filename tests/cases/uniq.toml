@@ -7,7 +7,8 @@
 #   groups.txt    a a b a c c c — one group of two, one of one, one of
 #                 one that repeats a line already seen, one of three
 #   groups0.bin   the same seven records, NUL-separated, for -z
-#   fields.txt    leading blanks and two fields per line
+#   blankfields.txt  leading blanks and two fields per line (named apart
+#                 from bu03's fields.txt, which cut needs for its own shape)
 #   nonldup.txt   a a b, with no newline after the last line
 #   mixedcase.txt Alpha alpha ALPHA beta, for -i
 #
@@ -166,19 +167,19 @@ args = ["-c", "tests/fixtures/mixedcase.txt"]
 
 [[case]]
 name = "-f 1"
-args = ["-f", "1", "-c", "tests/fixtures/fields.txt"]
+args = ["-f", "1", "-c", "tests/fixtures/blankfields.txt"]
 
 [[case]]
 name = "-f 0 compares everything"
-args = ["-f", "0", "-c", "tests/fixtures/fields.txt"]
+args = ["-f", "0", "-c", "tests/fixtures/blankfields.txt"]
 
 [[case]]
 name = "-f past the end of the line makes every line equal"
-args = ["-f", "9", "-c", "tests/fixtures/fields.txt"]
+args = ["-f", "9", "-c", "tests/fixtures/blankfields.txt"]
 
 [[case]]
 name = "--skip-fields"
-args = ["--skip-fields=1", "-c", "tests/fixtures/fields.txt"]
+args = ["--skip-fields=1", "-c", "tests/fixtures/blankfields.txt"]
 
 [[case]]
 name = "-s 2"
@@ -217,11 +218,11 @@ stdin = "xxa\nyya\nzzb\n"
 
 [[case]]
 name = "-f and -s compose: fields first, then characters"
-args = ["-f", "1", "-s", "1", "-c", "tests/fixtures/fields.txt"]
+args = ["-f", "1", "-s", "1", "-c", "tests/fixtures/blankfields.txt"]
 
 [[case]]
 name = "-f, -s and -w all at once"
-args = ["-f", "1", "-s", "1", "-w", "1", "-c", "tests/fixtures/fields.txt"]
+args = ["-f", "1", "-s", "1", "-w", "1", "-c", "tests/fixtures/blankfields.txt"]
 
 [[case]]
 name = "-w stops short of a difference"
@@ -242,11 +243,11 @@ stdin = "x A\ny a\n"
 
 [[case]]
 name = "-1 skips one field"
-args = ["-1", "-c", "tests/fixtures/fields.txt"]
+args = ["-1", "-c", "tests/fixtures/blankfields.txt"]
 
 [[case]]
 name = "-0 skips none"
-args = ["-0", "-c", "tests/fixtures/fields.txt"]
+args = ["-0", "-c", "tests/fixtures/blankfields.txt"]
 
 [[case]]
 name = "consecutive digits accumulate, so -1 -2 is twelve"
@@ -565,3 +566,41 @@ compare = ["exit", "stderr"]
 [[case]]
 name = "a bad option before --help is still an error"
 args = ["-Q", "--help"]
+
+# ------------------------------------------- a standard output that fails
+#
+# The exit convention `src/bore/bore.lu` states, and `uniq` inherits the
+# streaming half of it: `bore.write_direct` cannot mark the writer as
+# written to, so the failure rides out of the filter as its own flag and
+# is reported once.
+
+[[case]]
+name = "standard output closed"
+args = ["tests/fixtures/groups.txt"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, nothing to write"
+stdin = ""
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, an input that cannot be opened"
+args = ["tests/fixtures/nosuch.txt"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, version"
+args = ["--version"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, a usage error comes first"
+args = ["-Q"]
+stdout_closed = true
+
+[[case]]
+name = "a write error on a live descriptor"
+args = ["tests/fixtures/groups.txt"]
+stdout_file = "/dev/full"
+compare = ["exit"]

@@ -538,3 +538,40 @@ skip = "The two hosts do not agree with each other here, let alone with an exact
 name = "an exponent too large for a long double"
 args = ["1", "1", "1e400"]
 skip = "Another C library difference at one coreutils release: macOS refuses '1e400' as an invalid floating point argument and linux reads it as an infinity and never stops. boreutils reads the exponent exactly and treats it as the finite number it is."
+
+# ------------------------------------------- a standard output that fails
+#
+# The exit convention `src/bore/bore.lu` states. `seq` writes a batch of
+# values per region through `bore.write_direct`, so it carries the same
+# write-failure flag the other streaming utilities do.
+
+[[case]]
+name = "standard output closed"
+args = ["1", "3"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, an empty sequence writes nothing"
+args = ["5", "2"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, version"
+args = ["--version"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, a usage error comes first"
+args = ["-Q", "1"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, an operand error comes first"
+args = ["x"]
+stdout_closed = true
+
+[[case]]
+name = "a write error on a live descriptor"
+args = ["1", "100000"]
+stdout_file = "/dev/full"
+compare = ["exit"]
