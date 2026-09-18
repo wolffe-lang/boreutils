@@ -46,10 +46,37 @@ cases compare the exit status only.
 - **`src/bore/`** holds option parsing in GNU's getopt_long shape,
   GNU-shaped diagnostics, and the buffered byte writer. A utility
   should be its own behaviour and nothing else.
+- **The other pin** is `gnu-oracle.toml`, the GNU coreutils release
+  boreutils is drop-in for (B44). `tools/difftest` asserts it and
+  returns no verdict against any other version; CI installs it rather
+  than taking what the runner ships.
+
+## The exit convention (read it before writing output)
+
+`src/bore/bore.lu`'s header states it in six rules, measured black-box
+against GNU. The short form for a new utility:
+
+1. `var out = bore.stdout()` BEFORE any input file.
+2. All output through `bore.put` / `put_byte` / `write_all`; never
+   `print` or `print_raw`.
+3. End on `bore.finish(mut out, prog, status)`, and so does every early
+   return that has written anything. **That is the whole convention on
+   the common path** — a utility that buffers needs nothing else, and
+   gets `prog: write error: Bad file descriptor` and status 1 on a
+   closed standard output for free.
+4. Report an inline write failure with `bore.write_error(out, prog,
+   "write error")`, never a bare `bore.warn`, so the reason is named.
+5. A program that STREAMS (only `cat` and `yes` today) calls
+   `bore.output_ok(out, prog)` before it starts and returns 1 when it
+   answers false. Measured: GNU checks standard output before it looks
+   at its operands, and says `prog: standard output: …` when it does.
+6. SIGPIPE is left alone. `prog | head -1` dies with status 141 on both
+   sides, and wolf cannot observe or ignore the signal (wolf-lang#423).
 
 ## The tools
 
     tools/fetch-toolchain      stage the pinned toolchain into .wolf-bin/
+    tools/fetch-oracle         install the oracle of record into .gnu-bin/
     tools/build [--dev] [name] compile utilities into target/<tier>/
     tools/check-fmt            wolf fmt --check
     tools/check-test           wolf test (the *_test.lu unit tests)
