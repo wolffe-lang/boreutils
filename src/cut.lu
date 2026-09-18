@@ -532,20 +532,31 @@ fn one(out: bore.Out, path: str, o: Opts, spans: List[Span]) -> int {
     why
 }
 
-/// Read the stream a chunk at a time and cut each line out of the
-/// pending window.
+/// Read the stream a chunk at a time and cut every line out of the
+/// chunk itself.
 ///
-/// The window is `bore/ring.lu`'s, and it holds at most one line, so the
-/// memory a whole file costs is the length of its longest line. The
-/// chunk itself lives in a `region` that dies every pass, which is what
+/// **The chunk is the hot path and the ring is the exception.** A first
+/// draft pushed every input byte into a `bore.Ring` and read it back
+/// out, because the ring is the one buffer that can outlive the
+/// per-chunk `region`. It was correct and it was 0.06x of GNU: two
+/// runtime list calls per byte against GNU's `memchr`. Now only a line
+/// that STRADDLES two chunks goes through the ring, which is at most
+/// one line per 256 KiB, and every other line is cut where it was read.
+///
+/// The chunk lives in a `region` that dies every pass, which is what
 /// keeps `fs_read_chunk`'s per-call allocation from accumulating
-/// (wolf-lang#416).
+/// (wolf-lang#416), and the whole chunk's output is built in that same
+/// region and written once.
 fn run(out: bore.Out, src: bore.In, o: Opts, spans: List[Span]) -> int {
     let keeper = region()
-    var r = bore.ring()
+    var pend = bore.ring()
     var why = 0
     var stop = false
     while !stop {
+        // How much of `pend` a completed line consumed. `ring_drop`
+        // runs OUTSIDE the block: a call taking a `mut` parameter from
+        // outside a region is E1010 inside it (wolf-lang#418).
+        var used = 0
         region pass {
             let chunk = bore.read_chunk(src, read_size()) else |e| match e {
                 eof => {
@@ -561,82 +572,144 @@ fn run(out: bore.Out, src: bore.In, o: Opts, spans: List[Span]) -> int {
             if chunk.len == 0 {
                 stop = true
             } else {
-                in keeper {
-                    for b in chunk {
-                        bore.ring_push(mut r, b)
+                var buf = List[byte]()
+                var at = 0
+                if bore.ring_len(pend) > 0 {
+                    let d = find_delim(chunk, 0, chunk.len, o.line_delim)
+                    if d < 0 {
+                        in keeper {
+                            for b in chunk {
+                                bore.ring_push(mut pend, b)
+                            }
+                        }
+                        at = chunk.len
+                    } else {
+                        var line = List[byte]()
+                        var i = 0
+                        while i < bore.ring_len(pend) {
+                            (mut line).push(bore.ring_at(pend, i))
+                            i += 1
+                        }
+                        var j = 0
+                        while j < d {
+                            (mut line).push(chunk[j])
+                            j += 1
+                        }
+                        cut_into(mut buf, line, 0, line.len, o, spans)
+                        used = bore.ring_len(pend)
+                        at = d + 1
+                    }
+                }
+                while at < chunk.len {
+                    let d = find_delim(chunk, at, chunk.len, o.line_delim)
+                    if d < 0 {
+                        in keeper {
+                            var k = at
+                            while k < chunk.len {
+                                bore.ring_push(mut pend, chunk[k])
+                                k += 1
+                            }
+                        }
+                        at = chunk.len
+                    } else {
+                        cut_into(mut buf, chunk, at, d - at, o, spans)
+                        at = d + 1
+                    }
+                }
+                if buf.len > 0 {
+                    bore.write_direct(out, buf) else |_| {
+                        why = 2
+                        stop = true
                     }
                 }
             }
         }
-        while why == 0 && has_line(r, o.line_delim) {
-            let k = bore.ring_first_line(r, o.line_delim)
-            why = cut_line(out, r, k - 1, o, spans)
-            bore.ring_drop(mut r, k)
+        if used > 0 {
+            bore.ring_drop(mut pend, used)
         }
     }
-    if why == 0 && bore.ring_len(r) > 0 {
-        let k = bore.ring_len(r)
-        why = cut_line(out, r, k, o, spans)
-        bore.ring_drop(mut r, k)
-    }
-    why
-}
-
-/// Whether the window holds a whole line.
-fn has_line(r: bore.Ring, delim: byte) -> bool {
-    var i = 0
-    while i < bore.ring_len(r) {
-        if bore.ring_at(r, i) == delim {
-            return true
-        }
-        i += 1
-    }
-    false
-}
-
-/// Cut the first `len` bytes of the window and write the result.
-///
-/// The output line ALWAYS ends with the delimiter, even when the input
-/// line did not: measured, `cut -b1` of a file with no final newline
-/// answers one WITH a final newline, unlike `head`, `tail` and `cat`,
-/// which all pass the absence through.
-fn cut_line(out: bore.Out, r: bore.Ring, len: int, o: Opts, spans: List[Span]) -> int {
-    var why = 0
-    region line {
-        var buf = List[byte]()
-        if o.mode == 3 {
-            fields_of(mut buf, r, len, o, spans)
-        } else {
-            positions_of(mut buf, r, len, o, spans)
-        }
-        var write = true
-        if o.mode == 3 && o.only_delim && !delimited(r, len, o.delim) {
-            write = false
-        }
-        if write {
-            (mut buf).push(o.line_delim)
-            bore.write_direct(out, buf) else |_| {
-                why = 2
+    // A last line with no delimiter after it. It still leaves WITH one:
+    // measured, `cut -b1` of a file with no final newline answers one
+    // with a final newline, unlike `head`, `tail` and `cat`, which all
+    // pass the absence through.
+    let left = bore.ring_len(pend)
+    if why == 0 && left > 0 {
+        region last {
+            var line = List[byte]()
+            var i = 0
+            while i < left {
+                (mut line).push(bore.ring_at(pend, i))
+                i += 1
+            }
+            var buf = List[byte]()
+            cut_into(mut buf, line, 0, left, o, spans)
+            if buf.len > 0 {
+                bore.write_direct(out, buf) else |_| {
+                    why = 2
+                }
             }
         }
     }
+    if left > 0 {
+        bore.ring_drop(mut pend, left)
+    }
     why
 }
 
-/// Whether the line holds the input delimiter at all.
-fn delimited(r: bore.Ring, len: int, delim: str) -> bool {
-    at_delim(r, len, 0, delim) >= 0
+/// The index of the first `delim` in `b[from..to]`, or -1.
+fn find_delim(b: List[byte], from: int, to: int, delim: byte) -> int {
+    var i = from
+    while i < to {
+        if b[i] == delim {
+            return i
+        }
+        i += 1
+    }
+    -1
 }
 
-/// The offset of the first delimiter at or after `from`, or -1.
-fn at_delim(r: bore.Ring, len: int, from: int, delim: str) -> int {
+/// Cut the line `b[at..at + len]` into `buf`, delimiter and all.
+fn cut_into(mut buf: List[byte], b: List[byte], at: int, len: int, o: Opts, spans: List[Span]) {
+    if o.mode == 3 {
+        if o.only_delim && !delimited(b, at, len, o.delim) {
+            return
+        }
+        fields_of(mut buf, b, at, len, o, spans)
+    } else {
+        positions_of(mut buf, b, at, len, o, spans)
+    }
+    (mut buf).push(o.line_delim)
+}
+
+/// Whether the line holds the input delimiter at all.
+fn delimited(b: List[byte], at: int, len: int, delim: str) -> bool {
+    at_delim(b, at, len, 0, delim) >= 0
+}
+
+/// The offset WITHIN the line of the first delimiter at or after `from`,
+/// or -1.
+fn at_delim(b: List[byte], at: int, len: int, from: int, delim: str) -> int {
     let d = delim.bytes()
+    if d.len == 1 {
+        // The only delimiter that is not one byte is a multibyte one
+        // under UTF-8, so this is the path every ordinary `cut -d,`
+        // takes and it is worth having on its own.
+        let c = d[0]
+        var k = from
+        while k < len {
+            if b[at + k] == c {
+                return k
+            }
+            k += 1
+        }
+        return -1
+    }
     var i = from
     while i + d.len <= len {
         var j = 0
         var hit = true
         while j < d.len {
-            if bore.ring_at(r, i + j) != d[j] {
+            if b[at + i + j] != d[j] {
                 hit = false
                 j = d.len
             } else {
@@ -652,26 +725,18 @@ fn at_delim(r: bore.Ring, len: int, from: int, delim: str) -> int {
 }
 
 /// `-b` and `-c`: the selected positions, range by range.
-fn positions_of(mut buf: List[byte], r: bore.Ring, len: int, o: Opts, spans: List[Span]) {
+fn positions_of(mut buf: List[byte], b: List[byte], at: int, len: int, o: Opts, spans: List[Span]) {
     // The byte offset each character starts at, plus `len` as a
     // sentinel, so that character `c` occupies `[starts[c],
     // starts[c + 1])` and its LAST byte is at 1-based `starts[c + 1]`.
     // In the C locale every byte is a character and the table is the
     // identity, so it is not built at all.
-    //
-    // `-n` reads this table rather than walking the bytes itself, and
-    // that is a COMPILER BUG rather than a style. A second walk of `r`
-    // inside the `-n` branch ICEs the 0.2.14 mid-end at `--release`:
-    // `wir verify error [region-root] in @positions_of: region r9 has
-    // two token roots`. Filed upstream with its witness. `WOLF_MIDEND=0`
-    // also builds it, at the cost of the optimiser on a per-byte loop,
-    // and one table is better code anyway.
     var starts = List[int]()
     var units = len
     if o.utf8 && (o.mode == 2 || o.no_partial) {
         var i = 0
         while i < len {
-            if !continuation(bore.ring_at(r, i)) {
+            if !continuation(b[at + i]) {
                 (mut starts).push(i)
             }
             i += 1
@@ -727,7 +792,7 @@ fn positions_of(mut buf: List[byte], r: bore.Ring, len: int, o: Opts, spans: Lis
         }
         var i = from
         while i < to {
-            (mut buf).push(bore.ring_at(r, i))
+            (mut buf).push(b[at + i])
             i += 1
         }
         emitted = true
@@ -736,25 +801,34 @@ fn positions_of(mut buf: List[byte], r: bore.Ring, len: int, o: Opts, spans: Lis
 
 /// `-f`: the selected fields, in input order, joined by the output
 /// delimiter.
-fn fields_of(mut buf: List[byte], r: bore.Ring, len: int, o: Opts, spans: List[Span]) {
-    if !delimited(r, len, o.delim) {
+fn fields_of(mut buf: List[byte], b: List[byte], at: int, len: int, o: Opts, spans: List[Span]) {
+    if !delimited(b, at, len, o.delim) {
         // A line with no delimiter goes through whole; `-s` drops it
-        // instead, and the caller does that, because the line still has
+        // instead, and `cut_into` does that, because the line still has
         // to be recognised here.
         var i = 0
         while i < len {
-            (mut buf).push(bore.ring_at(r, i))
+            (mut buf).push(b[at + i])
             i += 1
         }
         return
     }
     let d = o.delim.len
+    // The last field any span names. `cut -f1` of a line with forty
+    // fields has no reason to find the other thirty-nine, and finding
+    // them was 0.09x of GNU before this.
+    var stop_after = 0
+    for s in spans {
+        if s.hi > stop_after {
+            stop_after = s.hi
+        }
+    }
     var emitted = false
     var index = 1
     var from = 0
     var done = false
-    while !done {
-        var to = at_delim(r, len, from, o.delim)
+    while !done && index <= stop_after {
+        var to = at_delim(b, at, len, from, o.delim)
         if to < 0 {
             to = len
             done = true
@@ -765,7 +839,7 @@ fn fields_of(mut buf: List[byte], r: bore.Ring, len: int, o: Opts, spans: List[S
             }
             var i = from
             while i < to {
-                (mut buf).push(bore.ring_at(r, i))
+                (mut buf).push(b[at + i])
                 i += 1
             }
             emitted = true
