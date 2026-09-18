@@ -1,0 +1,67 @@
+# head — the bench, and it exists to answer one question: does
+# `head -n 1` of a huge file read the huge file?
+#
+# The first four rows are the answer in wall-clock. They run against a
+# `big` input (1 GiB at scale 1) and they must be indistinguishable from
+# start-up, on both sides, or the program is wrong. The report carries
+# the `strace -c` read count beside them, which is the direct evidence;
+# a time is the consequence.
+#
+# The rows after them are the paths that really do touch every byte, and
+# they are where a loss to GNU is expected and measured rather than
+# assumed: `-n -K` and `-c -K` on a pipe hold a window, and a window in
+# wolf is a `List[byte]` pushed one byte at a time.
+#
+# Every row states its locale, as bu02's wc rows do, even though `head`
+# has no locale-dependent path: a bench that inherits the runner's LANG
+# is a bench that does not say what it measured.
+
+[[bench]]
+name = "-n 1 of a whole GiB, which must not read a GiB"
+command = "LC_ALL=C {prog} -n 1 {input}"
+input = "big"
+
+[[bench]]
+name = "-c 1 of the same"
+command = "LC_ALL=C {prog} -c 1 {input}"
+input = "big"
+
+[[bench]]
+name = "-n 10, the default"
+command = "LC_ALL=C {prog} {input}"
+input = "big"
+
+[[bench]]
+name = "-n 1 through a pipe, where neither side may seek"
+command = "LC_ALL=C cat {input} | {prog} -n 1 > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-n 100000 of short lines"
+command = "LC_ALL=C {prog} -n 100000 {input} > /dev/null"
+input = "lines"
+
+[[bench]]
+name = "-c 100000000, a bulk copy"
+command = "LC_ALL=C {prog} -c {bytes:100000000} {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-c -1024, which an fstat turns into a bulk copy"
+command = "LC_ALL=C {prog} -c -1024 {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-c -1024 through a pipe, where the window is the only way"
+command = "LC_ALL=C cat {input} | {prog} -c -1024 > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-n -1, all but the last line, a window over everything"
+command = "LC_ALL=C {prog} -n -1 {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-n -1 of short lines"
+command = "LC_ALL=C {prog} -n -1 {input} > /dev/null"
+input = "lines"

@@ -1,0 +1,64 @@
+# cut — the bench. Every row is per-line work, which is the shape wolf
+# has been fastest at so far (bu02's `wc -w` beat GNU at it) and the
+# shape this program adds a window to: a line arrives in the ring one
+# byte at a time and leaves it one byte at a time, because there is no
+# way to read into a buffer the caller owns (wolf-lang#416).
+#
+# `-b` against `-c` is the locale row, and it is the reason every row
+# names its locale: in the C locale the two take the same path, and
+# under UTF-8 `-c` builds a character-boundary table per line.
+
+[[bench]]
+name = "-b1-10, C"
+command = "LC_ALL=C {prog} -b1-10 {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-c1-10, C, where a character is a byte"
+command = "LC_ALL=C {prog} -c1-10 {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-c1-10, UTF-8, where it is not"
+command = "LC_ALL=C.UTF-8 {prog} -c1-10 {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-n -b1-10, UTF-8, the partial-character rule"
+command = "LC_ALL=C.UTF-8 {prog} -n -b1-10 {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-f1 -d' ', C"
+command = "LC_ALL=C {prog} -f1 -d' ' {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-f1,3 -d' ', C"
+command = "LC_ALL=C {prog} -f1,3 -d' ' {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-f2- -d' ' --output-delimiter=:, C"
+command = "LC_ALL=C {prog} -f2- -d' ' --output-delimiter=: {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "--complement -b1-10, C"
+command = "LC_ALL=C {prog} --complement -b1-10 {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-b1-10 on very short lines, C"
+command = "LC_ALL=C {prog} -b1-10 {input} > /dev/null"
+input = "lines"
+
+[[bench]]
+name = "-f1 -d' ' on very short lines, C"
+command = "LC_ALL=C {prog} -f1 -d' ' {input} > /dev/null"
+input = "lines"
+
+[[bench]]
+name = "-b1-10 on binary noise, C"
+command = "LC_ALL=C {prog} -b1-10 {input} > /dev/null"
+input = "noise"

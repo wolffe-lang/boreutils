@@ -1,0 +1,54 @@
+# tail — the bench, and it exists to price ONE missing builtin.
+#
+# GNU `tail -n 10` of a regular file seeks to the end and reads a few
+# kilobytes. wolf 0.2.14 has no seek, no tell and no positional read
+# (wolf-lang#405), so boreutils reads the file forward from byte zero.
+# The first two rows are that cost, and they are expected to be the
+# worst numbers in this repository. They are here because a loss nobody
+# measured is a loss nobody can argue about.
+#
+# The pipe rows are the fair comparison: there GNU cannot seek either,
+# both implementations read every byte and both hold a window, so what
+# is left is the window itself.
+#
+# Every row states its locale, for the reason wc's do.
+
+[[bench]]
+name = "-n 10 of a file, where GNU seeks and we cannot"
+command = "LC_ALL=C {prog} -n 10 {input}"
+input = "big"
+
+[[bench]]
+name = "-c 10 of a file, where an fstat saves the window but not the read"
+command = "LC_ALL=C {prog} -c 10 {input}"
+input = "big"
+
+[[bench]]
+name = "-n 10 through a pipe, where neither side may seek"
+command = "LC_ALL=C cat {input} | {prog} -n 10"
+input = "big"
+
+[[bench]]
+name = "-c 10 through a pipe"
+command = "LC_ALL=C cat {input} | {prog} -c 10"
+input = "big"
+
+[[bench]]
+name = "-n 10 of short lines through a pipe"
+command = "LC_ALL=C cat {input} | {prog} -n 10"
+input = "lines"
+
+[[bench]]
+name = "-n +1, the whole file, which is a copy"
+command = "LC_ALL=C {prog} -n +1 {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-c +100000000, a skip and then a copy"
+command = "LC_ALL=C {prog} -c +{bytes:100000000} {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-n 100000 of short lines, a window a hundred thousand lines deep"
+command = "LC_ALL=C {prog} -n 100000 {input} > /dev/null"
+input = "lines"
