@@ -761,3 +761,12 @@ stdout_closed = true
 name = "standard output closed, version"
 args = ["--version"]
 stdout_closed = true
+
+# A write error on a LIVE descriptor (see echo's case for why the
+# comparison is the exit status only).
+
+[[case]]
+name = "a write error on a live descriptor"
+args = ["tests/fixtures/plain.txt"]
+stdout_file = "/dev/full"
+compare = ["exit"]

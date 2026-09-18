@@ -199,3 +199,11 @@ stdout_closed = true
 name = "standard output closed, version"
 args = ["--version"]
 stdout_closed = true
+
+# A write error on a LIVE descriptor (see echo's case).
+
+[[case]]
+name = "a write error on a live descriptor"
+args = ["a/b"]
+stdout_file = "/dev/full"
+compare = ["exit"]

@@ -192,3 +192,16 @@ stdout_closed = true
 name = "standard output closed, version"
 args = ["--version"]
 stdout_closed = true
+
+# A write error on a LIVE descriptor: /dev/full accepts the write and
+# answers ENOSPC. Linux only, and the case SKIPs where the device does
+# not exist. The exit status is the whole comparison, because GNU
+# appends `strerror(errno)` — `No space left on device` — where
+# boreutils has no errno text behind an `io` row (wolf-lang#407) and
+# says `Input/output error`.
+
+[[case]]
+name = "a write error on a live descriptor"
+args = ["hi"]
+stdout_file = "/dev/full"
+compare = ["exit"]

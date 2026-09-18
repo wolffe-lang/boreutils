@@ -522,3 +522,20 @@ stdout_closed = true
 name = "standard output closed, version"
 args = ["--version"]
 stdout_closed = true
+
+# A write error on a LIVE descriptor (see echo's case for why the
+# comparison is the exit status only). GNU names no FILE here — the
+# failure is standard output's, not the operand's — which is what the
+# `Stop` type in cat.lu keeps apart.
+
+[[case]]
+name = "a write error on a live descriptor"
+args = ["tests/fixtures/plain.txt"]
+stdout_file = "/dev/full"
+compare = ["exit"]
+
+[[case]]
+name = "a write error on a live descriptor, a rendering option"
+args = ["-n", "tests/fixtures/plain.txt"]
+stdout_file = "/dev/full"
+compare = ["exit"]
