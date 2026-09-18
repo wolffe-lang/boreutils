@@ -1,0 +1,49 @@
+# boreutils — the behavioural pin.
+#
+# `wolf-toolchain.toml` pins the compiler by digest. This is the OTHER
+# pin, and it is the one that decides what "drop-in" MEANS: the release
+# of GNU coreutils whose observable behaviour every boreutils program
+# matches, and which the differential suite compares against.
+#
+# The ruling is B44's, argued in the track index under "The oracle of
+# record". In short:
+#
+#   * One version is the oracle, so "is boreutils correct?" has one
+#     answer. A suite whose verdict depends on which host ran it is a
+#     matrix, not an oracle.
+#   * It is the NEWEST release we have measured against, because the
+#     differences between GNU releases are overwhelmingly GNU fixing
+#     its own bugs, and reimplementing a fixed bug is not drop-in.
+#   * A drifting oracle is worse than either: it makes a green mean
+#     nothing in particular. So `tools/difftest` ASSERTS this version
+#     and refuses to return a verdict against any other, and CI
+#     installs it deliberately rather than taking what the distro ships.
+#   * The field is not forgotten. Where an older GNU still in use
+#     behaves differently, the case names the range it describes with
+#     `gnu_min` / `gnu_max`, and CI runs a second, NON-BLOCKING leg
+#     against the distro's own GNU to keep that list honest.
+#
+# The oracle is a BINARY WE RUN, never a source we read. The licence
+# rule is untouched by building it: nothing in boreutils is derived from
+# GNU's source, and CI compiles a released tarball without anyone
+# reading it.
+#
+# Bumping this version is deliberate and is its own lane's work: every
+# case re-measured against the new release, every `gnu_min` / `gnu_max`
+# range re-checked, and the README's divergence table updated. A bump
+# that only silences a red CI is the bug this file exists to prevent.
+
+[oracle]
+# The GNU coreutils release boreutils is drop-in for.
+version = "9.11"
+
+# Where CI gets it when the host does not already ship it. The digest is
+# the one published with the release; `tools/fetch-oracle` refuses on a
+# mismatch, exactly as `tools/fetch-toolchain` does for wolf.
+url = "https://ftp.gnu.org/gnu/coreutils/coreutils-9.11.tar.xz"
+sha256 = "394024eda0a5955217ceda9cd1201e65dc8fa3aa29c2951135a49521d57c3cc3"
+
+# What the field ships, for the record, measured 2026-09-18. Neither is
+# the oracle; the first is why this file exists.
+#   ubuntu-latest       9.4
+#   Homebrew, Arch      9.11
