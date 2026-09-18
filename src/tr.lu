@@ -1,0 +1,951 @@
+//! member: false
+//!
+//! tr — translate, squeeze and delete characters.
+//!
+//! References consulted: POSIX.1-2024 `tr`; GNU coreutils 9.11's
+//! `tr --help`, the info manual's option descriptions, and black-box
+//! runs of the GNU binary on macOS arm64 (Homebrew `gtr`) and linux
+//! x86-64 (native `tr`), under `LC_ALL=C`; uutils/coreutils (MIT) and
+//! toybox (0BSD) as design references for the shape of a translation
+//! table. Never GNU source.
+//!
+//! GNU's rules, each measured against coreutils 9.11 on BOTH hosts,
+//! which agreed on every probe this program was written from:
+//!
+//! - **The arrays are bytes**, not characters. `tr` has no locale
+//!   behaviour worth imitating here: in the C locale a byte is a
+//!   character, and every class below is the ASCII one.
+//! - **A class expands in ascending byte order.** `[:alnum:]` is the
+//!   digits, then the upper-case letters, then the lower-case ones,
+//!   which is what `tr '[:alnum:]' '0-9a-zA-Z'` proves: `0` stays `0`,
+//!   `a` becomes `A` and `A` becomes `a`.
+//! - **The set-length rules.** ARRAY2 is extended to ARRAY1's length by
+//!   repeating its LAST character, and excess characters of ARRAY2 are
+//!   ignored. `-t` truncates ARRAY1 to ARRAY2's length instead, and is
+//!   significant only when translating. Where two elements of ARRAY1
+//!   name the same byte, **the last one wins**: `tr '[a*2]bc' 'XYZ'`
+//!   maps `a` to `Y`, not to `X`.
+//! - **`-c` complements ARRAY1 only**, to the bytes 0..255 it does not
+//!   name, in ascending order. Nothing special happens to ARRAY2: the
+//!   ordinary extension rule is what makes every complemented byte land
+//!   on ARRAY2's last character once ARRAY2 runs out. `-c` is applied
+//!   BEFORE `-t` truncates (`tr -ct a XY` maps bytes 1 and 2, and
+//!   nothing else).
+//! - **`-s` squeezes the LAST array given**, after translation or
+//!   deletion: ARRAY2 when there are two, ARRAY1 (complemented, if
+//!   `-c`) when there is one. The squeeze set is never complemented
+//!   when it is ARRAY2.
+//! - **`-d` and `-s` combine**: ARRAY1 says what to delete, ARRAY2 what
+//!   to squeeze in what survives, and both must be given.
+//! - **The operand-count rules are four different messages**, each with
+//!   the `Try 'tr --help'` line and status 1, and all four are checked
+//!   BEFORE either array is parsed (`tr 'c-a' b c` reports the extra
+//!   operand, not the reverse range).
+//! - **Three checks guard a class in ARRAY2 while translating**, and a
+//!   class there is otherwise refused outright. `[:upper:]` and
+//!   `[:lower:]` are the only two allowed; each must start at the same
+//!   expanded offset as a class of the same length in ARRAY1; and
+//!   ARRAY2 may not END with a class when ARRAY1 is longer, because
+//!   there is no single last character to extend with.
+//! - **Warnings are not failures.** A trailing unescaped backslash and
+//!   an octal escape above `\377` each warn on stderr and exit 0. The
+//!   ambiguous octal is re-read as its first two digits, and the third
+//!   becomes an ordinary character: `\400` is `\040` then `0`.
+//! - Usage errors exit 1 (not 2), as bu00 measured for this family.
+//!
+//! **What `tr` does not have.** No file operands: it is a filter on
+//! standard input alone. No `--help`/`--version` text of GNU's, because
+//! that text is the FSF's prose; the shape is GNU's and the words are
+//! ours, so their differential cases compare the exit status only.
+//!
+//! **The hot loop is one `region` per chunk.** `fs_read_chunk` allocates
+//! the list it answers and the ambient region frees none of it until the
+//! frame ends (wolf-lang#416), so the rendered bytes are built in a
+//! region-local buffer and written with `bore.write_direct` before the
+//! block closes, exactly as bu01's `cat` does.
+
+use bore
+
+// ---------------------------------------------------------- the classes
+
+/// The class `name` names, or -1. The order is the one `tr --help`
+/// lists, and the ids below index nothing but `in_class`.
+fn class_id(name: str) -> int {
+    if name == "alnum" {
+        return 0
+    }
+    if name == "alpha" {
+        return 1
+    }
+    if name == "blank" {
+        return 2
+    }
+    if name == "cntrl" {
+        return 3
+    }
+    if name == "digit" {
+        return 4
+    }
+    if name == "graph" {
+        return 5
+    }
+    if name == "lower" {
+        return 6
+    }
+    if name == "print" {
+        return 7
+    }
+    if name == "punct" {
+        return 8
+    }
+    if name == "space" {
+        return 9
+    }
+    if name == "upper" {
+        return 10
+    }
+    if name == "xdigit" {
+        return 11
+    }
+    -1
+}
+
+/// Whether the byte `n` belongs to class `id` in the C locale.
+///
+/// Measured against GNU 9.11 on both hosts by deleting each class's
+/// complement from all 255 non-NUL bytes: `cntrl` is 0..31 and 127,
+/// `punct` is the printable non-alphanumerics, `space` is 9..13 and 32,
+/// `blank` is 9 and 32.
+pub fn in_class(id: int, n: int) -> bool {
+    let lower = n >= 97 && n <= 122
+    let upper = n >= 65 && n <= 90
+    let digit = n >= 48 && n <= 57
+    if id == 0 {
+        return lower || upper || digit
+    }
+    if id == 1 {
+        return lower || upper
+    }
+    if id == 2 {
+        return n == 9 || n == 32
+    }
+    if id == 3 {
+        return n < 32 || n == 127
+    }
+    if id == 4 {
+        return digit
+    }
+    if id == 5 {
+        return n > 32 && n < 127
+    }
+    if id == 6 {
+        return lower
+    }
+    if id == 7 {
+        return n >= 32 && n < 127
+    }
+    if id == 8 {
+        return n > 32 && n < 127 && !lower && !upper && !digit
+    }
+    if id == 9 {
+        return n == 32 || n >= 9 && n <= 13
+    }
+    if id == 10 {
+        return upper
+    }
+    digit || n >= 65 && n <= 70 || n >= 97 && n <= 102
+}
+
+/// How many bytes class `id` holds.
+fn class_size(id: int) -> int {
+    var k = 0
+    var n = 0
+    while n < 256 {
+        if in_class(id, n) {
+            k += 1
+        }
+        n += 1
+    }
+    k
+}
+
+// ----------------------------------------------------------- the parser
+
+/// One character read off an array specification: its byte value, the
+/// offset after it, and the warning reading it produced, if any.
+struct Ch {
+    value: int,
+    next: int,
+    msg: str,
+}
+
+/// The character at `i`, with `\` escapes decoded.
+///
+/// Unknown escapes are the character itself (`\z` is `z`), a backslash
+/// at the end of the string is a literal backslash and warns, and an
+/// octal escape of three digits whose value exceeds 255 is re-read as
+/// its first two digits with the third left as an ordinary character.
+fn next_char(bs: List[byte], i: int) -> Ch {
+    let n = bs[i] as int
+    if n != 92 {
+        return Ch { value: n, next: i + 1, msg: "" }
+    }
+    if i + 1 >= bs.len {
+        return Ch {
+            value: 92,
+            next: i + 1,
+            msg: "warning: an unescaped backslash at end of string is not portable",
+        }
+    }
+    let e = bs[i + 1] as int
+    if e >= 48 && e <= 55 {
+        var v = 0
+        var k = i + 1
+        var d = 0
+        while k < bs.len && d < 3 {
+            let x = bs[k] as int
+            if x < 48 || x > 55 {
+                break
+            }
+            v = v * 8 + (x - 48)
+            k += 1
+            d += 1
+        }
+        if v > 255 {
+            let d1 = bs[i + 1] as int - 48
+            let d2 = bs[i + 2] as int - 48
+            let d3 = bs[i + 3] as int - 48
+            return Ch {
+                value: d1 * 8 + d2,
+                next: i + 3,
+                msg: "warning: the ambiguous octal escape \\{d1}{d2}{d3} is being\n\tinterpreted as the 2-byte sequence \\0{d1}{d2}, {d3}",
+            }
+        }
+        return Ch { value: v, next: k, msg: "" }
+    }
+    var v = e
+    if e == 97 {
+        v = 7
+    } else if e == 98 {
+        v = 8
+    } else if e == 102 {
+        v = 12
+    } else if e == 110 {
+        v = 10
+    } else if e == 114 {
+        v = 13
+    } else if e == 116 {
+        v = 9
+    } else if e == 118 {
+        v = 11
+    }
+    Ch { value: v, next: i + 2, msg: "" }
+}
+
+/// An array specification, as a list of elements in the order given.
+///
+/// Parallel lists rather than a `List` of structs, because every read
+/// of an element is one field at a time and wolf 0.2.14 copies a struct
+/// out of a list on every index.
+///
+/// `kind` is 0 for one byte, 1 for a range `a`..`b`, 2 for the class
+/// `a`, 3 for `[c*n]` — `b` copies of `a`, where a `b` of 0 means "as
+/// many as ARRAY1 is long" — and 4 for the equivalence class `[=a=]`,
+/// which is one byte in the C locale but is refused in ARRAY2 while
+/// translating and so cannot be folded into kind 0.
+struct Spec {
+    kind: List[int],
+    a: List[int],
+    b: List[int],
+    error: str,
+    warns: List[str],
+}
+
+fn empty_spec() -> Spec {
+    Spec { kind: List[int](), a: List[int](), b: List[int](), error: "", warns: List[str]() }
+}
+
+fn push_item(mut sp: Spec, kind: int, a: int, b: int) {
+    (mut sp.kind).push(kind)
+    (mut sp.a).push(a)
+    (mut sp.b).push(b)
+}
+
+/// What a `[` at `i` turned out to be.
+struct Br {
+    matched: bool,
+    kind: int,
+    a: int,
+    b: int,
+    next: int,
+    error: str,
+}
+
+fn no_bracket(i: int) -> Br {
+    Br { matched: false, kind: 0, a: 0, b: 0, next: i, error: "" }
+}
+
+/// The bytes `bs[from..to]` as a `str`, for an error message.
+fn slice_of(bs: List[byte], from: int, to: int) -> str {
+    var out = List[byte]()
+    var i = from
+    while i < to {
+        (mut out).push(bs[i])
+        i += 1
+    }
+    str_from_utf8(out) else ""
+}
+
+/// The repeat count `text` names: 0 when it is absent or zero (both
+/// mean "fill to ARRAY1's length"), octal when it starts with `0`,
+/// decimal otherwise, and -1 when it is not a count at all.
+pub fn repeat_count(text: str) -> int {
+    if text.len == 0 {
+        return 0
+    }
+    let octal = text.starts_with("0")
+    var v = 0
+    for c in text.chars() {
+        let d = c as int - 48
+        if d < 0 || d > 9 {
+            return -1
+        }
+        if octal && d > 7 {
+            return -1
+        }
+        if octal {
+            v = v * 8 + d
+        } else {
+            v = v * 10 + d
+        }
+    }
+    v
+}
+
+/// Read the construct a `[` at `i` opens: `[:class:]`, `[=c=]` or
+/// `[c*n]`. A `[` that opens none of them is an ordinary character,
+/// which is `matched: false` with no error.
+fn bracket(bs: List[byte], i: int) -> Br {
+    if i + 1 >= bs.len {
+        return no_bracket(i)
+    }
+    let m = bs[i + 1] as int
+    if m == 58 {
+        var k = i + 2
+        while k + 1 < bs.len {
+            if bs[k] as int == 58 && bs[k + 1] as int == 93 {
+                if k == i + 2 {
+                    var br = no_bracket(i)
+                    br.error = "missing character class name '[::]'"
+                    return br
+                }
+                let name = slice_of(bs, i + 2, k)
+                let id = class_id(name)
+                if id < 0 {
+                    var br = no_bracket(i)
+                    br.error = "invalid character class {bore.quote(name)}"
+                    return br
+                }
+                return Br { matched: true, kind: 2, a: id, b: 0, next: k + 2, error: "" }
+            }
+            k += 1
+        }
+        return no_bracket(i)
+    }
+    if m == 61 {
+        var k = i + 2
+        while k + 1 < bs.len {
+            if bs[k] as int == 61 && bs[k + 1] as int == 93 {
+                if k == i + 2 {
+                    var br = no_bracket(i)
+                    br.error = "missing equivalence class character '[==]'"
+                    return br
+                }
+                if k != i + 3 {
+                    var br = no_bracket(i)
+                    let name = slice_of(bs, i + 2, k)
+                    br.error = "{name}: equivalence class operand must be a single character"
+                    return br
+                }
+                let v = bs[i + 2] as int
+                return Br { matched: true, kind: 4, a: v, b: v, next: k + 2, error: "" }
+            }
+            k += 1
+        }
+        return no_bracket(i)
+    }
+    let c = next_char(bs, i + 1)
+    var k = c.next
+    if k >= bs.len || bs[k] as int != 42 {
+        return no_bracket(i)
+    }
+    k += 1
+    let start = k
+    while k < bs.len && bs[k] as int != 93 {
+        k += 1
+    }
+    if k >= bs.len {
+        return no_bracket(i)
+    }
+    let text = slice_of(bs, start, k)
+    let n = repeat_count(text)
+    if n < 0 {
+        var br = no_bracket(i)
+        br.error = "invalid repeat count {bore.quote(text)} in [c*n] construct"
+        return br
+    }
+    Br { matched: true, kind: 3, a: c.value, b: n, next: k + 1, error: "" }
+}
+
+/// One byte rendered as GNU renders a range endpoint in its
+/// reverse-order diagnostic: the character itself, decoded.
+fn endpoint(v: int) -> str {
+    var out = List[byte]()
+    (mut out).push(v as byte)
+    str_from_utf8(out) else "?"
+}
+
+/// Parse an array specification into its elements.
+///
+/// Never traps and has no rows: a malformed array is data, and the
+/// message GNU prints (without the `tr: ` prefix) is in `error`.
+pub fn parse_set(text: str) -> Spec {
+    var sp = empty_spec()
+    let bs = text.bytes()
+    var i = 0
+    while i < bs.len {
+        if bs[i] as int == 91 {
+            let br = bracket(bs, i)
+            if br.error.len > 0 {
+                sp.error = br.error
+                return sp
+            }
+            if br.matched {
+                push_item(mut sp, br.kind, br.a, br.b)
+                i = br.next
+                continue
+            }
+        }
+        let c = next_char(bs, i)
+        if c.msg.len > 0 {
+            (mut sp.warns).push(c.msg)
+        }
+        let j = c.next
+        if j + 1 < bs.len && bs[j] as int == 45 {
+            let c2 = next_char(bs, j + 1)
+            if c2.msg.len > 0 {
+                (mut sp.warns).push(c2.msg)
+            }
+            if c2.value < c.value {
+                sp.error = "range-endpoints of '{endpoint(c.value)}-{endpoint(c2.value)}' are in reverse collating sequence order"
+                return sp
+            }
+            push_item(mut sp, 1, c.value, c2.value)
+            i = c2.next
+            continue
+        }
+        push_item(mut sp, 0, c.value, c.value)
+        i = j
+    }
+    sp
+}
+
+// -------------------------------------------------------- the expansion
+
+/// An expanded array: its bytes in order, and where each class it holds
+/// starts and how long it is, which is what the alignment rule reads.
+struct Array {
+    bytes: List[int],
+    class_off: List[int],
+    class_id: List[int],
+    class_len: List[int],
+    /// Whether the LAST element was a class.
+    ends_class: bool,
+    error: str,
+}
+
+fn empty_array() -> Array {
+    Array {
+        bytes: List[int](),
+        class_off: List[int](),
+        class_id: List[int](),
+        class_len: List[int](),
+        ends_class: false,
+        error: "",
+    }
+}
+
+/// Expand `sp`. `fill_to` is ARRAY1's length, which `[c*]` with no
+/// count pads out to; -1 means a `[c*]` there is refused, which is what
+/// ARRAY1 itself passes.
+fn expand(sp: Spec, fill_to: int) -> Array {
+    var out = empty_array()
+    // A fill has to know how long everything else is, so measure first.
+    var fixed = 0
+    var fills = 0
+    var k = 0
+    while k < sp.kind.len {
+        let kind = sp.kind[k]
+        if kind == 0 || kind == 4 {
+            fixed += 1
+        } else if kind == 1 {
+            fixed += sp.b[k] - sp.a[k] + 1
+        } else if kind == 2 {
+            fixed += class_size(sp.a[k])
+        } else if sp.b[k] > 0 {
+            fixed += sp.b[k]
+        } else {
+            fills += 1
+        }
+        k += 1
+    }
+    if fills > 0 && fill_to < 0 {
+        out.error = "the [c*] repeat construct may not appear in string1"
+        return out
+    }
+    if fills > 1 {
+        out.error = "only one [c*] repeat construct may appear in string2"
+        return out
+    }
+    var pad = fill_to - fixed
+    if pad < 0 {
+        pad = 0
+    }
+    k = 0
+    while k < sp.kind.len {
+        let kind = sp.kind[k]
+        out.ends_class = kind == 2
+        if kind == 0 || kind == 4 {
+            (mut out.bytes).push(sp.a[k])
+        } else if kind == 1 {
+            var v = sp.a[k]
+            while v <= sp.b[k] {
+                (mut out.bytes).push(v)
+                v += 1
+            }
+        } else if kind == 2 {
+            let id = sp.a[k]
+            (mut out.class_off).push(out.bytes.len)
+            (mut out.class_id).push(id)
+            var n = 0
+            var count = 0
+            while n < 256 {
+                if in_class(id, n) {
+                    (mut out.bytes).push(n)
+                    count += 1
+                }
+                n += 1
+            }
+            (mut out.class_len).push(count)
+        } else {
+            var times = sp.b[k]
+            if times <= 0 {
+                times = pad
+            }
+            var t = 0
+            while t < times {
+                (mut out.bytes).push(sp.a[k])
+                t += 1
+            }
+        }
+        k += 1
+    }
+    out
+}
+
+/// An expanded array's bytes, as a list of its own.
+///
+/// Copied out element by element rather than handed over: an `Array` is
+/// read here and returning its field would be a second live path to the
+/// caller's list (wolf-lang#366).
+fn bytes_of(a: Array) -> List[int] {
+    var out = List[int]()
+    for v in a.bytes {
+        (mut out).push(v)
+    }
+    out
+}
+
+/// The bytes 0..255 that `bytes` does not name, in ascending order.
+fn complement_of(bytes: List[int]) -> List[int] {
+    let seen = members(bytes)
+    var out = List[int]()
+    var n = 0
+    while n < 256 {
+        if !seen[n] {
+            (mut out).push(n)
+        }
+        n += 1
+    }
+    out
+}
+
+/// `bytes` cut to `len` elements, which is what `-t` does to ARRAY1.
+fn truncated(bytes: List[int], len: int) -> List[int] {
+    var out = List[int]()
+    var k = 0
+    while k < bytes.len && k < len {
+        (mut out).push(bytes[k])
+        k += 1
+    }
+    out
+}
+
+// ------------------------------------------------------------- the sets
+
+/// A 256-entry `false` table.
+fn no_bytes() -> List[bool] {
+    var t = List[bool]()
+    var n = 0
+    while n < 256 {
+        (mut t).push(false)
+        n += 1
+    }
+    t
+}
+
+fn members(bytes: List[int]) -> List[bool] {
+    var t = no_bytes()
+    for v in bytes {
+        t[v] = true
+    }
+    t
+}
+
+/// The identity translation table.
+fn identity() -> List[int] {
+    var t = List[int]()
+    var n = 0
+    while n < 256 {
+        (mut t).push(n)
+        n += 1
+    }
+    t
+}
+
+// ------------------------------------------------------------ the loop
+
+/// The bytes one read asks for: `fs_read_chunk` clamps to 1 MiB, and
+/// 1 MiB measured faster than 64 KiB on both hosts for `wc`.
+fn chunk() -> int {
+    1048576
+}
+
+/// Run the whole stream through the table, the delete set and the
+/// squeeze set, in that order.
+///
+/// One `region` per chunk holds the chunk and the bytes it becomes, and
+/// the result is written before the block ends. `last` — the byte most
+/// recently written, which `-s` compares against — crosses the block as
+/// a scalar, because nothing allocated inside it may outlive it.
+fn run(
+    out: bore.Out,
+    src: bore.In,
+    table: List[int],
+    del: List[bool],
+    deleting: bool,
+    sq: List[bool],
+    squeezing: bool,
+) -> str {
+    var why = ""
+    var stop = false
+    var last = -1
+    while !stop {
+        region pass {
+            let piece = bore.read_chunk(src, chunk()) else |e| match e {
+                eof => { stop = true; List[byte]() },
+                io => {
+                    stop = true
+                    why = bore.io_error()
+                    List[byte]()
+                },
+            }
+            if piece.len == 0 {
+                stop = true
+            } else {
+                var buf = List[byte]()
+                for b in piece {
+                    var n = b as int
+                    if deleting && del[n] {
+                        continue
+                    }
+                    n = table[n]
+                    if squeezing && sq[n] && n == last {
+                        continue
+                    }
+                    last = n
+                    (mut buf).push(n as byte)
+                }
+                bore.write_direct(out, buf) else |_| {
+                    stop = true
+                    why = bore.io_error()
+                }
+            }
+        }
+    }
+    why
+}
+
+// ------------------------------------------------------------- the main
+
+fn options() -> List[bore.Opt] {
+    var s = List[bore.Opt]()
+    (mut s).push(bore.flag("c", "complement"))
+    (mut s).push(bore.flag("C", ""))
+    (mut s).push(bore.flag("d", "delete"))
+    (mut s).push(bore.flag("s", "squeeze-repeats"))
+    (mut s).push(bore.flag("t", "truncate-set1"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    s
+}
+
+fn main() -> int {
+    let p = bore.parse(options(), env_args(), bore.permute())
+    // Standard output is opened before any input: with descriptor 1
+    // closed, the first file opened takes it (wolf-lang#405).
+    var out = bore.stdout()
+    var comp = false
+    var deleting = false
+    var squeezing = false
+    var trunc = false
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i]
+        if k == "help" {
+            bore.put(mut out, help()) else |_| {}
+            return bore.finish(mut out, "tr", 0)
+        }
+        if k == "version" {
+            bore.put(mut out, bore.version_text("tr")) else |_| {}
+            return bore.finish(mut out, "tr", 0)
+        }
+        if k == "complement" || k == "C" {
+            comp = true
+        }
+        if k == "delete" {
+            deleting = true
+        }
+        if k == "squeeze-repeats" {
+            squeezing = true
+        }
+        if k == "truncate-set1" {
+            trunc = true
+        }
+        i += 1
+    }
+    if !bore.ok(p) {
+        return bore.usage_error("tr", p.error)
+    }
+
+    // The operand count, before either array is parsed: GNU reports the
+    // extra operand of `tr 'c-a' b c`, not the reverse range.
+    let n = p.operands.len
+    if n == 0 {
+        return bore.usage_error("tr", "missing operand")
+    }
+    if n > 2 {
+        return bore.usage_error("tr", "extra operand {bore.quote(p.operands[2])}")
+    }
+    if deleting && !squeezing && n > 1 {
+        return bore.usage_error(
+            "tr",
+            "extra operand {bore.quote(p.operands[1])}\nOnly one string may be given when deleting without squeezing repeats.",
+        )
+    }
+    if deleting && squeezing && n < 2 {
+        return bore.usage_error(
+            "tr",
+            "missing operand after {bore.quote(p.operands[0])}\nTwo strings must be given when both deleting and squeezing repeats.",
+        )
+    }
+    if !deleting && !squeezing && n < 2 {
+        return bore.usage_error(
+            "tr",
+            "missing operand after {bore.quote(p.operands[0])}\nTwo strings must be given when translating.",
+        )
+    }
+
+    let s1 = parse_set(p.operands[0])
+    for w in s1.warns {
+        bore.warn("tr", w)
+    }
+    if s1.error.len > 0 {
+        bore.warn("tr", s1.error)
+        return 1
+    }
+    // `base1` keeps ARRAY1 AS WRITTEN, because the alignment rule reads
+    // the spec's own offsets; `set1` is what the run actually uses,
+    // complemented and truncated.
+    let base1 = expand(s1, -1)
+    if base1.error.len > 0 {
+        bore.warn("tr", base1.error)
+        return 1
+    }
+    var set1 = bytes_of(base1)
+
+    var a2 = empty_array()
+    var set2 = List[int]()
+    var s2 = empty_spec()
+    if n == 2 {
+        s2 = parse_set(p.operands[1])
+        for w in s2.warns {
+            bore.warn("tr", w)
+        }
+        if s2.error.len > 0 {
+            bore.warn("tr", s2.error)
+            return 1
+        }
+    }
+    if comp {
+        set1 = complement_of(set1)
+    }
+    if n == 2 {
+        a2 = expand(s2, set1.len)
+        if a2.error.len > 0 {
+            bore.warn("tr", a2.error)
+            return 1
+        }
+        set2 = bytes_of(a2)
+    }
+
+    // Translating is what happens when -d is absent and both arrays
+    // were given; -t is significant only then.
+    let translating = !deleting && n == 2
+    if translating {
+        let why = class_rules(base1, s2, a2, set1.len, trunc)
+        if why.len > 0 {
+            bore.warn("tr", why)
+            return 1
+        }
+        if trunc {
+            set1 = truncated(set1, set2.len)
+        } else if set2.len == 0 && set1.len > 0 {
+            // Measured: `tr '' ''` is a no-op that exits 0, so the rule
+            // bites only when there is something to translate.
+            bore.warn("tr", "when not truncating set1, string2 must be non-empty")
+            return 1
+        }
+    }
+
+    var table = identity()
+    if translating && set2.len > 0 {
+        var k = 0
+        while k < set1.len {
+            var j = k
+            if j >= set2.len {
+                j = set2.len - 1
+            }
+            table[set1[k]] = set2[j]
+            k += 1
+        }
+    }
+    var del = no_bytes()
+    if deleting {
+        del = members(set1)
+    }
+    var sq = no_bytes()
+    if squeezing {
+        if n == 2 {
+            sq = members(set2)
+        } else {
+            sq = members(set1)
+        }
+    }
+
+    let src = bore.open_input("-") else |_| {
+        bore.input_error("tr", "-", bore.io_error())
+        return bore.finish(mut out, "tr", 1)
+    }
+    let why = run(out, src, table, del, deleting, sq, squeezing)
+    bore.close_input(src)
+    if why.len > 0 {
+        bore.warn("tr", "read error")
+        return 1
+    }
+    bore.finish(mut out, "tr", 0)
+}
+
+/// The three rules that guard a class in ARRAY2 while translating, in
+/// the order GNU applies them. `""` when ARRAY2 is acceptable.
+///
+/// `s1` is ARRAY1 as it was WRITTEN, before `-c` replaced it with its
+/// complement: the alignment rule reads the spec's own offsets, which
+/// is why `tr -c '[:lower:]' '[:upper:]'` passes alignment and is
+/// refused by the length rule instead.
+fn class_rules(s1: Array, spec2: Spec, s2: Array, len1: int, trunc: bool) -> str {
+    // ARRAY2's elements in the order they were written, because that is
+    // the order GNU reports the first offending one in.
+    var k = 0
+    while k < spec2.kind.len {
+        let kind = spec2.kind[k]
+        if kind == 4 {
+            return "[=c=] expressions may not appear in string2 when translating"
+        }
+        if kind == 2 {
+            let id = spec2.a[k]
+            if id != 6 && id != 10 {
+                return "when translating, the only character classes that may appear in\nstring2 are 'upper' and 'lower'"
+            }
+        }
+        k += 1
+    }
+    k = 0
+    while k < s2.class_id.len {
+        let off = s2.class_off[k]
+        let want = s2.class_len[k]
+        var aligned = false
+        var j = 0
+        while j < s1.class_off.len {
+            if s1.class_off[j] == off && s1.class_len[j] == want {
+                aligned = true
+            }
+            j += 1
+        }
+        if !aligned {
+            return "misaligned [:upper:] and/or [:lower:] construct"
+        }
+        k += 1
+    }
+    if !trunc && s2.ends_class && len1 > s2.bytes.len {
+        return "when translating with string1 longer than string2,\nthe latter string must not end with a character class"
+    }
+    ""
+}
+
+fn help() -> str {
+    """
+    Usage: tr [OPTION]... ARRAY1 [ARRAY2]
+    Translate, squeeze or delete characters read from standard input,
+    writing the result to standard output.
+
+      -c, -C, --complement    use the complement of ARRAY1
+      -d, --delete            delete the characters in ARRAY1
+      -s, --squeeze-repeats   collapse a run of one repeated character
+                              listed in the last ARRAY given to one
+      -t, --truncate-set1     cut ARRAY1 to ARRAY2's length first
+          --help              print this help and exit
+          --version           print the version and exit
+
+    An ARRAY is a string of characters. Most stand for themselves; these
+    do not:
+
+      \\NNN          the byte with octal value NNN (one to three digits)
+      \\\\            a backslash
+      \\a \\b \\f \\n \\r \\t \\v   bell, backspace, form feed, newline,
+                    carriage return, tab, vertical tab
+      C1-C2         every character from C1 to C2, ascending
+      [C*]          in ARRAY2, copies of C until ARRAY1's length
+      [C*N]         N copies of C, octal when N starts with 0
+      [:CLASS:]     alnum alpha blank cntrl digit graph lower print
+                    punct space upper xdigit
+      [=C=]         every character equivalent to C
+
+    Translation happens when -d is absent and both arrays are given.
+    ARRAY2 is extended to ARRAY1's length by repeating its last
+    character; excess characters of ARRAY2 are ignored. Squeezing
+    happens after translation or deletion.
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}

@@ -1,0 +1,706 @@
+# tr — GNU coreutils 9.11, black-box. Every expectation here was read
+# off the GNU binary on BOTH hosts (macOS arm64 Homebrew `gtr`, linux
+# x86-64 native `tr`), which agreed on every case in this file, message
+# text included. No case here names a GNU version: nothing in this file
+# differs between the releases the two hosts run.
+#
+# `tr` has no file operands: it is a filter on standard input. A case
+# with neither `stdin` nor `stdin_file` reads /dev/null, which is a
+# case of its own.
+#
+# The fixtures used here are committed data:
+#   bin.dat    every byte value 0..255, then a short tail
+#   ctrl.txt   carriage returns, backspaces, tabs and repeated letters
+#   names0e    NUL-separated names with an empty one between two of them
+#   bad.dat    bytes that are not valid UTF-8
+#
+# An array that carries a backslash is written as a TOML LITERAL string
+# (single quotes), so the backslash reaches tr unchanged.
+#
+# --help and --version print OUR text (GNU's is the FSF's prose), so
+# their cases compare the exit status and stderr only.
+
+# ---------------------------------------------------------- translating
+
+[[case]]
+name = "lower to upper by range"
+args = ["a-z", "A-Z"]
+stdin = "abcXYZ123 \t\n"
+
+[[case]]
+name = "array2 shorter: its last character repeats"
+args = ["abc", "x"]
+stdin = "abcXYZ123\n"
+
+[[case]]
+name = "array2 longer: the excess is ignored"
+args = ["ab", "xyz"]
+stdin = "abcXYZ123\n"
+
+[[case]]
+name = "one-character arrays"
+args = ["a", "b"]
+stdin = "banana\n"
+
+[[case]]
+name = "a later element of array1 wins the byte"
+args = ["[a*2]bc", "XYZ"]
+stdin = "abc\n"
+
+[[case]]
+name = "a repeat in array1 with an explicit count"
+args = ["[a*3]bc", "XYZ"]
+stdin = "aaabbbccc\n"
+
+[[case]]
+name = "the fill form in array2 pads to array1's length"
+args = ["abc", "[x*]"]
+stdin = "aaabbbccc\n"
+
+[[case]]
+name = "an explicit repeat count in array2"
+args = ["abc", "[x*3]"]
+stdin = "aaabbbccc\n"
+
+[[case]]
+name = "a repeat count starting with 0 is octal"
+args = ["abcdefghij", "[x*010]"]
+stdin = "abcdefghij\n"
+
+[[case]]
+name = "a repeat count of 0 is the fill form"
+args = ["abc", "[x*0]"]
+stdin = "aaabbbccc\n"
+
+[[case]]
+name = "the fill form before ordinary characters"
+args = ["abcde", "[x*]yz"]
+stdin = "abcde\n"
+
+[[case]]
+name = "the fill form after ordinary characters"
+args = ["abcde", "yz[x*]"]
+stdin = "abcde\n"
+
+[[case]]
+name = "the fill form when array1 is shorter than the rest of array2"
+args = ["ab", "[x*]yz"]
+stdin = "abc\n"
+
+[[case]]
+name = "-t cuts array1 to array2's length"
+args = ["-t", "abc", "x"]
+stdin = "abcXYZ\n"
+
+[[case]]
+name = "--truncate-set1 by its long name"
+args = ["--truncate-set1", "abc", "X"]
+stdin = "abc\n"
+
+[[case]]
+name = "-t makes an empty array2 legal"
+args = ["-t", "abc", ""]
+stdin = "abc\n"
+
+[[case]]
+name = "an empty array1 translates nothing"
+args = ["", "x"]
+stdin = "abc\n"
+
+[[case]]
+name = "two empty arrays are a no-op, not an error"
+args = ["", ""]
+stdin = "abc\n"
+
+[[case]]
+name = "a dash is an ordinary character at the end of an array"
+args = ["ac-", "XYZ"]
+stdin = "a-c\n"
+
+[[case]]
+name = "a range of one character"
+args = ["a-a", "X"]
+stdin = "abc\n"
+
+[[case]]
+name = "ranges on both sides"
+args = ["a-cA-C", "1-6"]
+stdin = "abcABC\n"
+
+# ----------------------------------------------------------- the classes
+
+[[case]]
+name = "a class expands in ascending byte order"
+args = ["[:alpha:]", "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"]
+stdin = "aAbBzZ\n"
+
+[[case]]
+name = "alnum is digits, then upper, then lower"
+args = ["[:alnum:]", "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"]
+stdin = "0aA9zZ\n"
+
+[[case]]
+name = "lower to upper by class"
+args = ["[:lower:]", "[:upper:]"]
+stdin = "HeLLo, world\n"
+
+[[case]]
+name = "upper to lower by class"
+args = ["[:upper:]", "[:lower:]"]
+stdin = "HeLLo\n"
+
+[[case]]
+name = "two class pairs in one translation"
+args = ["[:lower:][:upper:]", "[:upper:][:lower:]"]
+stdin = "aAzZ09\n"
+
+[[case]]
+name = "a class aligned after an ordinary character"
+args = ["x[:lower:]", "y[:upper:]"]
+stdin = "axAzZ\n"
+
+[[case]]
+name = "a class aligned after a range"
+args = ["a-c[:lower:]", "xyz[:upper:]"]
+stdin = "aAzZ\n"
+
+[[case]]
+name = "a class aligned after a repeat"
+args = ["[q*3][:lower:]", "xyz[:upper:]"]
+stdin = "aAzZq\n"
+
+[[case]]
+name = "a class before a range"
+args = ["[:lower:]a-c", "[:upper:]xyz"]
+stdin = "aAzZbc\n"
+
+[[case]]
+name = "a class in array1 alone"
+args = ["[:digit:]", "x"]
+stdin = "a1b2c3\n"
+
+[[case]]
+name = "punct deleted from every byte"
+args = ["-d", "[:punct:]"]
+stdin_file = "bin.dat"
+
+[[case]]
+name = "digit deleted from every byte"
+args = ["-d", "[:digit:]"]
+stdin_file = "bin.dat"
+
+[[case]]
+name = "cntrl deleted from every byte"
+args = ["-d", "[:cntrl:]"]
+stdin_file = "bin.dat"
+
+[[case]]
+name = "space deleted from every byte"
+args = ["-d", "[:space:]"]
+stdin_file = "bin.dat"
+
+[[case]]
+name = "blank deleted from every byte"
+args = ["-d", "[:blank:]"]
+stdin_file = "bin.dat"
+
+[[case]]
+name = "graph deleted from every byte"
+args = ["-d", "[:graph:]"]
+stdin_file = "bin.dat"
+
+[[case]]
+name = "print deleted from every byte"
+args = ["-d", "[:print:]"]
+stdin_file = "bin.dat"
+
+[[case]]
+name = "xdigit deleted from every byte"
+args = ["-d", "[:xdigit:]"]
+stdin_file = "bin.dat"
+
+[[case]]
+name = "alnum deleted from every byte"
+args = ["-d", "[:alnum:]"]
+stdin_file = "bin.dat"
+
+[[case]]
+name = "alpha deleted from every byte"
+args = ["-d", "[:alpha:]"]
+stdin_file = "bin.dat"
+
+[[case]]
+name = "upper deleted from every byte"
+args = ["-d", "[:upper:]"]
+stdin_file = "bin.dat"
+
+[[case]]
+name = "lower deleted from every byte"
+args = ["-d", "[:lower:]"]
+stdin_file = "bin.dat"
+
+[[case]]
+name = "an equivalence class is one character in the C locale"
+args = ["[=b=]", "X"]
+stdin = "abc\n"
+
+[[case]]
+name = "an equivalence class in array2 is legal when not translating"
+args = ["-ds", "a", "[=b=]"]
+stdin = "aabbbc\n"
+
+# ------------------------------------------------------------- deleting
+
+[[case]]
+name = "-d deletes"
+args = ["-d", "abc"]
+stdin = "abcXYZ123\n"
+
+[[case]]
+name = "--delete by its long name"
+args = ["--delete", "abc"]
+stdin = "abcXYZ\n"
+
+[[case]]
+name = "-d with a class"
+args = ["-d", "[:lower:]"]
+stdin = "HeLLo\n"
+
+[[case]]
+name = "-d deletes spaces"
+args = ["-d", " "]
+stdin = "a b  c\n"
+
+[[case]]
+name = "-d deletes a NUL byte"
+args = ["-d", '\000']
+stdin_file = "bin.dat"
+
+[[case]]
+name = "-d removes every newline"
+args = ["-d", "\n"]
+stdin = "one\ntwo\nthree\n"
+
+# ------------------------------------------------------------ squeezing
+
+[[case]]
+name = "-s squeezes the one array given"
+args = ["-s", "a"]
+stdin = "aaabbbcccXXXaaa\n"
+
+[[case]]
+name = "--squeeze-repeats by its long name"
+args = ["--squeeze-repeats", "ab"]
+stdin = "aaabbbc\n"
+
+[[case]]
+name = "-s with two arrays squeezes array2, after translating"
+args = ["-s", "abc", "x"]
+stdin = "aaabbbcccXXXaaa\n"
+
+[[case]]
+name = "-s squeezes only what its array names"
+args = ["-s", "[:space:]"]
+stdin = "a  b\t\tc\n\n\nd\n"
+
+[[case]]
+name = "-s on a class"
+args = ["-s", "[:alpha:]"]
+stdin = "HeLLo\n"
+
+[[case]]
+name = "-s squeezes what a translation produced"
+args = ["-s", "abc", "x"]
+stdin = "abcabc\n"
+
+[[case]]
+name = "-ds deletes with array1 and squeezes with array2"
+args = ["-ds", "a", "bc"]
+stdin = "aaabbbcccXXX\n"
+
+[[case]]
+name = "-d and -s spelled apart"
+args = ["-d", "-s", "a", "b"]
+stdin = "aaabbbc\n"
+
+[[case]]
+name = "-s squeezes spaces"
+args = ["-s", " "]
+stdin = "a  b c\n"
+
+[[case]]
+name = "-s squeezes a run of NUL bytes"
+args = ["-s", '\000']
+stdin_file = "names0e"
+
+# --------------------------------------------------------- complementing
+
+[[case]]
+name = "-c translates the complement"
+args = ["-c", "abc", "Z"]
+stdin = "abcXYZ123 \t\n"
+
+[[case]]
+name = "-C is -c"
+args = ["-C", "abc", "Z"]
+stdin = "abcXYZ123 \t\n"
+
+[[case]]
+name = "--complement by its long name"
+args = ["--complement", "a", "X"]
+stdin = "abc\n"
+
+[[case]]
+name = "the complement is ascending, so array2 lands in byte order"
+args = ["-c", '\001-\376', "AB"]
+stdin_file = "bin.dat"
+
+[[case]]
+name = "-c with a multi-character array2"
+args = ["-c", "a", "XY"]
+stdin = "aaabbbcccXXXaaa\n"
+
+[[case]]
+name = "-cd deletes the complement"
+args = ["-cd", "abc\n"]
+stdin = "abcXYZ123 \t\n"
+
+[[case]]
+name = "-cs squeezes the complement"
+args = ["-cs", "a"]
+stdin = "aaabbbcccXXXaaa\n"
+
+[[case]]
+name = "-cds deletes the complement and squeezes array2"
+args = ["-cds", "a", "b"]
+stdin = "aaabbbcccXXXaaa\n"
+
+[[case]]
+name = "-c is applied before -t truncates"
+args = ["-ct", "a", "XY"]
+stdin = "aaabbbcccXXXaaa\n"
+
+[[case]]
+name = "-c with a class in array1"
+args = ["-c", "[:alpha:]", "X"]
+stdin = "abc 123\n"
+
+# -------------------------------------------------------------- escapes
+
+[[case]]
+name = "the named escapes"
+args = ['\t\n\r\f\v\a\b', "......."]
+stdin_file = "ctrl.txt"
+
+[[case]]
+name = "a backslash escapes itself"
+args = ['\\', "X"]
+stdin = "a\\b\n"
+
+[[case]]
+name = "an octal escape"
+args = ['\101', "z"]
+stdin = "A\tB\nC\n"
+
+[[case]]
+name = "an octal escape followed by a digit"
+args = ['\1011', "zz"]
+stdin = "A1B\n"
+
+[[case]]
+name = "a one-digit octal escape"
+args = ['\0', "X"]
+stdin = "a b\n"
+
+[[case]]
+name = "an escaped range"
+args = ['\141-\143', "X"]
+stdin = "abcd\n"
+
+[[case]]
+name = "an unknown escape is the character itself"
+args = ['\q', "X"]
+stdin = "abcq\n"
+
+[[case]]
+name = "a trailing backslash warns and is a literal backslash"
+args = ['abc\', "WXYZ"]
+stdin = "abc\\\n"
+
+[[case]]
+name = "a trailing backslash in array2 warns too"
+args = ["abc", 'XY\']
+stdin = "abc\n"
+
+[[case]]
+name = "an octal escape above 377 warns and splits in two"
+args = ['\400', "X"]
+stdin = "abc 0\n"
+
+[[case]]
+name = "the ambiguous octal warning names its own digits"
+args = ['\777', "X"]
+stdin = "abc?7\n"
+
+[[case]]
+name = "another ambiguous octal"
+args = ['\501', "X"]
+stdin = "abc(1\n"
+
+# --------------------------------------------------------- binary input
+
+[[case]]
+name = "every byte value through an identity translation"
+args = ['\000-\377', '\000-\377']
+stdin_file = "bin.dat"
+
+[[case]]
+name = "rot13 over every byte value"
+args = ["A-Za-z", "N-ZA-Mn-za-m"]
+stdin_file = "bin.dat"
+
+[[case]]
+name = "delete everything but the printable bytes"
+args = ["-cd", "[:print:]"]
+stdin_file = "bin.dat"
+
+[[case]]
+name = "squeeze every repeated byte"
+args = ["-s", '\000-\377']
+stdin_file = "bin.dat"
+
+[[case]]
+name = "invalid UTF-8 passes through as bytes"
+args = ["o", "0"]
+stdin_file = "bad.dat"
+
+[[case]]
+name = "empty input"
+args = ["a", "b"]
+stdin = ""
+
+[[case]]
+name = "no standard input at all"
+args = ["a", "b"]
+
+[[case]]
+name = "a last line with no newline"
+args = ["a-z", "A-Z"]
+stdin = "no-newline-here"
+
+# --------------------------------------------------------- usage errors
+
+[[case]]
+name = "no operands"
+args = []
+
+[[case]]
+name = "three operands"
+args = ["a", "b", "c"]
+
+[[case]]
+name = "the operand count is checked before the arrays are parsed"
+args = ["c-a", "b", "c"]
+
+[[case]]
+name = "an invalid class does not beat the extra operand"
+args = ["[:bogus:]", "b", "c"]
+
+[[case]]
+name = "-d with two arrays"
+args = ["-d", "a", "b"]
+
+[[case]]
+name = "-cd with two arrays"
+args = ["-cd", "a", "b"]
+
+[[case]]
+name = "-ds with one array"
+args = ["-ds", "a"]
+
+[[case]]
+name = "one array while translating"
+args = ["a"]
+
+[[case]]
+name = "-t with one array"
+args = ["-t", "a"]
+
+[[case]]
+name = "-c with one array"
+args = ["-c", "a"]
+
+[[case]]
+name = "-s with three arrays"
+args = ["-s", "a", "b", "c"]
+
+[[case]]
+name = "an empty array2 while translating"
+args = ["abc", ""]
+
+[[case]]
+name = "an invalid option"
+args = ["-Q", "a", "b"]
+
+[[case]]
+name = "a leading dash is read as options"
+args = ["-ab", "XYZ"]
+
+[[case]]
+name = "-- ends the options"
+args = ["--", "a", "X"]
+stdin = "abc\n"
+
+# --------------------------------------------------------- array errors
+
+[[case]]
+name = "a range in reverse order"
+args = ["c-a", "XYZ"]
+
+[[case]]
+name = "a reverse range names its decoded endpoints"
+args = ['\143-\141', "X"]
+
+[[case]]
+name = "an invalid class name"
+args = ["[:bogus:]", "x"]
+
+[[case]]
+name = "an empty class name"
+args = ["[::]", "X"]
+
+[[case]]
+name = "an invalid repeat count"
+args = ["abc", "[x*9z]"]
+
+[[case]]
+name = "the fill form may not appear in array1"
+args = ["[a*]bc", "XYZ"]
+
+[[case]]
+name = "a zero repeat count in array1 is the fill form too"
+args = ["[a*0]bc", "XYZ"]
+
+[[case]]
+name = "two fill forms in array2"
+args = ["abcde", "[x*][y*]"]
+
+[[case]]
+name = "an unclosed bracket is an ordinary character"
+args = ["[abc", "x"]
+stdin = "a[bc\n"
+
+[[case]]
+name = "a star with no closing bracket is ordinary too"
+args = ["[a*", "x"]
+stdin = "a[*bc\n"
+
+[[case]]
+name = "a bracket-colon-bracket is three ordinary characters"
+args = ["[:]", "X"]
+stdin = "a[:]b\n"
+
+[[case]]
+name = "a bracket-equals-bracket is three ordinary characters"
+args = ["[=]", "X"]
+stdin = "a[=]b\n"
+
+[[case]]
+name = "an empty equivalence class"
+args = ["[==]", "X"]
+
+[[case]]
+name = "an equivalence class of two characters"
+args = ["[=ab=]", "X"]
+
+[[case]]
+name = "array1's error beats array2's"
+args = ["[:bogus:]", "[x*9z]"]
+
+[[case]]
+name = "array1's error beats the empty-array2 rule"
+args = ["[:bogus:]", ""]
+
+# --------------------------------------------- the class rules in array2
+
+[[case]]
+name = "a class other than upper or lower in array2"
+args = ["[:alpha:]", "[:digit:]"]
+
+[[case]]
+name = "space in array2"
+args = ["abc", "[:space:]"]
+
+[[case]]
+name = "a class in array2 with nothing aligned in array1"
+args = ["abc", "[:upper:]"]
+
+[[case]]
+name = "a range of the same length is not an aligned class"
+args = ["a-z", "[:upper:]"]
+
+[[case]]
+name = "a class at a different offset"
+args = ["xy[:lower:]", "y[:upper:]"]
+
+[[case]]
+name = "upper to upper is aligned"
+args = ["[:upper:]", "[:upper:]"]
+stdin = "aAzZ\n"
+
+[[case]]
+name = "lower to lower is aligned"
+args = ["[:lower:]", "[:lower:]"]
+stdin = "aAzZ\n"
+
+[[case]]
+name = "-t with a class in array2"
+args = ["-t", "[:lower:]", "[:upper:]"]
+stdin = "abcXYZ\n"
+
+[[case]]
+name = "-c makes array1 longer than a class-ending array2"
+args = ["-c", "[:lower:]", "[:upper:]"]
+
+[[case]]
+name = "an equivalence class in array2 while translating"
+args = ["abc", "[=x=]"]
+
+[[case]]
+name = "-s with a misaligned class in array2 still translates first"
+args = ["-s", "abc", "[:upper:]"]
+
+# ------------------------------------------------------- help and version
+
+[[case]]
+name = "--help"
+args = ["--help"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "--version"
+args = ["--version"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "--help wins when it comes first"
+args = ["--help", "-Q"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "a bad option before --help is still an error"
+args = ["-Q", "--help"]
+
+# -------------------------------------------------------------- SIGPIPE
+
+[[case]]
+name = "a stream cut short by the reader dies on SIGPIPE"
+args = ["a-z", "A-Z"]
+stdin_file = "/dev/zero"
+stdout_bytes = 4096
+
+[[case]]
+name = "a complementing stream cut short by the reader dies on SIGPIPE"
+args = ["-c", "a", "X"]
+stdin_file = "/dev/zero"
+stdout_bytes = 4096
