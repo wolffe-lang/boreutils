@@ -664,6 +664,20 @@ fn last_bytes(out: bore.Out, src: bore.In, n: int) -> int {
             }
             if chunk.len == 0 {
                 stop = true
+            } else if chunk.len >= n {
+                // A chunk at least `n` bytes long holds the whole
+                // window on its own, so the window is REPLACED rather
+                // than appended to and only `n` bytes are pushed. At
+                // the shipped chunk size that is ten pushes per 262,144
+                // bytes for `tail -c 10` instead of one per byte.
+                in keeper {
+                    bore.ring_drop(mut r, bore.ring_len(r))
+                    var k = chunk.len - n
+                    while k < chunk.len {
+                        bore.ring_push(mut r, chunk[k])
+                        k += 1
+                    }
+                }
             } else {
                 in keeper {
                     for b in chunk {
@@ -713,13 +727,31 @@ fn last_lines(out: bore.Out, src: bore.In, n: int, delim: byte) -> int {
             if chunk.len == 0 {
                 stop = true
             } else {
-                in keeper {
-                    for b in chunk {
-                        bore.ring_push(mut r, b)
-                        if b == delim {
-                            delims += 1
+                let dc = count_delims(chunk, delim)
+                if dc > n {
+                    // The chunk holds more lines than the window wants,
+                    // so the window is REPLACED: only the tail of the
+                    // chunk is pushed, and on ordinary text that is a
+                    // few hundred bytes per 262,144 instead of all of
+                    // them. `head -n -K` runs the same shape and writes
+                    // what this one discards.
+                    let from = keep_from(chunk, delim, n)
+                    in keeper {
+                        bore.ring_drop(mut r, bore.ring_len(r))
+                        var k = from
+                        while k < chunk.len {
+                            bore.ring_push(mut r, chunk[k])
+                            k += 1
                         }
                     }
+                    delims = n
+                } else {
+                    in keeper {
+                        for b in chunk {
+                            bore.ring_push(mut r, b)
+                        }
+                    }
+                    delims += dc
                 }
                 last = chunk[chunk.len - 1] as int
             }
@@ -738,6 +770,36 @@ fn last_lines(out: bore.Out, src: bore.In, n: int, delim: byte) -> int {
         why = spill(out, mut r)
     }
     why
+}
+
+/// How many delimiters `chunk` holds.
+fn count_delims(chunk: List[byte], delim: byte) -> int {
+    var n = 0
+    for b in chunk {
+        if b == delim {
+            n += 1
+        }
+    }
+    n
+}
+
+/// Where the last `n` lines of `chunk` begin: one past the `n + 1`-th
+/// delimiter counting back from the end, or 0 when there are not that
+/// many. Called only when the chunk holds MORE than `n` delimiters, so
+/// the window it answers holds exactly `n`.
+fn keep_from(chunk: List[byte], delim: byte, n: int) -> int {
+    var seen = 0
+    var i = chunk.len - 1
+    while i >= 0 {
+        if chunk[i] == delim {
+            seen += 1
+            if seen == n + 1 {
+                return i + 1
+            }
+        }
+        i -= 1
+    }
+    0
 }
 
 /// Write the whole window out and empty it.
