@@ -16,8 +16,10 @@
 //!
 //! - `-c1-3` of `héllo` is `h`, `é` and `l` — four BYTES — where
 //!   `-b1-3` is three bytes and splits the `é`;
-//! - `-n` with `-b` drops a partial character at either end of a range,
-//!   so `-n -b1-2` of `héllo` is `a`-shaped: just `h`;
+//! - `-n` with `-b` writes a character IN FULL when its LAST byte falls
+//!   in the range and not at all otherwise, which is not what the
+//!   option's wording suggests: `-n -b1-2` of `héllo` is just `h`, and
+//!   `-n -b2-3` of `世界` is all three bytes of `世`, byte 1 included;
 //! - `-d` accepts a multibyte delimiter.
 //!
 //! wolf 0.2.14 has no locale surface, so this program reads `LC_ALL`,
@@ -60,7 +62,8 @@
 //!   item, so `-b1,` is one), and the delimiter and `-s` complaints,
 //!   which carry an embedded newline and tab.
 //! - A line with no delimiter is written whole under `-f`, or dropped
-//!   under `-s`. A file with no final delimiter gets none added.
+//!   under `-s`. A file with no final delimiter GETS ONE ADDED, unlike
+//!   `head`, `tail` and `cat`, which all pass the absence through.
 //! - A missing operand is `cut: NAME: reason` with NAME quoted only when
 //!   it has to be — `bore.quote_name`, NOT the always-quoted spelling
 //!   `head` and `tail` use. The two families really do differ.
