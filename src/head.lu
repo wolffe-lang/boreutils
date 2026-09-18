@@ -473,6 +473,14 @@ fn first_lines(out: bore.Out, src: bore.In, n: int, delim: byte) -> int {
 /// The window lives in `keeper`, a region of its own: `ring_push` can
 /// allocate, the chunk loop's `region pass` dies every chunk, and a
 /// value that outlives its region is E1010 — measured, not guessed.
+///
+/// **A chunk at least `n` bytes long never touches the window twice.**
+/// The last `n` bytes of the stream so far are then entirely inside
+/// THIS chunk, so everything before them is written straight out and
+/// only `n` bytes are pushed. At the shipped chunk size that is 1,024
+/// pushes per 262,144 bytes for `-c -1024` instead of one per byte, and
+/// it is the difference between 0.04x of GNU and something worth
+/// printing. A first draft pushed every byte; the bench caught it.
 fn drop_last_bytes(out: bore.Out, src: bore.In, n: int) -> int {
     let keeper = region()
     var r = bore.ring()
@@ -493,6 +501,37 @@ fn drop_last_bytes(out: bore.Out, src: bore.In, n: int) -> int {
             }
             if chunk.len == 0 {
                 stop = true
+            } else if chunk.len >= n {
+                // One buffer, pushed. A `chunk[0..k]` SLICE was tried
+                // here instead and is 2.2x slower on this row (656 ms
+                // against 297 ms on 256 MiB): a list slice allocates
+                // and copies a whole fresh list, and it costs a second
+                // write per chunk as well. Measured, not assumed.
+                var buf = List[byte]()
+                var i = 0
+                while i < bore.ring_len(r) {
+                    (mut buf).push(bore.ring_at(r, i))
+                    i += 1
+                }
+                var j = 0
+                while j < chunk.len - n {
+                    (mut buf).push(chunk[j])
+                    j += 1
+                }
+                in keeper {
+                    bore.ring_drop(mut r, bore.ring_len(r))
+                    var k = chunk.len - n
+                    while k < chunk.len {
+                        bore.ring_push(mut r, chunk[k])
+                        k += 1
+                    }
+                }
+                if buf.len > 0 {
+                    bore.write_direct(out, buf) else |_| {
+                        why = 2
+                        stop = true
+                    }
+                }
             } else {
                 in keeper {
                     for b in chunk {
@@ -502,11 +541,6 @@ fn drop_last_bytes(out: bore.Out, src: bore.In, n: int) -> int {
             }
         }
         if bore.ring_len(r) > n && why == 0 {
-            // `ring_drop` runs OUTSIDE the block on purpose: a call
-            // taking a `mut` parameter inside a region is E1010 even
-            // when the callee only assigns integers, because the
-            // compiler must assume the parameter could receive
-            // something the region allocated.
             var k = bore.ring_len(r) - n
             region emit {
                 var buf = List[byte]()
@@ -533,6 +567,11 @@ fn drop_last_bytes(out: bore.Out, src: bore.In, n: int) -> int {
 /// line than it has delimiters, so one more line leaves the window —
 /// and for `head` that line is output, because it is not among the last
 /// `n`. `tail` runs the same invariant and discards instead.
+///
+/// A chunk holding MORE than `n` delimiters replaces the window
+/// outright, for `drop_last_bytes`'s reason and with the same effect:
+/// everything before the last `n` lines of the chunk is written from
+/// the chunk, and only the tail of it is pushed.
 fn drop_last_lines(out: bore.Out, src: bore.In, n: int, delim: byte) -> int {
     let keeper = region()
     var r = bore.ring()
@@ -556,13 +595,42 @@ fn drop_last_lines(out: bore.Out, src: bore.In, n: int, delim: byte) -> int {
             if chunk.len == 0 {
                 stop = true
             } else {
-                in keeper {
-                    for b in chunk {
-                        bore.ring_push(mut r, b)
-                        if b == delim {
-                            delims += 1
+                let dc = count_delims(chunk, delim)
+                if dc > n {
+                    let from = keep_from(chunk, delim, n)
+                    var buf = List[byte]()
+                    var i = 0
+                    while i < bore.ring_len(r) {
+                        (mut buf).push(bore.ring_at(r, i))
+                        i += 1
+                    }
+                    var j = 0
+                    while j < from {
+                        (mut buf).push(chunk[j])
+                        j += 1
+                    }
+                    in keeper {
+                        bore.ring_drop(mut r, bore.ring_len(r))
+                        var k = from
+                        while k < chunk.len {
+                            bore.ring_push(mut r, chunk[k])
+                            k += 1
                         }
                     }
+                    delims = n
+                    if buf.len > 0 {
+                        bore.write_direct(out, buf) else |_| {
+                            why = 2
+                            stop = true
+                        }
+                    }
+                } else {
+                    in keeper {
+                        for b in chunk {
+                            bore.ring_push(mut r, b)
+                        }
+                    }
+                    delims += dc
                 }
                 last = chunk[chunk.len - 1] as int
             }
@@ -605,6 +673,36 @@ fn drop_last_lines(out: bore.Out, src: bore.In, n: int, delim: byte) -> int {
         bore.ring_drop(mut r, k)
     }
     why
+}
+
+/// How many delimiters `chunk` holds.
+fn count_delims(chunk: List[byte], delim: byte) -> int {
+    var n = 0
+    for b in chunk {
+        if b == delim {
+            n += 1
+        }
+    }
+    n
+}
+
+/// Where the last `n` lines of `chunk` begin: one past the `n + 1`-th
+/// delimiter counting back from the end, or 0 when there are not that
+/// many. Called only when the chunk holds MORE than `n` delimiters, so
+/// the window it answers holds exactly `n`.
+fn keep_from(chunk: List[byte], delim: byte, n: int) -> int {
+    var seen = 0
+    var i = chunk.len - 1
+    while i >= 0 {
+        if chunk[i] == delim {
+            seen += 1
+            if seen == n + 1 {
+                return i + 1
+            }
+        }
+        i -= 1
+    }
+    0
 }
 
 /// Write `s` straight out. `head` uses the direct route throughout, so
