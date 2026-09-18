@@ -1,0 +1,541 @@
+# cut — GNU coreutils 9.11, black-box. Every expectation here was read
+# off the GNU binary on BOTH hosts (macOS arm64 Homebrew `gcut`, linux
+# x86-64 native `cut`), which agreed on every case in this file.
+#
+# The fixtures under tests/fixtures/ are committed data, not generated:
+#   fields.txt  x<TAB>y<TAB>z / 1<TAB>2<TAB>3 / nodelim / <TAB><TAB> / a<TAB>b
+#   colons.txt  colon-separated, with empty, leading and trailing fields
+#   utf8f.txt   h<e-acute>llo:w<o-diaeresis>rld / <CJK><CJK>:ok
+#   plain.txt   3 short lines      nonl.txt  one line, no final newline
+#   empty.txt   0 B                nulrec.dat  a\0bb\0ccc\0dd, for -z
+#   bin.dat     514 B, every byte value
+#
+# **Which GNU, and it matters more here than anywhere else in the
+# track.** coreutils 9.11 made `cut` multibyte-aware and 9.4, which
+# ubuntu-latest still ships, is not: in 9.4 `-c` is `-b`, `-n` is
+# accepted and ignored, and a multibyte `-d` is refused. Every case that
+# turns on any of those carries `gnu_min = "9.11"` and sets
+# `LC_ALL=C.UTF-8` explicitly. Every OTHER case runs under difftest's
+# default `LC_ALL=C`, where the two releases agree, so the bounded set
+# is the small one.
+#
+# `-w`, `-F` and `-O` are 9.11-only options this lane does not
+# implement, so nothing here names them; the README's status table does.
+#
+# --help and --version print OUR text, not GNU's FSF-owned prose, so
+# their cases compare the exit status and stderr only.
+
+# ------------------------------------------------------------------- -b
+
+[[case]]
+name = "b one position"
+args = ["-b1", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "b a closed range"
+args = ["-b1-3", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "b from the start"
+args = ["-b-3", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "b to the end"
+args = ["-b3-", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "b everything"
+args = ["-b1-", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "b a comma list"
+args = ["-b1,3", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "b out of order"
+args = ["-b3-5,1-2", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "b overlapping ranges merge"
+args = ["-b1-2,2-3", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "b overlapping ranges merge to the wider end"
+args = ["-b1-2,2-4", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "b adjacent ranges do not merge"
+args = ["-b1-2,3-4", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "b blanks separate a list as commas do"
+args = ["-b", "1 3", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "b the long spelling"
+args = ["--bytes=2", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "b a separate argument"
+args = ["-b", "2", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "b past the end of every line"
+args = ["-b99", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "b on binary input"
+args = ["-b1-4", "tests/fixtures/bin.dat"]
+
+[[case]]
+name = "b on an empty file"
+args = ["-b1", "tests/fixtures/empty.txt"]
+
+[[case]]
+name = "b on a file with no final newline"
+args = ["-b1", "tests/fixtures/nonl.txt"]
+
+[[case]]
+name = "b on stdin"
+stdin = "abc\ndef\n"
+args = ["-b2"]
+
+[[case]]
+name = "b two files run together"
+args = ["-b1", "tests/fixtures/plain.txt", "tests/fixtures/second.txt"]
+
+# ------------------------------------------------------- -c in the C locale
+
+[[case]]
+name = "c is b in the C locale"
+args = ["-c1-3", "tests/fixtures/utf8f.txt"]
+
+[[case]]
+name = "b beside it, for the same bytes"
+args = ["-b1-3", "tests/fixtures/utf8f.txt"]
+
+[[case]]
+name = "n is a no-op in the C locale"
+args = ["-n", "-b1-3", "tests/fixtures/utf8f.txt"]
+
+# --------------------------------------------------- -c under a UTF-8 locale
+
+[[case]]
+name = "c counts characters under UTF-8"
+args = ["-c1-3", "tests/fixtures/utf8f.txt"]
+env = { LC_ALL = "C.UTF-8" }
+gnu_min = "9.11"
+
+[[case]]
+name = "b still counts bytes under UTF-8"
+args = ["-b1-3", "tests/fixtures/utf8f.txt"]
+env = { LC_ALL = "C.UTF-8" }
+gnu_min = "9.11"
+
+[[case]]
+name = "c one character in the middle"
+args = ["-c2", "tests/fixtures/utf8f.txt"]
+env = { LC_ALL = "C.UTF-8" }
+gnu_min = "9.11"
+
+[[case]]
+name = "c complement under UTF-8"
+args = ["--complement", "-c1-2", "tests/fixtures/utf8f.txt"]
+env = { LC_ALL = "C.UTF-8" }
+gnu_min = "9.11"
+
+[[case]]
+name = "n with b drops a partial character under UTF-8"
+args = ["-n", "-b1-2", "tests/fixtures/utf8f.txt"]
+env = { LC_ALL = "C.UTF-8" }
+gnu_min = "9.11"
+
+[[case]]
+name = "n with b drops a partial character at both ends"
+args = ["-n", "-b2-3", "tests/fixtures/utf8f.txt"]
+env = { LC_ALL = "C.UTF-8" }
+gnu_min = "9.11"
+
+[[case]]
+name = "c on invalid UTF-8, where a stray byte is its own character"
+args = ["-c1-3", "tests/fixtures/bad.dat"]
+env = { LC_ALL = "C.UTF-8" }
+gnu_min = "9.11"
+
+[[case]]
+name = "the locale comes from LC_CTYPE when LC_ALL is empty"
+args = ["-c1-3", "tests/fixtures/utf8f.txt"]
+env = { LC_ALL = "", LC_CTYPE = "C.UTF-8" }
+gnu_min = "9.11"
+
+[[case]]
+name = "the locale comes from LANG when neither is set"
+args = ["-c1-3", "tests/fixtures/utf8f.txt"]
+env = { LC_ALL = "", LANG = "C.UTF-8" }
+gnu_min = "9.11"
+
+[[case]]
+name = "LC_ALL wins over LC_CTYPE"
+args = ["-c1-3", "tests/fixtures/utf8f.txt"]
+env = { LC_ALL = "C", LC_CTYPE = "C.UTF-8" }
+
+# ------------------------------------------------------------------- -f
+
+[[case]]
+name = "f one field"
+args = ["-f1", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "f the middle field"
+args = ["-f2", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "f a comma list"
+args = ["-f1,3", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "f out of order is still input order"
+args = ["-f3,1", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "f to the end"
+args = ["-f2-", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "f a range and a field that overlap"
+args = ["-f2-,1", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "f past the end of every line"
+args = ["-f9", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "f suppressing the lines with no delimiter"
+args = ["-s", "-f1", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "f with a delimiter no line holds"
+args = ["-d:", "-f1", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "f with a colon delimiter"
+args = ["-d:", "-f2", "tests/fixtures/colons.txt"]
+
+[[case]]
+name = "f with a colon delimiter, to the end"
+args = ["-d:", "-f2-", "tests/fixtures/colons.txt"]
+
+[[case]]
+name = "f with a colon delimiter and empty fields"
+args = ["-d:", "-f3", "tests/fixtures/colons.txt"]
+
+[[case]]
+name = "f with a colon delimiter and only the delimited lines"
+args = ["-d:", "-s", "-f1", "tests/fixtures/colons.txt"]
+
+[[case]]
+name = "f with an explicit tab delimiter"
+args = ["-d", "\t", "-f1", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "f with an empty delimiter, which is NUL"
+args = ["-d", "", "-f1", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "f with an empty delimiter on NUL records"
+args = ["-d", "", "-f2", "tests/fixtures/nulrec.dat"]
+
+[[case]]
+name = "f with a delimiter given twice, the last wins"
+args = ["-d:", "-d,", "-f1", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "f on a file with no final newline"
+args = ["-f1", "tests/fixtures/nonl.txt"]
+
+[[case]]
+name = "f on stdin"
+stdin = "a\tb\n"
+args = ["-f1"]
+
+[[case]]
+name = "f on an empty file"
+args = ["-f1", "tests/fixtures/empty.txt"]
+
+[[case]]
+name = "a multibyte delimiter is refused in the C locale"
+args = ["-d", "é", "-f2", "tests/fixtures/utf8f.txt"]
+
+[[case]]
+name = "a multibyte delimiter works under UTF-8"
+args = ["-d", "é", "-f2", "tests/fixtures/utf8f.txt"]
+env = { LC_ALL = "C.UTF-8" }
+gnu_min = "9.11"
+
+[[case]]
+name = "a two-character delimiter"
+args = ["-dxy", "-f1", "tests/fixtures/fields.txt"]
+
+# ------------------------------------------------------- --output-delimiter
+
+[[case]]
+name = "output delimiter between fields"
+args = ["-f1,3", "--output-delimiter=:", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "output delimiter between every field of one range"
+args = ["-f1-3", "--output-delimiter=:", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "output delimiter with a range and a field"
+args = ["-f1-2,3", "--output-delimiter=:", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "an empty output delimiter joins the fields"
+args = ["-f1,3", "--output-delimiter=", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "output delimiter given twice, the last wins"
+args = ["-f1,3", "--output-delimiter=:", "--output-delimiter=,", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "output delimiter between byte ranges"
+args = ["-b1,3", "--output-delimiter=:", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "output delimiter between two byte ranges with a gap"
+args = ["-b1-2,4-5", "--output-delimiter=::", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "output delimiter between adjacent byte ranges"
+args = ["-b1-2,3-4", "--output-delimiter=:", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "no output delimiter inside one merged byte range"
+args = ["-b1-2,2-3", "--output-delimiter=:", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "output delimiter between two adjacent byte positions"
+args = ["-b1,2", "--output-delimiter=:", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "output delimiter with an out-of-order byte list"
+args = ["-b2-3,1", "--output-delimiter=:", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "output delimiter with an open-ended byte range and a position"
+args = ["-b4-,1", "--output-delimiter=:", "tests/fixtures/fields.txt"]
+
+# ------------------------------------------------------------ --complement
+
+[[case]]
+name = "complement of a byte range"
+args = ["--complement", "-b1-3", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "complement of one byte, which is two ranges"
+args = ["--complement", "-b2", "--output-delimiter=:", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "complement of the first byte, which is one range"
+args = ["--complement", "-b1", "--output-delimiter=:", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "complement of a field"
+args = ["--complement", "-f1", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "complement of a field with an output delimiter"
+args = ["--complement", "-f2", "--output-delimiter=:", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "complement of everything"
+args = ["--complement", "-b1-", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "complement with only the delimited lines"
+args = ["--complement", "-s", "-f1", "tests/fixtures/fields.txt"]
+
+# ------------------------------------------------------- the list grammar
+
+[[case]]
+name = "a decreasing range"
+args = ["-b5-1", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "a range ending at zero"
+args = ["-b1-0", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "position zero"
+args = ["-b0", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "field zero"
+args = ["-f0", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "character zero"
+args = ["-c0", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "a bare dash"
+args = ["-b-", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "a bare dash for fields"
+args = ["-f-", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "two dashes in one range"
+args = ["-b1--2", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "two dashes in one field range"
+args = ["-f1--2", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "an empty list"
+args = ["-b", "", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "a list that is only a blank"
+args = ["-b", " ", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "a trailing comma"
+args = ["-b1,", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "an empty item in the middle"
+args = ["-b", "1,,3", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "a character that names no position"
+args = ["-b", "1;3", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "a character that names no field"
+args = ["-f", "1;3", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "a byte offset too large to hold"
+args = ["-b1-9999999999999999999999", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "a field number too large to hold"
+args = ["-f9999999999999999999999", "tests/fixtures/fields.txt"]
+
+# ------------------------------------------------------------ the errors
+
+[[case]]
+name = "no list at all"
+args = ["tests/fixtures/fields.txt"]
+
+[[case]]
+name = "two lists of different kinds"
+args = ["-b1", "-f1", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "two lists of the same kind"
+args = ["-c1", "-c3", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "two byte lists"
+args = ["-b1-2", "-b4", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "a delimiter without fields"
+args = ["-d:", "-b1", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "only-delimited without fields"
+args = ["-s", "-b1", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "a missing operand"
+args = ["-f1", "tests/fixtures/nope.txt"]
+
+[[case]]
+name = "a missing operand between two that exist"
+args = ["-b1", "tests/fixtures/plain.txt", "tests/fixtures/nope.txt", "tests/fixtures/second.txt"]
+
+[[case]]
+name = "a directory operand"
+args = ["-f1", "tests/fixtures"]
+
+[[case]]
+name = "an empty operand name"
+args = ["-b1", ""]
+
+[[case]]
+name = "a name that has to be quoted"
+args = ["-b1", "tests/fixtures/no such file"]
+
+[[case]]
+name = "a name holding a tab"
+args = ["-b1", "tests/fixtures/ta\tb"]
+
+[[case]]
+name = "an unknown option"
+args = ["-Q", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "an unknown long option"
+args = ["--nope", "tests/fixtures/fields.txt"]
+
+# ------------------------------------------------------------------- -z
+
+[[case]]
+name = "z on NUL records"
+args = ["-z", "-b1", "tests/fixtures/nulrec.dat"]
+
+[[case]]
+name = "z on text, which holds no NUL at all"
+args = ["-z", "-b1", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "z with fields"
+args = ["-z", "-f1", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "z the long spelling"
+args = ["--zero-terminated", "-b1", "tests/fixtures/nulrec.dat"]
+
+# ------------------------------------------------- the rest of the surface
+
+[[case]]
+name = "a dash operand reads stdin"
+args = ["-b1", "-"]
+stdin = "abc\n"
+
+[[case]]
+name = "a double dash ends the options"
+args = ["-b1", "--", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "options permute with operands"
+args = ["tests/fixtures/plain.txt", "-b1"]
+
+[[case]]
+name = "POSIXLY_CORRECT stops the permutation"
+args = ["tests/fixtures/plain.txt", "-b1"]
+env = { POSIXLY_CORRECT = "1" }
+
+[[case]]
+name = "a short cluster"
+args = ["-sd:", "-f1", "tests/fixtures/colons.txt"]
+
+[[case]]
+name = "help alone"
+args = ["--help"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "version alone"
+args = ["--version"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "an ambiguous long option"
+args = ["--c", "tests/fixtures/fields.txt"]

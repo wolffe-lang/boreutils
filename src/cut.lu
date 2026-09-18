@@ -1,0 +1,814 @@
+//! member: false
+//!
+//! cut — write selected parts of each line of each file.
+//!
+//! References consulted: POSIX.1-2024 `cut`; GNU coreutils 9.11's
+//! `cut --help`, the info manual's option descriptions, and black-box
+//! runs of the GNU binary (Homebrew `gcut` on macOS arm64 and native
+//! `cut` on linux x86-64, both 9.11, under `LC_ALL=C` and under
+//! `LC_ALL=C.UTF-8`); uutils/coreutils (MIT) and toybox (0BSD) as
+//! design references. Never GNU source.
+//!
+//! **`-b` against `-c`, and the locale posture.** Under `LC_ALL=C` the
+//! two are the same thing, because a character is a byte. Under a UTF-8
+//! locale they part company, and coreutils 9.11 is the first GNU this
+//! project has met that makes them:
+//!
+//! - `-c1-3` of `héllo` is `h`, `é` and `l` — four BYTES — where
+//!   `-b1-3` is three bytes and splits the `é`;
+//! - `-n` with `-b` drops a partial character at either end of a range,
+//!   so `-n -b1-2` of `héllo` is `a`-shaped: just `h`;
+//! - `-d` accepts a multibyte delimiter.
+//!
+//! wolf 0.2.14 has no locale surface, so this program reads `LC_ALL`,
+//! then `LC_CTYPE`, then `LANG` (GNU's precedence, which bu02 measured
+//! for `wc`) and decides one thing: whether the character set is UTF-8.
+//! A byte that is not a valid UTF-8 lead is its own character, which is
+//! what both hosts answer.
+//!
+//! **Which GNU.** The three rules above are 9.11's. coreutils 9.4, which
+//! ubuntu-latest still ships, has no multibyte `cut` at all: `-c` is
+//! `-b`, `-n` is accepted and ignored, and a multibyte `-d` is refused.
+//! Every case that depends on them carries `gnu_min = "9.11"`; every
+//! other case in `tests/cases/cut.toml` runs under `LC_ALL=C`, where the
+//! two releases agree.
+//!
+//! **What is NOT implemented, and it is all 9.11-only.** `-w`
+//! (`--whitespace-delimited`), `-F` and `-O` arrived after 9.4 and are
+//! out of this lane's contract; `cut -w` here is an unknown option where
+//! 9.11 accepts it. The README's status table says so.
+//!
+//! GNU's rules for the range grammar, each measured:
+//!
+//! - `N`, `N-`, `-M` and `N-M`, separated by commas OR BLANKS: `-b "1 3"`
+//!   selects positions 1 and 3, which no manual page says.
+//! - Ranges are sorted and OVERLAPPING ones merge; ADJACENT ones do not.
+//!   `-b1-2,2-3` is one range 1-3 and `-b1-2,3-4` is two. The difference
+//!   is invisible until `--output-delimiter` puts something between
+//!   them, which is why both spellings have a case.
+//! - `--output-delimiter` goes between RANGES for `-b`/`-c` and between
+//!   FIELDS for `-f`. `-f1-3 --output-delimiter=:` is `x:y:z` from one
+//!   range; `-b1-2,4-5 --output-delimiter=::` puts one `::` between two.
+//!   A range that selects nothing emits no delimiter either.
+//! - `--complement` complements the normalised range list, so the
+//!   complement of `-b2` is two ranges and takes a delimiter between
+//!   them where the complement of `-b1` is one and does not.
+//! - The errors are `you must specify a list of bytes, characters, or
+//!   fields`, `only one list may be specified` (even for two `-b`s),
+//!   `invalid decreasing range`, `invalid range with no endpoint: -`,
+//!   `byte/character positions are numbered from 1` (also for an empty
+//!   item, so `-b1,` is one), and the delimiter and `-s` complaints,
+//!   which carry an embedded newline and tab.
+//! - A line with no delimiter is written whole under `-f`, or dropped
+//!   under `-s`. A file with no final delimiter gets none added.
+//! - A missing operand is `cut: NAME: reason` with NAME quoted only when
+//!   it has to be — `bore.quote_name`, NOT the always-quoted spelling
+//!   `head` and `tail` use. The two families really do differ.
+
+use bore
+
+/// A selected span, 1-based and inclusive.
+struct Span {
+    lo: int,
+    hi: int,
+}
+
+/// A parsed list, or the GNU complaint about why it is not one.
+struct Listed {
+    spans: List[Span],
+    err: str,
+}
+
+/// What the command line asked for.
+struct Opts {
+    /// 0 none, 1 `-b`, 2 `-c`, 3 `-f`.
+    mode: int,
+    delim: str,
+    out_delim: str,
+    out_delim_set: bool,
+    only_delim: bool,
+    complement: bool,
+    no_partial: bool,
+    line_delim: byte,
+    utf8: bool,
+}
+
+fn main() -> int {
+    // Standard output first: with descriptor 1 closed, the first file
+    // opened would take it (wolf-lang#405).
+    var out = bore.stdout()
+    var o = Opts {
+        mode: 0,
+        delim: "\t",
+        out_delim: "",
+        out_delim_set: false,
+        only_delim: false,
+        complement: false,
+        no_partial: false,
+        line_delim: 10 as byte,
+        utf8: locale_is_utf8(),
+    }
+    var spans = List[Span]()
+    let p = bore.parse(options(), env_args(), bore.permute())
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i]
+        let v = p.values[i]
+        if k == "help" {
+            emit(out, help()) else |_| {}
+            return bore.finish(mut out, "cut", 0)
+        }
+        if k == "version" {
+            emit(out, bore.version_text("cut")) else |_| {}
+            return bore.finish(mut out, "cut", 0)
+        }
+        if k == "bytes" || k == "characters" || k == "fields" {
+            if o.mode != 0 {
+                return bore.usage_error("cut", "only one list may be specified")
+            }
+            o.mode = if k == "bytes" then 1 else if k == "characters" then 2 else 3
+            let listed = parse_list(v, o.mode == 3)
+            if listed.err.len > 0 {
+                return bore.usage_error("cut", listed.err)
+            }
+            spans = normalise(listed.spans)
+        }
+        if k == "delimiter" {
+            o.delim = if v.len == 0 then "\u{0}" else v
+        }
+        if k == "output-delimiter" {
+            // Measured: an EMPTY `--output-delimiter=` is a NUL, not
+            // nothing — `cut -f1,3 --output-delimiter=` writes `x\0z`.
+            // Exactly what an empty `-d` means, and neither is written
+            // down anywhere but the binary.
+            o.out_delim = if v.len == 0 then "\u{0}" else v
+            o.out_delim_set = true
+        }
+        if k == "only-delimited" {
+            o.only_delim = true
+        }
+        if k == "complement" {
+            o.complement = true
+        }
+        if k == "no-partial" {
+            o.no_partial = true
+        }
+        if k == "zero-terminated" {
+            o.line_delim = 0 as byte
+        }
+        i += 1
+    }
+    if !bore.ok(p) {
+        return bore.usage_error("cut", p.error)
+    }
+    if o.mode == 0 {
+        return bore.usage_error("cut", "you must specify a list of bytes, characters, or fields")
+    }
+    if o.mode != 3 {
+        if o.delim != "\t" {
+            return bore.usage_error(
+                "cut",
+                "an input delimiter makes sense\n\tonly when operating on fields",
+            )
+        }
+        if o.only_delim {
+            return bore.usage_error(
+                "cut",
+                "suppressing non-delimited lines makes sense\n\tonly when operating on fields",
+            )
+        }
+    }
+    if chars_in(o.delim, o.utf8) != 1 {
+        return bore.usage_error("cut", "the delimiter must be a single character")
+    }
+    if o.complement {
+        spans = complement(spans)
+    }
+    if !o.out_delim_set && o.mode == 3 {
+        o.out_delim = o.delim
+        o.out_delim_set = true
+    }
+    var paths = List[str]()
+    for a in p.operands {
+        (mut paths).push(a)
+    }
+    if paths.len == 0 {
+        (mut paths).push("-")
+    }
+    var status = 0
+    for path in paths {
+        if one(out, path, o, spans) != 0 {
+            status = 1
+        }
+    }
+    bore.finish(mut out, "cut", status)
+}
+
+fn options() -> List[bore.Opt] {
+    // GNU's own long-option table order, which its
+    // "ambiguous; possibilities:" line reports and so is observable.
+    var s = List[bore.Opt]()
+    (mut s).push(bore.takes("b", "bytes"))
+    (mut s).push(bore.takes("c", "characters"))
+    (mut s).push(bore.flag("", "complement"))
+    (mut s).push(bore.takes("d", "delimiter"))
+    (mut s).push(bore.takes("f", "fields"))
+    (mut s).push(bore.flag("n", "no-partial"))
+    (mut s).push(bore.takes("", "output-delimiter"))
+    (mut s).push(bore.flag("s", "only-delimited"))
+    (mut s).push(bore.flag("z", "zero-terminated"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    s
+}
+
+/// The bytes asked of the host per read (bu01's measured knee).
+fn read_size() -> int {
+    262144
+}
+
+/// One past the largest position a list may name.
+fn span_cap() -> int {
+    4611686018427387903
+}
+
+/// Whether the character set from the environment is UTF-8, on GNU's
+/// precedence: LC_ALL, then LC_CTYPE, then LANG, the first that is set.
+///
+/// A copy of `wc`'s `utf8_locale`, and deliberately a copy: `wc` is a
+/// standalone entry rather than part of the `bore` module, so there is
+/// nothing to import. It belongs in `bore` and this lane did not move
+/// it there, because bu04 is editing that directory in the same wave
+/// and a new shared file is the shape a three-way race takes.
+fn locale_is_utf8() -> bool {
+    var v = env_get("LC_ALL") else ""
+    if v.len == 0 {
+        v = env_get("LC_CTYPE") else ""
+    }
+    if v.len == 0 {
+        v = env_get("LANG") else ""
+    }
+    let dot = v.rfind(".") else -1
+    var codeset = v
+    if dot >= 0 {
+        codeset = v[dot + 1..]
+    }
+    let l = codeset.lower()
+    l == "utf-8" || l == "utf8"
+}
+
+/// How many characters `s` holds: bytes in the C locale, code points
+/// under UTF-8, where a byte that is not a valid lead counts alone.
+fn chars_in(s: str, utf8: bool) -> int {
+    if !utf8 {
+        return s.len
+    }
+    var n = 0
+    for b in s.bytes() {
+        if !continuation(b) {
+            n += 1
+        }
+    }
+    n
+}
+
+/// Whether `b` is a UTF-8 continuation byte, `10xxxxxx`.
+fn continuation(b: byte) -> bool {
+    b as int >= 128 && b as int < 192
+}
+
+// ------------------------------------------------------------ the list
+
+/// Parse a `-b`/`-c`/`-f` list into spans, or answer GNU's complaint.
+///
+/// Items are separated by commas or blanks and an EMPTY item is an
+/// error, which is why this splits rather than skipping separators:
+/// `cut -b1,` is `positions are numbered from 1`, not `-b1`.
+fn parse_list(spec: str, fields: bool) -> Listed {
+    var spans = List[Span]()
+    let bs = spec.bytes()
+    var start = 0
+    var i = 0
+    while i <= spec.len {
+        let sep = i == spec.len || separator(bs[i])
+        if sep {
+            let item = spec[start..i]
+            let got = parse_item(item, spec, start, fields)
+            if got.err.len > 0 {
+                return got
+            }
+            for r in got.spans {
+                (mut spans).push(r)
+            }
+            start = i + 1
+        }
+        i += 1
+    }
+    Listed { spans: spans, err: "" }
+}
+
+fn separator(b: byte) -> bool {
+    let n = b as int
+    n == 44 || n == 32 || n >= 9 && n <= 13
+}
+
+/// One item of a list.
+fn parse_item(item: str, whole: str, at: int, fields: bool) -> Listed {
+    let none = List[Span]()
+    if item.len == 0 {
+        return Listed { spans: none, err: numbered_from_one(fields) }
+    }
+    if item == "-" {
+        return Listed { spans: none, err: "invalid range with no endpoint: -" }
+    }
+    let bs = item.bytes()
+    var j = 0
+    var lo = 1
+    var lo_given = false
+    if digit(bs[j]) {
+        let got = digits(item, j)
+        if got.err.len > 0 {
+            return Listed { spans: none, err: too_large(got.err, fields) }
+        }
+        lo = got.value
+        j = got.next
+        lo_given = true
+    }
+    var hi = lo
+    if j < item.len && bs[j] as int == 45 {
+        j += 1
+        if j < item.len && digit(bs[j]) {
+            let got = digits(item, j)
+            if got.err.len > 0 {
+                return Listed { spans: none, err: too_large(got.err, fields) }
+            }
+            hi = got.value
+            j = got.next
+        } else {
+            hi = span_cap()
+        }
+        if j != item.len {
+            return Listed { spans: none, err: bad_range(fields) }
+        }
+        if !lo_given && hi == span_cap() {
+            return Listed { spans: none, err: "invalid range with no endpoint: -" }
+        }
+    } else if !lo_given || j != item.len {
+        let rest = whole[at + j..]
+        return Listed { spans: none, err: bad_position(rest, fields) }
+    }
+    if hi < lo {
+        return Listed { spans: none, err: "invalid decreasing range" }
+    }
+    if lo == 0 {
+        return Listed { spans: none, err: numbered_from_one(fields) }
+    }
+    var one = List[Span]()
+    (mut one).push(Span { lo: lo, hi: hi })
+    Listed { spans: one, err: "" }
+}
+
+/// A run of digits and where it ended. `err` carries the digits back
+/// when the value is past `span_cap`, which is how GNU names them.
+struct Digits {
+    value: int,
+    next: int,
+    err: str,
+}
+
+fn digit(b: byte) -> bool {
+    b as int >= 48 && b as int <= 57
+}
+
+fn digits(s: str, from: int) -> Digits {
+    let bs = s.bytes()
+    var i = from
+    var v: int = 0
+    var over = false
+    while i < s.len && digit(bs[i]) {
+        let d = bs[i] as int - 48
+        if over || v > (span_cap() - d) / 10 {
+            over = true
+        } else {
+            v = v * 10 + d
+        }
+        i += 1
+    }
+    if over {
+        return Digits { value: 0, next: i, err: s[from..i] }
+    }
+    Digits { value: v, next: i, err: "" }
+}
+
+fn numbered_from_one(fields: bool) -> str {
+    if fields {
+        return "fields are numbered from 1"
+    }
+    "byte/character positions are numbered from 1"
+}
+
+fn bad_range(fields: bool) -> str {
+    if fields {
+        return "invalid field range"
+    }
+    "invalid byte or character range"
+}
+
+fn bad_position(rest: str, fields: bool) -> str {
+    if fields {
+        return "invalid field value {bore.quote(rest)}"
+    }
+    "invalid byte/character position {bore.quote(rest)}"
+}
+
+fn too_large(what: str, fields: bool) -> str {
+    if fields {
+        return "field number {bore.quote(what)} is too large"
+    }
+    "byte/character offset {bore.quote(what)} is too large"
+}
+
+/// Sort by start and merge the spans that OVERLAP. Adjacent spans stay
+/// apart, and `--output-delimiter` is what makes the difference show.
+fn normalise(spans: List[Span]) -> List[Span] {
+    var sorted = List[Span]()
+    for s in spans {
+        var at = sorted.len
+        var i = 0
+        while i < sorted.len {
+            if s.lo < sorted[i].lo {
+                at = i
+                i = sorted.len
+            } else {
+                i += 1
+            }
+        }
+        (mut sorted).push(Span { lo: 0, hi: 0 })
+        var k = sorted.len - 1
+        while k > at {
+            sorted[k] = copy sorted[k - 1]
+            k -= 1
+        }
+        sorted[at] = Span { lo: s.lo, hi: s.hi }
+    }
+    var out = List[Span]()
+    for s in sorted {
+        if out.len > 0 && s.lo <= out[out.len - 1].hi {
+            if s.hi > out[out.len - 1].hi {
+                out[out.len - 1] = Span { lo: out[out.len - 1].lo, hi: s.hi }
+            }
+        } else {
+            (mut out).push(Span { lo: s.lo, hi: s.hi })
+        }
+    }
+    out
+}
+
+/// The gaps between the spans, which is what `--complement` selects.
+fn complement(spans: List[Span]) -> List[Span] {
+    var out = List[Span]()
+    var next = 1
+    for s in spans {
+        if s.lo > next {
+            (mut out).push(Span { lo: next, hi: s.lo - 1 })
+        }
+        if s.hi >= span_cap() {
+            return out
+        }
+        if s.hi + 1 > next {
+            next = s.hi + 1
+        }
+    }
+    (mut out).push(Span { lo: next, hi: span_cap() })
+    out
+}
+
+// ----------------------------------------------------------- the stream
+
+/// Cut one operand. Answers 0 or 1, the status it contributes.
+fn one(out: bore.Out, path: str, o: Opts, spans: List[Span]) -> int {
+    let src = bore.open_input(path) else |e| match e {
+        not_found => {
+            bore.input_error("cut", path, bore.no_such_file())
+            return 1
+        },
+        denied => {
+            bore.input_error("cut", path, bore.permission_denied())
+            return 1
+        },
+        is_dir => {
+            bore.input_error("cut", path, bore.directory_reason())
+            return 1
+        },
+        io => {
+            bore.input_error("cut", path, bore.io_error())
+            return 1
+        },
+    }
+    let why = run(out, src, o, spans)
+    bore.close_input(src)
+    if why.len > 0 {
+        bore.input_error("cut", path, why)
+        return 1
+    }
+    0
+}
+
+/// Read the stream a chunk at a time and cut each line out of the
+/// pending window.
+///
+/// The window is `bore/ring.lu`'s, and it holds at most one line, so the
+/// memory a whole file costs is the length of its longest line. The
+/// chunk itself lives in a `region` that dies every pass, which is what
+/// keeps `fs_read_chunk`'s per-call allocation from accumulating
+/// (wolf-lang#416).
+fn run(out: bore.Out, src: bore.In, o: Opts, spans: List[Span]) -> str {
+    let keeper = region()
+    var r = bore.ring()
+    var why = ""
+    var stop = false
+    while !stop {
+        region pass {
+            let chunk = bore.read_chunk(src, read_size()) else |e| match e {
+                eof => {
+                    stop = true
+                    List[byte]()
+                },
+                io => {
+                    stop = true
+                    why = bore.io_error()
+                    List[byte]()
+                },
+            }
+            if chunk.len == 0 {
+                stop = true
+            } else {
+                in keeper {
+                    for b in chunk {
+                        bore.ring_push(mut r, b)
+                    }
+                }
+            }
+        }
+        while why.len == 0 && has_line(r, o.line_delim) {
+            let k = bore.ring_first_line(r, o.line_delim)
+            why = cut_line(out, r, k - 1, o, spans)
+            bore.ring_drop(mut r, k)
+        }
+    }
+    if why.len == 0 && bore.ring_len(r) > 0 {
+        let k = bore.ring_len(r)
+        why = cut_line(out, r, k, o, spans)
+        bore.ring_drop(mut r, k)
+    }
+    why
+}
+
+/// Whether the window holds a whole line.
+fn has_line(r: bore.Ring, delim: byte) -> bool {
+    var i = 0
+    while i < bore.ring_len(r) {
+        if bore.ring_at(r, i) == delim {
+            return true
+        }
+        i += 1
+    }
+    false
+}
+
+/// Cut the first `len` bytes of the window and write the result.
+///
+/// The output line ALWAYS ends with the delimiter, even when the input
+/// line did not: measured, `cut -b1` of a file with no final newline
+/// answers one WITH a final newline, unlike `head`, `tail` and `cat`,
+/// which all pass the absence through.
+fn cut_line(out: bore.Out, r: bore.Ring, len: int, o: Opts, spans: List[Span]) -> str {
+    var why = ""
+    region line {
+        var buf = List[byte]()
+        if o.mode == 3 {
+            fields_of(mut buf, r, len, o, spans)
+        } else {
+            positions_of(mut buf, r, len, o, spans)
+        }
+        var write = true
+        if o.mode == 3 && o.only_delim && !delimited(r, len, o.delim) {
+            write = false
+        }
+        if write {
+            (mut buf).push(o.line_delim)
+            bore.write_direct(out, buf) else |_| {
+                why = bore.io_error()
+            }
+        }
+    }
+    why
+}
+
+/// Whether the line holds the input delimiter at all.
+fn delimited(r: bore.Ring, len: int, delim: str) -> bool {
+    at_delim(r, len, 0, delim) >= 0
+}
+
+/// The offset of the first delimiter at or after `from`, or -1.
+fn at_delim(r: bore.Ring, len: int, from: int, delim: str) -> int {
+    let d = delim.bytes()
+    var i = from
+    while i + d.len <= len {
+        var j = 0
+        var hit = true
+        while j < d.len {
+            if bore.ring_at(r, i + j) != d[j] {
+                hit = false
+                j = d.len
+            } else {
+                j += 1
+            }
+        }
+        if hit {
+            return i
+        }
+        i += 1
+    }
+    -1
+}
+
+/// `-b` and `-c`: the selected positions, range by range.
+fn positions_of(mut buf: List[byte], r: bore.Ring, len: int, o: Opts, spans: List[Span]) {
+    // The byte offset each character starts at, plus `len` as a
+    // sentinel, so that character `c` occupies `[starts[c],
+    // starts[c + 1])` and its LAST byte is at 1-based `starts[c + 1]`.
+    // In the C locale every byte is a character and the table is the
+    // identity, so it is not built at all.
+    //
+    // `-n` reads this table rather than walking the bytes itself, and
+    // that is a COMPILER BUG rather than a style. A second walk of `r`
+    // inside the `-n` branch ICEs the 0.2.14 mid-end at `--release`:
+    // `wir verify error [region-root] in @positions_of: region r9 has
+    // two token roots`. Filed upstream with its witness. `WOLF_MIDEND=0`
+    // also builds it, at the cost of the optimiser on a per-byte loop,
+    // and one table is better code anyway.
+    var starts = List[int]()
+    var units = len
+    if o.utf8 && (o.mode == 2 || o.no_partial) {
+        var i = 0
+        while i < len {
+            if !continuation(bore.ring_at(r, i)) {
+                (mut starts).push(i)
+            }
+            i += 1
+        }
+        (mut starts).push(len)
+        if o.mode == 2 {
+            units = starts.len - 1
+        }
+    }
+    var emitted = false
+    for s in spans {
+        if s.lo > units {
+            continue
+        }
+        var hi = s.hi
+        if hi > units {
+            hi = units
+        }
+        var from = s.lo - 1
+        var to = hi
+        if o.utf8 && o.mode == 2 {
+            from = starts[s.lo - 1]
+            to = starts[hi]
+        } else if o.utf8 && o.no_partial {
+            // `-n` with `-b`. GNU's rule is not "trim the partial
+            // ends", which is what the option's wording suggests: a
+            // character is written IN FULL when its LAST byte falls in
+            // the range, and not at all otherwise. So `cut -n -b2-3` of
+            // a three-byte character writes all three bytes, byte 1
+            // included, and `cut -n -b1-2` of the same writes nothing.
+            // Both spellings are cases.
+            var nf = -1
+            var nt = 0
+            var c = 0
+            while c + 1 < starts.len {
+                let last = starts[c + 1]
+                if last >= s.lo && last <= hi {
+                    if nf < 0 {
+                        nf = starts[c]
+                    }
+                    nt = last
+                }
+                c += 1
+            }
+            from = if nf < 0 then 0 else nf
+            to = nt
+        }
+        if to <= from {
+            continue
+        }
+        if emitted && o.out_delim_set {
+            push_str(mut buf, o.out_delim)
+        }
+        var i = from
+        while i < to {
+            (mut buf).push(bore.ring_at(r, i))
+            i += 1
+        }
+        emitted = true
+    }
+}
+
+/// `-f`: the selected fields, in input order, joined by the output
+/// delimiter.
+fn fields_of(mut buf: List[byte], r: bore.Ring, len: int, o: Opts, spans: List[Span]) {
+    if !delimited(r, len, o.delim) {
+        // A line with no delimiter goes through whole; `-s` drops it
+        // instead, and the caller does that, because the line still has
+        // to be recognised here.
+        var i = 0
+        while i < len {
+            (mut buf).push(bore.ring_at(r, i))
+            i += 1
+        }
+        return
+    }
+    let d = o.delim.len
+    var emitted = false
+    var index = 1
+    var from = 0
+    var done = false
+    while !done {
+        var to = at_delim(r, len, from, o.delim)
+        if to < 0 {
+            to = len
+            done = true
+        }
+        if selected(spans, index) {
+            if emitted {
+                push_str(mut buf, o.out_delim)
+            }
+            var i = from
+            while i < to {
+                (mut buf).push(bore.ring_at(r, i))
+                i += 1
+            }
+            emitted = true
+        }
+        from = to + d
+        index += 1
+    }
+}
+
+/// Whether `n` falls in any span. The spans are sorted and disjoint.
+fn selected(spans: List[Span], n: int) -> bool {
+    for s in spans {
+        if n >= s.lo && n <= s.hi {
+            return true
+        }
+    }
+    false
+}
+
+fn push_str(mut buf: List[byte], s: str) {
+    for b in s.bytes() {
+        (mut buf).push(b)
+    }
+}
+
+/// Write `s` straight out. `cut` uses the direct route throughout, as
+/// `head` and `tail` do.
+fn emit(out: bore.Out, s: str) -> () ! {io} {
+    var b = List[byte]()
+    for x in s.bytes() {
+        (mut b).push(x)
+    }
+    bore.write_direct(out, b)?
+}
+
+fn help() -> str {
+    """
+    Usage: cut OPTION... [FILE]...
+    Write selected parts of each line of each FILE to standard output.
+    With no FILE, or when FILE is -, read standard input.
+
+      -b, --bytes=LIST         select these byte positions
+      -c, --characters=LIST    select these character positions
+          --complement         select everything the LIST does not
+      -d, --delimiter=DELIM    the field delimiter, a tab by default
+      -f, --fields=LIST        select these fields, and write any line
+                                 holding no delimiter unless -s is given
+      -n, --no-partial         with -b, write no partial character
+          --output-delimiter=STRING
+                               write STRING between what is selected;
+                                 by default the input delimiter for -f
+                                 and nothing at all for -b and -c
+      -s, --only-delimited     drop the lines holding no delimiter
+      -z, --zero-terminated    the line delimiter is NUL, not newline
+          --help               print this help and exit
+          --version            print the version and exit
+
+    Give exactly one of -b, -c and -f. A LIST is one range, or several
+    separated by commas or blanks, each of N, N-, N-M or -M, counted
+    from 1. What is selected is written in input order, exactly once.
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}
