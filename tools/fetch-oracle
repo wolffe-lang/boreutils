@@ -1,0 +1,119 @@
+#!/bin/sh
+# fetch-oracle — build the ORACLE OF RECORD and stage it into .gnu-bin/.
+#
+# `gnu-oracle.toml` names the one GNU coreutils release boreutils is
+# drop-in for, and `tools/difftest` refuses to return a verdict against
+# any other (B44). Where the host already ships that release this tool
+# does nothing; where it does not — ubuntu-latest ships 9.4 — it fetches
+# the released tarball BY SHA256 DIGEST, refuses on a mismatch, and
+# builds it.
+#
+# The oracle is a BINARY WE RUN, never a source we read. Building it
+# derives no boreutils code from GPL source and leaves the licence rule
+# exactly where it was.
+#
+# Prints on stdout the directory to put FIRST on PATH, or an empty line
+# when the host already ships the oracle; everything else goes to stderr.
+# A staged build's binaries are UNPREFIXED, so a caller that uses one
+# must also clear $BORE_GNU_PREFIX:
+#
+#     dir=$(tools/fetch-oracle)
+#     if [ -n "$dir" ]; then PATH=$dir:$PATH BORE_GNU_PREFIX=; fi
+set -eu
+BORE_ROOT=$(cd "$(dirname "$0")/.." && pwd)
+cd "$BORE_ROOT"
+
+say() { echo "fetch-oracle: $*" >&2; }
+
+toml_oracle() {
+    awk -v k="$1" '
+        $0 == "[oracle]" { in_s = 1; next }
+        /^\[/ { in_s = 0 }
+        in_s && $1 == k {
+            sub(/^[^=]*= */, "")
+            gsub(/"/, "")
+            print
+            exit
+        }
+    ' gnu-oracle.toml
+}
+
+sha256() {
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$1" | cut -d' ' -f1
+    else
+        shasum -a 256 "$1" | cut -d' ' -f1
+    fi
+}
+
+want=$(toml_oracle version)
+url=$(toml_oracle url)
+digest=$(toml_oracle sha256)
+[ -n "$want" ] || { say "gnu-oracle.toml names no version"; exit 2; }
+
+prefix=${BORE_GNU_PREFIX-}
+if [ -z "${BORE_GNU_PREFIX+set}" ] && [ "$(uname -s)" = Darwin ]; then
+    prefix=g
+fi
+
+# The version line's last field is the version: "true (GNU coreutils) 9.11".
+#
+# Through `env`, and that matters: `true` is a SHELL BUILTIN on every
+# host, `command -v true` answers the builtin, and the builtin ignores
+# --version and prints nothing. The naive form therefore reads "this
+# host ships no coreutils" on a host that ships it, and builds a second
+# copy of what is already installed — a check that cannot answer yes.
+# `env` execs the PATH binary, which is what difftest's own
+# `shutil.which` finds.
+host_version() {
+    env "$1" --version 2>/dev/null | head -1 | awk '{print $NF}'
+}
+
+have=$(host_version "${prefix}true" || true)
+if [ "$have" = "$want" ]; then
+    say "the host already ships the oracle of record (GNU coreutils $want)"
+    # Nothing to prepend: difftest finds it where it already is.
+    echo ""
+    exit 0
+fi
+say "host has GNU coreutils ${have:-none}, the oracle of record is $want"
+
+stage=$BORE_ROOT/.gnu-bin
+if [ -x "$stage/bin/true" ] && [ "$("$stage/bin/true" --version | head -1 | awk '{print $NF}')" = "$want" ]; then
+    say ".gnu-bin/ already holds GNU coreutils $want"
+    echo "$stage/bin"
+    exit 0
+fi
+
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/bore-oracle.XXXXXX")
+trap 'rm -rf "$tmp"' EXIT
+tarball=$tmp/coreutils.tar.xz
+say "$url"
+curl -sSfL -o "$tarball" "$url"
+got=$(sha256 "$tarball")
+if [ "$got" != "$digest" ]; then
+    say "sha256 MISMATCH: want $digest, got $got"
+    exit 1
+fi
+say "sha256 $got OK"
+
+tar xf "$tarball" -C "$tmp"
+src=$tmp/coreutils-$want
+[ -d "$src" ] || { say "the tarball holds no coreutils-$want"; exit 1; }
+
+rm -rf "$stage"
+jobs=$( (command -v nproc >/dev/null 2>&1 && nproc) || sysctl -n hw.ncpu 2>/dev/null || echo 2)
+say "building (this is the cost B44 ruled worth paying; it caches)"
+(
+    cd "$src"
+    ./configure --prefix="$stage" --disable-nls --without-selinux >"$tmp/configure.log" 2>&1 ||
+        { tail -40 "$tmp/configure.log" >&2; exit 1; }
+    make -j"$jobs" >"$tmp/make.log" 2>&1 || { tail -40 "$tmp/make.log" >&2; exit 1; }
+    make install >"$tmp/install.log" 2>&1 || { tail -40 "$tmp/install.log" >&2; exit 1; }
+)
+built=$("$stage/bin/true" --version | head -1)
+case "$built" in
+*" $want") say "staged $built into .gnu-bin/" ;;
+*) say "built the wrong thing: $built"; exit 1 ;;
+esac
+echo "$stage/bin"
