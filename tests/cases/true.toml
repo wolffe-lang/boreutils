@@ -41,3 +41,27 @@ args = ["-"]
 [[case]]
 name = "end of options is ignored"
 args = ["--"]
+
+# A closed standard output (`true >&-`). Measured against GNU coreutils
+# 9.11 on both hosts: a program that writes NOTHING never notices, so
+# `true >&-` is still 0 — the failure belongs to the write, not to the
+# descriptor.
+
+[[case]]
+name = "standard output closed, and nothing is written"
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, arguments still ignored"
+args = ["x", "-y"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, version"
+args = ["--version"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, help"
+args = ["--help"]
+stdout_closed = true

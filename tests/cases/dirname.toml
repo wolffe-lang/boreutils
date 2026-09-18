@@ -99,3 +99,20 @@ compare = ["exit", "stderr"]
 name = "POSIXLY_CORRECT: an operand ends the options"
 args = ["a", "-z", "b"]
 env = { POSIXLY_CORRECT = "1" }
+
+# A closed standard output (`dirname a/b >&-`). GNU coreutils 9.11 on
+# both hosts: `dirname: write error: Bad file descriptor`, status 1.
+
+[[case]]
+name = "standard output closed"
+args = ["a/b"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, the usage error comes first"
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, version"
+args = ["--version"]
+stdout_closed = true

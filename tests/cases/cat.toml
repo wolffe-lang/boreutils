@@ -490,3 +490,35 @@ stdout_bytes = 4096
 name = "a rendered stream cut short by the reader dies on SIGPIPE"
 args = ["-v", "/dev/zero"]
 stdout_bytes = 4096
+
+# A closed standard output (`cat FILE >&-`). GNU coreutils 9.11 on both
+# hosts says `cat: standard output: Bad file descriptor` and exits 1 —
+# and it says it BEFORE it touches an operand, which is why `cat nope`
+# with a closed descriptor never reports the missing file. `--version`
+# is the other shape: it writes, and the failure is reported at the exit
+# flush as `cat: write error: Bad file descriptor`.
+
+[[case]]
+name = "standard output closed"
+args = ["tests/fixtures/plain.txt"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, a rendering option"
+args = ["-n", "tests/fixtures/plain.txt"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, the operand is never opened"
+args = ["nope"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, standard input"
+stdin_file = "plain.txt"
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, version"
+args = ["--version"]
+stdout_closed = true

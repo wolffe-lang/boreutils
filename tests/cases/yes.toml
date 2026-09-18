@@ -78,3 +78,18 @@ name = "POSIXLY_CORRECT: an operand ends the options"
 args = ["a", "--version"]
 env = { POSIXLY_CORRECT = "1" }
 stdout_bytes = 4096
+
+# A closed standard output (`yes >&-`). GNU coreutils 9.11 on both
+# hosts: `yes: standard output: Bad file descriptor` and status 1, at
+# once — a program that writes for ever must not loop for ever against
+# a descriptor it cannot write.
+
+[[case]]
+name = "standard output closed"
+stdout_closed = true
+timeout = 5
+
+[[case]]
+name = "standard output closed, version"
+args = ["--version"]
+stdout_closed = true

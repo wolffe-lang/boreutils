@@ -174,3 +174,21 @@ env = { POSIXLY_CORRECT = "1" }
 name = "POSIXLY_CORRECT: --help is an operand"
 args = ["--help"]
 env = { POSIXLY_CORRECT = "1" }
+
+# A closed standard output (`echo hi >&-`). GNU coreutils 9.11 on both
+# hosts: `echo: write error: Bad file descriptor`, status 1 — and the
+# newline `echo` writes with no operand is enough to provoke it.
+
+[[case]]
+name = "standard output closed"
+args = ["hi"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, the newline alone"
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, version"
+args = ["--version"]
+stdout_closed = true

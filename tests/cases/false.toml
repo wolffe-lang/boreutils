@@ -41,3 +41,16 @@ args = ["-"]
 [[case]]
 name = "end of options is ignored"
 args = ["--"]
+
+# A closed standard output (`false >&-`). `false` writes nothing, so its
+# status is its own 1 and stderr is empty; `false --version` writes, and
+# GNU reports the failed write.
+
+[[case]]
+name = "standard output closed, and nothing is written"
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, version"
+args = ["--version"]
+stdout_closed = true

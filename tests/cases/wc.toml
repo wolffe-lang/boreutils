@@ -735,3 +735,29 @@ args = ["-L", "-m", "-w"]
 stdin = "a܏b\n"
 env = { LC_ALL = "C.UTF-8" }
 skip = "the two hosts' wcwidth disagree here: macOS answers 0 and glibc 1, so no single answer can match GNU on both. boreutils follows glibc, where GNU coreutils is native."
+
+# A closed standard output (`wc FILE >&-`). GNU coreutils 9.11 on both
+# hosts: `wc: write error: Bad file descriptor`, status 1. `wc` has no
+# up-front check the way `cat` does; it stops at the first write that
+# fails, which is why a later operand is never reached and only ONE
+# line reaches stderr.
+
+[[case]]
+name = "standard output closed"
+args = ["tests/fixtures/plain.txt"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, a later operand is never reached"
+args = ["tests/fixtures/plain.txt", "nope"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, standard input"
+stdin_file = "plain.txt"
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, version"
+args = ["--version"]
+stdout_closed = true

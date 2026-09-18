@@ -181,3 +181,21 @@ name = "POSIXLY_CORRECT: an option before operands still parses"
 args = ["--help", "a"]
 env = { POSIXLY_CORRECT = "1" }
 compare = ["exit", "stderr"]
+
+# A closed standard output (`basename a/b >&-`). GNU coreutils 9.11 on
+# both hosts: `basename: write error: Bad file descriptor`, status 1.
+# A usage error comes first, because it happens before any write.
+
+[[case]]
+name = "standard output closed"
+args = ["a/b"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, the usage error comes first"
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, version"
+args = ["--version"]
+stdout_closed = true
