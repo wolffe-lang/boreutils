@@ -1,9 +1,26 @@
 # boreutils — CI.
 #
-# Two hosts, because the oracle differs on them: linux runs GNU
-# coreutils natively, macOS runs Homebrew's g-prefixed build. Windows is
-# out of scope for this project (the byte-IO route boreutils uses is
-# `/dev/stdout` and `/dev/stdin`), so there is no windows job.
+# Two hosts, because a utility's behaviour has to be right on both:
+# linux runs GNU coreutils natively, macOS runs Homebrew's g-prefixed
+# build. Windows is out of scope for this project (the byte-IO route
+# boreutils uses is `/dev/stdout` and `/dev/stdin`), so there is no
+# windows job.
+#
+# THE ORACLE OF RECORD (B44). `gnu-oracle.toml` names the one GNU
+# release boreutils is drop-in for, and the gauntlet runs against THAT
+# release on every host rather than against whatever the runner image
+# happens to ship — ubuntu-latest ships 9.4, where Homebrew and Arch
+# ship 9.11, and they differ. `tools/fetch-oracle` installs it by
+# digest, cached on the pin file's hash so the build is paid once.
+# `tools/difftest` refuses to return a verdict against any other
+# version, so this cannot quietly stop being true.
+#
+# The oracle is a BINARY WE RUN, never a source we read: building a
+# released tarball derives no boreutils code from GPL source.
+#
+# The `field` job below is the other half of the ruling and is
+# INFORMATION, not a verdict: it runs the distro's own GNU so the
+# divergences the cases name with gnu_min / gnu_max stay honest.
 #
 # The toolchain is acquired from the release archives BY DIGEST
 # (tools/fetch-toolchain refuses on a mismatch); nothing is built from
@@ -32,13 +49,11 @@ jobs:
           - os: macos-latest
             gnu_prefix: "g"
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
-    env:
-      BORE_GNU_PREFIX: ${{ matrix.gnu_prefix }}
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
-      - name: the oracle and the bench tool
+      - name: the bench tool, and macOS's GNU
         shell: bash
         run: |
           set -euo pipefail
@@ -54,8 +69,29 @@ jobs:
               sudo dpkg -i /tmp/hyperfine.deb
             }
           fi
-          "${BORE_GNU_PREFIX}true" --version | head -1
           hyperfine --version
+
+      # Keyed on the pin file, so bumping the oracle of record is what
+      # invalidates it and nothing else does.
+      - name: the oracle of record, cached
+        uses: actions/cache@v4
+        with:
+          path: .gnu-bin
+          key: gnu-oracle-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gnu-oracle.toml') }}
+
+      - name: the oracle of record, by digest
+        shell: bash
+        run: |
+          set -euo pipefail
+          prefix='${{ matrix.gnu_prefix }}'
+          dir=$(BORE_GNU_PREFIX="$prefix" tools/fetch-oracle)
+          if [ -n "$dir" ]; then
+            # A staged build's binaries are unprefixed, whatever the host
+            # would otherwise call them.
+            echo "$dir" >> "$GITHUB_PATH"
+            prefix=""
+          fi
+          echo "BORE_GNU_PREFIX=$prefix" >> "$GITHUB_ENV"
 
       - name: the pinned toolchain, by digest
         run: tools/fetch-toolchain
@@ -69,7 +105,7 @@ jobs:
       - name: wolf test
         run: tools/check-test
 
-      - name: the differential suite against GNU
+      - name: the differential suite against the oracle of record
         run: tools/difftest
 
       - name: the harness sees a difference (the planted red)
@@ -77,3 +113,34 @@ jobs:
 
       - name: smoke bench
         run: tools/bench --scale 0.0005 --runs 3
+
+  # Not a verdict. The distro's own GNU is what a user on that distro
+  # actually has, and the cases that name a version range with gnu_min /
+  # gnu_max are claims about it — this leg is what keeps those claims
+  # from rotting. It carries continue-on-error because a divergence here
+  # is a finding to record, not a broken build; a failure annotation
+  # under it is an ANNOUNCED ADVISORY.
+  field:
+    name: the field's GNU (information, not a verdict)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 30
+    env:
+      BORE_GNU_PREFIX: ""
+      BORE_ORACLE_ANY: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: what this runner ships
+        # Through `env`: `true` is a shell builtin and the builtin
+        # ignores --version, so the bare spelling prints nothing at all.
+        run: env true --version | head -1
+
+      - name: the pinned toolchain, by digest
+        run: tools/fetch-toolchain
+
+      - name: build (release)
+        run: tools/build
+
+      - name: the differential suite against the distro's GNU
+        run: tools/difftest
