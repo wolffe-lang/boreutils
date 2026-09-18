@@ -14,6 +14,14 @@
 #
 # --help and --version print OUR text (GNU's is the FSF's prose), so
 # their cases compare the exit status and stderr only.
+#
+# THREE cases carry gnu_min = "9.11", and they are `-d ''`. GNU changed
+# what an empty section delimiter means between the releases the field
+# runs: 9.4 turns section matching OFF, so every line is an ordinary
+# body line, and 9.11 matches the empty delimiter, so an EMPTY LINE is
+# a section line and starts a header. boreutils implements 9.11, the
+# oracle of record; the bound is what keeps the non-blocking 9.4 leg
+# honest instead of silent.
 
 # ------------------------------------------------------------ the defaults
 
@@ -343,15 +351,18 @@ stdin = "xyzxyzxyz\nH\nxyzxyz\nB\n"
 [[case]]
 name = "-d empty makes every empty line a section line"
 args = ["-d", "", "-b", "a", "tests/fixtures/pages.txt"]
+gnu_min = "9.11"
 
 [[case]]
 name = "-d empty starts a HEADER, not a footer"
 args = ["-d", "", "-h", "a", "-b", "a"]
+gnu_min = "9.11"
 stdin = "a\n\nb\n"
 
 [[case]]
 name = "-d empty with -f a leaves the section a header"
 args = ["-d", "", "-f", "a", "-b", "a"]
+gnu_min = "9.11"
 stdin = "a\n\nb\n"
 
 [[case]]
