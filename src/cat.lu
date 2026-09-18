@@ -52,6 +52,17 @@ struct Fmt {
     squeeze: bool,
 }
 
+/// Why one operand stopped.
+///
+/// The two are reported in different places and GNU keeps them apart:
+/// an input it could not read is `cat: NAME: reason` and the walk goes
+/// on, while a write it could not make is `cat: write error: reason`
+/// and the program ends — `cat f > /dev/full` names no file at all.
+struct Stop {
+    why: str,
+    unwritable: bool,
+}
+
 /// What survives between bytes, chunks and operands.
 struct State {
     line_start: bool,
@@ -143,9 +154,13 @@ fn main() -> int {
     var st = State { line_start: true, pending_cr: false, blanks: 0, num: 1 }
     var status = 0
     for path in paths {
-        let why = one(out, path, f, mut st, plain)
-        if why.len > 0 {
-            bore.input_error("cat", path, why)
+        let s = one(out, path, f, mut st, plain)
+        if s.unwritable {
+            bore.write_error(out, "cat", "write error")
+            return 1
+        }
+        if s.why.len > 0 {
+            bore.input_error("cat", path, s.why)
             status = 1
         }
     }
@@ -195,21 +210,26 @@ fn read_size() -> int {
 
 /// Copy one operand. Answers `""` on success, or GNU's reason for the
 /// failure, which the caller reports and counts.
-fn one(out: bore.Out, path: str, f: Fmt, mut st: State, plain: bool) -> str {
+fn one(out: bore.Out, path: str, f: Fmt, mut st: State, plain: bool) -> Stop {
     let src = bore.open_input(path) else |e| match e {
-        not_found => { return bore.no_such_file() },
-        denied => { return bore.permission_denied() },
-        is_dir => { return bore.directory_reason() },
-        io => { return bore.io_error() },
+        not_found => { return input_stop(bore.no_such_file()) },
+        denied => { return input_stop(bore.permission_denied()) },
+        is_dir => { return input_stop(bore.directory_reason()) },
+        io => { return input_stop(bore.io_error()) },
     }
-    var why = ""
+    var s = Stop { why: "", unwritable: false }
     if plain {
-        why = copy_bytes(out, src)
+        s = copy_bytes(out, src)
     } else {
-        why = copy_shown(out, src, f, mut st)
+        s = copy_shown(out, src, f, mut st)
     }
     bore.close_input(src)
-    why
+    s
+}
+
+/// An operand that could not be read, named by GNU's reason.
+fn input_stop(why: str) -> Stop {
+    Stop { why: why, unwritable: false }
 }
 
 /// The fast path: no option is on, so the bytes go straight through.
@@ -227,8 +247,9 @@ fn one(out: bore.Out, path: str, f: Fmt, mut st: State, plain: bool) -> str {
 /// Nothing may outlive the block, and that is why the write goes
 /// through `write_direct`, which takes the writer by READ: handing a
 /// region-local list to `write_all`, whose writer is `mut`, is E1010.
-fn copy_bytes(out: bore.Out, src: bore.In) -> str {
+fn copy_bytes(out: bore.Out, src: bore.In) -> Stop {
     var why = ""
+    var unwritable = false
     var stop = false
     while !stop {
         region pass {
@@ -245,12 +266,12 @@ fn copy_bytes(out: bore.Out, src: bore.In) -> str {
             } else {
                 bore.write_direct(out, chunk) else |_| {
                     stop = true
-                    why = bore.io_error()
+                    unwritable = true
                 }
             }
         }
     }
-    why
+    Stop { why: why, unwritable: unwritable }
 }
 
 /// The rendering path: every byte through the state machine.
@@ -271,8 +292,9 @@ fn copy_bytes(out: bore.Out, src: bore.In) -> str {
 /// mutates is rebuilt inside the block: a call holding both a
 /// region-local list and a `mut` struct from outside the block is
 /// E1010, because the compiler must assume the list is stored in it.
-fn copy_shown(out: bore.Out, src: bore.In, f: Fmt, mut st: State) -> str {
+fn copy_shown(out: bore.Out, src: bore.In, f: Fmt, mut st: State) -> Stop {
     var why = ""
+    var unwritable = false
     var stop = false
     var line_start = st.line_start
     var pending_cr = st.pending_cr
@@ -307,7 +329,7 @@ fn copy_shown(out: bore.Out, src: bore.In, f: Fmt, mut st: State) -> str {
                 num = s.num
                 bore.write_direct(out, buf) else |_| {
                     stop = true
-                    why = bore.io_error()
+                    unwritable = true
                 }
             }
         }
@@ -316,7 +338,7 @@ fn copy_shown(out: bore.Out, src: bore.In, f: Fmt, mut st: State) -> str {
     st.pending_cr = pending_cr
     st.blanks = blanks
     st.num = num
-    why
+    Stop { why: why, unwritable: unwritable }
 }
 
 /// One input byte, rendered into `buf`.
