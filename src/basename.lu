@@ -71,7 +71,7 @@ fn main() -> int {
         }
     }
     write_names(mut out, names, suffix, zero) else |_| {
-        bore.warn("basename", "write error")
+        bore.write_error(out, "basename", "write error")
         return 1
     }
     bore.finish(mut out, "basename", 0)
