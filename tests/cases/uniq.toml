@@ -448,6 +448,7 @@ stdin = "a\na\nb\n"
 [[case]]
 name = "an OUTPUT operand of /dev/stdout"
 args = ["tests/fixtures/groups.txt", "/dev/stdout"]
+skip = "The two hosts' /dev/stdout is not the same object, and GNU meets the difference where boreutils does not. GNU opens an OUTPUT operand for WRITING, and on macOS, whose /dev/stdout is a devfs node rather than linux's /proc/self/fd symlink, that fails when descriptor 1 is a pipe: coreutils 9.11 answers 'uniq: /dev/stdout: Bad file descriptor' and exits 1 there and writes the lines on linux. boreutils opens its output in APPEND mode, which bore's own header measures as the only mode safe on both hosts (wolf-lang#405), so it writes the lines on both. Recorded rather than pinned: neither answer is right on both hosts, and the harness's own stdout is a pipe."
 
 [[case]]
 name = "an OUTPUT operand of /dev/null"
