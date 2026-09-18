@@ -281,17 +281,17 @@ fn bracket(bs: List[byte], at: int) -> Bracket {
     Bracket { set: set, next: k, error: "" }
 }
 
-/// Whether `re` matches anywhere in `line[0..n]`.
-pub fn matches(re: Regex, line: List[byte], n: int) -> bool {
+/// Whether `re` matches anywhere in `line[from..to]`.
+pub fn matches(re: Regex, line: List[byte], from: int, to: int) -> bool {
     if re.always {
         return true
     }
     if re.atoms.len == 0 {
         return true
     }
-    var start = 0
-    while start <= n {
-        if match_at(re, 0, line, n, start) {
+    var start = from
+    while start <= to {
+        if match_at(re, 0, line, from, to, start) {
             return true
         }
         if (copy re.atoms[0]).kind == 1 {
@@ -302,41 +302,42 @@ pub fn matches(re: Regex, line: List[byte], n: int) -> bool {
     false
 }
 
-/// Backtracking match of `re` from atom `a` at offset `at`.
-fn match_at(re: Regex, a: int, line: List[byte], n: int, at: int) -> bool {
+/// Backtracking match of `re` from atom `a` at offset `at`, over the
+/// window `line[from..to]`.
+fn match_at(re: Regex, a: int, line: List[byte], from: int, to: int, at: int) -> bool {
     if a >= re.atoms.len {
         return true
     }
     let atom = copy re.atoms[a]
     if atom.kind == 1 {
-        if at != 0 {
+        if at != from {
             return false
         }
-        return match_at(re, a + 1, line, n, at)
+        return match_at(re, a + 1, line, from, to, at)
     }
     if atom.kind == 2 {
-        if at != n {
+        if at != to {
             return false
         }
-        return match_at(re, a + 1, line, n, at)
+        return match_at(re, a + 1, line, from, to, at)
     }
     if !atom.star {
-        if at >= n {
+        if at >= to {
             return false
         }
         if !atom.set[line[at] as int] {
             return false
         }
-        return match_at(re, a + 1, line, n, at + 1)
+        return match_at(re, a + 1, line, from, to, at + 1)
     }
     // Greedy, then give back one at a time.
     var most = at
-    while most < n && atom.set[line[most] as int] {
+    while most < to && atom.set[line[most] as int] {
         most += 1
     }
     var k = most
     while k >= at {
-        if match_at(re, a + 1, line, n, k) {
+        if match_at(re, a + 1, line, from, to, k) {
             return true
         }
         k -= 1
@@ -658,7 +659,7 @@ fn main() -> int {
     if names.len == 0 {
         (mut names).push("-")
     }
-    var at = Where { num: c.start, section: 1 }
+    var at = Where { num: c.start, section: 1, wfail: false }
     var status = 0
     for name in names {
         let src = bore.open_input(name) else |e| match e {
@@ -686,6 +687,11 @@ fn main() -> int {
         at = number_file(out, src, c, at)
         bore.close_input(src)
     }
+    if at.wfail {
+        // One message, after every operand, status 1.
+        bore.write_error(out, "nl", "write error")
+        return 1
+    }
     bore.finish(mut out, "nl", status)
 }
 
@@ -701,26 +707,105 @@ fn range_reason() -> str {
 /// Where the next file picks up: the line number, and the section the
 /// last one ended in. GNU does not start a new file in the body — a
 /// file that ended in a FOOTER leaves the next one's lines unnumbered.
+///
+/// `wfail` is the exit convention's half: streaming through
+/// `bore.write_direct` takes the writer by READ and so cannot mark it
+/// as written to, which means `bore.finish` alone would leave this
+/// program exiting 0 where GNU exits 1. The flag rides out of every
+/// file and the message is printed once, after all of them.
 struct Where {
     num: int,
     section: int,
+    wfail: bool,
+}
+
+/// Whether `line[from..to]` is exactly the bytes of `d`.
+///
+/// A byte comparison, and not `str_from_utf8(line) == delim`: building a
+/// `str` per line allocates and walks the line a second time to validate
+/// its UTF-8, which is work `nl` never needs — a delimiter line is ASCII
+/// or it is not a delimiter line.
+fn is_delim(line: List[byte], from: int, to: int, d: List[byte]) -> bool {
+    if to - from != d.len {
+        return false
+    }
+    var i = 0
+    while i < d.len {
+        if line[from + i] != d[i] {
+            return false
+        }
+        i += 1
+    }
+    true
+}
+
+/// The delimiter `n` copies of `c.delim` names, as bytes.
+fn delim_bytes(delim: str, times: int) -> List[byte] {
+    var out = List[byte]()
+    var t = 0
+    while t < times {
+        for b in delim.bytes() {
+            (mut out).push(b)
+        }
+        t += 1
+    }
+    out
+}
+
+/// One line, written into the chunk's own output buffer.
+///
+/// `line[from..to]` is the line WHERE IT WAS READ — in the chunk when it
+/// arrived whole, and in the carry-over buffer only when it straddled a
+/// boundary. The streaming lane measured that cutting a line out of the
+/// chunk it arrived in beats copying it anywhere first, and this is that
+/// shape.
+fn put_line(
+    mut buf: List[byte],
+    line: List[byte],
+    from: int,
+    to: int,
+    prefix: str,
+    sep: str,
+    pad: str,
+    show: bool,
+) {
+    if show {
+        for b in prefix.bytes() {
+            (mut buf).push(b)
+        }
+        for b in sep.bytes() {
+            (mut buf).push(b)
+        }
+    } else {
+        for b in pad.bytes() {
+            (mut buf).push(b)
+        }
+    }
+    var i = from
+    while i < to {
+        (mut buf).push(line[i])
+        i += 1
+    }
+    (mut buf).push(10 as byte)
 }
 
 /// Number one file, answering where the next one starts.
-fn number_file(out: bore.Out, src: bore.In, c: Conf, at: Where) -> Where {
+fn number_file(out: bore.Out, src: bore.In, c: Conf, at_in: Where) -> Where {
     let keep = region()
     var pending = List[byte]()
     in keep {
         pending = List[byte]()
     }
     var pending_len = 0
-    var num = at.num
-    var section = at.section
+    var num = at_in.num
+    var section = at_in.section
+    var wfail = at_in.wfail
     var blanks = 0
     var stop = false
-    let head = "{c.delim}{c.delim}{c.delim}"
-    let body = "{c.delim}{c.delim}"
-    let foot = c.delim
+    let head = delim_bytes(c.delim, 3)
+    let body = delim_bytes(c.delim, 2)
+    let foot = delim_bytes(c.delim, 1)
+    let pad = spaces(c.width + c.sep.len)
     while !stop {
         region pass {
             let piece = bore.read_chunk(src, chunk()) else |err| match err {
@@ -735,29 +820,42 @@ fn number_file(out: bore.Out, src: bore.In, c: Conf, at: Where) -> Where {
             var k = 0
             while k < piece.len {
                 if piece[k] as int == 10 {
-                    var line = List[byte]()
-                    var j = 0
-                    while j < pending_len {
-                        (mut line).push(pending[j])
-                        j += 1
+                    // A line that straddled the boundary finishes in the
+                    // carry-over buffer; every other line is read where
+                    // it lies, with no copy at all.
+                    var from = at
+                    var to = k
+                    var straddled = pending_len > 0
+                    if straddled {
+                        in keep {
+                            var j = at
+                            while j < k {
+                                if pending_len < pending.len {
+                                    pending[pending_len] = piece[j]
+                                } else {
+                                    (mut pending).push(piece[j])
+                                }
+                                pending_len += 1
+                                j += 1
+                            }
+                        }
+                        from = 0
+                        to = pending_len
                     }
-                    j = at
-                    while j < k {
-                        (mut line).push(piece[j])
-                        j += 1
-                    }
-                    pending_len = 0
-                    let text = str_from_utf8(line) else ""
                     var marked = -1
-                    // An empty -d is NOT "off": every one of the three
-                    // delimiter lines is then the empty string, so an
-                    // empty line starts a HEADER, which is what GNU does
-                    // (`nl -d '' -h a -b a` numbers the line after one).
-                    if text == head {
+                    if straddled {
+                        if is_delim(pending, from, to, head) {
+                            marked = 0
+                        } else if is_delim(pending, from, to, body) {
+                            marked = 1
+                        } else if is_delim(pending, from, to, foot) {
+                            marked = 2
+                        }
+                    } else if is_delim(piece, from, to, head) {
                         marked = 0
-                    } else if text == body {
+                    } else if is_delim(piece, from, to, body) {
                         marked = 1
-                    } else if text == foot {
+                    } else if is_delim(piece, from, to, foot) {
                         marked = 2
                     }
                     if marked >= 0 {
@@ -776,7 +874,7 @@ fn number_file(out: bore.Out, src: bore.In, c: Conf, at: Where) -> Where {
                             style = copy c.footer
                         }
                         var show = false
-                        let n = line.len
+                        let n = to - from
                         if style.kind == 0 {
                             if n == 0 {
                                 blanks += 1
@@ -793,29 +891,27 @@ fn number_file(out: bore.Out, src: bore.In, c: Conf, at: Where) -> Where {
                             show = n > 0
                         } else if style.kind == 3 {
                             blanks = 0
-                            show = matches(style.re, line, n)
+                            if straddled {
+                                show = matches(style.re, pending, from, to)
+                            } else {
+                                show = matches(style.re, piece, from, to)
+                            }
                         } else {
                             blanks = 0
                         }
+                        var prefix = ""
                         if show {
-                            for b in numbered(num, c.format, c.width).bytes() {
-                                (mut buf).push(b)
-                            }
-                            for b in c.sep.bytes() {
-                                (mut buf).push(b)
-                            }
+                            prefix = numbered(num, c.format, c.width)
                             num += c.step
+                        }
+                        if straddled {
+                            put_line(mut buf, pending, from, to, prefix, c.sep, pad, show)
                         } else {
-                            for b in spaces(c.width + c.sep.len).bytes() {
-                                (mut buf).push(b)
-                            }
+                            put_line(mut buf, piece, from, to, prefix, c.sep, pad, show)
                         }
-                        var t = 0
-                        while t < n {
-                            (mut buf).push(line[t])
-                            t += 1
-                        }
-                        (mut buf).push(10 as byte)
+                    }
+                    if straddled {
+                        pending_len = 0
                     }
                     at = k + 1
                 }
@@ -835,8 +931,13 @@ fn number_file(out: bore.Out, src: bore.In, c: Conf, at: Where) -> Where {
                     }
                 }
             }
-            bore.write_direct(out, buf) else |_| {
-                stop = true
+            // Nothing written is never a failure, which is rule five of
+            // the exit convention.
+            if buf.len > 0 {
+                bore.write_direct(out, buf) else |_| {
+                    wfail = true
+                    stop = true
+                }
             }
         }
     }
@@ -858,31 +959,22 @@ fn number_file(out: bore.Out, src: bore.In, c: Conf, at: Where) -> Where {
             } else if style.kind == 1 {
                 show = true
             } else if style.kind == 3 {
-                show = matches(style.re, pending, pending_len)
+                show = matches(style.re, pending, 0, pending_len)
             }
+            var prefix = ""
             if show {
-                for b in numbered(num, c.format, c.width).bytes() {
-                    (mut buf).push(b)
-                }
-                for b in c.sep.bytes() {
-                    (mut buf).push(b)
-                }
+                prefix = numbered(num, c.format, c.width)
                 num += c.step
-            } else {
-                for b in spaces(c.width + c.sep.len).bytes() {
-                    (mut buf).push(b)
-                }
             }
-            var t = 0
-            while t < pending_len {
-                (mut buf).push(pending[t])
-                t += 1
-            }
-            (mut buf).push(10 as byte)
+            put_line(mut buf, pending, 0, pending_len, prefix, c.sep, pad, show)
         }
-        bore.write_direct(out, buf) else |_| {}
+        if buf.len > 0 {
+            bore.write_direct(out, buf) else |_| {
+                wfail = true
+            }
+        }
     }
-    Where { num: num, section: section }
+    Where { num: num, section: section, wfail: wfail }
 }
 
 fn help_text() -> str {
