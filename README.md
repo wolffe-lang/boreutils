@@ -130,6 +130,16 @@ descriptor 1 closed, 9.11 stops at the first write that fails and 9.4
 keeps walking, so `wc FILE nope >&-` names the missing file on 9.4 and
 not on 9.11.
 
+**The transform set adds nine more skips, all the same shape, and none
+of them a coreutils version difference.** They are places where the two
+hosts' C LIBRARIES disagree at one coreutils release, or where GNU's
+long double gives an answer exact arithmetic does not: `uniq +1` (a
+BUILD-TIME POSIX2 setting, not a release, so Arch reads it as a skip and
+Homebrew as a file name), `seq -f %a`, `seq 1 1 1e400`, `seq 1e30 …` and
+two long-double stalls, `nl -w 0`'s `strerror(ERANGE)` wording, and one
+BRE construct `nl` here does not implement. Each names both hosts'
+answers in its own `skip` line.
+
 "vs GNU" is wall-clock from `tools/bench`, GNU's time divided by ours,
 so above 1.00 is faster than GNU. It is a measurement on a stated host,
 never a promise, and the two hosts do not agree: GNU's `yes` is twice
@@ -310,6 +320,85 @@ are in the git history rather than only in this table.
 the same, so a `tail -n 100000` costs what those hundred thousand lines
 weigh and nothing more.
 
+The transform set — `tr`, `uniq`, `seq` and `nl` — has a table of its
+own, and it is the first one taken on ONE host. Wave 45 forbids builds
+on nomad-1, this project's macOS box, so there is no macOS binary to
+measure; every number below is kasumi (linux x86-64, 16 cpus) at load
+1.3, release tier, GNU coreutils 9.11, 5 runs, 256 MiB of generated
+text for the `tr`, `uniq` and `nl` rows and 16 MiB of very short lines
+where the row says so. `seq` reads nothing, so its rows are a million
+numbers each, 5 runs.
+
+**The predictions were written into the bench files before the first
+run, and two of the four were wrong in a way worth keeping.**
+
+| bench | boreutils | GNU | vs GNU |
+|---|---:|---:|---:|
+| `tr a-z A-Z`, 256 MiB | 273 ms | 92 ms | 0.34x |
+| `tr '[:lower:]' '[:upper:]'` | 274 ms | 92 ms | 0.34x |
+| `tr -d a` | 411 ms | 179 ms | 0.44x |
+| `tr -cd '[:alpha:]'` | 700 ms | 441 ms | 0.63x |
+| `tr -s ' '` | 419 ms | 375 ms | 0.90x |
+| `tr -s a-z A-Z` | 422 ms | 1570 ms | **3.72x** |
+| `uniq`, 16 MiB of short lines | 158 ms | 88 ms | 0.56x |
+| `uniq -c`, short lines | 423 ms | 258 ms | 0.61x |
+| `uniq`, 256 MiB of ordinary lines | 822 ms | 295 ms | 0.36x |
+| `uniq -f 1` | 891 ms | 397 ms | 0.45x |
+| `nl`, 16 MiB of short lines | 343 ms | 221 ms | 0.65x |
+| `nl -n rz -w 9`, short lines | 581 ms | 232 ms | 0.40x |
+| `nl`, 256 MiB of ordinary lines | 910 ms | 468 ms | 0.51x |
+| `nl -b 'p^a'` | 899 ms | 668 ms | 0.74x |
+| `seq 1 1000000` | 71 ms | 4.9 ms | 0.07x |
+| `seq -w 1 1000000` | 125 ms | 158 ms | **1.27x** |
+| `seq 0 0.001 1000` | 73 ms | 144 ms | **1.96x** |
+| `seq -f %g 1 1000000` | 108 ms | 148 ms | **1.37x** |
+
+**`tr -s a-z A-Z` is not our win, it is GNU's cliff.** Measured on the
+same file and the same host, 20 runs: GNU squeezes alone in 85 ms and
+translates alone in 95 ms, and does both in 1585 ms — eighteen times
+its own squeeze. boreutils does both in one pass over the byte, so it
+answers in 422 ms whether one is asked for or two, and the ratio is
+3.7x with a standard deviation of 1.3 ms on our side. It is worth
+saying plainly: everywhere else in this table `tr` is behind, by 0.34x
+where the loop is a table lookup and a stored byte.
+
+**`seq` splits in two, and the split is the whole design.** GNU has a
+hand-written decimal incrementer for a pure integer sequence, and it is
+fifteen times faster than anything this project can write today: 4.9 ms
+against 71 ms for a million integers. The moment the sequence is not a
+plain integer walk — a fractional increment, `-w`, a `-f` format — GNU
+falls back to a long double add and a `printf` per value, and exact
+decimal arithmetic beats that by 1.3x to 2.0x. So the exactness `seq`
+promises is not paid for in speed except on the one case GNU
+special-cases.
+
+**What the predictions got wrong.** `uniq` was predicted at 0.4x to
+0.6x and measured at 0.35x to 0.61x, which is a hit. The other three
+missed:
+
+- **`tr`** was predicted at 0.6x to 0.9x for bulk work. Translation is
+  worse than that (0.34x) and the translate-and-squeeze row is 3.72x,
+  four times outside the band in the other direction.
+- **`seq`** was predicted at 0.3x to 0.5x throughout. It is 0.07x on
+  integers and 1.27x to 1.96x everywhere else: wrong in both
+  directions, and the prediction missed that GNU has two paths.
+- **`nl`** was predicted worst on short lines, because the per-line
+  work is what it pays most for. It is the other way round: 0.65x to
+  0.74x on short lines and 0.37x to 0.51x on 64-byte ones. The
+  per-BYTE copy, not the per-line work, is what costs.
+
+Memory is flat in the size of the INPUT and linear in the longest LINE.
+Peak RSS over 256 MiB, ours against GNU's: `tr` 6.9 MB against 2.2 MB,
+`uniq` 13.6 MB against 2.2 MB, `nl` 16.0 MB against 2.4 MB, and `seq`
+3.3 MB for a three-million-number sequence against 2.3 MB. That costs
+one `region` per chunk read, and, in `uniq` and `nl`, a FIRST-CLASS
+region (`let keep = region()`) holding the one or two buffers that must
+outlive a chunk, written through `in keep { }` and overwritten in place
+rather than rebuilt. On a single 64 MiB line with no newline in it,
+where that bound is the line and not the chunk, `uniq` peaks at 527 MB
+against GNU's 70 MB and `nl` at 398 MB: the line is materialized six to
+eight times over on the way through, and GNU holds one copy.
+
 | utility | status | vs GNU |
 |---|---|---|
 | `true` | done | start-up only |
@@ -323,3 +412,8 @@ weigh and nothing more.
 | `head` | done | `-n 1` start-up on both sides; `-n -K` 0.09x (linux) |
 | `tail` | done, `-f` included | pipe `-c` 1.00x, `-n` 0.60x; a file 111 ms against GNU's 0.2 ms, and the reason is wolf-lang#426 |
 | `cut` | done, without 9.11's `-w`, `-F` and `-O` | 0.27x to 0.63x (linux) |
+
+| `tr` | done | 0.34x translating, **3.72x** translating and squeezing (linux) |
+| `uniq` | done | 0.36x to 0.61x (linux) |
+| `seq` | done | 0.07x on integers, **1.27x to 1.96x** everywhere else (linux) |
+| `nl` | done | 0.37x to 0.74x (linux) |
