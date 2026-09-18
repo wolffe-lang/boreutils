@@ -116,8 +116,8 @@ derives no boreutils code from GPL source.
 ## Status
 
 Every utility below is byte-for-byte identical to GNU coreutils 9.11 on
-its differential corpus, on both hosts: 421 differential cases,
-macOS arm64 and linux x86-64. Four `wc` cases are skipped and say why in
+its differential corpus: **1,272 differential cases, 0 failing, 16
+skipped.** Four `wc` cases are skipped and say why in
 the case file: two errno shapes that no wolf fs row can carry
 (wolf-lang#407), and two code points whose display width the two hosts'
 own `wcwidth` disagree about. Five more run only on a host with
@@ -340,14 +340,14 @@ run, and two of the four were wrong in a way worth keeping.**
 | `tr -cd '[:alpha:]'` | 700 ms | 441 ms | 0.63x |
 | `tr -s ' '` | 419 ms | 375 ms | 0.90x |
 | `tr -s a-z A-Z` | 422 ms | 1570 ms | **3.72x** |
-| `uniq`, 16 MiB of short lines | 158 ms | 88 ms | 0.56x |
-| `uniq -c`, short lines | 423 ms | 258 ms | 0.61x |
-| `uniq`, 256 MiB of ordinary lines | 822 ms | 295 ms | 0.36x |
-| `uniq -f 1` | 891 ms | 397 ms | 0.45x |
-| `nl`, 16 MiB of short lines | 343 ms | 221 ms | 0.65x |
-| `nl -n rz -w 9`, short lines | 581 ms | 232 ms | 0.40x |
-| `nl`, 256 MiB of ordinary lines | 910 ms | 468 ms | 0.51x |
-| `nl -b 'p^a'` | 899 ms | 668 ms | 0.74x |
+| `uniq`, 16 MiB of short lines | 95 ms | 90 ms | 0.94x |
+| `uniq -c`, short lines | 392 ms | 255 ms | 0.65x |
+| `uniq`, 256 MiB of ordinary lines | 642 ms | 295 ms | 0.46x |
+| `uniq -f 1` | 759 ms | 389 ms | 0.51x |
+| `nl`, 16 MiB of short lines | 233 ms | 220 ms | 0.94x |
+| `nl -n rz -w 9`, short lines | 447 ms | 231 ms | 0.52x |
+| `nl`, 256 MiB of ordinary lines | 676 ms | 464 ms | 0.69x |
+| `nl -b 'p^a'` | 551 ms | 663 ms | **1.20x** |
 | `seq 1 1000000` | 71 ms | 4.9 ms | 0.07x |
 | `seq -w 1 1000000` | 125 ms | 158 ms | **1.27x** |
 | `seq 0 0.001 1000` | 73 ms | 144 ms | **1.96x** |
@@ -383,13 +383,40 @@ missed:
   integers and 1.27x to 1.96x everywhere else: wrong in both
   directions, and the prediction missed that GNU has two paths.
 - **`nl`** was predicted worst on short lines, because the per-line
-  work is what it pays most for. It is the other way round: 0.65x to
-  0.74x on short lines and 0.37x to 0.51x on 64-byte ones. The
-  per-BYTE copy, not the per-line work, is what costs.
+  work is what it pays most for. It is the other way round: the
+  short-line rows are the best ones. The per-BYTE copy, not the
+  per-line work, is what costs — which is the same conclusion `head`,
+  `tail` and `cut` reached, and their lane's measurement is why the
+  numbers above are what they are.
+
+**`uniq` and `nl` were re-measured after taking the streaming lane's
+finding.** Both first read a line by copying it out of the chunk it
+arrived in, and `nl` then built a `str` from those bytes on EVERY line
+just to compare it against `\:`. Cutting each line out where it lies —
+carrying a line into the boundary buffer only when it actually straddles
+one — and comparing the delimiter as bytes moved seven of the eight
+rows, one of them past GNU:
+
+| bench | before | after |
+|---|---:|---:|
+| `uniq`, short lines | 0.56x | **0.94x** |
+| `uniq`, ordinary lines | 0.36x | 0.46x |
+| `uniq -i` | 0.35x | 0.45x |
+| `uniq -D`, short lines | 0.59x | **1.01x** |
+| `nl`, short lines | 0.65x | **0.94x** |
+| `nl`, ordinary lines | 0.51x | 0.69x |
+| `nl -b n` | 0.37x | 0.51x |
+| `nl -b 'p^a'` | 0.74x | **1.20x** |
+
+Neither utility uses the ring `head`, `tail` and `cut` share: what a
+line straddling a chunk needs here is one buffer that outlives the
+chunk, and that is a first-class region (`let keep = region()`) written
+through `in keep { }`, which is cheaper than a ring for a boundary that
+is crossed once per megabyte.
 
 Memory is flat in the size of the INPUT and linear in the longest LINE.
 Peak RSS over 256 MiB, ours against GNU's: `tr` 6.9 MB against 2.2 MB,
-`uniq` 13.6 MB against 2.2 MB, `nl` 16.0 MB against 2.4 MB, and `seq`
+`uniq` 9.0 MB against 2.2 MB, `nl` 10.5 MB against 2.4 MB, and `seq`
 3.3 MB for a three-million-number sequence against 2.3 MB. That costs
 one `region` per chunk read, and, in `uniq` and `nl`, a FIRST-CLASS
 region (`let keep = region()`) holding the one or two buffers that must
@@ -412,8 +439,7 @@ eight times over on the way through, and GNU holds one copy.
 | `head` | done | `-n 1` start-up on both sides; `-n -K` 0.09x (linux) |
 | `tail` | done, `-f` included | pipe `-c` 1.00x, `-n` 0.60x; a file 111 ms against GNU's 0.2 ms, and the reason is wolf-lang#426 |
 | `cut` | done, without 9.11's `-w`, `-F` and `-O` | 0.27x to 0.63x (linux) |
-
 | `tr` | done | 0.34x translating, **3.72x** translating and squeezing (linux) |
-| `uniq` | done | 0.36x to 0.61x (linux) |
+| `uniq` | done | 0.46x to **1.01x** (linux) |
 | `seq` | done | 0.07x on integers, **1.27x to 1.96x** everywhere else (linux) |
-| `nl` | done | 0.37x to 0.74x (linux) |
+| `nl` | done | 0.51x to **1.20x** (linux) |
