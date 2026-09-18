@@ -122,10 +122,13 @@ the case file: two errno shapes that no wolf fs row can carry
 (wolf-lang#407), and two code points whose display width the two hosts'
 own `wcwidth` disagree about. Five more run only on a host with
 `/dev/full`, which is how a write error on a LIVE descriptor is reached
-at all, and so are skipped on macOS. Eight `wc` cases name the GNU
-version they describe with `gnu_min`, because 9.4 counts words
-differently from 9.11 — those cases are a record of the field, not of
-the oracle, which is 9.11 everywhere the gauntlet runs.
+at all, and so are skipped on macOS. Nine `wc` cases name the GNU
+version they describe with `gnu_min` — those are a record of the field,
+not of the oracle, which is 9.11 everywhere the gauntlet runs. The
+ninth was found by the `field` leg on the first run it ever made: with
+descriptor 1 closed, 9.11 stops at the first write that fails and 9.4
+keeps walking, so `wc FILE nope >&-` names the missing file on 9.4 and
+not on 9.11.
 
 "vs GNU" is wall-clock from `tools/bench`, GNU's time divided by ours,
 so above 1.00 is faster than GNU. It is a measurement on a stated host,
