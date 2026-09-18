@@ -157,23 +157,27 @@ fn fold(n: int, ignore_case: bool) -> int {
     n
 }
 
-/// Where the comparison starts in `line`, given the field and character
-/// skips. `n` is the line's length, which is less than `line.len`
-/// whenever the buffer is one this program reuses.
-pub fn key_start(line: List[byte], n: int, skip_fields: int, skip_chars: int) -> int {
-    var i = 0
+/// Where the comparison starts in the window `line[from..to]`, given the
+/// field and character skips.
+///
+/// A WINDOW, not a whole list, because a line is read where it lies: in
+/// the chunk it arrived in, and in the carry-over buffer only when it
+/// straddled a boundary. The streaming lane measured that copying each
+/// line out first is the expensive shape, and this is the other one.
+pub fn key_start(line: List[byte], from: int, to: int, skip_fields: int, skip_chars: int) -> int {
+    var i = from
     var f = 0
-    while f < skip_fields && i < n {
-        while i < n && is_blank(line[i]) {
+    while f < skip_fields && i < to {
+        while i < to && is_blank(line[i]) {
             i += 1
         }
-        while i < n && !is_blank(line[i]) {
+        while i < to && !is_blank(line[i]) {
             i += 1
         }
         f += 1
     }
     var k = 0
-    while k < skip_chars && i < n {
+    while k < skip_chars && i < to {
         i += 1
         k += 1
     }
@@ -181,23 +185,23 @@ pub fn key_start(line: List[byte], n: int, skip_fields: int, skip_chars: int) ->
 }
 
 /// Where the comparison ends.
-fn key_end(start: int, n: int, check_chars: int) -> int {
+fn key_end(start: int, to: int, check_chars: int) -> int {
     if check_chars < 0 {
-        return n
+        return to
     }
     var e = start + check_chars
-    if e > n {
-        e = n
+    if e > to {
+        e = to
     }
     e
 }
 
-/// Whether two lines compare equal under `c`.
-fn same(a: List[byte], alen: int, b: List[byte], blen: int, c: Conf) -> bool {
-    let astart = key_start(a, alen, c.skip_fields, c.skip_chars)
-    let bstart = key_start(b, blen, c.skip_fields, c.skip_chars)
-    let aend = key_end(astart, alen, c.check_chars)
-    let bend = key_end(bstart, blen, c.check_chars)
+/// Whether two line windows compare equal under `c`.
+fn same(a: List[byte], afrom: int, ato: int, b: List[byte], bfrom: int, bto: int, c: Conf) -> bool {
+    let astart = key_start(a, afrom, ato, c.skip_fields, c.skip_chars)
+    let bstart = key_start(b, bfrom, bto, c.skip_fields, c.skip_chars)
+    let aend = key_end(astart, ato, c.check_chars)
+    let bend = key_end(bstart, bto, c.check_chars)
     if aend - astart != bend - bstart {
         return false
     }
@@ -231,13 +235,14 @@ pub fn counted(n: int) -> str {
     "{spaces(7 - s.len)}{s} "
 }
 
-/// Append one output line to a region-local buffer.
-fn emit(mut buf: List[byte], prefix: str, line: List[byte], n: int, delim: int) {
+/// Append one output line, read from the window it lies in, to a
+/// region-local buffer.
+fn emit(mut buf: List[byte], prefix: str, line: List[byte], from: int, to: int, delim: int) {
     for b in prefix.bytes() {
         (mut buf).push(b)
     }
-    var i = 0
-    while i < n {
+    var i = from
+    while i < to {
         (mut buf).push(line[i])
         i += 1
     }
@@ -521,7 +526,7 @@ fn main() -> int {
                 return 1
             },
         }
-        out = bore.Out { fd: fd, direct: true, buf: List[byte]() }
+        out = bore.Out { fd: fd, direct: true, closed: false, wrote: false, buf: List[byte]() }
     }
     var name = "-"
     if p.operands.len >= 1 {
@@ -593,23 +598,40 @@ fn filter(out: bore.Out, src: bore.In, c: Conf) -> int {
             var k = 0
             while k < piece.len {
                 if piece[k] as int == c.delim {
-                    // One line: what was held over, then this chunk's part.
-                    var line = List[byte]()
-                    var j = 0
-                    while j < pending_len {
-                        (mut line).push(pending[j])
-                        j += 1
+                    // A line that straddled the boundary finishes in the
+                    // carry-over buffer; every other line is compared and
+                    // written where it lies, with no copy at all.
+                    var from = at
+                    var to = k
+                    let straddled = pending_len > 0
+                    if straddled {
+                        in keep {
+                            var j = at
+                            while j < k {
+                                if pending_len < pending.len {
+                                    pending[pending_len] = piece[j]
+                                } else {
+                                    (mut pending).push(piece[j])
+                                }
+                                pending_len += 1
+                                j += 1
+                            }
+                        }
+                        from = 0
+                        to = pending_len
                     }
-                    j = at
-                    while j < k {
-                        (mut line).push(piece[j])
-                        j += 1
-                    }
-                    pending_len = 0
-                    let n = line.len
+                    let n = to - from
                     var opens = true
-                    if have && same(first, first_len, line, n, c) {
-                        opens = false
+                    if have {
+                        if straddled {
+                            if same(first, 0, first_len, pending, from, to, c) {
+                                opens = false
+                            }
+                        } else if same(first, 0, first_len, piece, from, to, c) {
+                            opens = false
+                        }
+                    }
+                    if !opens {
                         count += 1
                     }
                     if opens {
@@ -623,16 +645,22 @@ fn filter(out: bore.Out, src: bore.In, c: Conf) -> int {
                                 if c.count {
                                     prefix = counted(count)
                                 }
-                                emit(mut buf, prefix, first, first_len, c.delim)
+                                emit(mut buf, prefix, first, 0, first_len, c.delim)
                             }
                         }
                         in keep {
                             var t = 0
                             while t < n {
-                                if t < first.len {
-                                    first[t] = line[t]
+                                var v = 0 as byte
+                                if straddled {
+                                    v = pending[from + t]
                                 } else {
-                                    (mut first).push(line[t])
+                                    v = piece[from + t]
+                                }
+                                if t < first.len {
+                                    first[t] = v
+                                } else {
+                                    (mut first).push(v)
                                 }
                                 t += 1
                             }
@@ -651,7 +679,7 @@ fn filter(out: bore.Out, src: bore.In, c: Conf) -> int {
                                 (mut buf).push(c.delim as byte)
                             }
                             any = true
-                            emit(mut buf, "", line, n, c.delim)
+                            emit(mut buf, "", first, 0, first_len, c.delim)
                         }
                     } else if c.all_repeated {
                         if count == 2 {
@@ -663,14 +691,25 @@ fn filter(out: bore.Out, src: bore.In, c: Conf) -> int {
                             }
                             printed += 1
                             if c.first_rep {
-                                emit(mut buf, "", first, first_len, c.delim)
+                                emit(mut buf, "", first, 0, first_len, c.delim)
                             }
                         }
                         if c.later_rep {
-                            emit(mut buf, "", line, n, c.delim)
+                            if straddled {
+                                emit(mut buf, "", pending, from, to, c.delim)
+                            } else {
+                                emit(mut buf, "", piece, from, to, c.delim)
+                            }
                         }
                     } else if c.group >= 0 {
-                        emit(mut buf, "", line, n, c.delim)
+                        if straddled {
+                            emit(mut buf, "", pending, from, to, c.delim)
+                        } else {
+                            emit(mut buf, "", piece, from, to, c.delim)
+                        }
+                    }
+                    if straddled {
+                        pending_len = 0
                     }
                     at = k + 1
                 }
@@ -690,9 +729,11 @@ fn filter(out: bore.Out, src: bore.In, c: Conf) -> int {
                     }
                 }
             }
-            bore.write_direct(out, buf) else |_| {
-                failed = true
-                stop = true
+            if buf.len > 0 {
+                bore.write_direct(out, buf) else |_| {
+                    failed = true
+                    stop = true
+                }
             }
         }
     }
@@ -702,7 +743,7 @@ fn filter(out: bore.Out, src: bore.In, c: Conf) -> int {
         var buf = List[byte]()
         if pending_len > 0 {
             var opens = true
-            if have && same(first, first_len, pending, pending_len, c) {
+            if have && same(first, 0, first_len, pending, 0, pending_len, c) {
                 opens = false
                 count += 1
             }
@@ -717,7 +758,7 @@ fn filter(out: bore.Out, src: bore.In, c: Conf) -> int {
                         if c.count {
                             prefix = counted(count)
                         }
-                        emit(mut buf, prefix, first, first_len, c.delim)
+                        emit(mut buf, prefix, first, 0, first_len, c.delim)
                     }
                 }
                 in keep {
@@ -745,7 +786,7 @@ fn filter(out: bore.Out, src: bore.In, c: Conf) -> int {
                         (mut buf).push(c.delim as byte)
                     }
                     any = true
-                    emit(mut buf, "", first, first_len, c.delim)
+                    emit(mut buf, "", first, 0, first_len, c.delim)
                 }
             } else if c.all_repeated {
                 if count == 2 {
@@ -757,14 +798,14 @@ fn filter(out: bore.Out, src: bore.In, c: Conf) -> int {
                     }
                     printed += 1
                     if c.first_rep {
-                        emit(mut buf, "", first, first_len, c.delim)
+                        emit(mut buf, "", first, 0, first_len, c.delim)
                     }
                 }
                 if c.later_rep {
-                    emit(mut buf, "", pending, pending_len, c.delim)
+                    emit(mut buf, "", pending, 0, pending_len, c.delim)
                 }
             } else if c.group >= 0 {
-                emit(mut buf, "", pending, pending_len, c.delim)
+                emit(mut buf, "", pending, 0, pending_len, c.delim)
             }
         }
         if have && !c.all_repeated && c.group < 0 {
@@ -777,14 +818,16 @@ fn filter(out: bore.Out, src: bore.In, c: Conf) -> int {
                 if c.count {
                     prefix = counted(count)
                 }
-                emit(mut buf, prefix, first, first_len, c.delim)
+                emit(mut buf, prefix, first, 0, first_len, c.delim)
             }
         }
         if c.group >= 0 && any && (c.group == 2 || c.group == 3) {
             (mut buf).push(c.delim as byte)
         }
-        bore.write_direct(out, buf) else |_| {
-            failed = true
+        if buf.len > 0 {
+            bore.write_direct(out, buf) else |_| {
+                failed = true
+            }
         }
     }
     if read_failed {
@@ -792,7 +835,10 @@ fn filter(out: bore.Out, src: bore.In, c: Conf) -> int {
         return 1
     }
     if failed {
-        bore.warn("uniq", "write error")
+        // Streaming through `bore.write_direct` cannot mark the writer
+        // as written to, so `bore.finish` would answer 0 here; the
+        // failure is reported once, in GNU's wording, instead.
+        bore.write_error(out, "uniq", "write error")
         return 1
     }
     0
