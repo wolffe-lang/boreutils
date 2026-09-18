@@ -1,0 +1,1445 @@
+//! member: false
+//!
+//! seq — print a sequence of numbers.
+//!
+//! References consulted: POSIX.1-2024 (seq is a GNU extension, so the
+//! specification here is C's `printf` conversion syntax, XBD 5 and the
+//! `fprintf` page); GNU coreutils 9.11's `seq --help`, the info
+//! manual's option descriptions, and black-box runs of the GNU binary
+//! on macOS arm64 (Homebrew `gseq`) and linux x86-64 (native `seq`),
+//! under `LC_ALL=C`; uutils/coreutils (MIT) and toybox (0BSD) as design
+//! references for the shape of the loop. Never GNU source.
+//!
+//! **The trap is float accumulation, and boreutils does not have one.**
+//! GNU parses the three operands into `long double` and computes the
+//! i-th value as `first + i * step`, never as a running sum, because a
+//! running sum drifts and `seq 0 0.1 1` would end at 0.9999999999999999
+//! instead of 1.0. **boreutils does not use floating point at all.**
+//! Every operand is parsed into an EXACT decimal — a sign, a string of
+//! decimal digits and a scale — and the sequence is a running sum in
+//! that representation, which is exact, so `first + i*step` and "add
+//! step i times" are the same number by construction. There is no last
+//! step to get wrong.
+//!
+//! What that buys, measured against GNU 9.11 on both hosts:
+//!
+//! - **Every default-format value is exact.** The printed precision is
+//!   `max(prec(FIRST), prec(INCREMENT))`, and every value in the
+//!   sequence has at most that scale, so the default format never
+//!   rounds anything. `seq 0 0.1 1` ends at `1.0` on both.
+//! - **Integers past 2^53 stay integers.** `seq 100000000000000000000
+//!   100000000000000000002` is exact here and in GNU, which has a
+//!   separate arbitrary-precision path for that case.
+//! - **Two places where GNU's long double shows through and boreutils
+//!   answers differently**, both recorded as skipped cases in the
+//!   corpus rather than imitated:
+//!   1. **A huge operand that long double cannot separate makes GNU
+//!      loop forever.** `seq -100000000000000000002
+//!      -100000000000000000000` and `seq 100000000000000000000 0.5
+//!      100000000000000000002` print one value over and over on BOTH
+//!      hosts, because `x + step == x` there. boreutils terminates with
+//!      the three, and the two values, that are actually asked for.
+//!   2. **An explicit `-f` precision coarser than the value's own**
+//!      rounds a decimal tie differently. `seq -f %.1f 0.05 0.1 0.35`
+//!      is `0.1 0.2 0.2` in GNU, because long double's 0.05 is a shade
+//!      ABOVE one twentieth; the exact value is a tie and round-half-
+//!      to-even gives `0.0 0.2 0.2`. The default format cannot reach
+//!      this, because it never rounds.
+//!
+//! **GNU's own two hosts disagree about `seq`, at the same release.**
+//! Both are libc, not coreutils: `-f %a` is `0x1p+0` under Apple's libc
+//! and `0x8p-3` under glibc, and `seq 1 1 1e400` is a refused operand on
+//! macOS and an unbounded sequence on linux. `%a` is therefore the one
+//! conversion this program does not implement, and the overflowing
+//! exponent is recorded rather than pinned.
+//!
+//! The rest of GNU's rules, each measured on both hosts:
+//!
+//! - One operand is LAST with FIRST and INCREMENT of 1; two are FIRST
+//!   and LAST; three are FIRST, INCREMENT and LAST. An empty sequence
+//!   prints nothing at all, not even a newline.
+//! - **The precision comes from FIRST and INCREMENT only.** `seq 1 1
+//!   3.5` prints `1 2 3`, not `1.0 2.0 3.0`.
+//! - **The default format is always `%.PRECf`**, where PREC is the
+//!   larger SCALE of FIRST and INCREMENT — the number of decimals the
+//!   operand has once its exponent is applied, so `1e-2` is two and
+//!   `1.5e1` is none. GNU's `--help` says the format "defaults to
+//!   %.PRECf if FIRST, INCREMENT, and LAST are all fixed point decimal
+//!   numbers with maximum precision PREC, and to %g otherwise", and
+//!   BOTH halves of that sentence are wrong about the binary: LAST's
+//!   spelling changes nothing (`seq 1.50 1 3e0` is `1.50 2.50` on both
+//!   hosts), an exponent in FIRST or INCREMENT changes nothing
+//!   (`seq 1e0 0.5 3` is `1.0 1.5 2.0 2.5 3.0`), and no operand form
+//!   this lane could construct ever produced `%g` output. `%g` is
+//!   reachable only through `-f`.
+//! - `-w` pads with leading zeros AFTER the sign, to the width of the
+//!   longer of the two rendered end points: `seq -w -3 3` is
+//!   `-3 -2 -1 00 01 02 03`. It is refused beside `-f`.
+//! - `-s` is written between values and never escaped, and a final
+//!   newline follows the last value whatever `-s` is.
+//! - An operand is what `strtold` accepts: leading blanks, an optional
+//!   sign, decimal or `0x` hex, an optional exponent, or `inf`,
+//!   `infinity` and `nan` in any case. Trailing text is refused.
+//! - `nan` anywhere is its own message; a zero INCREMENT is another;
+//!   both exit 1, as does every usage error in this family.
+
+use bore
+
+// ------------------------------------------------------ exact decimals
+
+/// An exact decimal: a sign, the magnitude's decimal digits
+/// LITTLE-endian, and how many of them are after the point.
+///
+/// Little-endian because addition carries from the low end, and the low
+/// end is where a running sum grows.
+struct Dec {
+    neg: bool,
+    mag: List[int],
+    scale: int,
+    /// The operand was written as a plain fixed-point decimal: no
+    /// exponent and no hex. That is what picks `%.PRECf` over `%g`.
+    plain: bool,
+    /// The operand was `inf` or `infinity`.
+    inf: bool,
+    /// How many digits the operand wrote after its point.
+    prec: int,
+}
+
+/// What `parse_num` answers: the number, or which way it was wrong.
+struct Parsed {
+    d: Dec,
+    ok: bool,
+    nan: bool,
+}
+
+fn zero_dec() -> Dec {
+    var m = List[int]()
+    (mut m).push(0)
+    Dec { neg: false, mag: m, scale: 0, plain: true, inf: false, prec: 0 }
+}
+
+/// Strip the leading zeros of a little-endian magnitude, keeping one
+/// digit.
+fn trim_mag(m: List[int]) -> List[int] {
+    var n = m.len
+    while n > 1 && m[n - 1] == 0 {
+        n -= 1
+    }
+    var out = List[int]()
+    var i = 0
+    while i < n {
+        (mut out).push(m[i])
+        i += 1
+    }
+    out
+}
+
+fn is_zero(m: List[int], n: int) -> bool {
+    var i = 0
+    while i < n {
+        if m[i] != 0 {
+            return false
+        }
+        i += 1
+    }
+    true
+}
+
+/// Compare two little-endian magnitudes: -1, 0 or 1.
+fn mag_cmp(a: List[int], alen: int, b: List[int], blen: int) -> int {
+    var i = alen
+    if blen > i {
+        i = blen
+    }
+    while i > 0 {
+        i -= 1
+        var x = 0
+        if i < alen {
+            x = a[i]
+        }
+        var y = 0
+        if i < blen {
+            y = b[i]
+        }
+        if x != y {
+            if x < y {
+                return -1
+            }
+            return 1
+        }
+    }
+    0
+}
+
+/// `m` times ten to the `n`, as a fresh magnitude.
+fn shift10(m: List[int], n: int) -> List[int] {
+    var out = List[int]()
+    var i = 0
+    while i < n {
+        (mut out).push(0)
+        i += 1
+    }
+    for d in m {
+        (mut out).push(d)
+    }
+    out
+}
+
+/// `m` times `k`, for a small `k`.
+fn mul_small(m: List[int], k: int) -> List[int] {
+    var out = List[int]()
+    var carry = 0
+    for d in m {
+        let v = d * k + carry
+        (mut out).push(v % 10)
+        carry = v / 10
+    }
+    while carry > 0 {
+        (mut out).push(carry % 10)
+        carry = carry / 10
+    }
+    trim_mag(out)
+}
+
+/// `d` restated at `scale` digits after the point. Never loses a digit:
+/// the caller only ever widens.
+fn rescale(d: Dec, scale: int) -> Dec {
+    if scale <= d.scale {
+        return d
+    }
+    Dec {
+        neg: d.neg,
+        mag: shift10(d.mag, scale - d.scale),
+        scale: scale,
+        plain: d.plain,
+        inf: d.inf,
+        prec: d.prec,
+    }
+}
+
+/// Compare two decimals of the SAME scale.
+fn dec_cmp(a: Dec, b: Dec) -> int {
+    let az = is_zero(a.mag, a.mag.len)
+    let bz = is_zero(b.mag, b.mag.len)
+    if az && bz {
+        return 0
+    }
+    if a.neg && !az && (!b.neg || bz) {
+        return -1
+    }
+    if b.neg && !bz && (!a.neg || az) {
+        return 1
+    }
+    let c = mag_cmp(a.mag, a.mag.len, b.mag, b.mag.len)
+    if a.neg && !az {
+        return -c
+    }
+    c
+}
+
+// ------------------------------------------------------------- parsing
+
+fn digit_of(b: int) -> int {
+    if b >= 48 && b <= 57 {
+        return b - 48
+    }
+    -1
+}
+
+fn hex_of(b: int) -> int {
+    if b >= 48 && b <= 57 {
+        return b - 48
+    }
+    if b >= 97 && b <= 102 {
+        return b - 87
+    }
+    if b >= 65 && b <= 70 {
+        return b - 55
+    }
+    -1
+}
+
+fn bad_parse() -> Parsed {
+    Parsed { d: zero_dec(), ok: false, nan: false }
+}
+
+/// One operand, as `strtold` reads it and GNU then checks: leading
+/// blanks, an optional sign, `inf`/`infinity`/`nan` in any case, a hex
+/// form with an optional binary exponent, or a decimal with an optional
+/// decimal exponent. Anything left over is a refusal.
+pub fn parse_num(text: str) -> Parsed {
+    let bs = text.bytes()
+    var i = 0
+    while i < bs.len && (bs[i] as int == 32 || bs[i] as int >= 9 && bs[i] as int <= 13) {
+        i += 1
+    }
+    var neg = false
+    if i < bs.len && (bs[i] as int == 43 || bs[i] as int == 45) {
+        neg = bs[i] as int == 45
+        i += 1
+    }
+    let rest = lower_of(bs, i)
+    if rest == "inf" || rest == "infinity" {
+        var d = zero_dec()
+        d.neg = neg
+        d.inf = true
+        d.plain = false
+        return Parsed { d: d, ok: true, nan: false }
+    }
+    if rest == "nan" {
+        return Parsed { d: zero_dec(), ok: false, nan: true }
+    }
+    if i + 1 < bs.len && bs[i] as int == 48 && (bs[i + 1] as int == 120 || bs[i + 1] as int == 88) {
+        return parse_hex(bs, i + 2, neg)
+    }
+    var mag = List[int]()
+    var seen = 0
+    var frac = 0
+    var dot = false
+    while i < bs.len {
+        let n = bs[i] as int
+        if n == 46 && !dot {
+            dot = true
+            i += 1
+            continue
+        }
+        let d = digit_of(n)
+        if d < 0 {
+            break
+        }
+        (mut mag).push(d)
+        seen += 1
+        if dot {
+            frac += 1
+        }
+        i += 1
+    }
+    if seen == 0 {
+        return bad_parse()
+    }
+    // the digits arrived most significant first; addition wants them
+    // the other way round.
+    var little = List[int]()
+    var k = mag.len
+    while k > 0 {
+        k -= 1
+        (mut little).push(mag[k])
+    }
+    var scale = frac
+    var plain = true
+    if i < bs.len && (bs[i] as int == 101 || bs[i] as int == 69) {
+        plain = false
+        i += 1
+        var eneg = false
+        if i < bs.len && (bs[i] as int == 43 || bs[i] as int == 45) {
+            eneg = bs[i] as int == 45
+            i += 1
+        }
+        var ev = 0
+        var edigits = 0
+        while i < bs.len {
+            let d = digit_of(bs[i] as int)
+            if d < 0 {
+                break
+            }
+            if ev < 100000 {
+                ev = ev * 10 + d
+            }
+            edigits += 1
+            i += 1
+        }
+        if edigits == 0 {
+            return bad_parse()
+        }
+        if eneg {
+            scale += ev
+        } else if ev >= scale {
+            little = shift10(little, ev - scale)
+            scale = 0
+        } else {
+            scale -= ev
+        }
+    }
+    if i != bs.len {
+        return bad_parse()
+    }
+    Parsed {
+        d: Dec {
+            neg: neg,
+            mag: trim_mag(little),
+            scale: scale,
+            plain: plain,
+            inf: false,
+            prec: frac,
+        },
+        ok: true,
+        nan: false,
+    }
+}
+
+/// `bs` from `at` to the end, lower-cased, for the word tests.
+fn lower_of(bs: List[byte], at: int) -> str {
+    var out = List[byte]()
+    var i = at
+    while i < bs.len {
+        var n = bs[i] as int
+        if n >= 65 && n <= 90 {
+            n += 32
+        }
+        (mut out).push(n as byte)
+        i += 1
+    }
+    str_from_utf8(out) else ""
+}
+
+/// The `0x` form. The value is a hex integer times two to a power, and
+/// both directions are exact in decimal: doubling is `mul_small(m, 2)`
+/// and halving is `mul_small(m, 5)` with one more digit of scale.
+fn parse_hex(bs: List[byte], at: int, neg: bool) -> Parsed {
+    var mag = List[int]()
+    (mut mag).push(0)
+    var seen = 0
+    var frac = 0
+    var dot = false
+    var i = at
+    while i < bs.len {
+        let n = bs[i] as int
+        if n == 46 && !dot {
+            dot = true
+            i += 1
+            continue
+        }
+        let h = hex_of(n)
+        if h < 0 {
+            break
+        }
+        mag = mul_small(mag, 16)
+        var add = List[int]()
+        (mut add).push(h)
+        mag = add_mag(mag, mag.len, add, add.len)
+        seen += 1
+        if dot {
+            frac += 1
+        }
+        i += 1
+    }
+    if seen == 0 {
+        return bad_parse()
+    }
+    var twos = 0 - frac * 4
+    if i < bs.len && (bs[i] as int == 112 || bs[i] as int == 80) {
+        i += 1
+        var eneg = false
+        if i < bs.len && (bs[i] as int == 43 || bs[i] as int == 45) {
+            eneg = bs[i] as int == 45
+            i += 1
+        }
+        var ev = 0
+        var edigits = 0
+        while i < bs.len {
+            let d = digit_of(bs[i] as int)
+            if d < 0 {
+                break
+            }
+            if ev < 100000 {
+                ev = ev * 10 + d
+            }
+            edigits += 1
+            i += 1
+        }
+        if edigits == 0 {
+            return bad_parse()
+        }
+        if eneg {
+            twos -= ev
+        } else {
+            twos += ev
+        }
+    }
+    if i != bs.len {
+        return bad_parse()
+    }
+    var scale = 0
+    var k = 0
+    while k < twos {
+        mag = mul_small(mag, 2)
+        k += 1
+    }
+    k = 0
+    while k > twos {
+        mag = mul_small(mag, 5)
+        scale += 1
+        k -= 1
+    }
+    Parsed {
+        d: Dec { neg: neg, mag: trim_mag(mag), scale: scale, plain: false, inf: false, prec: 0 },
+        ok: true,
+        nan: false,
+    }
+}
+
+/// Two little-endian magnitudes added.
+fn add_mag(a: List[int], alen: int, b: List[int], blen: int) -> List[int] {
+    var out = List[int]()
+    var carry = 0
+    var i = 0
+    var n = alen
+    if blen > n {
+        n = blen
+    }
+    while i < n || carry > 0 {
+        var v = carry
+        if i < alen {
+            v += a[i]
+        }
+        if i < blen {
+            v += b[i]
+        }
+        (mut out).push(v % 10)
+        carry = v / 10
+        i += 1
+    }
+    if out.len == 0 {
+        (mut out).push(0)
+    }
+    out
+}
+
+// ---------------------------------------------------------- formatting
+
+/// What one conversion asks for.
+struct Spec {
+    /// 'f', 'e' or 'g' as a byte value; `upper` says which case.
+    conv: int,
+    upper: bool,
+    prec: int,
+    width: int,
+    left: bool,
+    zero: bool,
+    plus: bool,
+    space: bool,
+    alt: bool,
+}
+
+fn plain_spec(prec: int) -> Spec {
+    Spec {
+        conv: 102,
+        upper: false,
+        prec: prec,
+        width: 0,
+        left: false,
+        zero: false,
+        plus: false,
+        space: false,
+        alt: false,
+    }
+}
+
+fn g_spec() -> Spec {
+    Spec {
+        conv: 103,
+        upper: false,
+        prec: 6,
+        width: 0,
+        left: false,
+        zero: false,
+        plus: false,
+        space: false,
+        alt: false,
+    }
+}
+
+/// The magnitude as BIG-endian digits, with at least one digit before
+/// the point: the shape every rendering below walks.
+fn big_digits(mag: List[int], n: int, scale: int) -> List[int] {
+    var out = List[int]()
+    var len = n
+    if len < scale + 1 {
+        len = scale + 1
+    }
+    var i = len
+    while i > 0 {
+        i -= 1
+        if i < n {
+            (mut out).push(mag[i])
+        } else {
+            (mut out).push(0)
+        }
+    }
+    out
+}
+
+/// Round the big-endian digit list `ds` so that only `keep` digits
+/// remain, half to even, as C's printf does on an exact tie. Answers
+/// the kept digits, and pushes a leading 1 when the carry runs off the
+/// front (so the caller must notice the length changed).
+fn round_to(ds: List[int], keep: int) -> List[int] {
+    var out = List[int]()
+    var i = 0
+    while i < keep {
+        (mut out).push(ds[i])
+        i += 1
+    }
+    if keep >= ds.len {
+        return out
+    }
+    let next = ds[keep]
+    var up = false
+    if next > 5 {
+        up = true
+    } else if next == 5 {
+        var rest = false
+        var j = keep + 1
+        while j < ds.len {
+            if ds[j] != 0 {
+                rest = true
+            }
+            j += 1
+        }
+        if rest {
+            up = true
+        } else if keep > 0 && out[keep - 1] % 2 == 1 {
+            up = true
+        } else if keep == 0 {
+            up = false
+        }
+    }
+    if !up {
+        return out
+    }
+    var k = keep
+    var carry = 1
+    while k > 0 && carry > 0 {
+        k -= 1
+        let v = out[k] + carry
+        out[k] = v % 10
+        carry = v / 10
+    }
+    if carry > 0 {
+        var wider = List[int]()
+        (mut wider).push(1)
+        for d in out {
+            (mut wider).push(d)
+        }
+        return wider
+    }
+    out
+}
+
+/// The `%f` body, without sign, width or padding.
+fn body_f(mag: List[int], n: int, scale: int, prec: int, alt: bool) -> str {
+    let ds = big_digits(mag, n, scale)
+    let intlen = ds.len - scale
+    var kept = copy ds
+    var ilen = intlen
+    if prec < scale {
+        kept = round_to(ds, intlen + prec)
+        ilen = kept.len - prec
+    }
+    var out = List[byte]()
+    var i = 0
+    while i < ilen {
+        (mut out).push((48 + kept[i]) as byte)
+        i += 1
+    }
+    var written = 0
+    if prec > 0 || alt {
+        (mut out).push(46 as byte)
+    }
+    while i < kept.len && written < prec {
+        (mut out).push((48 + kept[i]) as byte)
+        i += 1
+        written += 1
+    }
+    while written < prec {
+        (mut out).push(48 as byte)
+        written += 1
+    }
+    str_from_utf8(out) else "0"
+}
+
+/// The significant digits of a value and the exponent of the first of
+/// them. A zero answers one digit and an exponent of 0.
+struct Sig {
+    digits: List[int],
+    exp: int,
+}
+
+fn significant(mag: List[int], n: int, scale: int) -> Sig {
+    let ds = big_digits(mag, n, scale)
+    var lead = 0
+    while lead < ds.len - 1 && ds[lead] == 0 {
+        lead += 1
+    }
+    var out = List[int]()
+    var i = lead
+    while i < ds.len {
+        (mut out).push(ds[i])
+        i += 1
+    }
+    if is_zero(out, out.len) {
+        var z = List[int]()
+        (mut z).push(0)
+        return Sig { digits: z, exp: 0 }
+    }
+    Sig { digits: out, exp: ds.len - scale - 1 - lead }
+}
+
+/// The `%e` body.
+fn body_e(mag: List[int], n: int, scale: int, prec: int, upper: bool, alt: bool) -> str {
+    let s = significant(mag, n, scale)
+    var exp = s.exp
+    var kept = s.digits
+    if prec + 1 < kept.len {
+        let before = kept.len
+        kept = round_to(kept, prec + 1)
+        if kept.len > prec + 1 {
+            // the carry ran off the front, so the exponent grew
+            exp += 1
+            var cut = List[int]()
+            var i = 0
+            while i < prec + 1 {
+                (mut cut).push(kept[i])
+                i += 1
+            }
+            kept = cut
+        }
+        let _ = before
+    }
+    if is_zero(kept, kept.len) {
+        exp = 0
+    }
+    var out = List[byte]()
+    (mut out).push((48 + kept[0]) as byte)
+    if prec > 0 || alt {
+        (mut out).push(46 as byte)
+    }
+    var i = 1
+    var written = 0
+    while i < kept.len && written < prec {
+        (mut out).push((48 + kept[i]) as byte)
+        i += 1
+        written += 1
+    }
+    while written < prec {
+        (mut out).push(48 as byte)
+        written += 1
+    }
+    if upper {
+        (mut out).push(69 as byte)
+    } else {
+        (mut out).push(101 as byte)
+    }
+    var e = exp
+    if e < 0 {
+        (mut out).push(45 as byte)
+        e = -e
+    } else {
+        (mut out).push(43 as byte)
+    }
+    let text = "{e}"
+    if text.len < 2 {
+        (mut out).push(48 as byte)
+    }
+    for b in text.bytes() {
+        (mut out).push(b)
+    }
+    str_from_utf8(out) else "0"
+}
+
+/// Trailing zeros of a fractional part removed, and the point with them
+/// when nothing is left after it. What `%g` does without `#`.
+fn strip_zeros(s: str) -> str {
+    if !s.contains(".") {
+        return s
+    }
+    let epos = s.find("e") else s.find("E") else -1
+    var body = s
+    var tail = ""
+    if epos >= 0 {
+        body = s[0..epos]
+        tail = s[epos..]
+    }
+    var end = body.len
+    while end > 0 && body[end - 1..end] == "0" {
+        end -= 1
+    }
+    if end > 0 && body[end - 1..end] == "." {
+        end -= 1
+    }
+    "{body[0..end]}{tail}"
+}
+
+/// The `%g` body: `%e` when the exponent is small or large, `%f`
+/// otherwise, each at the precision C's rule asks for, then trailing
+/// zeros away unless `#`.
+fn body_g(mag: List[int], n: int, scale: int, prec: int, upper: bool, alt: bool) -> str {
+    var p = prec
+    if p == 0 {
+        p = 1
+    }
+    let s = significant(mag, n, scale)
+    var exp = s.exp
+    if p < s.digits.len {
+        let kept = round_to(s.digits, p)
+        if kept.len > p {
+            exp += 1
+        }
+    }
+    if is_zero(s.digits, s.digits.len) {
+        exp = 0
+    }
+    var text = ""
+    if exp < -4 || exp >= p {
+        text = body_e(mag, n, scale, p - 1, upper, alt)
+    } else {
+        text = body_f(mag, n, scale, p - 1 - exp, alt)
+    }
+    if alt {
+        return text
+    }
+    strip_zeros(text)
+}
+
+/// One value, rendered whole: sign, body, and whatever padding the
+/// flags and width ask for.
+fn render(mag: List[int], n: int, neg: bool, scale: int, sp: Spec) -> str {
+    var body = ""
+    if sp.conv == 101 {
+        body = body_e(mag, n, scale, sp.prec, sp.upper, sp.alt)
+    } else if sp.conv == 103 {
+        body = body_g(mag, n, scale, sp.prec, sp.upper, sp.alt)
+    } else {
+        body = body_f(mag, n, scale, sp.prec, sp.alt)
+    }
+    var sign = ""
+    if neg {
+        sign = "-"
+    } else if sp.plus {
+        sign = "+"
+    } else if sp.space {
+        sign = " "
+    }
+    let len = sign.len + body.len
+    if len >= sp.width {
+        return "{sign}{body}"
+    }
+    let pad = sp.width - len
+    if sp.left {
+        return "{sign}{body}{fill(pad, " ")}"
+    }
+    if sp.zero {
+        return "{sign}{fill(pad, "0")}{body}"
+    }
+    "{fill(pad, " ")}{sign}{body}"
+}
+
+fn fill(n: int, what: str) -> str {
+    var out = List[byte]()
+    var i = 0
+    while i < n {
+        for b in what.bytes() {
+            (mut out).push(b)
+        }
+        i += 1
+    }
+    str_from_utf8(out) else ""
+}
+
+/// `-w`: zeros go after the sign, never before it.
+fn widen(s: str, width: int) -> str {
+    if s.len >= width {
+        return s
+    }
+    if s.starts_with("-") || s.starts_with("+") {
+        return "{s[0..1]}{fill(width - s.len, "0")}{s[1..]}"
+    }
+    "{fill(width - s.len, "0")}{s}"
+}
+
+// ---------------------------------------------------------- the format
+
+/// A `-f` format broken into the text before the one conversion, the
+/// conversion, and the text after it.
+struct Fmt {
+    before: str,
+    after: str,
+    spec: Spec,
+    error: str,
+}
+
+/// Read `-f`'s argument, and refuse it exactly as GNU does: no
+/// directive, more than one, a directive that ends the string, or a
+/// conversion that is not one of the float ones.
+pub fn parse_format(text: str) -> Fmt {
+    var sp = plain_spec(6)
+    var bad = Fmt { before: "", after: "", spec: copy sp, error: "" }
+    let bs = text.bytes()
+    var before = List[byte]()
+    var after = List[byte]()
+    var found = false
+    var i = 0
+    while i < bs.len {
+        let n = bs[i] as int
+        if n != 37 {
+            if found {
+                (mut after).push(bs[i])
+            } else {
+                (mut before).push(bs[i])
+            }
+            i += 1
+            continue
+        }
+        if i + 1 < bs.len && bs[i + 1] as int == 37 {
+            if found {
+                (mut after).push(37 as byte)
+            } else {
+                (mut before).push(37 as byte)
+            }
+            i += 2
+            continue
+        }
+        if found {
+            bad.error = "format {bore.quote(text)} has too many % directives"
+            return bad
+        }
+        var j = i + 1
+        var left = false
+        var zero = false
+        var plus = false
+        var space = false
+        var alt = false
+        while j < bs.len {
+            let f = bs[j] as int
+            if f == 45 {
+                left = true
+            } else if f == 48 {
+                zero = true
+            } else if f == 43 {
+                plus = true
+            } else if f == 32 {
+                space = true
+            } else if f == 35 {
+                alt = true
+            } else {
+                break
+            }
+            j += 1
+        }
+        var width = 0
+        while j < bs.len && digit_of(bs[j] as int) >= 0 {
+            if width < 100000 {
+                width = width * 10 + digit_of(bs[j] as int)
+            }
+            j += 1
+        }
+        var prec = 6
+        if j < bs.len && bs[j] as int == 46 {
+            j += 1
+            prec = 0
+            while j < bs.len && digit_of(bs[j] as int) >= 0 {
+                if prec < 100000 {
+                    prec = prec * 10 + digit_of(bs[j] as int)
+                }
+                j += 1
+            }
+        }
+        if j >= bs.len {
+            bad.error = "format {bore.quote(text)} ends in %"
+            return bad
+        }
+        let conv = bs[j] as int
+        var upper = false
+        var base = conv
+        if conv == 69 || conv == 70 || conv == 71 {
+            upper = true
+            base = conv + 32
+        }
+        if base != 101 && base != 102 && base != 103 {
+            let one = text[0..0]
+            let _ = one
+            bad.error = "format {bore.quote(text)} has unknown %{char_at(bs, j)} directive"
+            return bad
+        }
+        sp = Spec {
+            conv: base,
+            upper: upper,
+            prec: prec,
+            width: width,
+            left: left,
+            zero: zero,
+            plus: plus,
+            space: space,
+            alt: alt,
+        }
+        found = true
+        i = j + 1
+    }
+    if !found {
+        bad.error = "format {bore.quote(text)} has no % directive"
+        return bad
+    }
+    Fmt {
+        before: str_from_utf8(before) else "",
+        after: str_from_utf8(after) else "",
+        spec: sp,
+        error: "",
+    }
+}
+
+fn char_at(bs: List[byte], i: int) -> str {
+    var out = List[byte]()
+    (mut out).push(bs[i])
+    str_from_utf8(out) else "?"
+}
+
+// ------------------------------------------------------------ the main
+
+/// The marker that hides a negative-number operand from the option
+/// parser.
+///
+/// GNU's `seq` accepts `seq -w -3 3` and `seq 1 1 -inf`: an argument
+/// that starts with `-` and parses as a NUMBER is an operand, not a
+/// cluster of options. `bore.parse` has no way to be told that, so such
+/// an argument is prefixed here with U+0001 — which no option can
+/// start with, so `bore.parse` files it as an operand — and the marker
+/// is taken off again below. Reported to the wave as a `bore` gap
+/// rather than fixed in `bore`, which bu05 owns this wave.
+fn marker() -> str {
+    "\u{1}"
+}
+
+/// Every argument that starts with `-` and parses as a number, marked
+/// so the option parser files it as an operand. See `marker`.
+pub fn shield(args: List[str]) -> List[str] {
+    var out = List[str]()
+    var done = false
+    for a in args {
+        if done || a.len < 2 || !a.starts_with("-") {
+            if a == "--" {
+                done = true
+            }
+            (mut out).push(a)
+            continue
+        }
+        if a == "--" {
+            done = true
+            (mut out).push(a)
+            continue
+        }
+        let got = parse_num(a)
+        if got.ok || got.nan {
+            (mut out).push("{marker()}{a}")
+        } else {
+            (mut out).push(a)
+        }
+    }
+    out
+}
+
+fn unshield(a: str) -> str {
+    if a.starts_with(marker()) {
+        return a[marker().len..]
+    }
+    a
+}
+
+fn options() -> List[bore.Opt] {
+    var s = List[bore.Opt]()
+    (mut s).push(bore.takes("f", "format"))
+    (mut s).push(bore.takes("s", "separator"))
+    (mut s).push(bore.flag("w", "equal-width"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    s
+}
+
+/// How many values fit in one output region before it is written.
+fn batch() -> int {
+    4096
+}
+
+fn main() -> int {
+    let p = bore.parse(options(), shield(env_args()), bore.permute())
+    var out = bore.stdout()
+    var sep = "\n"
+    var equal = false
+    var format = ""
+    var has_format = false
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i]
+        let v = p.values[i]
+        if k == "help" {
+            bore.put(mut out, help_text()) else |_| {}
+            return bore.finish(mut out, "seq", 0)
+        }
+        if k == "version" {
+            bore.put(mut out, bore.version_text("seq")) else |_| {}
+            return bore.finish(mut out, "seq", 0)
+        }
+        if k == "separator" {
+            sep = v
+        }
+        if k == "equal-width" {
+            equal = true
+        }
+        if k == "format" {
+            format = v
+            has_format = true
+        }
+        i += 1
+    }
+    if !bore.ok(p) {
+        return bore.usage_error("seq", p.error)
+    }
+    if has_format && equal {
+        return bore.usage_error(
+            "seq",
+            "format string may not be specified when printing equal width strings",
+        )
+    }
+    if p.operands.len == 0 {
+        return bore.usage_error("seq", "missing operand")
+    }
+    if p.operands.len > 3 {
+        return bore.usage_error("seq", "extra operand {bore.quote(unshield(p.operands[3]))}")
+    }
+
+    var first = one_dec()
+    var step = one_dec()
+    var last = zero_dec()
+    var n = 0
+    while n < p.operands.len {
+        let raw = unshield(p.operands[n])
+        let got = parse_num(raw)
+        if got.nan {
+            return bore.usage_error("seq", "invalid 'not-a-number' argument: {bore.quote(raw)}")
+        }
+        if !got.ok {
+            return bore.usage_error("seq", "invalid floating point argument: {bore.quote(raw)}")
+        }
+        if p.operands.len == 1 {
+            last = got.d
+        } else if n == 0 {
+            first = got.d
+        } else if n == 1 && p.operands.len == 3 {
+            step = got.d
+        } else {
+            last = got.d
+        }
+        n += 1
+    }
+    if !step.inf && is_zero(step.mag, step.mag.len) {
+        var which = unshield(p.operands[1])
+        if p.operands.len != 3 {
+            which = "1"
+        }
+        return bore.usage_error("seq", "invalid Zero increment value: {bore.quote(which)}")
+    }
+    // An infinite FIRST or INCREMENT: measured against GNU, `seq inf 1 5`
+    // and `seq 1 1 -inf` print nothing, because the very first
+    // comparison already fails. `seq -inf …` walks from an infinity that
+    // never moves and is not imitated here; nothing in the corpus can
+    // reach it, and the header says so.
+    if first.inf || step.inf {
+        return bore.finish(mut out, "seq", 0)
+    }
+
+    // The printed precision comes from FIRST and INCREMENT only, and
+    // the format is %g unless all three were written as plain decimals.
+    // The precision is the SCALE — how many decimals the operand
+    // actually has once its exponent is applied — of FIRST and
+    // INCREMENT, whichever is larger. `1e-2` is two decimals and
+    // `1.5e1` is none, which is what makes the exponent forms print the
+    // same as the plain ones.
+    var prec = first.scale
+    if step.scale > prec {
+        prec = step.scale
+    }
+    let spec_default = plain_spec(prec)
+    var spec = spec_default
+    var before = ""
+    var after = ""
+    if has_format {
+        let f = parse_format(format)
+        if f.error.len > 0 {
+            bore.warn("seq", f.error)
+            return 1
+        }
+        spec = f.spec
+        before = f.before
+        after = f.after
+    }
+
+    // Everything is restated at one scale, so the running sum is exact.
+    var scale = first.scale
+    if step.scale > scale {
+        scale = step.scale
+    }
+    if !last.inf && last.scale > scale {
+        scale = last.scale
+    }
+    first = rescale(first, scale)
+    step = rescale(step, scale)
+    if !last.inf {
+        last = rescale(last, scale)
+    }
+
+    // An infinite LAST is a bound only in the direction it lies: a
+    // positive one never stops an ascending walk and stops a descending
+    // one at once, and the other way round for a negative one.
+    if last.inf {
+        let up_forever = !step.neg && !last.neg
+        let down_forever = step.neg && last.neg
+        if !up_forever && !down_forever {
+            return bore.finish(mut out, "seq", 0)
+        }
+    }
+
+    var width = 0
+    if equal {
+        let a = render(first.mag, first.mag.len, first.neg, scale, spec)
+        var b = a
+        if !last.inf {
+            b = render(last.mag, last.mag.len, last.neg, scale, spec)
+        }
+        width = a.len
+        if b.len > width {
+            width = b.len
+        }
+    }
+    let status = walk(out, first, step, last, scale, spec, width, equal, sep, before, after)
+    bore.finish(mut out, "seq", status)
+}
+
+fn one_dec() -> Dec {
+    var m = List[int]()
+    (mut m).push(1)
+    Dec { neg: false, mag: m, scale: 0, plain: true, inf: false, prec: 0 }
+}
+
+/// Walk the sequence, writing a batch of values per region.
+///
+/// The running value is a magnitude allocated ONCE, in this frame's own
+/// region, wide enough for anything the sequence can reach, and the
+/// running sum then only ever ASSIGNS into it. That matters twice: an
+/// unbounded sequence costs a bounded amount of memory, and no
+/// allocation happens inside `region pass`, which is what makes the
+/// formatted text of a batch the only thing that region holds.
+///
+/// It also steers around wolf-lang#421: doing the same sum with
+/// `(mut cur).push(...)` inside an `in keep { }` block nested in
+/// `region pass` is an ICE in the mid-end ("wir verify error
+/// [dominance] in @walk"), filed with a four-line witness.
+fn walk(
+    out: bore.Out,
+    first: Dec,
+    step: Dec,
+    last: Dec,
+    scale: int,
+    spec: Spec,
+    width: int,
+    equal: bool,
+    sep: str,
+    before: str,
+    after: str,
+) -> int {
+    // Wide enough for every value the sequence can reach: the running
+    // value stays between FIRST and LAST, and one step may pass LAST.
+    var room = first.mag.len + step.mag.len + 3
+    if !last.inf && last.mag.len + step.mag.len + 3 > room {
+        room = last.mag.len + step.mag.len + 3
+    }
+    if last.inf {
+        // Nothing bounds it but the reader closing the pipe. Sixty-four
+        // decimal digits is past any sequence a machine can finish.
+        room = 64
+    }
+    var cur = List[int]()
+    var i = 0
+    while i < room {
+        var d = 0
+        if i < first.mag.len {
+            d = first.mag[i]
+        }
+        (mut cur).push(d)
+        i += 1
+    }
+    var cur_len = first.mag.len
+    var cur_neg = first.neg
+    let down = step.neg
+    var wrote = false
+    var failed = false
+    var done = false
+    while !done {
+        region pass {
+            var buf = List[byte]()
+            var k = 0
+            while k < batch() && !done {
+                if !last.inf {
+                    let c = cmp_running(cur, cur_len, cur_neg, last)
+                    if down && c < 0 {
+                        done = true
+                    }
+                    if !down && c > 0 {
+                        done = true
+                    }
+                }
+                if !done {
+                    if wrote {
+                        for b in sep.bytes() {
+                            (mut buf).push(b)
+                        }
+                    }
+                    for b in before.bytes() {
+                        (mut buf).push(b)
+                    }
+                    var text = render(cur, cur_len, cur_neg, scale, spec)
+                    if equal {
+                        text = widen(text, width)
+                    }
+                    for b in text.bytes() {
+                        (mut buf).push(b)
+                    }
+                    for b in after.bytes() {
+                        (mut buf).push(b)
+                    }
+                    wrote = true
+                    // The running sum, in place. Same signs add, opposite
+                    // signs subtract the smaller from the larger.
+                    if cur_neg == step.neg {
+                        var carry = 0
+                        var j = 0
+                        while j < step.mag.len || carry > 0 {
+                            var v = carry
+                            if j < step.mag.len {
+                                v += step.mag[j]
+                            }
+                            if j < cur_len {
+                                v += cur[j]
+                            }
+                            if j >= cur.len {
+                                done = true
+                                failed = true
+                                break
+                            }
+                            cur[j] = v % 10
+                            carry = v / 10
+                            j += 1
+                            if j > cur_len {
+                                cur_len = j
+                            }
+                        }
+                    } else {
+                        // Opposite signs: the larger magnitude minus the
+                        // smaller, in ONE loop. Two separate subtracting
+                        // loops here is wolf-lang#421, an ICE in the
+                        // mid-end; this shape compiles and says the same
+                        // thing.
+                        let mine = mag_cmp(cur, cur_len, step.mag, step.mag.len) >= 0
+                        var n = cur_len
+                        if !mine {
+                            n = step.mag.len
+                        }
+                        var owed = 0
+                        var j = 0
+                        while j < n {
+                            var big = 0
+                            var small = 0
+                            if mine {
+                                big = cur[j]
+                                if j < step.mag.len {
+                                    small = step.mag[j]
+                                }
+                            } else {
+                                if j < step.mag.len {
+                                    big = step.mag[j]
+                                }
+                                if j < cur_len {
+                                    small = cur[j]
+                                }
+                            }
+                            var v = big - small - owed
+                            owed = 0
+                            if v < 0 {
+                                v += 10
+                                owed = 1
+                            }
+                            cur[j] = v
+                            j += 1
+                        }
+                        if !mine {
+                            cur_len = step.mag.len
+                            cur_neg = step.neg
+                        }
+                        while cur_len > 1 && cur[cur_len - 1] == 0 {
+                            cur_len -= 1
+                        }
+                    }
+                    if cur_len == 1 && cur[0] == 0 {
+                        cur_neg = false
+                    }
+                }
+                k += 1
+            }
+            if wrote && done {
+                (mut buf).push(10 as byte)
+            }
+            bore.write_direct(out, buf) else |_| {
+                failed = true
+                done = true
+            }
+        }
+    }
+    if failed {
+        bore.warn("seq", "write error")
+        return 1
+    }
+    0
+}
+
+/// Compare the running value against LAST, both at the same scale.
+fn cmp_running(cur: List[int], n: int, neg: bool, last: Dec) -> int {
+    let az = is_zero(cur, n)
+    let bz = is_zero(last.mag, last.mag.len)
+    if az && bz {
+        return 0
+    }
+    if neg && !az && (!last.neg || bz) {
+        return -1
+    }
+    if last.neg && !bz && (!neg || az) {
+        return 1
+    }
+    let c = mag_cmp(cur, n, last.mag, last.mag.len)
+    if neg && !az {
+        return -c
+    }
+    c
+}
+
+fn help_text() -> str {
+    """
+    Usage: seq [OPTION]... LAST
+      or:  seq [OPTION]... FIRST LAST
+      or:  seq [OPTION]... FIRST INCREMENT LAST
+    Print the numbers from FIRST to LAST, in steps of INCREMENT. FIRST
+    and INCREMENT default to 1, and the sequence stops as soon as the
+    next number would pass LAST.
+
+      -f, --format=FORMAT   a printf floating-point format
+      -s, --separator=STR   what to write between numbers (default: a
+                            newline)
+      -w, --equal-width     pad with leading zeros to a common width
+          --help            print this help and exit
+          --version         print the version and exit
+
+    The numbers are computed as EXACT decimals, not in floating point,
+    so the last value is the one asked for. With no FORMAT the numbers
+    print with as many decimals as the more precise of FIRST and
+    INCREMENT, or in %g when any operand was written with an exponent.
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}
