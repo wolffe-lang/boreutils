@@ -27,6 +27,15 @@ Case file (TOML, one file per utility, any number of [[case]] tables):
   stdout_bytes = 64              # optional: read this many bytes of
                                  #   stdout, then close the pipe (for
                                  #   programs that never stop, like yes)
+  stdout_file = "/dev/full"      # optional: send stdout to this PATH
+                                 #   rather than to a pipe, which is how
+                                 #   a write error on a LIVE descriptor
+                                 #   is reached at all. The case is a
+                                 #   SKIP where the path does not exist,
+                                 #   so /dev/full is linux-only and says
+                                 #   so by being absent on macOS. As with
+                                 #   stdout_closed there is no stdout to
+                                 #   compare.
   stdout_closed = true           # optional: run the program with
                                  #   DESCRIPTOR 1 CLOSED, the shape a
                                  #   shell writes `prog >&-`. There is no
@@ -76,8 +85,8 @@ CASES = os.path.join(ROOT, "tests", "cases")
 FIXTURES = os.path.join(ROOT, "tests", "fixtures")
 ALL = ("stdout", "stderr", "exit")
 KEYS = {"name", "args", "stdin", "stdin_file", "env", "compare",
-        "stdout_bytes", "stdout_closed", "skip", "timeout", "gnu_util",
-        "gnu_min", "gnu_max"}
+        "stdout_bytes", "stdout_closed", "stdout_file", "skip", "timeout",
+        "gnu_util", "gnu_min", "gnu_max"}
 # What a case compares when descriptor 1 is closed: there is no stdout.
 CLOSED = ("stderr", "exit")
 
@@ -127,12 +136,17 @@ def run(exe, argv0, case):
         stdin = open(os.path.join(FIXTURES, case["stdin_file"]), "rb")
     limit = case.get("stdout_bytes")
     closed = bool(case.get("stdout_closed"))
+    sink = case.get("stdout_file")
     timeout = case.get("timeout", 10)
+    if sink is not None:
+        stdout = open(sink, "wb", buffering=0)
+    elif closed:
+        stdout = subprocess.DEVNULL
+    else:
+        stdout = subprocess.PIPE
     proc = subprocess.Popen(
         [argv0] + case.get("args", []), executable=exe, env=env,
-        stdin=stdin,
-        stdout=subprocess.DEVNULL if closed else subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        stdin=stdin, stdout=stdout, stderr=subprocess.PIPE,
         # `prog >&-`: the child reaches main with descriptor 1 closed.
         # Nothing but a fork hook can produce that, because Popen's
         # stdout= can only REDIRECT a descriptor, never leave it shut.
@@ -144,7 +158,7 @@ def run(exe, argv0, case):
         # the child gets the default SIGPIPE disposition, as a shell gives
         restore_signals=True)
     try:
-        if closed:
+        if closed or sink is not None:
             if data is not None:
                 proc.stdin.write(data)
                 proc.stdin.close()
@@ -173,6 +187,8 @@ def run(exe, argv0, case):
     finally:
         if hasattr(stdin, "close"):
             stdin.close()
+        if hasattr(stdout, "close"):
+            stdout.close()
     return {"stdout": out, "stderr": normalize(err, argv0),
             "exit": status(proc.returncode)}
 
@@ -211,6 +227,13 @@ def load(path):
         if c["name"] in seen:
             die(f"{path}: duplicate case name {c['name']!r}")
         seen.add(c["name"])
+        if "stdout_file" in c:
+            if c.get("stdout_closed") or "stdout_bytes" in c:
+                die(f"{path}: case {c['name']!r} redirects standard "
+                    f"output and also closes or reads it")
+            if "stdout" in c.get("compare", CLOSED):
+                die(f"{path}: case {c['name']!r} redirects standard "
+                    f"output and still compares it")
         if c.get("stdout_closed"):
             if "stdout_bytes" in c:
                 die(f"{path}: case {c['name']!r} both closes standard "
@@ -279,8 +302,14 @@ def main(argv):
                 skipped += 1
                 print(f"SKIP {label} ({bound})")
                 continue
+            sink = case.get("stdout_file")
+            if sink is not None and not os.path.exists(sink):
+                skipped += 1
+                print(f"SKIP {label} (no {sink} on this host)")
+                continue
             fields = case.get("compare",
-                              CLOSED if case.get("stdout_closed") else ALL)
+                              ALL if sink is None and not case.get("stdout_closed")
+                              else CLOSED)
             b = run(bore, util, case)
             g = run(gnu, prefix + oracle, case)
             ok = (b is not None and g is not None
