@@ -61,8 +61,16 @@ from the host, so a POSIXLY_CORRECT in the caller's shell cannot change
 a verdict.
 
 GNU's name per host: plain on linux, g-prefixed on macOS (Homebrew's
-coreutils). $BORE_GNU_PREFIX overrides. The GNU version is printed in
-the header, because behaviour differs across GNU releases.
+coreutils). $BORE_GNU_PREFIX overrides.
+
+THE ORACLE OF RECORD. `gnu-oracle.toml` names the one GNU release whose
+behaviour boreutils is drop-in for, and this harness refuses to return a
+verdict against any other: a suite whose answer depends on which host
+ran it is a matrix, not an oracle, and an oracle that drifts with a
+package update makes a green mean nothing in particular (B44). Set
+$BORE_ORACLE_ANY=1 to run against the host's own GNU anyway; the run
+then says so on every line of its header and is INFORMATION, not a
+verdict — which is what CI's non-blocking "field" leg is for.
 
   gnu_util = "false"             # self-test only ($BORE_SELFTEST): run
                                  #   THIS GNU utility as the oracle, so a
@@ -112,6 +120,17 @@ def version_tuple(text):
 def die(msg):
     print(f"difftest: {msg}", file=sys.stderr)
     sys.exit(2)
+
+
+def oracle_of_record():
+    """The GNU version gnu-oracle.toml names, as a string."""
+    path = os.path.join(ROOT, "gnu-oracle.toml")
+    try:
+        with open(path, "rb") as fh:
+            doc = tomllib.load(fh)
+        return str(doc["oracle"]["version"])
+    except (OSError, KeyError, tomllib.TOMLDecodeError) as e:
+        die(f"{path}: no oracle version here ({e})")
 
 
 def gnu_prefix():
@@ -270,6 +289,24 @@ def main(argv):
     print(f"difftest: gnu = {version} (prefix {prefix!r}) on "
           f"{platform.system()} {platform.machine()}")
     print(f"difftest: bore = {bindir}")
+
+    # The oracle of record, asserted. A drifting oracle is the failure
+    # this check exists for: it is not that the wrong GNU gives wrong
+    # answers, it is that nobody notices which GNU gave them.
+    want = oracle_of_record()
+    loose = bool(os.environ.get("BORE_ORACLE_ANY"))
+    if have == version_tuple(want):
+        print(f"difftest: oracle of record, GNU coreutils {want}")
+    elif loose:
+        print(f"difftest: NOT THE ORACLE OF RECORD: gnu-oracle.toml names "
+              f"{want} and this host has {version}")
+        print("difftest: BORE_ORACLE_ANY is set, so this run is "
+              "INFORMATION, not a verdict")
+    else:
+        die(f"gnu-oracle.toml names GNU coreutils {want} as the oracle of "
+            f"record and this host has {version}. Install the oracle "
+            f"(tools/fetch-oracle), or set BORE_ORACLE_ANY=1 to run "
+            f"against this one for information.")
 
     passed = failed = skipped = 0
     for util in utils:
