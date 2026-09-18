@@ -27,6 +27,13 @@ Case file (TOML, one file per utility, any number of [[case]] tables):
   stdout_bytes = 64              # optional: read this many bytes of
                                  #   stdout, then close the pipe (for
                                  #   programs that never stop, like yes)
+  stdout_closed = true           # optional: run the program with
+                                 #   DESCRIPTOR 1 CLOSED, the shape a
+                                 #   shell writes `prog >&-`. There is no
+                                 #   stdout to compare, so the default
+                                 #   comparison is stderr and exit only,
+                                 #   and naming "stdout" in `compare` is
+                                 #   a malformed case.
   skip = "reason"                # optional: reported, not run
   timeout = 10                   # optional, seconds
   gnu_min = "9.11"               # optional: run only when the GNU oracle
@@ -69,7 +76,10 @@ CASES = os.path.join(ROOT, "tests", "cases")
 FIXTURES = os.path.join(ROOT, "tests", "fixtures")
 ALL = ("stdout", "stderr", "exit")
 KEYS = {"name", "args", "stdin", "stdin_file", "env", "compare",
-        "stdout_bytes", "skip", "timeout", "gnu_util", "gnu_min", "gnu_max"}
+        "stdout_bytes", "stdout_closed", "skip", "timeout", "gnu_util",
+        "gnu_min", "gnu_max"}
+# What a case compares when descriptor 1 is closed: there is no stdout.
+CLOSED = ("stderr", "exit")
 
 
 def gnu_version(line):
@@ -116,10 +126,17 @@ def run(exe, argv0, case):
     elif "stdin_file" in case:
         stdin = open(os.path.join(FIXTURES, case["stdin_file"]), "rb")
     limit = case.get("stdout_bytes")
+    closed = bool(case.get("stdout_closed"))
     timeout = case.get("timeout", 10)
     proc = subprocess.Popen(
         [argv0] + case.get("args", []), executable=exe, env=env,
-        stdin=stdin, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        stdin=stdin,
+        stdout=subprocess.DEVNULL if closed else subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        # `prog >&-`: the child reaches main with descriptor 1 closed.
+        # Nothing but a fork hook can produce that, because Popen's
+        # stdout= can only REDIRECT a descriptor, never leave it shut.
+        preexec_fn=(lambda: os.close(1)) if closed else None,
         # Every case runs from the repository root, so a case naming a
         # file operand writes it as tests/fixtures/NAME and means the
         # same thing however difftest itself was invoked.
@@ -127,7 +144,14 @@ def run(exe, argv0, case):
         # the child gets the default SIGPIPE disposition, as a shell gives
         restore_signals=True)
     try:
-        if limit is None:
+        if closed:
+            if data is not None:
+                proc.stdin.write(data)
+                proc.stdin.close()
+            err = proc.stderr.read()
+            proc.wait(timeout=timeout)
+            out = b""
+        elif limit is None:
             out, err = proc.communicate(data, timeout=timeout)
         else:
             if data is not None:
@@ -187,6 +211,13 @@ def load(path):
         if c["name"] in seen:
             die(f"{path}: duplicate case name {c['name']!r}")
         seen.add(c["name"])
+        if c.get("stdout_closed"):
+            if "stdout_bytes" in c:
+                die(f"{path}: case {c['name']!r} both closes standard "
+                    f"output and reads bytes from it")
+            if "stdout" in c.get("compare", CLOSED):
+                die(f"{path}: case {c['name']!r} closes standard output "
+                    f"and still compares it")
         for f in c.get("compare", ALL):
             if f not in ALL:
                 die(f"{path}: case {c['name']!r} compares unknown {f!r}")
@@ -248,7 +279,8 @@ def main(argv):
                 skipped += 1
                 print(f"SKIP {label} ({bound})")
                 continue
-            fields = case.get("compare", ALL)
+            fields = case.get("compare",
+                              CLOSED if case.get("stdout_closed") else ALL)
             b = run(bore, util, case)
             g = run(gnu, prefix + oracle, case)
             ok = (b is not None and g is not None
