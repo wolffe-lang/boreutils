@@ -1,0 +1,293 @@
+//! bore.stream — what `head` and `tail` share and nothing else does.
+//!
+//! Three things: GNU's `-n`/`-c` number grammar, the `==> NAME <==`
+//! banner both print between operands, and the always-quoted spelling
+//! both use for a path in a diagnostic.
+//!
+//! References consulted: POSIX.1-2024 `head` and `tail`; GNU coreutils
+//! 9.11's `--help` output and black-box runs of the binaries (Homebrew
+//! `ghead`/`gtail` on macOS arm64 and native `head`/`tail` on linux
+//! x86-64, under `LC_ALL=C`); uutils/coreutils (MIT) and toybox (0BSD)
+//! as design references. Never GNU source.
+
+/// The largest count this module will answer.
+///
+/// GNU clamps an overflowing `-n`/`-c` to `UINTMAX_MAX` rather than
+/// rejecting it — measured: `head -n 99999999999999999999999` prints
+/// the whole file and exits 0 — and wolf's arithmetic traps on
+/// overflow everywhere (X3), so the clamp has to be a value that
+/// survives being multiplied and added to. 2^62 - 1 is past any stream
+/// a process can read and leaves room above it for the arithmetic.
+pub fn count_cap() -> int {
+    4611686018427387903
+}
+
+/// A `-n` or `-c` argument, parsed.
+///
+/// `minus` and `plus` are the leading sign each utility reads its own
+/// meaning into: `head -n -K` is all but the last K, `tail -n +K` is
+/// from line K onwards, and each accepts the other's sign as a no-op.
+pub struct Count {
+    minus: bool,
+    plus: bool,
+    value: int,
+}
+
+/// Whether the argument carried a leading `-`.
+pub fn count_minus(c: Count) -> bool {
+    c.minus
+}
+
+/// Whether the argument carried a leading `+`.
+pub fn count_plus(c: Count) -> bool {
+    c.plus
+}
+
+/// The number itself, clamped to `count_cap`.
+pub fn count_value(c: Count) -> int {
+    c.value
+}
+
+/// Parse a `-n`/`-c` argument in GNU's grammar.
+///
+/// Measured against coreutils 9.11, and the asymmetry is real:
+///
+/// - a leading `-` is CONSUMED as the sign, and what follows goes to a
+///   `strtoumax`-shaped parse that skips blanks and takes another
+///   optional `+`, so `head -n "- 2"` and `head -n -+3` both work;
+/// - a leading `+` is NOT consumed — the whole argument goes to that
+///   same parse, which takes the `+` as its own sign — so a blank
+///   after it is a parse error and `tail -n "+ 2"` is refused where
+///   `tail -n "- 2"` is not.
+///
+/// The suffix set is GNU's: `b` is 512, a unit letter alone or before
+/// `iB` is a power of 1024, and before `B` a power of 1000.
+pub fn parse_count(s: str) -> Count ! {invalid} {
+    var minus = false
+    var plus = false
+    var rest = s
+    if s.starts_with("-") {
+        minus = true
+        rest = s[1..]
+    } else if s.starts_with("+") {
+        plus = true
+    }
+    let bs = rest.bytes()
+    var i = 0
+    while i < bs.len && is_blank(bs[i]) {
+        i += 1
+    }
+    if i < bs.len && bs[i] as int == 43 {
+        i += 1
+    }
+    var digits = 0
+    var value: int = 0
+    while i < bs.len && bs[i] as int >= 48 && bs[i] as int <= 57 {
+        let d = bs[i] as int - 48
+        if value > (count_cap() - d) / 10 {
+            value = count_cap()
+        } else {
+            value = value * 10 + d
+        }
+        digits += 1
+        i += 1
+    }
+    if digits == 0 {
+        return invalid
+    }
+    let unit = rest.get(i..) else {
+        return invalid
+    }
+    let mult = suffix(unit)?
+    if mult > 1 && value > count_cap() / mult {
+        value = count_cap()
+    } else {
+        value = value * mult
+    }
+    Count { minus: minus, plus: plus, value: value }
+}
+
+/// The bytes `strtoumax` skips before a number.
+fn is_blank(b: byte) -> bool {
+    let n = b as int
+    n == 32 || n >= 9 && n <= 13
+}
+
+/// The multiplier a suffix names, or the `invalid` row.
+fn suffix(s: str) -> int ! {invalid} {
+    if s.len == 0 {
+        return 1
+    }
+    if s == "b" {
+        return 512
+    }
+    let p = power_of(s[0..1])
+    if p == 0 {
+        return invalid
+    }
+    let after = s[1..]
+    var base = 1024
+    if after == "B" {
+        base = 1000
+    } else if after.len != 0 && after != "iB" {
+        return invalid
+    }
+    var m: int = 1
+    var k = 0
+    while k < p {
+        if m > count_cap() / base {
+            return count_cap()
+        }
+        m = m * base
+        k += 1
+    }
+    m
+}
+
+/// The power of the base a unit letter names, or 0 for a letter that
+/// names none. `k` and `m` are the two that also answer to lower case,
+/// which is GNU's own table, not a tidying of it.
+fn power_of(c: str) -> int {
+    if c == "k" || c == "K" {
+        return 1
+    }
+    if c == "m" || c == "M" {
+        return 2
+    }
+    if c == "G" {
+        return 3
+    }
+    if c == "T" {
+        return 4
+    }
+    if c == "P" {
+        return 5
+    }
+    if c == "E" {
+        return 6
+    }
+    if c == "Z" {
+        return 7
+    }
+    if c == "Y" {
+        return 8
+    }
+    if c == "R" {
+        return 9
+    }
+    if c == "Q" {
+        return 10
+    }
+    0
+}
+
+/// The name `head` and `tail` give standard input in a banner.
+pub fn stdin_label() -> str {
+    "standard input"
+}
+
+/// Write the `==> NAME <==` banner, preceded by a blank line when it is
+/// not the first banner written.
+///
+/// Measured: the blank line belongs to the BANNER, not to the operand,
+/// so an operand that could not be opened prints no banner and does not
+/// consume the separator — `head f missing g` writes f's banner, f, a
+/// blank line, and g's banner.
+///
+/// Takes the writer by READ and writes straight out, because `head` and
+/// `tail` hand whole read chunks to `write_direct` and a program must
+/// use one route or the other, never both.
+pub fn banner(o: Out, first: bool, name: str) -> () ! {io} {
+    var b = List[byte]()
+    if !first {
+        (mut b).push(10 as byte)
+    }
+    for x in "==> {name} <==\n".bytes() {
+        (mut b).push(x)
+    }
+    write_direct(o, b)?
+}
+
+/// `s` as `head` and `tail` spell a path in a diagnostic: `quote_name`'s
+/// shell-escape style, but quoted even when it would not have to be.
+///
+/// Measured against coreutils 9.11 on both hosts: `head missing` says
+/// `cannot open 'missing' for reading` where `cat missing` says
+/// `cat: missing:`, so the two utilities really do quote differently
+/// and one function cannot serve both. The rest of the style is
+/// identical — `a'b` takes double quotes, `a<TAB>b` splices to
+/// `'a'$'\t''b'` — which is why this shares `quote_name`'s parts
+/// instead of restating them.
+pub fn quote_always(s: str) -> str {
+    if s.len == 0 {
+        return "''"
+    }
+    var nonprint = false
+    var needs = false
+    var has_quote = false
+    var no_dquote = false
+    var i = 0
+    for b in s.bytes() {
+        let n = b as int
+        if n < 32 || n >= 127 {
+            nonprint = true
+        }
+        if needs_quoting(n, i == 0) {
+            needs = true
+        }
+        if n == 39 {
+            has_quote = true
+        }
+        if breaks_dquote(n) {
+            no_dquote = true
+        }
+        i += 1
+    }
+    if nonprint {
+        return spliced(s)
+    }
+    if has_quote && !no_dquote {
+        return "\"{s}\""
+    }
+    if !needs {
+        return "'{s}'"
+    }
+    single_quoted(s)
+}
+
+/// GNU's wording when an operand cannot be opened at all.
+pub fn cannot_open(prog: str, name: str, why: str) {
+    eprint("{prog}: cannot open {quote_always(name)} for reading: {why}")
+}
+
+/// GNU's wording when an operand opened but could not be read.
+pub fn cannot_read(prog: str, name: str, why: str) {
+    eprint("{prog}: error reading {quote_always(name)}: {why}")
+}
+
+/// Whether `i` is a regular file.
+///
+/// `tail -f` follows a regular file forever and stops at the end of a
+/// pipe (measured: `printf 'a\n' | tail -f` exits 0), so following has
+/// to ask what it is holding.
+pub fn is_regular(i: In) -> bool {
+    let st = fs_fstat(i.fd) else |_| {
+        return false
+    }
+    st[0] == 0
+}
+
+/// The size `fstat` reports for `i`, or -1 when it cannot be had.
+///
+/// Only meaningful for a regular file this process opened itself: the
+/// answer is a SIZE, and what a reader owes is size minus the current
+/// offset, which wolf 0.2.14 cannot ask for (wolf-lang#405).
+pub fn stat_size(i: In) -> int {
+    let st = fs_fstat(i.fd) else |_| {
+        return -1
+    }
+    if st[0] != 0 {
+        return -1
+    }
+    st[1]
+}
