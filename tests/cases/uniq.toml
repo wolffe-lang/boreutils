@@ -1,0 +1,567 @@
+# uniq — GNU coreutils 9.11, black-box. Every expectation here was read
+# off the GNU binary on BOTH hosts (macOS arm64 Homebrew `guniq`, linux
+# x86-64 native `uniq`), which agreed on every case in this file but
+# ONE, which is skipped below and says why.
+#
+# The fixtures are committed data:
+#   groups.txt    a a b a c c c — one group of two, one of one, one of
+#                 one that repeats a line already seen, one of three
+#   groups0.bin   the same seven records, NUL-separated, for -z
+#   fields.txt    leading blanks and two fields per line
+#   nonldup.txt   a a b, with no newline after the last line
+#   mixedcase.txt Alpha alpha ALPHA beta, for -i
+#
+# --help and --version print OUR text (GNU's is the FSF's prose), so
+# their cases compare the exit status and stderr only.
+
+# ---------------------------------------------------- adjacent, and only
+
+[[case]]
+name = "uniq compares only ADJACENT lines, so a b a stays three groups"
+stdin = "a\nb\na\n"
+
+[[case]]
+name = "the same point with counts"
+args = ["-c"]
+stdin = "a\nb\na\n"
+
+[[case]]
+name = "an unsorted input is not deduplicated"
+args = ["-d"]
+stdin = "a\nb\na\nb\n"
+
+# ------------------------------------------------------------ the basics
+
+[[case]]
+name = "no options"
+args = ["tests/fixtures/groups.txt"]
+
+[[case]]
+name = "-c"
+args = ["-c", "tests/fixtures/groups.txt"]
+
+[[case]]
+name = "--count"
+args = ["--count", "tests/fixtures/groups.txt"]
+
+[[case]]
+name = "-d"
+args = ["-d", "tests/fixtures/groups.txt"]
+
+[[case]]
+name = "--repeated"
+args = ["--repeated", "tests/fixtures/groups.txt"]
+
+[[case]]
+name = "-D"
+args = ["-D", "tests/fixtures/groups.txt"]
+
+[[case]]
+name = "-u"
+args = ["-u", "tests/fixtures/groups.txt"]
+
+[[case]]
+name = "--unique"
+args = ["--unique", "tests/fixtures/groups.txt"]
+
+[[case]]
+name = "-c -d"
+args = ["-c", "-d", "tests/fixtures/groups.txt"]
+
+[[case]]
+name = "-c -u"
+args = ["-c", "-u", "tests/fixtures/groups.txt"]
+
+[[case]]
+name = "-d -u prints nothing"
+args = ["-d", "-u", "tests/fixtures/groups.txt"]
+
+[[case]]
+name = "-D -u drops each group's first line"
+args = ["-D", "-u", "tests/fixtures/groups.txt"]
+
+[[case]]
+name = "-d -D is -D"
+args = ["-d", "-D", "tests/fixtures/groups.txt"]
+
+[[case]]
+name = "-u -d is still nothing"
+args = ["-u", "-d", "tests/fixtures/groups.txt"]
+
+[[case]]
+name = "empty input"
+stdin = ""
+
+[[case]]
+name = "empty input with -c"
+args = ["-c"]
+stdin = ""
+
+[[case]]
+name = "one line"
+args = ["-c"]
+stdin = "only\n"
+
+[[case]]
+name = "every line the same"
+args = ["-c"]
+stdin = "x\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\n"
+
+[[case]]
+name = "a count of more than one digit stays right-aligned"
+args = ["-c"]
+stdin = "y\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\ny\n"
+
+[[case]]
+name = "a last line with no newline still gets one"
+args = ["tests/fixtures/nonldup.txt"]
+
+[[case]]
+name = "a last line with no newline, counted"
+args = ["-c", "tests/fixtures/nonldup.txt"]
+
+[[case]]
+name = "a last line with no newline that opens its own group"
+args = ["-c"]
+stdin = "a\nb"
+
+[[case]]
+name = "a last line with no newline that joins the group before it"
+args = ["-c"]
+stdin = "a\na"
+
+[[case]]
+name = "a lone empty line"
+args = ["-c"]
+stdin = "\n"
+
+[[case]]
+name = "empty lines form their own groups"
+args = ["-c"]
+stdin = "\n\n\na\n\n"
+
+# ---------------------------------------------------------- ignoring case
+
+[[case]]
+name = "-i"
+args = ["-i", "tests/fixtures/mixedcase.txt"]
+
+[[case]]
+name = "-i -c prints the FIRST spelling of the group"
+args = ["-i", "-c", "tests/fixtures/mixedcase.txt"]
+
+[[case]]
+name = "-i -D prints each line as it was written"
+args = ["-i", "-D", "tests/fixtures/mixedcase.txt"]
+
+[[case]]
+name = "--ignore-case"
+args = ["--ignore-case", "tests/fixtures/mixedcase.txt"]
+
+[[case]]
+name = "without -i the same file is four groups"
+args = ["-c", "tests/fixtures/mixedcase.txt"]
+
+# ----------------------------------------------------------- the skips
+
+[[case]]
+name = "-f 1"
+args = ["-f", "1", "-c", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "-f 0 compares everything"
+args = ["-f", "0", "-c", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "-f past the end of the line makes every line equal"
+args = ["-f", "9", "-c", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "--skip-fields"
+args = ["--skip-fields=1", "-c", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "-s 2"
+args = ["-s", "2", "-c"]
+stdin = "xxa\nyya\nzzb\n"
+
+[[case]]
+name = "-s past the end of the line"
+args = ["-s", "99", "-c"]
+stdin = "xxa\nyya\nzzb\n"
+
+[[case]]
+name = "--skip-chars"
+args = ["--skip-chars=2", "-c"]
+stdin = "xxa\nyya\nzzb\n"
+
+[[case]]
+name = "-w 1"
+args = ["-w", "1", "-c"]
+stdin = "xxa\nyya\nzzb\n"
+
+[[case]]
+name = "-w 0 compares nothing, so every line is one group"
+args = ["-w", "0", "-c"]
+stdin = "xxa\nyya\nzzb\n"
+
+[[case]]
+name = "--check-chars"
+args = ["--check-chars=2", "-c"]
+stdin = "abX\nabY\nacZ\n"
+
+[[case]]
+name = "-s and -w compose: skip one, then compare one"
+args = ["-s", "1", "-w", "1", "-c"]
+stdin = "xxa\nyya\nzzb\n"
+
+[[case]]
+name = "-f and -s compose: fields first, then characters"
+args = ["-f", "1", "-s", "1", "-c", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "-f, -s and -w all at once"
+args = ["-f", "1", "-s", "1", "-w", "1", "-c", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "-w stops short of a difference"
+args = ["-w", "3", "-c"]
+stdin = "abcd\nabce\n"
+
+[[case]]
+name = "a shorter line is not equal to a longer one under -w"
+args = ["-w", "5", "-c"]
+stdin = "ab\nabc\n"
+
+[[case]]
+name = "-i with -f"
+args = ["-i", "-f", "1", "-c"]
+stdin = "x A\ny a\n"
+
+# --------------------------------------------------------- the obsolete -N
+
+[[case]]
+name = "-1 skips one field"
+args = ["-1", "-c", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "-0 skips none"
+args = ["-0", "-c", "tests/fixtures/fields.txt"]
+
+[[case]]
+name = "consecutive digits accumulate, so -1 -2 is twelve"
+args = ["-1", "-2", "-c"]
+stdin = "p q r s\np q r t\n"
+
+[[case]]
+name = "-12 is the same twelve"
+args = ["-12", "-c"]
+stdin = "p q r s\np q r t\n"
+
+[[case]]
+name = "-3 is three"
+args = ["-3", "-c"]
+stdin = "p q r s\np q r t\n"
+
+[[case]]
+name = "another option between the digits starts the number again"
+args = ["-f2", "-1", "-c"]
+stdin = "p q r s\np q r t\n"
+
+[[case]]
+name = "-f after a digit wins"
+args = ["-1", "-f2", "-c"]
+stdin = "p q r s\np q r t\n"
+
+[[case]]
+name = "the obsolete +N is a file name here, and GNU's own hosts disagree"
+args = ["+1"]
+stdin = "a\na\nb\n"
+skip = "GNU gates +N on a build-time POSIX2 version, not on the release: at coreutils 9.11 Arch's uniq reads it as skip-one-character and Homebrew's guniq reports '+1: No such file or directory'. boreutils takes the POSIX reading, so this case cannot pass on both hosts and is recorded rather than pinned."
+
+# ------------------------------------------------------ --all-repeated
+
+[[case]]
+name = "--all-repeated"
+args = ["--all-repeated", "tests/fixtures/groups.txt"]
+
+[[case]]
+name = "--all-repeated=none"
+args = ["--all-repeated=none", "tests/fixtures/groups.txt"]
+
+[[case]]
+name = "--all-repeated=prepend"
+args = ["--all-repeated=prepend", "tests/fixtures/groups.txt"]
+
+[[case]]
+name = "--all-repeated=separate"
+args = ["--all-repeated=separate", "tests/fixtures/groups.txt"]
+
+[[case]]
+name = "--all-repeated abbreviated"
+args = ["--all", "tests/fixtures/groups.txt"]
+
+[[case]]
+name = "--all-repeated does not eat the operand after it"
+args = ["--all-repeated", "tests/fixtures/groups.txt"]
+
+[[case]]
+name = "--all-repeated=separate with only one repeating group"
+args = ["--all-repeated=separate"]
+stdin = "a\na\nb\n"
+
+[[case]]
+name = "--all-repeated=prepend with only one repeating group"
+args = ["--all-repeated=prepend"]
+stdin = "a\na\nb\n"
+
+[[case]]
+name = "--all-repeated with no repeating group at all"
+args = ["--all-repeated=separate"]
+stdin = "a\nb\nc\n"
+
+[[case]]
+name = "--all-repeated=separate with -u"
+args = ["--all-repeated=separate", "-u", "tests/fixtures/groups.txt"]
+
+[[case]]
+name = "an invalid --all-repeated method"
+args = ["--all-repeated=bogus"]
+stdin = "a\n"
+
+# ------------------------------------------------------------- --group
+
+[[case]]
+name = "--group"
+args = ["--group", "tests/fixtures/groups.txt"]
+
+[[case]]
+name = "--group=separate"
+args = ["--group=separate", "tests/fixtures/groups.txt"]
+
+[[case]]
+name = "--group=prepend"
+args = ["--group=prepend", "tests/fixtures/groups.txt"]
+
+[[case]]
+name = "--group=append"
+args = ["--group=append", "tests/fixtures/groups.txt"]
+
+[[case]]
+name = "--group=both"
+args = ["--group=both", "tests/fixtures/groups.txt"]
+
+[[case]]
+name = "--group abbreviated"
+args = ["--gr", "tests/fixtures/groups.txt"]
+
+[[case]]
+name = "--group does not eat the operand after it"
+args = ["--group", "tests/fixtures/groups.txt"]
+
+[[case]]
+name = "--group on a single group"
+args = ["--group=both"]
+stdin = "a\na\n"
+
+[[case]]
+name = "--group on empty input"
+args = ["--group=both"]
+stdin = ""
+
+[[case]]
+name = "--group with -i"
+args = ["--group", "-i", "tests/fixtures/mixedcase.txt"]
+
+[[case]]
+name = "--group beside -c"
+args = ["--group", "-c"]
+stdin = "a\n"
+
+[[case]]
+name = "--group beside -d"
+args = ["--group", "-d"]
+stdin = "a\n"
+
+[[case]]
+name = "--group beside -D"
+args = ["--group", "-D"]
+stdin = "a\n"
+
+[[case]]
+name = "--group beside -u"
+args = ["--group", "-u"]
+stdin = "a\n"
+
+[[case]]
+name = "an invalid --group method"
+args = ["--group=bogus"]
+stdin = "a\n"
+
+# ------------------------------------------------------- NUL-terminated
+
+[[case]]
+name = "-z"
+args = ["-z", "tests/fixtures/groups0.bin"]
+
+[[case]]
+name = "-z -c"
+args = ["-z", "-c", "tests/fixtures/groups0.bin"]
+
+[[case]]
+name = "-z -D"
+args = ["-z", "-D", "tests/fixtures/groups0.bin"]
+
+[[case]]
+name = "--zero-terminated"
+args = ["--zero-terminated", "tests/fixtures/groups0.bin"]
+
+[[case]]
+name = "-z over newline-separated input sees one record"
+args = ["-z", "tests/fixtures/groups.txt"]
+
+[[case]]
+name = "-z --group"
+args = ["-z", "--group", "tests/fixtures/groups0.bin"]
+
+[[case]]
+name = "-z --all-repeated=separate"
+args = ["-z", "--all-repeated=separate", "tests/fixtures/groups0.bin"]
+
+[[case]]
+name = "-z on a record with no trailing NUL"
+args = ["-z", "-c"]
+stdin = "a\u0000a\u0000b"
+
+# ----------------------------------------------------------- the operands
+
+[[case]]
+name = "standard input by default"
+stdin = "a\na\nb\n"
+
+[[case]]
+name = "a dash operand is standard input"
+args = ["-"]
+stdin = "a\na\nb\n"
+
+[[case]]
+name = "an OUTPUT operand of /dev/stdout"
+args = ["tests/fixtures/groups.txt", "/dev/stdout"]
+
+[[case]]
+name = "an OUTPUT operand of /dev/null"
+args = ["tests/fixtures/groups.txt", "/dev/null"]
+
+[[case]]
+name = "a dash OUTPUT operand is standard output"
+args = ["tests/fixtures/groups.txt", "-"]
+
+[[case]]
+name = "an OUTPUT that cannot be created"
+args = ["tests/fixtures/groups.txt", "tests/fixtures/nosuchdir/out.txt"]
+
+[[case]]
+name = "three operands"
+args = ["tests/fixtures/groups.txt", "/dev/null", "extra"]
+
+[[case]]
+name = "a missing INPUT"
+args = ["tests/fixtures/nosuch.txt"]
+
+[[case]]
+name = "a missing INPUT whose name needs quoting"
+args = ["tests/fixtures/no such file.txt"]
+
+[[case]]
+name = "a missing INPUT whose name holds a quote"
+args = ["tests/fixtures/a'b"]
+
+[[case]]
+name = "a directory as INPUT"
+args = ["tests/fixtures"]
+
+[[case]]
+name = "a directory as OUTPUT"
+args = ["tests/fixtures/groups.txt", "tests/fixtures"]
+
+[[case]]
+name = "-- ends the options"
+args = ["--", "tests/fixtures/groups.txt"]
+
+# ------------------------------------------------------------- the errors
+
+[[case]]
+name = "-c with -D"
+args = ["-c", "-D"]
+stdin = "a\n"
+
+[[case]]
+name = "-D with -c the other way round"
+args = ["-D", "-c"]
+stdin = "a\n"
+
+[[case]]
+name = "-c with --all-repeated"
+args = ["-c", "--all-repeated=separate"]
+stdin = "a\n"
+
+[[case]]
+name = "a non-numeric -f"
+args = ["-f", "x"]
+stdin = "a\n"
+
+[[case]]
+name = "a negative -f"
+args = ["-f", "-1"]
+stdin = "a\n"
+
+[[case]]
+name = "a non-numeric -s"
+args = ["-s", "1x"]
+stdin = "a\n"
+
+[[case]]
+name = "a non-numeric -w"
+args = ["-w", "q"]
+stdin = "a\n"
+
+[[case]]
+name = "a -f too large to hold is clamped, not refused"
+args = ["-f", "99999999999999999999", "-c"]
+stdin = "a b\nc d\n"
+
+[[case]]
+name = "a -w too large to hold is clamped, not refused"
+args = ["-w", "99999999999999999999", "-c"]
+stdin = "a\na\nb\n"
+
+[[case]]
+name = "an invalid option"
+args = ["-Q"]
+stdin = "a\n"
+
+[[case]]
+name = "an unrecognized long option"
+args = ["--bogus"]
+stdin = "a\n"
+
+# ------------------------------------------------------- help and version
+
+[[case]]
+name = "--help"
+args = ["--help"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "--version"
+args = ["--version"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "--help wins when it comes first"
+args = ["--help", "-Q"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "a bad option before --help is still an error"
+args = ["-Q", "--help"]

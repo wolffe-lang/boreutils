@@ -1,0 +1,831 @@
+//! member: false
+//!
+//! uniq — filter ADJACENT matching lines.
+//!
+//! References consulted: POSIX.1-2024 `uniq`; GNU coreutils 9.11's
+//! `uniq --help`, the info manual's option descriptions, and black-box
+//! runs of the GNU binary on macOS arm64 (Homebrew `guniq`) and linux
+//! x86-64 (native `uniq`), under `LC_ALL=C`; uutils/coreutils (MIT) and
+//! toybox (0BSD) as design references for the shape of a group loop.
+//! Never GNU source.
+//!
+//! **Adjacent, and only adjacent.** `uniq` never sorts and never
+//! remembers a line it has left behind: `a b a` is three groups, not
+//! two, and `uniq` prints `a b a`. It is the most common misconception
+//! about this utility and the corpus says so in a case of its own.
+//!
+//! GNU's rules, each measured against coreutils 9.11 on BOTH hosts,
+//! which agreed on every case below:
+//!
+//! - **Three switches, not one mode.** A group of N equal lines prints
+//!   its first line when N is 1 and `unique` is on, or when N is more
+//!   than 1 and `first_rep` is on; it prints lines 2..N when
+//!   `later_rep` is on. `-d` clears `unique`; `-u` clears `first_rep`;
+//!   `-D` clears `unique` and sets `later_rep`. That is why `-d -u`
+//!   prints NOTHING and `-D -u` prints every line of every repeating
+//!   group except its first.
+//! - **Equality is an equivalence**, because the comparison is a key
+//!   (skip some fields, skip some characters, take at most so many,
+//!   fold case). So comparing each line against the group's FIRST line
+//!   answers exactly what comparing it against the line before it does,
+//!   and one line of state is enough.
+//! - **`-c` is seven columns then one space**, widening rather than
+//!   truncating past 9,999,999.
+//! - **`-c` with `-D` is refused**; `--group` is refused beside any of
+//!   `-c`, `-d`, `-D` and `-u`.
+//! - **The group separators are two different rules.**
+//!   `--all-repeated=prepend` writes a blank line before every group it
+//!   prints and `=separate` between them. `--group` writes one before
+//!   every group (`prepend`), between them (`separate`), after every
+//!   group (`append`), or before the first, between, and after the last
+//!   (`both`) — which is NOT "prepend and append", because the blank
+//!   between two groups is never doubled.
+//! - **A field is a run of blanks then a run of non-blanks**, and
+//!   fields are skipped before characters. Either skip may run off the
+//!   end of the line, which leaves nothing to compare, so every line
+//!   then matches every other.
+//! - **The obsolete `-N` is still live**: `-1` skips one field, and
+//!   consecutive digit options ACCUMULATE, so `-1 -2` is twelve, while
+//!   any other option between them starts the number again.
+//! - **The delimiter is always written**, so an input whose last line
+//!   has none still gets one, and `-z` ends every record with a NUL.
+//! - **The operands are INPUT then OUTPUT**, and a third is an error.
+//!   An input that cannot be opened is `uniq: NAME: reason` with NAME
+//!   quoted only when it must be; an input that opens and then fails to
+//!   read — a directory — is `uniq: error reading 'NAME': reason`, with
+//!   NAME always quoted.
+//! - Usage errors exit 1 (not 2), as bu00 measured for this family.
+//!
+//! **The obsolete `+N` is NOT implemented, and it cannot be.** GNU's
+//! `+N` (skip N characters) is gated on a BUILD-TIME setting, not on
+//! the release: at the same coreutils 9.11, Arch's native `uniq` reads
+//! `uniq +1` as the obsolete skip and Homebrew's `guniq` reads it as a
+//! file operand and reports `+1: No such file or directory`. No one
+//! answer matches both hosts, so boreutils takes the POSIX one — `+1`
+//! is a file name — and the corpus records the divergence in a skipped
+//! case rather than pinning either host's build.
+//!
+//! **`--group` and `--all-repeated` take an OPTIONAL argument**, which
+//! `bore.parse` cannot express: its options either take an argument or
+//! they do not. A bare `--group` is rewritten here to `--group=` before
+//! parsing, which is the same thing to `bore.parse` and stops
+//! `uniq --group FILE` eating FILE as the argument. Reported to the
+//! wave rather than fixed in `bore`, which bu05 owns this wave.
+//!
+//! **Memory, and the one wolf construct this program needed.**
+//! `fs_read_chunk` allocates the list it answers and the ambient region
+//! frees none of it (wolf-lang#416), so every chunk is read inside
+//! `region pass`. What must outlive the chunk — the first line of the
+//! open group, and the partial line at a chunk boundary — lives in a
+//! FIRST-CLASS region opened once (`let keep = region()`) and is
+//! written through `in keep { }`. That is the only way at 0.2.14 to
+//! carry a value across a dying region, and both buffers are
+//! overwritten in place rather than rebuilt, so `keep` grows to the
+//! longest line seen and no further. Output is built in a region-local
+//! buffer and written with `bore.write_direct`, because a `mut`
+//! parameter that lives OUTSIDE the block is E1010 at any call made
+//! inside it.
+
+use bore
+
+/// What was asked for.
+struct Conf {
+    count: bool,
+    unique: bool,
+    first_rep: bool,
+    later_rep: bool,
+    all_repeated: bool,
+    ignore_case: bool,
+    delim: int,
+    skip_fields: int,
+    skip_chars: int,
+    check_chars: int,
+    /// -1 off, else 0 separate, 1 prepend, 2 append, 3 both.
+    group: int,
+    /// `--all-repeated`: 0 none, 1 prepend, 2 separate.
+    method: int,
+}
+
+/// The bytes one read asks for.
+fn chunk() -> int {
+    1048576
+}
+
+/// The largest skip or width this program holds. GNU clamps a huge
+/// count to SIZE_MAX and never reports it; wolf's arithmetic is
+/// checked, so the clamp has to be written down.
+fn cap() -> int {
+    1000000000
+}
+
+// ---------------------------------------------------------- the numbers
+
+/// `text` as a count, or -1 when it is not one. Digits only: GNU's
+/// reader takes no sign and no space here, and clamps rather than
+/// failing on a number too large to hold.
+pub fn to_count(text: str) -> int {
+    if text.len == 0 {
+        return -1
+    }
+    var v = 0
+    for c in text.chars() {
+        let d = c as int - 48
+        if d < 0 || d > 9 {
+            return -1
+        }
+        if v < cap() {
+            v = v * 10 + d
+        }
+        if v > cap() {
+            v = cap()
+        }
+    }
+    v
+}
+
+// ----------------------------------------------------------- comparing
+
+fn is_blank(b: byte) -> bool {
+    let n = b as int
+    n == 32 || n == 9
+}
+
+fn fold(n: int, ignore_case: bool) -> int {
+    if ignore_case && n >= 65 && n <= 90 {
+        return n + 32
+    }
+    n
+}
+
+/// Where the comparison starts in `line`, given the field and character
+/// skips. `n` is the line's length, which is less than `line.len`
+/// whenever the buffer is one this program reuses.
+pub fn key_start(line: List[byte], n: int, skip_fields: int, skip_chars: int) -> int {
+    var i = 0
+    var f = 0
+    while f < skip_fields && i < n {
+        while i < n && is_blank(line[i]) {
+            i += 1
+        }
+        while i < n && !is_blank(line[i]) {
+            i += 1
+        }
+        f += 1
+    }
+    var k = 0
+    while k < skip_chars && i < n {
+        i += 1
+        k += 1
+    }
+    i
+}
+
+/// Where the comparison ends.
+fn key_end(start: int, n: int, check_chars: int) -> int {
+    if check_chars < 0 {
+        return n
+    }
+    var e = start + check_chars
+    if e > n {
+        e = n
+    }
+    e
+}
+
+/// Whether two lines compare equal under `c`.
+fn same(a: List[byte], alen: int, b: List[byte], blen: int, c: Conf) -> bool {
+    let astart = key_start(a, alen, c.skip_fields, c.skip_chars)
+    let bstart = key_start(b, blen, c.skip_fields, c.skip_chars)
+    let aend = key_end(astart, alen, c.check_chars)
+    let bend = key_end(bstart, blen, c.check_chars)
+    if aend - astart != bend - bstart {
+        return false
+    }
+    var i = 0
+    while astart + i < aend {
+        if fold(a[astart + i] as int, c.ignore_case) != fold(b[bstart + i] as int, c.ignore_case) {
+            return false
+        }
+        i += 1
+    }
+    true
+}
+
+// ---------------------------------------------------------- formatting
+
+fn spaces(n: int) -> str {
+    let pad = "       "
+    if n <= 0 {
+        return ""
+    }
+    if n >= pad.len {
+        return pad
+    }
+    pad[0..n]
+}
+
+/// The `-c` prefix: the count right-aligned in seven columns, then one
+/// space, widening rather than truncating.
+pub fn counted(n: int) -> str {
+    let s = "{n}"
+    "{spaces(7 - s.len)}{s} "
+}
+
+/// Append one output line to a region-local buffer.
+fn emit(mut buf: List[byte], prefix: str, line: List[byte], n: int, delim: int) {
+    for b in prefix.bytes() {
+        (mut buf).push(b)
+    }
+    var i = 0
+    while i < n {
+        (mut buf).push(line[i])
+        i += 1
+    }
+    (mut buf).push(delim as byte)
+}
+
+// ---------------------------------------------------------- the options
+
+fn options() -> List[bore.Opt] {
+    var s = List[bore.Opt]()
+    (mut s).push(bore.flag("c", "count"))
+    (mut s).push(bore.flag("d", "repeated"))
+    (mut s).push(bore.flag("D", ""))
+    (mut s).push(bore.takes("", "all-repeated"))
+    (mut s).push(bore.takes("f", "skip-fields"))
+    (mut s).push(bore.takes("", "group"))
+    (mut s).push(bore.flag("i", "ignore-case"))
+    (mut s).push(bore.takes("s", "skip-chars"))
+    (mut s).push(bore.flag("u", "unique"))
+    (mut s).push(bore.flag("z", "zero-terminated"))
+    (mut s).push(bore.takes("w", "check-chars"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    let digits = "0123456789"
+    var d = 0
+    while d < 10 {
+        (mut s).push(bore.flag(digits[d..d + 1], ""))
+        d += 1
+    }
+    s
+}
+
+/// Rewrite a bare `--group` or `--all-repeated` — or any prefix of
+/// either — as `--NAME=`, so `bore.parse` reads it as an option with an
+/// empty argument rather than eating the next operand.
+///
+/// No other long option of `uniq` starts with `g` or `a`, so a prefix
+/// that matches one of these two matches nothing else and the rewrite
+/// cannot change what an ambiguous spelling means.
+pub fn fix_optional(args: List[str]) -> List[str] {
+    var out = List[str]()
+    var done = false
+    for a in args {
+        if done {
+            (mut out).push(a)
+            continue
+        }
+        if a == "--" {
+            done = true
+            (mut out).push(a)
+            continue
+        }
+        if !a.starts_with("--") || a.len == 2 || a.contains("=") {
+            (mut out).push(a)
+            continue
+        }
+        let name = a[2..]
+        if "group".starts_with(name) || "all-repeated".starts_with(name) {
+            (mut out).push("{a}=")
+        } else {
+            (mut out).push(a)
+        }
+    }
+    out
+}
+
+/// `--group`'s method, or -1 when the word names none.
+pub fn group_method(v: str) -> int {
+    if v.len == 0 || v == "separate" {
+        return 0
+    }
+    if v == "prepend" {
+        return 1
+    }
+    if v == "append" {
+        return 2
+    }
+    if v == "both" {
+        return 3
+    }
+    -1
+}
+
+/// `--all-repeated`'s method, or -1.
+pub fn repeated_method(v: str) -> int {
+    if v.len == 0 || v == "none" {
+        return 0
+    }
+    if v == "prepend" {
+        return 1
+    }
+    if v == "separate" {
+        return 2
+    }
+    -1
+}
+
+fn group_words() -> str {
+    "Valid arguments are:\n  - 'prepend'\n  - 'append'\n  - 'separate'\n  - 'both'"
+}
+
+fn repeated_words() -> str {
+    "Valid arguments are:\n  - 'none'\n  - 'prepend'\n  - 'separate'"
+}
+
+// ------------------------------------------------------------- the main
+
+fn main() -> int {
+    let p = bore.parse(options(), fix_optional(env_args()), bore.permute())
+    var c = Conf {
+        count: false,
+        unique: true,
+        first_rep: true,
+        later_rep: false,
+        all_repeated: false,
+        ignore_case: false,
+        delim: 10,
+        skip_fields: 0,
+        skip_chars: 0,
+        check_chars: -1,
+        group: -1,
+        method: 0,
+    }
+    var saw_c = false
+    var saw_d = false
+    var saw_dd = false
+    var saw_u = false
+    var help = false
+    var version = false
+    var digits_run = false
+    var bad = ""
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i]
+        let v = p.values[i]
+        var is_digit = false
+        if k.len == 1 {
+            let d = to_count(k)
+            if d >= 0 {
+                is_digit = true
+                if digits_run {
+                    if c.skip_fields < cap() {
+                        c.skip_fields = c.skip_fields * 10 + d
+                    }
+                    if c.skip_fields > cap() {
+                        c.skip_fields = cap()
+                    }
+                } else {
+                    c.skip_fields = d
+                }
+                digits_run = true
+            }
+        }
+        if !is_digit {
+            digits_run = false
+            if k == "help" {
+                help = true
+            } else if k == "version" {
+                version = true
+            } else if k == "count" {
+                c.count = true
+                saw_c = true
+            } else if k == "repeated" {
+                c.unique = false
+                saw_d = true
+            } else if k == "D" {
+                c.unique = false
+                c.later_rep = true
+                c.all_repeated = true
+                saw_dd = true
+            } else if k == "all-repeated" {
+                let m = repeated_method(v)
+                if m < 0 {
+                    return bore.usage_error(
+                        "uniq",
+                        "invalid argument {bore.quote(v)} for '--all-repeated'\n{repeated_words()}",
+                    )
+                }
+                c.unique = false
+                c.later_rep = true
+                c.all_repeated = true
+                c.method = m
+                saw_dd = true
+            } else if k == "unique" {
+                c.first_rep = false
+                saw_u = true
+            } else if k == "ignore-case" {
+                c.ignore_case = true
+            } else if k == "zero-terminated" {
+                c.delim = 0
+            } else if k == "group" {
+                let m = group_method(v)
+                if m < 0 {
+                    return bore.usage_error(
+                        "uniq",
+                        "invalid argument {bore.quote(v)} for '--group'\n{group_words()}",
+                    )
+                }
+                c.group = m
+            } else if k == "skip-fields" {
+                let n = to_count(v)
+                if n < 0 && bad.len == 0 {
+                    bad = "{v}: invalid number of fields to skip"
+                }
+                if n >= 0 {
+                    c.skip_fields = n
+                }
+            } else if k == "skip-chars" {
+                let n = to_count(v)
+                if n < 0 && bad.len == 0 {
+                    bad = "{v}: invalid number of bytes to skip"
+                }
+                if n >= 0 {
+                    c.skip_chars = n
+                }
+            } else if k == "check-chars" {
+                let n = to_count(v)
+                if n < 0 && bad.len == 0 {
+                    bad = "{v}: invalid number of bytes to compare"
+                }
+                if n >= 0 {
+                    c.check_chars = n
+                }
+            }
+        }
+        i += 1
+    }
+    if help || version {
+        var h = bore.stdout()
+        if help {
+            bore.put(mut h, help_text()) else |_| {}
+        } else {
+            bore.put(mut h, bore.version_text("uniq")) else |_| {}
+        }
+        return bore.finish(mut h, "uniq", 0)
+    }
+    if !bore.ok(p) {
+        return bore.usage_error("uniq", p.error)
+    }
+    if bad.len > 0 {
+        bore.warn("uniq", bad)
+        return 1
+    }
+    if saw_c && saw_dd {
+        return bore.usage_error(
+            "uniq",
+            "printing all duplicated lines and repeat counts is meaningless",
+        )
+    }
+    if c.group >= 0 && (saw_c || saw_d || saw_dd || saw_u) {
+        return bore.usage_error("uniq", "--group is mutually exclusive with -c/-d/-D/-u")
+    }
+    if p.operands.len > 2 {
+        return bore.usage_error("uniq", "extra operand {bore.quote(p.operands[2])}")
+    }
+
+    // The sink is opened before the source: with descriptor 1 closed a
+    // file opened first takes it (wolf-lang#405).
+    var out = bore.stdout()
+    if p.operands.len == 2 && p.operands[1] != "-" {
+        let target = p.operands[1]
+        let fd = fs_open_mode(target, 1) else |e| match e {
+            not_found => {
+                bore.input_error("uniq", target, bore.no_such_file())
+                return 1
+            },
+            denied => {
+                bore.input_error("uniq", target, bore.permission_denied())
+                return 1
+            },
+            exists => {
+                bore.input_error("uniq", target, bore.io_error())
+                return 1
+            },
+            invalid => {
+                bore.input_error("uniq", target, bore.directory_reason())
+                return 1
+            },
+            io => {
+                bore.input_error("uniq", target, bore.directory_reason())
+                return 1
+            },
+        }
+        out = bore.Out { fd: fd, direct: true, buf: List[byte]() }
+    }
+    var name = "-"
+    if p.operands.len >= 1 {
+        name = p.operands[0]
+    }
+    let src = bore.open_input(name) else |e| match e {
+        not_found => {
+            bore.input_error("uniq", name, bore.no_such_file())
+            return 1
+        },
+        denied => {
+            bore.input_error("uniq", name, bore.permission_denied())
+            return 1
+        },
+        is_dir => {
+            // GNU opens a directory and fails on the READ, which is a
+            // different message with a differently quoted name.
+            bore.warn("uniq", "error reading {bore.quote(name)}: {bore.directory_reason()}")
+            return 1
+        },
+        io => {
+            bore.warn("uniq", "error reading {bore.quote(name)}: {bore.io_error()}")
+            return 1
+        },
+    }
+    let status = filter(out, src, c)
+    bore.close_input(src)
+    status
+}
+
+/// Read every line and write what the switches ask for.
+///
+/// Every scalar of the group state lives in this frame and is written
+/// straight from inside the blocks; nothing that allocates crosses one,
+/// which is why the separator and emission logic is spelled out here
+/// rather than handed to helpers taking `mut` parameters from outside.
+fn filter(out: bore.Out, src: bore.In, c: Conf) -> int {
+    let keep = region()
+    var first = List[byte]()
+    var pending = List[byte]()
+    in keep {
+        first = List[byte]()
+        pending = List[byte]()
+    }
+    var first_len = 0
+    var pending_len = 0
+    var have = false
+    var count = 0
+    var printed = 0
+    var any = false
+    var failed = false
+    var read_failed = false
+    var stop = false
+    while !stop {
+        region pass {
+            let piece = bore.read_chunk(src, chunk()) else |err| match err {
+                eof => { stop = true; List[byte]() },
+                io => {
+                    stop = true
+                    read_failed = true
+                    List[byte]()
+                },
+            }
+            if piece.len == 0 {
+                stop = true
+            }
+            var buf = List[byte]()
+            var at = 0
+            var k = 0
+            while k < piece.len {
+                if piece[k] as int == c.delim {
+                    // One line: what was held over, then this chunk's part.
+                    var line = List[byte]()
+                    var j = 0
+                    while j < pending_len {
+                        (mut line).push(pending[j])
+                        j += 1
+                    }
+                    j = at
+                    while j < k {
+                        (mut line).push(piece[j])
+                        j += 1
+                    }
+                    pending_len = 0
+                    let n = line.len
+                    var opens = true
+                    if have && same(first, first_len, line, n, c) {
+                        opens = false
+                        count += 1
+                    }
+                    if opens {
+                        if have && !c.all_repeated && c.group < 0 {
+                            var show = c.first_rep
+                            if count == 1 {
+                                show = c.unique
+                            }
+                            if show {
+                                var prefix = ""
+                                if c.count {
+                                    prefix = counted(count)
+                                }
+                                emit(mut buf, prefix, first, first_len, c.delim)
+                            }
+                        }
+                        in keep {
+                            var t = 0
+                            while t < n {
+                                if t < first.len {
+                                    first[t] = line[t]
+                                } else {
+                                    (mut first).push(line[t])
+                                }
+                                t += 1
+                            }
+                        }
+                        first_len = n
+                        have = true
+                        count = 1
+                        if c.group >= 0 {
+                            if !any && (c.group == 1 || c.group == 3) {
+                                (mut buf).push(c.delim as byte)
+                            }
+                            if any && (c.group == 2 || c.group == 3) {
+                                (mut buf).push(c.delim as byte)
+                            }
+                            if any && (c.group == 0 || c.group == 1) {
+                                (mut buf).push(c.delim as byte)
+                            }
+                            any = true
+                            emit(mut buf, "", line, n, c.delim)
+                        }
+                    } else if c.all_repeated {
+                        if count == 2 {
+                            if printed == 0 && c.method == 1 {
+                                (mut buf).push(c.delim as byte)
+                            }
+                            if printed > 0 && (c.method == 1 || c.method == 2) {
+                                (mut buf).push(c.delim as byte)
+                            }
+                            printed += 1
+                            if c.first_rep {
+                                emit(mut buf, "", first, first_len, c.delim)
+                            }
+                        }
+                        if c.later_rep {
+                            emit(mut buf, "", line, n, c.delim)
+                        }
+                    } else if c.group >= 0 {
+                        emit(mut buf, "", line, n, c.delim)
+                    }
+                    at = k + 1
+                }
+                k += 1
+            }
+            if at < piece.len {
+                in keep {
+                    var j = at
+                    while j < piece.len {
+                        if pending_len < pending.len {
+                            pending[pending_len] = piece[j]
+                        } else {
+                            (mut pending).push(piece[j])
+                        }
+                        pending_len += 1
+                        j += 1
+                    }
+                }
+            }
+            bore.write_direct(out, buf) else |_| {
+                failed = true
+                stop = true
+            }
+        }
+    }
+    // A last line with no delimiter is still a line, and then the group
+    // that is still open has to be closed.
+    region tail {
+        var buf = List[byte]()
+        if pending_len > 0 {
+            var opens = true
+            if have && same(first, first_len, pending, pending_len, c) {
+                opens = false
+                count += 1
+            }
+            if opens {
+                if have && !c.all_repeated && c.group < 0 {
+                    var show = c.first_rep
+                    if count == 1 {
+                        show = c.unique
+                    }
+                    if show {
+                        var prefix = ""
+                        if c.count {
+                            prefix = counted(count)
+                        }
+                        emit(mut buf, prefix, first, first_len, c.delim)
+                    }
+                }
+                in keep {
+                    var t = 0
+                    while t < pending_len {
+                        if t < first.len {
+                            first[t] = pending[t]
+                        } else {
+                            (mut first).push(pending[t])
+                        }
+                        t += 1
+                    }
+                }
+                first_len = pending_len
+                have = true
+                count = 1
+                if c.group >= 0 {
+                    if !any && (c.group == 1 || c.group == 3) {
+                        (mut buf).push(c.delim as byte)
+                    }
+                    if any && (c.group == 2 || c.group == 3) {
+                        (mut buf).push(c.delim as byte)
+                    }
+                    if any && (c.group == 0 || c.group == 1) {
+                        (mut buf).push(c.delim as byte)
+                    }
+                    any = true
+                    emit(mut buf, "", first, first_len, c.delim)
+                }
+            } else if c.all_repeated {
+                if count == 2 {
+                    if printed == 0 && c.method == 1 {
+                        (mut buf).push(c.delim as byte)
+                    }
+                    if printed > 0 && (c.method == 1 || c.method == 2) {
+                        (mut buf).push(c.delim as byte)
+                    }
+                    printed += 1
+                    if c.first_rep {
+                        emit(mut buf, "", first, first_len, c.delim)
+                    }
+                }
+                if c.later_rep {
+                    emit(mut buf, "", pending, pending_len, c.delim)
+                }
+            } else if c.group >= 0 {
+                emit(mut buf, "", pending, pending_len, c.delim)
+            }
+        }
+        if have && !c.all_repeated && c.group < 0 {
+            var show = c.first_rep
+            if count == 1 {
+                show = c.unique
+            }
+            if show {
+                var prefix = ""
+                if c.count {
+                    prefix = counted(count)
+                }
+                emit(mut buf, prefix, first, first_len, c.delim)
+            }
+        }
+        if c.group >= 0 && any && (c.group == 2 || c.group == 3) {
+            (mut buf).push(c.delim as byte)
+        }
+        bore.write_direct(out, buf) else |_| {
+            failed = true
+        }
+    }
+    if read_failed {
+        bore.warn("uniq", "read error")
+        return 1
+    }
+    if failed {
+        bore.warn("uniq", "write error")
+        return 1
+    }
+    0
+}
+
+fn help_text() -> str {
+    """
+    Usage: uniq [OPTION]... [INPUT [OUTPUT]]
+    Write INPUT (or standard input) to OUTPUT (or standard output) with
+    ADJACENT matching lines merged. Lines that match but do not sit next
+    to each other are left alone; sort the input first if that is not
+    what you want.
+
+      -c, --count           prefix each line by how many times it ran
+      -d, --repeated        print only a line that repeats, once
+      -D                    print every line of every repeating group
+          --all-repeated[=METHOD]
+                            like -D, separating groups: none, prepend or
+                            separate
+      -f, --skip-fields=N   do not compare the first N fields
+          --group[=METHOD]  print every line, separating groups:
+                            separate, prepend, append or both
+      -i, --ignore-case     compare without regard to case
+      -s, --skip-chars=N    do not compare the first N characters
+      -u, --unique          print only a line that does not repeat
+      -z, --zero-terminated the delimiter is NUL, not newline
+      -w, --check-chars=N   compare no more than N characters
+          --help            print this help and exit
+          --version         print the version and exit
+
+    A field is a run of blanks and then a run of non-blanks. Fields are
+    skipped before characters.
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}
