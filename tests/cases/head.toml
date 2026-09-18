@@ -1,0 +1,509 @@
+# head — GNU coreutils 9.11, black-box. Every expectation here was read
+# off the GNU binary on BOTH hosts (macOS arm64 Homebrew `ghead`, linux
+# x86-64 native `head`), which agreed on every case in this file.
+#
+# The fixtures under tests/fixtures/ are committed data, not generated:
+#   twelve.txt  39 B, l1..l12, so the default 10 lines is a proper prefix
+#   plain.txt   17 B, 3 lines      second.txt  8 B, 2 lines
+#   nonl.txt    15 B, one line with no newline
+#   empty.txt   0 B                nulrec.dat  a\0bb\0ccc\0dd, for -z
+#   bin.dat     514 B, every byte value        tests/fixtures is a
+#   utf8.txt    valid multibyte                directory operand
+#
+# File operands are written relative to the repository root, which is
+# where difftest runs them from.
+#
+# --help and --version print OUR text, not GNU's FSF-owned prose, so
+# their cases compare the exit status and stderr only.
+#
+# Nothing here is version-bounded: head's surface did not move between
+# GNU 9.4 (ubuntu-latest) and 9.11 (both dev hosts), and every case was
+# run against both. tail's and cut's files DO carry bounds.
+
+# ----------------------------------------------------------- the default
+
+[[case]]
+name = "default, more lines than ten"
+args = ["tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "default, fewer lines than ten"
+args = ["tests/fixtures/plain.txt"]
+
+[[case]]
+name = "default on an empty file"
+args = ["tests/fixtures/empty.txt"]
+
+[[case]]
+name = "default on stdin"
+stdin = "a\nb\nc\n"
+
+[[case]]
+name = "a dash operand reads stdin"
+args = ["-"]
+stdin = "a\nb\nc\n"
+
+[[case]]
+name = "no operand and no stdin"
+args = []
+
+# ------------------------------------------------------------------- -n
+
+[[case]]
+name = "n 3"
+args = ["-n", "3", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "n 0"
+args = ["-n", "0", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "n attached"
+args = ["-n3", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "n long with equals"
+args = ["--lines=3", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "n long abbreviated"
+args = ["--li=2", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "n more than the file holds"
+args = ["-n", "99", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "n on a file with no final newline"
+args = ["-n", "5", "tests/fixtures/nonl.txt"]
+
+[[case]]
+name = "n 1 on a file with no final newline"
+args = ["-n", "1", "tests/fixtures/nonl.txt"]
+
+[[case]]
+name = "n a leading plus is no sign at all"
+args = ["-n", "+3", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "n minus 3, all but the last three"
+args = ["-n", "-3", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "n minus 0 is the whole file"
+args = ["-n", "-0", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "n minus more than the file holds"
+args = ["-n", "-20", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "n minus on a file with no final newline"
+args = ["-n", "-2", "tests/fixtures/nonl.txt"]
+
+[[case]]
+name = "n minus 1 on three lines with no final newline"
+stdin = "a\nb\nc"
+args = ["-n", "-1"]
+
+[[case]]
+name = "n minus 2 on three lines with a final newline"
+stdin = "a\nb\nc\n"
+args = ["-n", "-2"]
+
+[[case]]
+name = "n minus on a pipe"
+stdin = "a\nb\nc\nd\n"
+args = ["-n", "-1"]
+
+[[case]]
+name = "n minus then a plus, both signs"
+args = ["-n", "-+3", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "n minus then a blank, the sign is consumed"
+args = ["-n", "- 2", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "n plus then a blank is a parse error"
+args = ["-n", "+ 2", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "n with a leading blank"
+args = ["-n", " 2", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "n given twice, the last wins"
+args = ["-n", "3", "-n", "1", "tests/fixtures/twelve.txt"]
+
+# ------------------------------------------------------------------- -c
+
+[[case]]
+name = "c 5"
+args = ["-c", "5", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "c 0"
+args = ["-c", "0", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "c more than the file holds"
+args = ["-c", "999", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "c long with equals"
+args = ["--bytes=4", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "c minus 5"
+args = ["-c", "-5", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "c minus more than the file holds"
+args = ["-c", "-100", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "c minus on a pipe, where no fstat can help"
+stdin = "abcdef"
+args = ["-c", "-2"]
+
+[[case]]
+name = "c minus on a pipe, the whole stream"
+stdin = "abcdef"
+args = ["-c", "-99"]
+
+[[case]]
+name = "c minus on a file with no final newline"
+args = ["-c", "-3", "tests/fixtures/nonl.txt"]
+
+[[case]]
+name = "c on binary input"
+args = ["-c", "300", "tests/fixtures/bin.dat"]
+
+[[case]]
+name = "c minus on binary input"
+args = ["-c", "-300", "tests/fixtures/bin.dat"]
+
+[[case]]
+name = "c splits a multibyte character"
+args = ["-c", "2", "tests/fixtures/utf8.txt"]
+
+# ------------------------------------------------- -n and -c against each
+
+[[case]]
+name = "n then c, the last wins"
+args = ["-n", "2", "-c", "2", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "c then n, the last wins"
+args = ["-c", "2", "-n", "2", "tests/fixtures/twelve.txt"]
+
+# ------------------------------------------------------------ multipliers
+
+[[case]]
+name = "c with the b multiplier"
+args = ["-c", "1b", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "c with the K multiplier"
+args = ["-c", "1K", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "c with the lowercase k multiplier"
+args = ["-c", "1k", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "c with the kB multiplier"
+args = ["-c", "1kB", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "c with the KiB multiplier"
+args = ["-c", "1KiB", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "c with the lowercase m multiplier"
+args = ["-c", "1m", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "n with the b multiplier"
+args = ["-n", "1b", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "c minus with a multiplier is the whole file gone"
+args = ["-c", "-1K", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "a multiplier that names nothing"
+args = ["-c", "1g", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "a multiplier with trailing junk"
+args = ["-c", "1K3", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "a count that overflows is not an error"
+args = ["-n", "99999999999999999999999", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "a leading zero is decimal, not octal"
+args = ["-c", "010", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "hexadecimal is not a number here"
+args = ["-c", "0x10", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "a fraction is not a number here"
+args = ["-c", "1.5", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "a count that is not a number"
+args = ["-n", "x", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "an empty count"
+args = ["-n", "", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "a count with nothing after the option"
+args = ["-n"]
+
+# ---------------------------------------------------------- the banners
+
+[[case]]
+name = "two files get banners"
+args = ["-n", "2", "tests/fixtures/plain.txt", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "two files quiet"
+args = ["-q", "-n", "2", "tests/fixtures/plain.txt", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "one file verbose"
+args = ["-v", "-n", "2", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "quiet then verbose, the last wins"
+args = ["-q", "-v", "-n", "1", "tests/fixtures/plain.txt", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "verbose then quiet, the last wins"
+args = ["-v", "-q", "-n", "1", "tests/fixtures/plain.txt", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "the long silent spelling"
+args = ["--silent", "-n", "1", "tests/fixtures/plain.txt", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "stdin is named standard input in a banner"
+args = ["-v", "-n", "1", "-"]
+stdin = "a\nb\n"
+
+[[case]]
+name = "a dash beside a file"
+args = ["-n", "1", "-", "tests/fixtures/plain.txt"]
+stdin = "a\nb\n"
+
+[[case]]
+name = "an empty file still gets its banner"
+args = ["tests/fixtures/empty.txt", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "three files"
+args = ["-n", "1", "tests/fixtures/plain.txt", "tests/fixtures/second.txt", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "n 0 still writes the banners"
+args = ["-n", "0", "tests/fixtures/plain.txt", "tests/fixtures/twelve.txt"]
+
+# ------------------------------------------------------------ the errors
+
+[[case]]
+name = "a missing operand"
+args = ["-n", "1", "tests/fixtures/nope.txt"]
+
+[[case]]
+name = "a missing operand between two that exist"
+args = ["-n", "1", "tests/fixtures/plain.txt", "tests/fixtures/nope.txt", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "a directory operand"
+args = ["-n", "1", "tests/fixtures"]
+
+[[case]]
+name = "a directory operand among files takes a banner"
+args = ["-n", "1", "tests/fixtures/plain.txt", "tests/fixtures", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "a directory operand quiet"
+args = ["-q", "-n", "1", "tests/fixtures", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "an empty operand name"
+args = ["-n", "1", ""]
+
+[[case]]
+name = "a name that has to be quoted"
+args = ["-n", "1", "tests/fixtures/no such file"]
+
+[[case]]
+name = "a name holding a single quote"
+args = ["-n", "1", "tests/fixtures/it's"]
+
+[[case]]
+name = "a name holding a tab"
+args = ["-n", "1", "tests/fixtures/ta\tb"]
+
+[[case]]
+name = "a name holding a brace, which needs no quoting but gets one"
+args = ["-n", "1", "tests/fixtures/a{b"]
+
+[[case]]
+name = "an unknown option"
+args = ["-Q", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "an unknown long option"
+args = ["--nope", "tests/fixtures/twelve.txt"]
+
+# ------------------------------------------------------------------- -z
+
+[[case]]
+name = "z on NUL records"
+args = ["-z", "-n", "2", "tests/fixtures/nulrec.dat"]
+
+[[case]]
+name = "z on text, which holds no NUL at all"
+args = ["-z", "-n", "1", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "z minus on NUL records"
+args = ["-z", "-n", "-1", "tests/fixtures/nulrec.dat"]
+
+[[case]]
+name = "z leaves the banner ending in a newline"
+args = ["-z", "-n", "1", "tests/fixtures/nulrec.dat", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "z long spelling"
+args = ["--zero-terminated", "-n", "1", "tests/fixtures/nulrec.dat"]
+
+# ------------------------------------------------------ the obsolete form
+
+[[case]]
+name = "obsolete NUM"
+args = ["-3", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "obsolete zero"
+args = ["-0", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "obsolete NUM with c"
+args = ["-3c", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "obsolete NUM with l"
+args = ["-3l", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "obsolete NUM with q and two files"
+args = ["-3q", "tests/fixtures/plain.txt", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "obsolete NUM with v"
+args = ["-3v", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "obsolete NUM with the b multiplier"
+args = ["-3b", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "obsolete NUM with the m multiplier"
+args = ["-3m", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "obsolete NUM with the b multiplier then c"
+args = ["-3bc", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "obsolete NUM with an uppercase K is not a multiplier"
+args = ["-3K", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "obsolete NUM with a letter that names nothing"
+args = ["-3x", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "obsolete NUM then an ordinary option, the last wins"
+args = ["-3", "-n", "2", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "obsolete NUM anywhere but first is a trailing option"
+args = ["tests/fixtures/twelve.txt", "-3"]
+
+[[case]]
+name = "obsolete NUM after another option is a trailing option"
+args = ["-n", "2", "-3", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "obsolete NUM twice, the second is a trailing option"
+args = ["-3", "-3", "tests/fixtures/twelve.txt"]
+
+# ------------------------------------------------- the rest of the surface
+
+[[case]]
+name = "a double dash ends the options"
+args = ["-n", "1", "--", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "options permute with operands"
+args = ["tests/fixtures/twelve.txt", "-n", "2"]
+
+[[case]]
+name = "POSIXLY_CORRECT stops the permutation"
+args = ["tests/fixtures/twelve.txt", "-n", "2"]
+env = { POSIXLY_CORRECT = "1" }
+
+[[case]]
+name = "a short cluster"
+args = ["-qn2", "tests/fixtures/plain.txt", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "help alone"
+args = ["--help"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "help before an error wins"
+args = ["--help", "-Q"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "an error before help wins"
+args = ["-Q", "--help"]
+
+[[case]]
+name = "version alone"
+args = ["--version"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "an ambiguous long option"
+args = ["--s", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "obsolete c then b, the multiplier comes back"
+args = ["-3cb", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "obsolete b then l, the multiplier survives l"
+args = ["-3bl", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "obsolete c then l"
+args = ["-3cl", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "obsolete l then c"
+args = ["-3lc", "tests/fixtures/twelve.txt"]
