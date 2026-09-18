@@ -1,0 +1,46 @@
+# uniq — the bench. The work is per LINE, not per byte, so `lines` (very
+# short lines) is the input that puts the most pressure on it and `big`
+# (~64-byte lines) is the one that shows the copy cost.
+#
+# PREDICTION, written before the first run (release tier, GNU 9.11):
+# 0.4x to 0.6x of GNU on both hosts. GNU reads a line with `getdelim`
+# into a reused buffer and compares it with `memcmp`; this uniq copies
+# every line into a fresh region-local list before comparing it, because
+# wolf 0.2.14 has no read-into-a-caller's-buffer surface
+# (wolf-lang#416), so every byte is touched twice more than GNU touches
+# it. `-f` should cost a little more again, since the field walk is
+# another pass over the line.
+
+[[bench]]
+name = "start-up, no input"
+command = "{prog} < /dev/null"
+
+[[bench]]
+name = "very short lines"
+command = "LC_ALL=C {prog} < {input} > /dev/null"
+input = "lines"
+
+[[bench]]
+name = "very short lines, counted"
+command = "LC_ALL=C {prog} -c < {input} > /dev/null"
+input = "lines"
+
+[[bench]]
+name = "ordinary lines"
+command = "LC_ALL=C {prog} < {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "ordinary lines, a field skipped"
+command = "LC_ALL=C {prog} -f 1 < {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "ordinary lines, case folded"
+command = "LC_ALL=C {prog} -i < {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "every line of every repeating group"
+command = "LC_ALL=C {prog} -D < {input} > /dev/null"
+input = "lines"

@@ -1,0 +1,50 @@
+# tr — the bench. Every row is one pass over generated input, and the
+# work is the same shape in all of them: one table lookup and one byte
+# pushed per input byte, then one write per chunk. `-c` costs nothing
+# extra at run time, because the complement is folded into the table
+# before the first byte is read.
+#
+# PREDICTION, written before the first run (release tier, GNU 9.11):
+# level with GNU on start-up, and 0.6x to 0.9x on bulk translation —
+# slower than `wc -w`'s 1.27x/0.88x because tr stores a byte for every
+# byte it reads where wc only updates counters, and wolf's `List` push
+# is bounds-checked where GNU writes into a fixed buffer.
+
+[[bench]]
+name = "start-up, no input"
+command = "{prog} a b < /dev/null"
+
+[[bench]]
+name = "translate a range"
+command = "LC_ALL=C {prog} a-z A-Z < {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "translate a class pair"
+command = "LC_ALL=C {prog} '[:lower:]' '[:upper:]' < {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "delete one character"
+command = "LC_ALL=C {prog} -d a < {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "delete the complement of a class"
+command = "LC_ALL=C {prog} -cd '[:alpha:]' < {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "squeeze spaces"
+command = "LC_ALL=C {prog} -s ' ' < {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "translate then squeeze"
+command = "LC_ALL=C {prog} -s a-z A-Z < {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "delete over binary noise"
+command = "LC_ALL=C {prog} -d '\\000-\\037' < {input} > /dev/null"
+input = "noise"

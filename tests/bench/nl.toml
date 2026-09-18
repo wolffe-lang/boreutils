@@ -1,0 +1,45 @@
+# nl — the bench. The work is per LINE: a delimiter comparison, a number
+# formatted into the field, and the line copied out.
+#
+# PREDICTION, written before the first run (release tier, GNU 9.11):
+# 0.3x to 0.5x of GNU on the short-line rows and rather better on the
+# long-line ones, because the per-line cost is what this program pays
+# most for and the per-byte cost is a straight copy. The delimiter test
+# builds a `str` from the line's bytes on EVERY line, which is the one
+# allocation per line this program cannot avoid at 0.2.14 — there is no
+# way to compare a `List[byte]` against a `str` without materializing
+# one of them — so the short-line rows should be the worst.
+
+[[bench]]
+name = "start-up, no input"
+command = "{prog} < /dev/null"
+
+[[bench]]
+name = "very short lines"
+command = "LC_ALL=C {prog} < {input} > /dev/null"
+input = "lines"
+
+[[bench]]
+name = "very short lines, every one numbered"
+command = "LC_ALL=C {prog} -b a < {input} > /dev/null"
+input = "lines"
+
+[[bench]]
+name = "very short lines, zero filled"
+command = "LC_ALL=C {prog} -n rz -w 9 < {input} > /dev/null"
+input = "lines"
+
+[[bench]]
+name = "ordinary lines"
+command = "LC_ALL=C {prog} < {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "ordinary lines, no numbers at all"
+command = "LC_ALL=C {prog} -b n < {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "ordinary lines, a regular expression per line"
+command = "LC_ALL=C {prog} -b 'p^a' < {input} > /dev/null"
+input = "big"

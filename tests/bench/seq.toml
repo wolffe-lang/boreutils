@@ -1,0 +1,38 @@
+# seq — the bench. seq reads nothing, so every row is generation alone,
+# and {bytes:N} is how many numbers to print.
+#
+# PREDICTION, written before the first run (release tier, GNU 9.11):
+# 0.3x to 0.5x of GNU. GNU has a hand-written decimal incrementer for
+# the all-integer case and a long double add plus one `printf` for
+# everything else; this seq does exact decimal arithmetic for both, which
+# is a digit-at-a-time carry and a digit-at-a-time render, so it should
+# lose on the integer rows and lose by more on the fractional ones. The
+# exactness is the point, not the speed, and the report says so.
+
+[[bench]]
+name = "start-up, one number"
+command = "{prog} 1 1"
+
+[[bench]]
+name = "a million integers"
+command = "LC_ALL=C {prog} 1 {bytes:1000000} > /dev/null"
+
+[[bench]]
+name = "a million integers, equal width"
+command = "LC_ALL=C {prog} -w 1 {bytes:1000000} > /dev/null"
+
+[[bench]]
+name = "a million integers, a comma separator"
+command = "LC_ALL=C {prog} -s , 1 {bytes:1000000} > /dev/null"
+
+[[bench]]
+name = "a million thousandths"
+command = "LC_ALL=C {prog} 0 0.001 {bytes:1000} > /dev/null"
+
+[[bench]]
+name = "a million integers through a format"
+command = "LC_ALL=C {prog} -f %g 1 {bytes:1000000} > /dev/null"
+
+[[bench]]
+name = "a million integers of six digits"
+command = "LC_ALL=C {prog} 100000 {bytes:1100000} > /dev/null"
