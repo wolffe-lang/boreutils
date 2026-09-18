@@ -215,6 +215,101 @@ Memory is level, and flat in the size of the input either way: copying
 chunk — without it the same copy peaked at 340 MB and `cat -n` at
 1.1 GB, because the ambient region never frees what each read allocates.
 
+`head`, `tail` and `cut` have a table of their own, because they are
+the first utilities where reading the whole file is a defect rather than
+a style choice. Release tier, GNU coreutils 9.11, 5 runs, 256 MiB of
+generated text, kasumi at load 1.4. **These numbers are linux only**:
+wave 45 forbids builds on nomad-1, so macOS is CI's job on this branch
+and not a column here.
+
+**The `head` question, answered with a syscall count and not an
+adjective.** `head -n 1` of a 268,435,456-byte file:
+
+| | read calls | bytes read | max RSS |
+|---|---:|---:|---:|
+| `head -n 1`, boreutils | 4 | 265,216 | 2.8 MB |
+| `head -n 1`, GNU | 4 | 12,214 | 2.3 MB |
+| `head -c 1`, boreutils | 4 | 3,073 | 2.5 MB |
+| `head -c 1`, GNU | 4 | 4,023 | 2.3 MB |
+| `tail -n 10`, boreutils | 1,028 | **268,438,528** | 2.9 MB |
+| `tail -n 10`, GNU | 5 | 12,214 | 2.3 MB |
+
+boreutils `head -n 1` reads one 256 KiB chunk and stops — 0.1% of the
+file, and the rest of each figure is the dynamic linker. `tail -n 10`
+reads **all of it**, and that row is the whole point of the `tail`
+section below.
+
+| head | kasumi (linux x86-64) |
+|---|---|
+| `-n 1` of 256 MiB | 0.4 ms vs GNU 0.2 ms |
+| `-c 1` of the same | 0.3 ms vs GNU 0.2 ms |
+| `-n 10`, the default | 0.4 ms vs GNU 0.2 ms |
+| `-n 1` through a pipe | 0.7 ms vs GNU 0.4 ms |
+| `-n 100000` of short lines | 1.4 ms vs GNU 1.2 ms (0.86x) |
+| `-c 100000000`, a bulk copy | 3.8 ms vs GNU 2.9 ms (0.75x) |
+| `-c -1024` on a file, which an `fstat` turns into a copy | 32.8 ms vs GNU 26.5 ms (0.81x) |
+| `-c -1024` through a pipe, where the window is the only way | 243 ms vs GNU 32 ms (0.13x) |
+| `-n -1`, a window over everything | 295 ms vs GNU 26 ms (0.09x) |
+| `-n -1` of short lines | 47 ms vs GNU 2.1 ms (0.04x) |
+
+The first four rows are start-up on both sides and hyperfine will not
+divide numbers that small, which is the right answer: neither
+implementation reads the file. The `-c -K` and `-n -K` rows are where
+`head` has to hold a window, and they are the repository's clearest
+price for having no bulk copy in the language: the bytes leaving the
+window are pushed into a list one at a time where GNU `memcpy`s them. A
+`chunk[0..k]` slice was tried in their place and is **2.2x slower**
+(656 ms against 297 ms), because a list slice allocates and copies a
+whole fresh list.
+
+| tail | kasumi (linux x86-64) |
+|---|---|
+| `-n 10` of a file, where GNU seeks | 111 ms vs GNU 0.2 ms |
+| `-c 10` of a file | 27 ms vs GNU 0.2 ms |
+| `-n 10` through a pipe, where neither side may seek | 114 ms vs GNU 68 ms (0.60x) |
+| `-c 10` through a pipe | 28.9 ms vs GNU 28.8 ms (**1.00x**) |
+| `-n 10` of short lines through a pipe | 35 ms vs GNU 20 ms (0.56x) |
+| `-n +1`, the whole file | 33.6 ms vs GNU 26.7 ms (0.80x) |
+| `-c +100000000`, a skip and a copy | 32.7 ms vs GNU 23.9 ms (0.73x) |
+| `-n 100000` of short lines | 118 ms vs GNU 0.9 ms |
+
+**`tail` on a regular file is O(size) here and O(1) for GNU, and no
+amount of tuning closes that.** GNU seeks to the end and reads a few
+kilobytes; wolf 0.2.14 has no seek, no tell and no positional read
+(wolf-lang#426, filed by this lane), so boreutils reads the file
+forward. On a PIPE, where GNU cannot seek either, the comparison is
+fair and boreutils is level with it: 1.00x on `-c` and 0.60x on `-n`.
+
+| cut | kasumi (linux x86-64) |
+|---|---|
+| `-b1-10`, C | 206 ms vs GNU 101 ms (0.49x) |
+| `-c1-10`, C, where a character is a byte | 206 ms vs GNU 100 ms (0.49x) |
+| `-c1-10`, UTF-8, where it is not | 1375 ms vs GNU 377 ms (0.27x) |
+| `-n -b1-10`, UTF-8 | 1507 ms vs GNU 534 ms (0.35x) |
+| `-f1 -d' '`, C | 283 ms vs GNU 136 ms (0.48x) |
+| `-f1,3 -d' '`, C | 441 ms vs GNU 228 ms (0.52x) |
+| `-f2- -d' ' --output-delimiter=:`, C | 1754 ms vs GNU 919 ms (0.52x) |
+| `--complement -b1-10`, C | 384 ms vs GNU 113 ms (0.30x) |
+| `-b1-10` on very short lines, C | 87 ms vs GNU 53 ms (0.61x) |
+| `-f1 -d' '` on very short lines, C | 123 ms vs GNU 77 ms (0.63x) |
+| `-b1-10` on binary noise, C | 34.5 ms vs GNU 10.6 ms (0.31x) |
+
+`cut` is between 0.27x and 0.63x, and two measurements got it there. The
+first draft pushed every input byte through the shared ring, because the
+ring is the one buffer that can outlive a per-chunk `region`, and it read
+**0.06x**; cutting each line out of the chunk it arrived in, and using
+the ring only for a line that straddles two chunks, is 7x faster. Then
+`-f1` was still 0.09x because it walked every field of every line to the
+end: stopping at the last field any range names took it to 0.48x. Both
+are in the git history rather than only in this table.
+
+**Memory is flat in the size of the input for all three**, at one
+`region` per chunk plus a window: 2.8 MB for `head -n 1`, 2.9 MB for
+`tail -n 10` and 3.1 MB for `cut -b1-10` on 256 MiB, against GNU's
+2.3–2.5 MB. `tail`'s window is the last K lines and `head -n -K`'s is
+the same, so a `tail -n 100000` costs what those hundred thousand lines
+weigh and nothing more.
+
 | utility | status | vs GNU |
 |---|---|---|
 | `true` | done | start-up only |
@@ -225,3 +320,6 @@ chunk — without it the same copy peaked at 340 MB and `cat -n` at
 | `yes` | done | 2.74x (macOS), 0.63x (linux) |
 | `cat` | done | start-up 1.18x (macOS), 0.97x (linux); bulk copy 0.64x, 0.16x |
 | `wc` | done | `-w` 1.27x, `-l` 0.92x (macOS, load 13.9); 0.88x, 0.17x (linux) |
+| `head` | done | `-n 1` start-up on both sides; `-n -K` 0.09x (linux) |
+| `tail` | done, `-f` included | pipe `-c` 1.00x, `-n` 0.60x; a file 111 ms against GNU's 0.2 ms, and the reason is wolf-lang#426 |
+| `cut` | done, without 9.11's `-w`, `-F` and `-O` | 0.27x to 0.63x (linux) |
