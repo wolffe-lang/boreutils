@@ -278,6 +278,16 @@ def load(path):
 
 
 def main(argv):
+    # THE REPORT IS WRITTEN AS IT IS DECIDED (boreutils#10). Python block-
+    # buffers a stdout that is not a terminal, which is exactly what CI
+    # gives this harness, so a run that died took every verdict it had
+    # already reached with it: three macOS gauntlets ended at exit 141
+    # with NOTHING between `Run tools/difftest` and the error line. A
+    # gate that loses its evidence when it fails cannot be used to
+    # diagnose the thing that killed it. Line buffering costs one write
+    # per case and makes the transcript survive any death, SIGKILL
+    # included — see tools/difftest-evidence, which kills a run to check.
+    sys.stdout.reconfigure(line_buffering=True)
     bindir = os.path.join(ROOT, "target", "release")
     cases = CASES
     while argv[:1] in (["--bin"], ["--cases"]):
