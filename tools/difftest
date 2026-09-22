@@ -22,6 +22,14 @@ Case file (TOML, one file per utility, any number of [[case]] tables):
   args = ["include/stdio.h", ".h"]
   stdin = "inline text"          # optional; or stdin_file = "name"
                                  #   (relative to tests/fixtures/)
+  stdin_repeat = 32768           # optional: send `stdin` this many times
+                                 #   over. A case that has to be LARGER
+                                 #   THAN THE PIPE BUFFER — the only way
+                                 #   to reach a write that blocks and
+                                 #   then fails — would otherwise carry a
+                                 #   megabyte of one repeated line in the
+                                 #   repository. Meaningless without
+                                 #   `stdin`.
   env = { POSIXLY_CORRECT = "1" }  # optional
   compare = ["exit"]             # optional; default all three
   stdout_bytes = 64              # optional: read this many bytes of
@@ -92,9 +100,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CASES = os.path.join(ROOT, "tests", "cases")
 FIXTURES = os.path.join(ROOT, "tests", "fixtures")
 ALL = ("stdout", "stderr", "exit")
-KEYS = {"name", "args", "stdin", "stdin_file", "env", "compare",
-        "stdout_bytes", "stdout_closed", "stdout_file", "skip", "timeout",
-        "gnu_util", "gnu_min", "gnu_max"}
+KEYS = {"name", "args", "stdin", "stdin_file", "stdin_repeat", "env",
+        "compare", "stdout_bytes", "stdout_closed", "stdout_file", "skip",
+        "timeout", "gnu_util", "gnu_min", "gnu_max"}
 # What a case compares when descriptor 1 is closed: there is no stdout.
 CLOSED = ("stderr", "exit")
 
@@ -150,7 +158,7 @@ def run(exe, argv0, case):
     data = None
     if "stdin" in case:
         stdin = subprocess.PIPE
-        data = case["stdin"].encode()
+        data = case["stdin"].encode() * int(case.get("stdin_repeat", 1))
     elif "stdin_file" in case:
         stdin = open(os.path.join(FIXTURES, case["stdin_file"]), "rb")
     limit = case.get("stdout_bytes")
@@ -246,6 +254,9 @@ def load(path):
         if c["name"] in seen:
             die(f"{path}: duplicate case name {c['name']!r}")
         seen.add(c["name"])
+        if "stdin_repeat" in c and "stdin" not in c:
+            die(f"{path}: case {c['name']!r} repeats a standard input "
+                f"it does not have")
         if "stdout_file" in c:
             if c.get("stdout_closed") or "stdout_bytes" in c:
                 die(f"{path}: case {c['name']!r} redirects standard "
