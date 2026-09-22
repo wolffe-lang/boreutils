@@ -1,0 +1,158 @@
+#!/usr/bin/env python3
+"""difftest-evidence — a gate on boreutils#10: the report survives.
+
+A gate that loses its evidence when it fails cannot be used to diagnose
+the thing that killed it. Three times now a macOS gauntlet has ended at
+`Process completed with exit code 141` with NOTHING between
+`Run tools/difftest` and the error line (boreutils#10; the third was run
+35668278241, a docs-only pull request, on both attempts). 141 is
+128 + SIGPIPE: the runner took a broken pipe of its own, and because
+Python block-buffers a pipe, every verdict it had already decided went
+unwritten with it.
+
+This tool asserts the two properties that make that impossible, and it
+is written so that each one can be WATCHED TO FAIL against the harness
+as it stood at trunk 24e786d:
+
+  1. THE BROKEN PIPE DOES NOT TAKE THE RUN. tests/pipetest/ holds one
+     case whose child is gone before its standard input arrives, with
+     more standard input than a pipe buffer holds, so difftest's own
+     write to that child MUST fail. The run has to finish and print its
+     count. Before the fix it dies at 141 with an empty transcript.
+
+  2. A RUN THAT DIES LEAVES WHAT IT HAD ALREADY DECIDED. The full suite
+     is started, watched until it says something, and then KILLED with
+     SIGKILL — which no exit path, atexit hook or signal handler can
+     intercept. Whatever reached the pipe before the kill is what a
+     dying run leaves behind, and it must be the header plus at least
+     one verdict. Before the fix it is zero bytes.
+
+SIGKILL rather than SIGPIPE on purpose: a flush-before-exit would pass a
+catchable signal while still losing everything to `kill -9`, to a
+watchdog, or to the runner reclaiming the machine. The property worth
+having is that the report is written as it is decided.
+
+usage: tools/difftest-evidence
+exit: 0 when both hold, 1 when either does not.
+"""
+
+import os
+import selectors
+import signal
+import subprocess
+import sys
+import time
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DIFFTEST = os.path.join(ROOT, "tools", "difftest")
+# Long on purpose, so this gate does not depend on a stopwatch: a
+# line-flushing harness says something in under a second and is killed
+# alive, and a block-buffering one says nothing until it EXITS, which is
+# the difference the gate reads. See below.
+PATIENCE = 60.0
+VERDICT = ("ok   ", "FAIL ", "SKIP ")
+
+
+def say(line):
+    print(f"difftest-evidence: {line}", flush=True)
+
+
+def refuse(line, transcript=None):
+    say(f"REFUSED — {line}")
+    if transcript is not None:
+        say(f"the transcript was {len(transcript)} bytes:")
+        sys.stdout.write(transcript.decode("utf-8", "replace"))
+        sys.stdout.flush()
+    sys.exit(1)
+
+
+def the_broken_pipe_does_not_take_the_run():
+    proc = subprocess.run([DIFFTEST, "--cases",
+                           os.path.join(ROOT, "tests", "pipetest")],
+                          cwd=ROOT, stdout=subprocess.PIPE,
+                          stderr=subprocess.STDOUT)
+    out = proc.stdout
+    if proc.returncode < 0:
+        refuse(f"the harness died of signal {-proc.returncode} on a case "
+               f"whose child is gone before its standard input arrives; a "
+               f"broken pipe of the harness's own is not a verdict", out)
+    if proc.returncode not in (0, 1):
+        refuse(f"the harness exited {proc.returncode} (141 is 128+SIGPIPE, "
+               f"the boreutils#10 shape) over tests/pipetest/", out)
+    if not any(line.startswith(b"difftest: ") and b" passed, " in line
+               for line in out.splitlines()):
+        refuse("the harness exited cleanly over tests/pipetest/ but printed "
+               "no count, so there is no report to read", out)
+    say("a broken pipe to a child leaves the run standing")
+    for line in out.splitlines():
+        if line.startswith((b"ok   ", b"FAIL ")) or b" passed, " in line:
+            say(f"  {line.decode('utf-8', 'replace')}")
+
+
+def a_dying_run_leaves_what_it_decided():
+    proc = subprocess.Popen([DIFFTEST], cwd=ROOT, stdout=subprocess.PIPE,
+                            stderr=subprocess.DEVNULL)
+    sel = selectors.DefaultSelector()
+    sel.register(proc.stdout, selectors.EVENT_READ)
+    seen = b""
+    started = time.monotonic()
+    deadline = started + PATIENCE
+    try:
+        while time.monotonic() < deadline:
+            if not sel.select(timeout=0.25):
+                continue
+            chunk = proc.stdout.read1(65536)
+            if not chunk:
+                break
+            seen += chunk
+            if any(l.startswith(VERDICT) for l in
+                   seen.decode("utf-8", "replace").splitlines()):
+                break
+        # The discriminator, and the reason this gate needs no stopwatch:
+        # a harness that writes its report as it decides it is still
+        # RUNNING when its first verdict reaches us, and a harness that
+        # buffers the report can only reach us by exiting.
+        alive = proc.poll() is None
+        spoke_after = time.monotonic() - started
+    finally:
+        sel.close()
+        if proc.poll() is None:
+            # SIGKILL, because a report that only survives a POLITE death
+            # is not a report that survives the deaths we have had.
+            proc.kill()
+        proc.stdout.close()
+        proc.wait()
+
+    if not seen:
+        refuse(f"the harness said nothing in {spoke_after:.1f}s and was then "
+               f"killed: a run that dies here leaves no evidence at all")
+    if not alive:
+        refuse(f"the harness said nothing until it had EXITED "
+               f"({spoke_after:.1f}s), so a run killed before that leaves "
+               f"nothing — the buffered shape boreutils#10 names", seen)
+    text = seen.decode("utf-8", "replace")
+    if "difftest: gnu = " not in text:
+        refuse("the killed run left bytes but no header, so nothing says "
+               "which oracle produced them", seen)
+    verdicts = [l for l in text.splitlines() if l.startswith(VERDICT)]
+    if not verdicts:
+        refuse("the killed run left a header but not one decided case", seen)
+    say(f"killed alive at {spoke_after:.1f}s, it had already left "
+        f"{len(seen)} bytes and {len(verdicts)} decided case(s), ending:")
+    say(f"  {verdicts[-1]}")
+
+
+def main():
+    if not os.access(DIFFTEST, os.X_OK):
+        refuse(f"no harness at {DIFFTEST}")
+    the_broken_pipe_does_not_take_the_run()
+    a_dying_run_leaves_what_it_decided()
+    say("the report cannot be lost with the process (boreutils#10)")
+    return 0
+
+
+if __name__ == "__main__":
+    # This tool's OWN standard output must not be able to take it down
+    # either; that is the whole subject.
+    signal.signal(signal.SIGPIPE, signal.SIG_IGN)
+    sys.exit(main())

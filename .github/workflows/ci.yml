@@ -111,6 +111,13 @@ jobs:
       - name: the harness sees a difference (the planted red)
         run: tools/difftest-selftest
 
+      # boreutils#10. Three macOS reds have ended at exit 141 with an
+      # empty transcript, so the harness is gated on keeping its report:
+      # a broken pipe of its own does not take the run down, and a run
+      # killed outright still leaves every case it had already decided.
+      - name: the report survives the process (boreutils#10)
+        run: tools/difftest-evidence
+
       - name: smoke bench
         run: tools/bench --scale 0.0005 --runs 3
 
