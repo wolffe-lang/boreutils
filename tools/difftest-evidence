@@ -150,15 +150,22 @@ def a_dying_run_leaves_what_it_decided():
     if not verdicts:
         refuse("the killed run left a header but not one decided case", seen)
     # THE THRESHOLD, AND WHY THIS IS NOT A STOPWATCH. "It said something
-    # before it died" is not the property; a BLOCK-buffered harness also
+    # before it died" is not the property: a BLOCK-buffered harness also
     # says something, once its buffer fills, and this gate passed the
-    # unflushed harness on linux for exactly that reason before the
+    # unflushed harness on linux for exactly that reason until the
     # threshold was added. Python sizes stdout's buffer from the pipe's
-    # st_blksize, measured at 4096 on linux and 16384 on macOS — which is
-    # also why the same death costs four times as much evidence there.
-    # So the property is that a verdict reaches the reader in LESS THAN
-    # ONE BLOCK: under the smallest block any host gives us, no buffer
-    # can have delivered it, and only a per-line write can have.
+    # st_blksize, which differs by host — 4096 on linux and 16384 on
+    # macOS where this was measured — so how much a death costs is a
+    # property of the host and not of the harness, and CI shows the two
+    # ends of it: unfixed, the same 1288 verdicts reach ubuntu's log over
+    # 2.3 seconds (run 35672284587, job 106571201815) and macOS's inside
+    # ONE 40 ms burst at exit (job 106571201793), which is why every
+    # transcript boreutils#10 lost was a macOS one.
+    #
+    # So the property gated here is neither time nor host: a verdict
+    # reaches the reader in LESS THAN ONE BLOCK. Under the smallest block
+    # any host gives us, no buffer can have delivered it and only a
+    # per-line write can have.
     if len(seen) >= BLOCK:
         refuse(f"the first verdict did not reach us until {len(seen)} bytes "
                f"had, which is a full buffer ({BLOCK}) and not a decided "
