@@ -12,8 +12,15 @@ boreutils binary and once through GNU's, and the two are compared on:
           and "basename: missing operand" compare equal
 
 A mismatch prints both sides. The exit status is 0 when every case
-passes, 1 when any case fails, and 2 when the harness itself cannot run
-(a missing binary, a malformed case file).
+passes, 1 when any case fails, 2 when the harness itself cannot run (a
+missing binary, a malformed case file), and 141 only when the reader of
+this transcript went away — never because a CHILD's pipe broke, which is
+an outcome cases are written to observe rather than a failure of the
+harness (boreutils#10).
+
+The report is written line by line as each case is decided, so a run
+that is killed leaves every verdict it had already reached.
+tools/difftest-evidence is the gate on both of those.
 
 Case file (TOML, one file per utility, any number of [[case]] tables):
 
@@ -151,6 +158,33 @@ def status(code):
     return 128 - code if code < 0 else code
 
 
+def feed(proc, data):
+    """Hand the case its standard input, which the child may not want.
+
+    A child started with descriptor 1 closed fails at its first write and
+    exits — that is this repository's exit convention and GNU's — so it
+    can be gone before it has read a byte. Writing to a pipe with no
+    reader left is then EPIPE, and it is the CHILD's behaviour under
+    test, never the harness's ability to finish a write. So a broken pipe
+    here is an ordinary outcome and not an error.
+
+    It was an error once. This harness used to set SIGPIPE to SIG_DFL for
+    the whole process, so the write killed difftest instead of raising,
+    and the report went with it (boreutils#10). Whether the write won the
+    race against the child's exit decided whether a run was green, which
+    is why the same commit could pass on one day and fail at exit 141 on
+    another.
+    """
+    try:
+        proc.stdin.write(data)
+    except BrokenPipeError:
+        pass
+    try:
+        proc.stdin.close()
+    except BrokenPipeError:
+        pass
+
+
 def run(exe, argv0, case):
     env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "LC_ALL": "C"}
     env.update(case.get("env", {}))
@@ -187,8 +221,7 @@ def run(exe, argv0, case):
     try:
         if closed or sink is not None:
             if data is not None:
-                proc.stdin.write(data)
-                proc.stdin.close()
+                feed(proc, data)
             err = proc.stderr.read()
             proc.wait(timeout=timeout)
             out = b""
@@ -196,8 +229,7 @@ def run(exe, argv0, case):
             out, err = proc.communicate(data, timeout=timeout)
         else:
             if data is not None:
-                proc.stdin.write(data)
-                proc.stdin.close()
+                feed(proc, data)
             out = b""
             while len(out) < limit:
                 chunk = proc.stdout.read(limit - len(out))
@@ -385,5 +417,28 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
-    sys.exit(main(sys.argv[1:]))
+    # THE HARNESS KEEPS PYTHON'S SIGPIPE, AND THE CHILDREN DO NOT
+    # (boreutils#10). This used to read SIG_DFL, on the reasoning that a
+    # case must meet the same SIGPIPE a shell would give it. The children
+    # already do: Popen(restore_signals=True) — the default, and passed
+    # explicitly in run() — puts every signal Python set to SIG_IGN back
+    # to SIG_DFL in the child before exec, SIGPIPE among them, and the
+    # cases that assert a child dies at 141 (`cat`'s and `tr`'s streams
+    # cut short by their reader) are what keeps that honest. All SIG_DFL
+    # here ever did was let a broken pipe of the HARNESS's own kill the
+    # harness, unwritten report and all. Python's default is SIG_IGN, so
+    # the write raises BrokenPipeError instead and feed() decides what it
+    # means.
+    #
+    # Our own standard output is the one pipe we cannot answer for: if
+    # whoever is reading this transcript goes away mid-report there is
+    # nothing left to report to. Exit 141 then, deliberately and by the
+    # shell's spelling, with the descriptor swapped for /dev/null so the
+    # interpreter's own flush at exit cannot raise a second time.
+    try:
+        code = main(sys.argv[1:])
+        sys.stdout.flush()
+    except BrokenPipeError:
+        os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+        code = 128 + signal.SIGPIPE
+    sys.exit(code)
