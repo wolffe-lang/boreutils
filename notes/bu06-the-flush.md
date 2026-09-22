@@ -64,3 +64,91 @@ byte the 09-18 green's count. Any other triple falsifies the prediction.
 And the partial report the *planted* red leaves will end inside `tr`,
 the first utility in sorted order whose closed-descriptor cases carry
 inline `stdin`.
+
+## What it turned out to be, with the artifacts
+
+**The macOS red is `tools/difftest` killing itself, and it is not a
+macOS bug.** The harness set `SIGPIPE` to `SIG_DFL` for the whole
+process. Every case with an inline standard input has its parent write
+that input to a child that may already have exited — a usage error, a
+bad option, an invalid style all exit before reading a byte — and a
+write to a pipe whose only reader is gone is EPIPE. With `SIG_DFL` the
+signal killed difftest where Python would otherwise have raised
+`BrokenPipeError` and `communicate()` would have swallowed it. **It is a
+scheduling race, decided per run**, which is why the same commit was
+green on 09-18 and red on 09-21.
+
+**Not the runner, not brew, not the oracle, and not the two docs
+files.** The table above quotes image, OS build, bottle and oracle
+identical across the two eras. The docs files are excluded by
+construction: `bu06-probe-unfixed` (`40e1ac2`) carries a tree
+**byte-identical to PR #1's head** — `git rev-parse` gives
+`5b0255d5f221597665363ee6aeb3eb036e2befc1` for both — and with the
+**unfixed** harness its macOS gauntlet **passed**, `difftest: 1259
+passed, 0 failed, 29 skipped` (run 35673565877, job 106575197320).
+The same unfixed harness on the trunk tree also passed on macOS
+(run 35672284587, job 106571201793), same triple. The failure is
+outside the repository's content.
+
+**And it is not macOS-only; macOS is only where the evidence dies.** In
+that same run 35673565877 the **linux** `field` leg took the identical
+`Process completed with exit code 141` (job 106575197103) — and because
+linux's pipe block is 4096 bytes it left a partial report ending
+`ok   head: a write error on a live descriptor`, so the death is in the
+next few dozen cases. That leg is `continue-on-error`, so this has been
+an ANNOUNCED ADVISORY on linux rather than a red, which is why only
+macOS reds were ever noticed.
+
+**Reproduced off CI, deterministically.** On kasumi (16 cores) the
+unfixed harness wins the race 5 of 5. Pinned to one core with
+`taskset -c 0`, as a loaded runner effectively is, it exits **141 three
+times out of three**, each inside `nl`, after
+`nl: the section carries, and -f a shows it`,
+`nl: a bad option alone is still an error` and
+`nl: an invalid footer style` — the neighbourhood the linux field leg
+died in, and where the macOS deaths sit too (9.4 s of a 19 s run). `nl`
+is simply where the corpus concentrates cases whose child exits at once.
+Every inline standard input in the corpus is 204 bytes or smaller, far
+under any pipe buffer, so the write can only fail against a child that
+is **already gone** — a race, never a size.
+
+## The prediction, scored
+
+**Right on the pick and on the number.** It is the harness's own defect
+and a race, not a drift; and with the harness fixed the macOS gauntlet
+over PR #1's tree reports **`difftest: 1259 passed, 0 failed, 29
+skipped`**, the 09-18 triple exactly (run 35672665977, job
+106572395096). None of the three falsifiers fired: no `FAIL` line, the
+header still reads `GNU coreutils 9.11`, and the death is squarely on
+the stdin-write path.
+
+**Wrong on where.** The prediction named `tr` as the utility the partial
+report would end in, reasoning from `tr`'s closed-descriptor cases being
+the only ones carrying inline standard input on the two branches
+`communicate()` does not cover. The real path is `communicate()` itself
+— which handles EPIPE perfectly well and never got the chance, because
+the signal killed the process first — and the real utility is `nl`.
+
+## The gate this lane nearly shipped, and the audit that caught it
+
+`tools/difftest-evidence`'s second check first asserted only that a
+killed run had left *something*. Run against the harness with the flush
+reverted, **it passed** — because block buffering is not "nothing until
+exit", it is "nothing until the block fills", and on linux the block is
+4096 bytes, so 57015 bytes of report reached the reader anyway. That is
+wave 45's fourteenth shape: a test that models the bug instead of gating
+it. The check now requires the first verdict to arrive in **under one
+4096-byte block**, the smallest block any host in the matrix gives a
+pipe, which no buffer can deliver and only a per-line write can. Each
+half of the fix was then reverted separately against the corrected gate:
+flush reverted → check 2 refuses; `SIG_DFL` and the unguarded write
+restored → check 1 refuses at signal 13.
+
+**The buffering asymmetry, measured.** Unfixed, the same 1288 verdict
+lines reach ubuntu's log spread over 2.3 seconds in 35 distinct
+hundredth-second buckets (job 106571201815) and macOS's inside a single
+40 ms burst at exit (job 106571201793; the 09-18 green, job
+105753052795, is the same shape). Python sizes stdout's buffer from the
+pipe's `st_blksize`, measured here at 4096 on linux and 16384 on macOS.
+So linux deaths leave most of a report and macOS deaths leave none —
+the whole reason boreutils#10 reads as a macOS defect.
