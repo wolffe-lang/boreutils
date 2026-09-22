@@ -1,0 +1,28 @@
+# The one case that makes the HARNESS meet a broken pipe.
+#
+# This directory is not part of the differential corpus and says nothing
+# about `cat`. tests/cases/ measures boreutils against GNU;
+# tests/pipetest/ measures tools/difftest against boreutils#10, the
+# defect where the runner dies on a broken pipe of its own and takes its
+# whole buffered report with it. tools/difftest-evidence is the only
+# thing that runs it.
+#
+# The shape, and why it is the only one that works. A program started
+# with descriptor 1 closed fails at its first write and exits — that is
+# this repository's stated exit convention, and GNU does the same — so
+# it never reads a byte of standard input. Hand it MORE STANDARD INPUT
+# THAN A PIPE BUFFER HOLDS and difftest's own write cannot complete: it
+# fills the buffer, blocks, and is woken by EPIPE when the child goes.
+# A small standard input would merely fit in the buffer and succeed,
+# which is why the reds in run 35668278241 were a race and this is not.
+#
+# Both sides are expected to answer the same thing here, so the case
+# PASSES once the harness survives it. What is under test is that there
+# is a report at all.
+
+[[case]]
+name = "a child that is gone before its standard input arrives"
+args = []
+stdin = "the bytes a reader that has already exited never reads\n"
+stdin_repeat = 32768
+stdout_closed = true
