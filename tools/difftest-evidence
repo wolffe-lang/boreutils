@@ -24,8 +24,11 @@ as it stood at trunk 24e786d:
      is started, watched until it says something, and then KILLED with
      SIGKILL — which no exit path, atexit hook or signal handler can
      intercept. Whatever reached the pipe before the kill is what a
-     dying run leaves behind, and it must be the header plus at least
-     one verdict. Before the fix it is zero bytes.
+     dying run leaves behind: it must be the header plus at least one
+     verdict, IN UNDER ONE BUFFER's worth of bytes. That last clause is
+     the whole gate. "It said something" is satisfied by a block-
+     buffered harness too, once the block fills, and this check passed
+     the unflushed harness on linux until the threshold was added.
 
 SIGKILL rather than SIGPIPE on purpose: a flush-before-exit would pass a
 catchable signal while still losing everything to `kill -9`, to a
@@ -50,6 +53,10 @@ DIFFTEST = os.path.join(ROOT, "tools", "difftest")
 # alive, and a block-buffering one says nothing until it EXITS, which is
 # the difference the gate reads. See below.
 PATIENCE = 60.0
+# The smallest stdout buffer any host in this matrix gives a pipe: linux
+# measures 4096 and macOS 16384. A report that reaches the reader in less
+# than this cannot have come out of a buffer.
+BLOCK = 4096
 VERDICT = ("ok   ", "FAIL ", "SKIP ")
 
 
@@ -57,12 +64,21 @@ def say(line):
     print(f"difftest-evidence: {line}", flush=True)
 
 
+# A refusal prints the transcript, and a whole differential report is
+# fifty-odd kilobytes of it. The END is the part that says where the run
+# got to, so a long one is shown from the tail.
+TAIL = 30
+
+
 def refuse(line, transcript=None):
     say(f"REFUSED — {line}")
     if transcript is not None:
-        say(f"the transcript was {len(transcript)} bytes:")
-        sys.stdout.write(transcript.decode("utf-8", "replace"))
-        sys.stdout.flush()
+        lines = transcript.decode("utf-8", "replace").splitlines()
+        say(f"the transcript was {len(transcript)} bytes, "
+            f"{len(lines)} lines"
+            + (f"; its last {TAIL}:" if len(lines) > TAIL else ":"))
+        for one in lines[-TAIL:]:
+            print(f"  {one}", flush=True)
     sys.exit(1)
 
 
@@ -101,17 +117,13 @@ def a_dying_run_leaves_what_it_decided():
         while time.monotonic() < deadline:
             if not sel.select(timeout=0.25):
                 continue
-            chunk = proc.stdout.read1(65536)
+            chunk = proc.stdout.read1(1 << 20)
             if not chunk:
                 break
             seen += chunk
             if any(l.startswith(VERDICT) for l in
                    seen.decode("utf-8", "replace").splitlines()):
                 break
-        # The discriminator, and the reason this gate needs no stopwatch:
-        # a harness that writes its report as it decides it is still
-        # RUNNING when its first verdict reaches us, and a harness that
-        # buffers the report can only reach us by exiting.
         alive = proc.poll() is None
         spoke_after = time.monotonic() - started
     finally:
@@ -123,6 +135,8 @@ def a_dying_run_leaves_what_it_decided():
         proc.stdout.close()
         proc.wait()
 
+    text = seen.decode("utf-8", "replace")
+    verdicts = [l for l in text.splitlines() if l.startswith(VERDICT)]
     if not seen:
         refuse(f"the harness said nothing in {spoke_after:.1f}s and was then "
                f"killed: a run that dies here leaves no evidence at all")
@@ -130,15 +144,29 @@ def a_dying_run_leaves_what_it_decided():
         refuse(f"the harness said nothing until it had EXITED "
                f"({spoke_after:.1f}s), so a run killed before that leaves "
                f"nothing — the buffered shape boreutils#10 names", seen)
-    text = seen.decode("utf-8", "replace")
     if "difftest: gnu = " not in text:
         refuse("the killed run left bytes but no header, so nothing says "
                "which oracle produced them", seen)
-    verdicts = [l for l in text.splitlines() if l.startswith(VERDICT)]
     if not verdicts:
         refuse("the killed run left a header but not one decided case", seen)
-    say(f"killed alive at {spoke_after:.1f}s, it had already left "
-        f"{len(seen)} bytes and {len(verdicts)} decided case(s), ending:")
+    # THE THRESHOLD, AND WHY THIS IS NOT A STOPWATCH. "It said something
+    # before it died" is not the property; a BLOCK-buffered harness also
+    # says something, once its buffer fills, and this gate passed the
+    # unflushed harness on linux for exactly that reason before the
+    # threshold was added. Python sizes stdout's buffer from the pipe's
+    # st_blksize, measured at 4096 on linux and 16384 on macOS — which is
+    # also why the same death costs four times as much evidence there.
+    # So the property is that a verdict reaches the reader in LESS THAN
+    # ONE BLOCK: under the smallest block any host gives us, no buffer
+    # can have delivered it, and only a per-line write can have.
+    if len(seen) >= BLOCK:
+        refuse(f"the first verdict did not reach us until {len(seen)} bytes "
+               f"had, which is a full buffer ({BLOCK}) and not a decided "
+               f"case; a run that dies inside that buffer still leaves "
+               f"nothing", seen)
+    say(f"killed alive at {spoke_after:.1f}s: {len(verdicts)} decided "
+        f"case(s) had already reached the reader in {len(seen)} bytes, "
+        f"under one {BLOCK}-byte block")
     say(f"  {verdicts[-1]}")
 
 
