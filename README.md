@@ -148,9 +148,11 @@ derives no boreutils code from GPL source.
 ## Status
 
 Every utility below is byte-for-byte identical to GNU coreutils 9.11 on
-its differential corpus. The corpus holds **1,772 cases**; a run on
-kasumi (linux x86-64) at this pin answers **1,753 passed, 0 failed, 19
-skipped**, and macOS skips five more that need `/dev/full`. The corpus
+its differential corpus. The corpus holds **2,114 cases**; a run on
+kasumi (linux x86-64) at this pin answers **2,094 passed, 0 failed, 20
+skipped**, and macOS skips five more that need `/dev/full`. (The
+previous edition of this sentence said 1,753 and 19 for the 1,772-case
+corpus; kasumi answered 1,752 and 20 at that commit, `eac2a32`.) The corpus
 and the run are stated separately on purpose: an earlier edition of this
 paragraph called the passing count the case count, which quietly
 subtracted the skips from the corpus instead of naming them.
@@ -570,6 +572,71 @@ A single line that is the whole input is the other bound: a 64 MiB line
 with no newline in it costs `fold` 322 MB and `paste` 131 MB, against
 GNU's 2.0 MB and 1.7 MB, for the same reason.
 
+`sort` is B5, and the first utility here that may not hold its input:
+past a run budget (256 MiB by default, `-S` sets it) it sorts each run
+into a temporary file and merges the runs, at most 16 at a time. Every
+comparison is on bytes — GNU's behaviour under `LC_ALL=C`, which is the
+oracle's environment — and the sort is a merge sort of line indices,
+stable by construction; GNU's last-resort whole-line comparison makes
+that unobservable except under `-s` and `-u`, where input order decides
+on both sides. kasumi (linux x86-64, 16 cpus), release tier, GNU
+coreutils 9.11, 5 runs, generated text: 10 MB is `tools/bench --scale
+0.01`, 100 MB is `--scale 0.1`, load 2–3, at the commit that carries
+this table's code.
+
+**The predictions were committed in `notes/bu08-sort.md` §3 and in the
+bench file before anything was timed, from the oracle's build rather
+than the algorithm: GNU sorts on eight threads here and compares with
+`memcmp`; this program sorts on one and compares in a loop. Four of
+eight bands were right.**
+
+| bench | 10 MB | 100 MB |
+|---|---:|---:|
+| start-up, no input | 0.8 ms vs GNU 0.4 ms | 0.9 ms vs 0.4 ms |
+| whole lines, a file | 99 ms vs 30 ms (0.30x) | 1532 ms vs 333 ms (0.22x) |
+| whole lines, through a pipe | 99 ms vs 30 ms (0.30x) | 1530 ms vs 336 ms (0.22x) |
+| `--parallel=1`, one thread each | 102 ms vs 45 ms (0.44x) | 1531 ms vs 640 ms (0.42x) |
+| very short lines | 34 ms vs 15 ms (0.45x) | 476 ms vs 104 ms (0.22x) |
+| binary noise | 11 ms vs 3.3 ms (0.30x) | 120 ms vs 33 ms (0.28x) |
+| `-r` | 101 ms vs 30 ms (0.30x) | 1382 ms vs 309 ms (0.22x) |
+| `-u` | 103 ms vs 31 ms (0.30x) | 1491 ms vs 331 ms (0.22x) |
+| `-f` | 151 ms vs 32 ms (0.21x) | 2361 ms vs 399 ms (0.17x) |
+| `-n` | 154 ms vs 47 ms (0.30x) | 2334 ms vs 475 ms (0.20x) |
+| `-t ' ' -k2,2` | 279 ms vs 38 ms (0.14x) | 4026 ms vs 421 ms (0.10x) |
+| `-k2` | 216 ms vs 38 ms (0.18x) | 3357 ms vs 420 ms (0.13x) |
+| `-s -k1,1` | 198 ms vs 36 ms (0.18x) | 2947 ms vs 386 ms (0.13x) |
+| the external merge, `-S 10M` | 123 ms vs 50 ms (0.40x) | 1365 ms vs 610 ms (0.45x) |
+
+**Eight threads buy GNU less than two times.** Its `--parallel=1` row is
+640 ms against 333 ms with eight, so the fair comparison — one thread
+each — is 0.42x, and the rest of the gap is `memcmp` against a
+bounds-checked byte loop. The keyed rows are the worst because GNU
+finds a key's bounds once per line and this program finds them per
+comparison. **Our external merge is faster than our in-memory sort**
+(1.37 s against 1.53 s for 100 MB): ten 10 MB runs sort in cache where
+one 100 MB index does not, which says where a faster in-memory sort
+would come from.
+
+**Memory, per input size** (peak RSS, `/usr/bin/time`):
+
+| input | boreutils | GNU |
+|---|---:|---:|
+| 10 MB, in memory | 39 MB | 22 MB |
+| 100 MB, in memory | 322 MB | 304 MB |
+| 100 MB, `-S 10M` (external) | 41 MB | 12 MB |
+| 1 GB, `-S 10M` (external) | 42 MB | 12 MB |
+| 1 GB, the default budget (four runs) | 808 MB | 3,005 MB |
+
+The external rows are flat in the input, which is the region per run
+doing its work, and they got there by measurement: the first draft read
+past the budget, and a list that crosses a power of two doubles, so 1 GB
+at the default budget peaked at 1,060 MB and at `-S 10M` grew to 61 MB.
+**The external merge is seen, not asserted**: under `strace`, 100 MB at
+`-S 10M` created 11 `sortXXXXXX` files and unlinked all 11 (GNU: 32 and
+32), and `-T` naming a directory that does not exist makes both programs
+fail with `cannot create temporary file in '…'` — a differential case,
+which a sort that never spilled could not pass.
+
 | utility | status | vs GNU |
 |---|---|---|
 | `true` | done | start-up only |
@@ -581,7 +648,7 @@ GNU's 2.0 MB and 1.7 MB, for the same reason.
 | `cat` | done | start-up 1.18x (macOS), 0.97x (linux); bulk copy 0.64x, 0.16x |
 | `wc` | done | `-w` 1.27x, `-l` 0.92x (macOS, load 13.9); 0.88x, 0.17x (linux) |
 | `head` | done | `-n 1` start-up on both sides; `-n -K` 0.09x (linux) |
-| `tail` | done, `-f` included | pipe `-c` 1.00x, `-n` 0.60x; a file 111 ms against GNU's 0.2 ms, and the reason is wolf-lang#426 |
+| `tail` | done, `-f` and `--follow[=WORD]` included | pipe `-c` 1.00x, `-n` 0.60x; a file 111 ms against GNU's 0.2 ms, and the reason is wolf-lang#426 |
 | `cut` | done, without 9.11's `-w`, `-F` and `-O` | 0.27x to 0.63x (linux) |
 | `tr` | done | 0.34x translating, **3.72x** translating and squeezing (linux) |
 | `uniq` | done | 0.46x to **1.01x** (linux) |
@@ -592,3 +659,4 @@ GNU's 2.0 MB and 1.7 MB, for the same reason.
 | `fold` | done | **1.07x to 5.15x** (linux) |
 | `expand` | done | **1.01x to 8.47x** (linux) |
 | `unexpand` | done | **1.00x to 9.23x** (linux) |
+| `sort` | done: `-bdfhiMnr`, `-k`, `-t`, `-u`, `-s`, `-c`/`-C`, `-m`, `-o`, `-z`, the external merge; not `-g`, `-V`, `-R`, `--debug`, `--files0-from`, `--compress-program` | 0.10x to 0.45x (linux) |
