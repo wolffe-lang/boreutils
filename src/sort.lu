@@ -144,6 +144,19 @@ fn main() -> int {
             }
             return 0
         }
+        if k == "ignore-leading-blanks" {
+            g.sblank = true
+            g.eblank = true
+        }
+        if k == "dictionary-order" {
+            g.dict = true
+        }
+        if k == "ignore-case" {
+            g.fold = true
+        }
+        if k == "ignore-nonprinting" {
+            g.nonprint = true
+        }
         if k == "numeric-sort" {
             g.numeric = true
         }
@@ -408,6 +421,18 @@ fn is_blank(n: int) -> bool {
     n == 32 || n == 9 || n == 10
 }
 
+/// Where key `ki` of the line `a[s..e]` begins: past its blanks under
+/// `-b`.
+fn key_begin(c: Conf, ki: int, a: List[byte], s: int, e: int) -> int {
+    var p = s
+    if c.keys[ki].sblank {
+        while p < e && is_blank(a[p] as int) {
+            p += 1
+        }
+    }
+    p
+}
+
 /// Compare two lines: every key in order, then — unless `-s` or `-u` —
 /// the whole lines as bytes, reversed by a global `-r`.
 fn compare(c: Conf, a: List[byte], sa: int, ea: int, b: List[byte], sb: int, eb: int) -> int {
@@ -431,7 +456,9 @@ fn compare_keys(c: Conf, a: List[byte], sa: int, ea: int, b: List[byte], sb: int
     }
     var ki = 0
     while ki < c.keys.len {
-        let d = key_cmp(c, ki, a, sa, ea, b, sb, eb)
+        let ka = key_begin(c, ki, a, sa, ea)
+        let kb = key_begin(c, ki, b, sb, eb)
+        let d = key_cmp(c, ki, a, ka, ea, b, kb, eb)
         if d != 0 {
             return if c.keys[ki].reverse then -d else d
         }
@@ -461,6 +488,9 @@ fn key_cmp(
         let mb = month_of(b, sb, eb)
         return if ma < mb then -1 else if ma > mb then 1 else 0
     }
+    if c.keys[ki].fold || c.keys[ki].dict || c.keys[ki].nonprint {
+        return text_cmp(c, ki, a, sa, ea, b, sb, eb)
+    }
     bytes_cmp(a, sa, ea, b, sb, eb)
 }
 
@@ -484,6 +514,68 @@ fn bytes_cmp(a: List[byte], sa: int, ea: int, b: List[byte], sb: int, eb: int) -
         return -1
     }
     0
+}
+
+/// `-f`, `-d` and `-i`: skip the bytes the key ignores, fold what is
+/// left, compare.
+fn text_cmp(
+    c: Conf,
+    ki: int,
+    a: List[byte],
+    sa: int,
+    ea: int,
+    b: List[byte],
+    sb: int,
+    eb: int,
+) -> int {
+    let fold = c.keys[ki].fold
+    let dict = c.keys[ki].dict
+    let np = c.keys[ki].nonprint
+    var i = sa
+    var j = sb
+    while true {
+        while i < ea && ignored(a[i] as int, dict, np) {
+            i += 1
+        }
+        while j < eb && ignored(b[j] as int, dict, np) {
+            j += 1
+        }
+        if i >= ea || j >= eb {
+            break
+        }
+        var x = a[i] as int
+        var y = b[j] as int
+        if fold {
+            x = upper(x)
+            y = upper(y)
+        }
+        if x != y {
+            return if x < y then -1 else 1
+        }
+        i += 1
+        j += 1
+    }
+    if i < ea {
+        return 1
+    }
+    if j < eb {
+        return -1
+    }
+    0
+}
+
+/// Whether `-d` or `-i` ignores the byte `n`. `-d` keeps letters,
+/// digits and the two ctype blanks; `-i` keeps the printable bytes; with
+/// both, `-d` decides.
+fn ignored(n: int, dict: bool, np: bool) -> bool {
+    if dict {
+        let alnum = n >= 48 && n <= 57 || n >= 65 && n <= 90 || n >= 97 && n <= 122
+        return !(alnum || n == 32 || n == 9)
+    }
+    if np {
+        return n < 32 || n > 126
+    }
+    false
 }
 
 fn upper(n: int) -> int {
