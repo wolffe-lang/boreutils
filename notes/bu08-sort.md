@@ -169,7 +169,14 @@ queued behind the org's runner limit — see the PR for the head's).
 | the external merge | `2505c6f`, **36036274940**: 2081 passed, **13 failed** | `f37435c`, **36036323186**: 2094 passed, 0 failed |
 
 Every red run failed at the step `the differential suite against the
-oracle of record` (checked per job). The same seven reds and greens were
+oracle of record` (checked per job). **The evidence is each run's
+ubuntu gauntlet job; the macOS legs of these fourteen runs were
+CANCELLED unrun**, at 18:30 UTC, after sitting queued for up to an hour
+behind the org's macOS runner limit (other repos' long macOS jobs held
+every slot). They would have run the same corpus against Homebrew's
+9.11; cancelling them let the head's macOS leg through, and that leg is
+the one the contract asks for. A cancelled run's conclusion reads
+`cancelled`; its ubuntu job keeps its own `failure` or `success`. The same seven reds and greens were
 measured on kasumi before the push, with the same counts
 (`~/lanes/bu08/stages/{own,next}.v*.log`).
 
