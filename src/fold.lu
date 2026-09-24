@@ -531,6 +531,12 @@ fn advance(col: int, line: List[byte], at: int, step: int, o: Opts) -> int {
     }
     let c = line[at] as int
     if step == 1 {
+        if c == 0 {
+            // Measured: a NUL is written and advances nothing, in the
+            // C locale as well. It is the only control byte that does
+            // not advance — `expand` and `unexpand` agree.
+            return col
+        }
         if c == 9 {
             return col + 8 - col % 8
         }
