@@ -1,0 +1,93 @@
+//! bore.sink — a byte sink whose memory does not grow with the output.
+//!
+//! **Why this exists, measured.** `bore.put` and `bore.put_byte` buffer
+//! into the writer's own list and `flush` empties it by ALLOCATING A
+//! FRESH ONE (`o.buf = List[byte]()`), because `List` has no capacity
+//! or truncate surface at 0.2.16 (wolf-std F-0011). Every one of those
+//! replacements is abandoned in an arena that frees nothing, so a
+//! program that writes bulk output through them pays about **2.8 times
+//! its own output in resident memory**: `expand` over 256 MiB peaked at
+//! 715 MB before this, against GNU's 1.9 MB.
+//!
+//! The utilities that read and write a chunk at a time — `cut`,
+//! `expand`, `fold`, `unexpand` — solve it by building each pass's
+//! output inside the per-chunk `region` and handing it to
+//! `write_direct`, which takes the writer by READ for exactly that
+//! reason. `tac` and `paste` cannot: their output is not a function of
+//! one input chunk, and every call that would build it takes a `mut`
+//! parameter from outside the region, which is E1010 inside one
+//! (wolf-lang#418).
+//!
+//! So this is the other shape. ONE list is allocated, once, and filled
+//! IN PLACE; when it is full it is written WHOLE, which needs no slice,
+//! and the length goes back to zero. The only allocation after that is
+//! the tail at the end, which is shorter than the buffer and is built
+//! in a region of its own.
+//!
+//! A `Sink` writes through `write_direct`, so it does not mark the
+//! writer as having been written to; a program using one reports its
+//! own write failures, as `cat` and `cut` do.
+//!
+//! **The sink is the LAST parameter of both calls, and that is
+//! wolf-lang#449**: at 0.2.16 a `mut` argument with anything spelled
+//! after it drags a preceding conditional into its claim, and every
+//! call site here follows one.
+
+/// How many bytes a sink holds before it writes.
+fn sink_size() -> int {
+    65536
+}
+
+/// A fixed-capacity byte sink.
+pub struct Sink {
+    buf: List[byte],
+    len: int,
+}
+
+/// A sink whose buffer lives in `keeper` — which must outlive every
+/// `sink_push`, so it is a first-class region, never a block.
+pub fn sink(keeper: region) -> Sink {
+    var buf = List[byte]()
+    in keeper {
+        var i = 0
+        while i < sink_size() {
+            (mut buf).push(0 as byte)
+            i += 1
+        }
+    }
+    Sink { buf: buf, len: 0 }
+}
+
+/// Append one byte, writing the whole buffer when it fills.
+pub fn sink_push(b: byte, o: Out, mut s: Sink) -> () ! {io} {
+    s.buf[s.len] = b
+    s.len += 1
+    if s.len == sink_size() {
+        write_direct(o, s.buf)?
+        s.len = 0
+    }
+}
+
+/// Write what is left. The tail is shorter than the buffer, so it is
+/// the one place a list is built — in a region that dies at the `}`.
+pub fn sink_done(o: Out, mut s: Sink) -> () ! {io} {
+    if s.len == 0 {
+        return
+    }
+    var failed = false
+    region tail {
+        var t = List[byte]()
+        var i = 0
+        while i < s.len {
+            (mut t).push(s.buf[i])
+            i += 1
+        }
+        write_direct(o, t) else |_| {
+            failed = true
+        }
+    }
+    s.len = 0
+    if failed {
+        return io
+    }
+}
