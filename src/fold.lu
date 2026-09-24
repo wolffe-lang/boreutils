@@ -55,9 +55,13 @@
 //! exactly what the binary answers, and is not what a reader would
 //! guess. `--` ends it: `fold -- -3` opens a file called `-3`.
 //!
-//! **Memory is flat in the input and linear in the longest line.** One
-//! 256 KiB chunk written in place from inside the per-chunk `region`
-//! (wolf-lang#416), and one line buffer grown by doubling and reused.
+//! **Memory is flat in the input and linear in the longest line.** Each
+//! pass reads a chunk, builds that chunk's output beside it and hands
+//! it to `bore.write_direct`, all inside one `region` that dies at the
+//! end of the pass (wolf-lang#416); the only thing that outlives a pass
+//! is the line buffer, grown by doubling and then reused rather than
+//! rebuilt. Writing byte by byte through the shared writer instead
+//! costs 2.8x the input, which `expand`'s header measures.
 
 use bore
 
@@ -131,19 +135,11 @@ fn main() -> int {
         (mut paths).push("-")
     }
     let keeper = region()
-    var chunk = List[byte]()
     var line = List[byte]()
-    in keeper {
-        var k = 0
-        while k < read_size() {
-            (mut chunk).push(0 as byte)
-            k += 1
-        }
-    }
     var status = 0
     var wfail = false
     for path in paths {
-        let code = one(mut out, path, o, mut chunk, mut line, keeper)
+        let code = one(out, path, o, mut line, keeper)
         if code != 0 {
             status = 1
         }
@@ -339,14 +335,7 @@ fn locale_is_utf8() -> bool {
 // ------------------------------------------------------------- the stream
 
 /// Fold one operand. 0 success, 1 this operand failed, 2 a failed write.
-fn one(
-    mut out: bore.Out,
-    path: str,
-    o: Opts,
-    mut chunk: List[byte],
-    mut line: List[byte],
-    keeper: region,
-) -> int {
+fn one(out: bore.Out, path: str, o: Opts, mut line: List[byte], keeper: region) -> int {
     let src = bore.open_input(path) else |e| match e {
         not_found => {
             bore.input_error("fold", path, bore.no_such_file())
@@ -369,60 +358,65 @@ fn one(
     var held = 0
     var stop = false
     while !stop {
-        var got = 0
+        // The whole pass lives in the region, output included, and
+        // `bore.write_direct` takes the writer by READ so it can be
+        // handed a region-local list. Writing byte by byte through the
+        // shared writer instead costs 2.8x the input in memory; see
+        // `expand`'s header, which measured it.
+        // The line buffer is grown OUTSIDE the block, by a whole chunk
+        // at a time. Growing it inside is E1010: `ensure` takes `line`
+        // `mut` from beyond the region and the compiler cannot see that
+        // it aims its pushes at `keeper` (wolf-lang#418, the shape
+        // `cut`'s ring comment names). One chunk of headroom is enough
+        // because a pass never adds more than a chunk.
+        ensure(mut line, held + read_size(), keeper)
         region pass {
             let read = bore.read_chunk(src, read_size()) else |e| match e {
                 eof => {
-                    got = -1
+                    stop = true
                     List[byte]()
                 },
                 io => {
-                    got = -2
+                    stop = true
+                    why = 1
                     List[byte]()
                 },
             }
-            if got == 0 {
-                got = read.len
-                if got == 0 {
-                    got = -1
-                }
-            }
-            if got > 0 {
-                var k = 0
-                while k < got {
-                    chunk[k] = read[k]
-                    k += 1
-                }
-            }
-        }
-        if got == -2 {
-            why = 1
-            stop = true
-        } else if got == -1 {
-            stop = true
-        } else {
-            var at = 0
-            while at < got {
-                let b = chunk[at]
-                ensure(mut line, held + 1, keeper)
-                line[held] = b
-                held += 1
-                if b as int == 10 {
-                    let code = fold_line(line, held, true, o, mut out)
-                    if code != 0 {
-                        return code
+            if read.len == 0 {
+                stop = true
+            } else {
+                var buf = List[byte]()
+                var at = 0
+                while at < read.len {
+                    let b = read[at]
+                    line[held] = b
+                    held += 1
+                    if b as int == 10 {
+                        fold_line(line, held, true, o, mut buf)
+                        held = 0
                     }
-                    held = 0
+                    at += 1
                 }
-                at += 1
+                if buf.len > 0 {
+                    bore.write_direct(out, buf) else |_| {
+                        why = 2
+                        stop = true
+                    }
+                }
             }
         }
     }
     bore.close_input(src)
     if why == 0 && held > 0 {
-        let code = fold_line(line, held, false, o, mut out)
-        if code != 0 {
-            return code
+        // The last line, which had no newline after it.
+        region last {
+            var buf = List[byte]()
+            fold_line(line, held, false, o, mut buf)
+            if buf.len > 0 {
+                bore.write_direct(out, buf) else |_| {
+                    why = 2
+                }
+            }
         }
     }
     if why == 1 {
@@ -442,10 +436,10 @@ fn ensure(mut line: List[byte], n: int, keeper: region) {
 
 // --------------------------------------------------------------- the fold
 
-/// Write one input line, broken at the width. `terminated` says the
-/// input line ended with a newline, which decides whether the LAST piece
-/// gets one. Answers 0, or 2 for a failed write.
-fn fold_line(line: List[byte], len: int, terminated: bool, o: Opts, mut out: bore.Out) -> int {
+/// Write one input line into `buf`, broken at the width. `terminated`
+/// says the input line ended with a newline, which decides whether the
+/// LAST piece gets one.
+fn fold_line(line: List[byte], len: int, terminated: bool, o: Opts, mut buf: List[byte]) {
     // The newline itself is not part of what is measured or broken.
     let body = if terminated then len - 1 else len
     var start = 0
@@ -475,9 +469,7 @@ fn fold_line(line: List[byte], len: int, terminated: bool, o: Opts, mut out: bor
                     cut = found + 1
                 }
             }
-            put_piece(line, start, cut, true, mut out) else |_| {
-                return 2
-            }
+            put_piece(line, start, cut, true, mut buf)
             start = cut
             col = recolumn(line, start, at, o)
             let again = advance(col, line, at, step, o)
@@ -488,10 +480,7 @@ fn fold_line(line: List[byte], len: int, terminated: bool, o: Opts, mut out: bor
             at += step
         }
     }
-    put_piece(line, start, body, terminated, mut out) else |_| {
-        return 2
-    }
-    0
+    put_piece(line, start, body, terminated, mut buf)
 }
 
 /// The columns `line[start..to]` occupies, for the piece kept after an
@@ -582,18 +571,17 @@ fn decode(line: List[byte], at: int, step: int) -> int {
     n
 }
 
-/// Write `line[from..to]`, with a newline after it when `nl` says so.
-///
-/// The writer goes LAST: wolf-lang#449 refuses the ordinary spelling at
-/// a call that follows a conditional also claiming `out`.
-fn put_piece(line: List[byte], from: int, to: int, nl: bool, mut out: bore.Out) -> () ! {io} {
+/// Copy `line[from..to]` into the pass's output, with a newline after
+/// it when `nl` says so. It writes into a list rather than the shared
+/// writer, so it cannot fail and has no row.
+fn put_piece(line: List[byte], from: int, to: int, nl: bool, mut buf: List[byte]) {
     var i = from
     while i < to {
-        bore.put_byte(mut out, line[i])?
+        (mut buf).push(line[i])
         i += 1
     }
     if nl {
-        bore.put_byte(mut out, 10 as byte)?
+        (mut buf).push(10 as byte)
     }
 }
 
