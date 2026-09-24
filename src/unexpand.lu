@@ -1,0 +1,547 @@
+//! member: false
+//!
+//! unexpand — convert runs of blanks to tabs.
+//!
+//! References consulted: POSIX.1-2024 `unexpand`; GNU coreutils 9.11's
+//! `unexpand --help`, the info manual's option descriptions, and
+//! black-box runs of the GNU binary (native `unexpand` on linux x86-64
+//! at 9.11, under `LC_ALL=C` and `LC_ALL=C.UTF-8`); uutils/coreutils
+//! (MIT) and toybox (0BSD) as design references. Never GNU source.
+//!
+//! **The tab-stop grammar is `bore.tabs`**, the same parser `expand`
+//! uses, because the two are meant to undo each other.
+//!
+//! **A run of ONE blank is never converted, whatever column it ends on.**
+//! This is the rule that separates a nearly-right `unexpand` from a
+//! right one, and it is measured: `abcdefg b` has a single space ending
+//! exactly on the tab stop at column 8 and comes out unchanged, while
+//! `abcdef  b` has two and comes out as one tab. A run of two or more
+//! is converted even when the first tab it writes only saves one
+//! column: `abcdefgh<BS>` followed by eight spaces answers a tab and
+//! seven spaces.
+//!
+//! **What a run becomes.** From the column the run starts at, a tab is
+//! written for every stop the run reaches, and what is left over is
+//! written as spaces. Past the last stop of a list that names no
+//! repeat, nothing more is converted: `unexpand -t 3,7` of
+//! `   a    b          c` writes a tab, `a`, a tab, a space, `b`, and
+//! then ten plain spaces, because the list ends at 7.
+//!
+//! **Only the LEADING run by default.** `-a` converts every run, and
+//! `-t` implies `-a` — but the OBSOLETE `-N` spelling does not, which
+//! is measured and is not what a reader would guess: `unexpand -4`
+//! converts the leading run only and `unexpand -t4` converts them all.
+//! `--first-only` beats `-a` whatever the order they are given in,
+//! measured all three ways.
+//!
+//! **The column rules are `expand`'s**, and they are the same three:
+//! a tab goes to the next stop, a backspace moves back one and never
+//! below zero, a carriage return is an ordinary character, and a NUL is
+//! the one control byte worth no columns at all.
+//!
+//! **A last line with no newline keeps none.**
+//!
+//! **Memory is flat in the input and linear in the longest RUN OF
+//! BLANKS** — not in the longest line. A run has to be held because
+//! what it becomes is not known until it ends; everything else is
+//! written straight out. One 256 KiB chunk written in place from inside
+//! the per-chunk `region` (wolf-lang#416).
+
+use bore
+
+/// What the command line asked for.
+struct Opts {
+    all: bool,
+    tabs: bore.Tabs,
+    utf8: bool,
+}
+
+fn main() -> int {
+    // Standard output first: with descriptor 1 closed, the first file
+    // opened would take it (wolf-lang#405).
+    var out = bore.stdout()
+    var o = Opts { all: false, tabs: bore.default_tabs(), utf8: locale_is_utf8() }
+    let rewritten = rewrite_obsolete(env_args())
+    let p = bore.parse(options(), rewritten.args, bore.permute())
+    var i = 0
+    var spec = ""
+    var given = false
+    var first_only = false
+    var tabs_seen = 0
+    while i < p.keys.len {
+        let k = p.keys[i]
+        let v = p.values[i]
+        if k == "help" {
+            emit(out, help()) else |_| {
+                bore.write_error(out, "unexpand", "write error")
+                return 1
+            }
+            return bore.finish(mut out, "unexpand", 0)
+        }
+        if k == "version" {
+            emit(out, bore.version_text("unexpand")) else |_| {
+                bore.write_error(out, "unexpand", "write error")
+                return 1
+            }
+            return bore.finish(mut out, "unexpand", 0)
+        }
+        if k == "all" {
+            o.all = true
+        }
+        if k == "first-only" {
+            first_only = true
+        }
+        if k == "tabs" {
+            // A second `-t` extends the list, as `expand`'s does.
+            if given {
+                spec = "{spec},{v}"
+            } else {
+                spec = v
+            }
+            given = true
+            tabs_seen += 1
+        }
+        i += 1
+    }
+    if !bore.ok(p) {
+        return bore.usage_error("unexpand", p.error)
+    }
+    // Measured: naming stops with `-t` turns `-a` on by itself, and the
+    // OBSOLETE `-N` does not — `unexpand -4` converts the leading run
+    // only where `unexpand -t4` converts every run. The rewrite above
+    // says how many `-t` options it invented, so a `-t` the user did
+    // not write cannot imply an `-a` the user did not ask for.
+    if tabs_seen > rewritten.synth {
+        o.all = true
+    }
+    // Measured in all three orders: `--first-only` wins over `-a` and
+    // over the `-a` that `-t` implies.
+    if first_only {
+        o.all = false
+    }
+    if given {
+        let t = bore.parse_tabs(spec)
+        if bore.tabs_error(t).len > 0 {
+            bore.warn("unexpand", bore.tabs_error(t))
+            return 1
+        }
+        o.tabs = t
+    }
+    var paths = List[str]()
+    for a in p.operands {
+        (mut paths).push(a)
+    }
+    if paths.len == 0 {
+        (mut paths).push("-")
+    }
+    let keeper = region()
+    var chunk = List[byte]()
+    in keeper {
+        var k = 0
+        while k < read_size() {
+            (mut chunk).push(0 as byte)
+            k += 1
+        }
+    }
+    var status = 0
+    var wfail = false
+    for path in paths {
+        let code = one(mut out, path, o, mut chunk)
+        if code != 0 {
+            status = 1
+        }
+        if code == 2 {
+            wfail = true
+        }
+    }
+    if wfail {
+        bore.write_error(out, "unexpand", "write error")
+        return 1
+    }
+    // wolf-lang#449: the loop above claims `out` inside a conditional.
+    bore.finish_last("unexpand", status, mut out)
+}
+
+fn options() -> List[bore.Opt] {
+    // GNU's own long-option table order, which its
+    // "ambiguous; possibilities:" line reports and so is observable.
+    var s = List[bore.Opt]()
+    (mut s).push(bore.flag("a", "all"))
+    (mut s).push(bore.flag("", "first-only"))
+    (mut s).push(bore.takes("t", "tabs"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    s
+}
+
+/// The bytes asked of the host per read (bu01's measured knee).
+fn read_size() -> int {
+    262144
+}
+
+/// A rewritten command line, and how many `-t` options the rewrite
+/// itself put there.
+struct Rewritten {
+    args: List[str],
+    synth: int,
+}
+
+/// Rewrite the obsolete `-N` size into `-t N`.
+///
+/// **`unexpand`'s obsolete rule is NOT `expand`'s, and the two binaries
+/// really do differ.** `expand -4i` is the error
+/// `tab size contains invalid character(s): '4i'`, because there the
+/// first digit makes the REST OF THE ARGUMENT the tab text. Here the
+/// DIGITS ALONE are collected and every other character stays an
+/// option: `unexpand -4a` is a tab size of 4 and `-a`, `unexpand -4x`
+/// is `invalid option -- 'x'`, and `unexpand -1a2` is a size of 12.
+///
+/// **And the obsolete form does not imply `-a`, where `-t` does.**
+/// `unexpand -4` converts only the leading run and `unexpand -t4`
+/// converts every run — measured on the same input. That is why this
+/// answers how many `-t` options it invented: the caller must not read
+/// its own rewriting as the user asking for `-a`.
+fn rewrite_obsolete(argv: List[str]) -> Rewritten {
+    var out = List[str]()
+    var synth = 0
+    var rest_are_operands = false
+    var expect_arg = false
+    for a in argv {
+        if expect_arg {
+            expect_arg = false
+            (mut out).push(a)
+            continue
+        }
+        if rest_are_operands {
+            (mut out).push(a)
+            continue
+        }
+        if a == "--" {
+            rest_are_operands = true
+            (mut out).push(a)
+            continue
+        }
+        if a == "--tabs" {
+            expect_arg = true
+            (mut out).push(a)
+            continue
+        }
+        if !a.starts_with("-") || a.len < 2 || a.starts_with("--") {
+            (mut out).push(a)
+            continue
+        }
+        let bs = a.bytes()
+        var num = List[byte]()
+        var flags = List[byte]()
+        var i = 1
+        while i < a.len {
+            let c = bs[i] as int
+            if c == 116 {
+                // `-t`: it and everything after it in this argument is
+                // its own business.
+                while i < a.len {
+                    (mut flags).push(bs[i])
+                    i += 1
+                }
+                if flags.len == 1 {
+                    expect_arg = true
+                }
+            } else if c >= 48 && c <= 57 {
+                (mut num).push(bs[i])
+                i += 1
+            } else {
+                (mut flags).push(bs[i])
+                i += 1
+            }
+        }
+        if num.len == 0 {
+            (mut out).push(a)
+            continue
+        }
+        let digits = str_from_utf8(num) else ""
+        (mut out).push("-t{digits}")
+        synth += 1
+        if flags.len > 0 {
+            let letters = str_from_utf8(flags) else ""
+            (mut out).push("-{letters}")
+        }
+    }
+    Rewritten { args: out, synth: synth }
+}
+
+/// Whether the character set from the environment is UTF-8, on GNU's
+/// precedence: LC_ALL, then LC_CTYPE, then LANG. A copy of `expand`'s.
+fn locale_is_utf8() -> bool {
+    var v = env_get("LC_ALL") else ""
+    if v.len == 0 {
+        v = env_get("LC_CTYPE") else ""
+    }
+    if v.len == 0 {
+        v = env_get("LANG") else ""
+    }
+    let dot = v.rfind(".") else -1
+    var codeset = v
+    if dot >= 0 {
+        codeset = v[dot + 1..]
+    }
+    let l = codeset.lower()
+    l == "utf-8" || l == "utf8"
+}
+
+// ------------------------------------------------------------- the stream
+
+/// The run of blanks being held: where it started, how many blank
+/// CHARACTERS it holds, and what column it has reached.
+struct Run {
+    start_col: int,
+    count: int,
+    col: int,
+    open: bool,
+    /// The run's only blank, when it has only one. A run of one is
+    /// written back AS IT WAS, so a lone tab stays a tab rather than
+    /// becoming the spaces it stands for.
+    first: byte,
+}
+
+/// Unexpand one operand. 0 success, 1 this operand failed, 2 a failed
+/// write.
+fn one(mut out: bore.Out, path: str, o: Opts, mut chunk: List[byte]) -> int {
+    let src = bore.open_input(path) else |e| match e {
+        not_found => {
+            bore.input_error("unexpand", path, bore.no_such_file())
+            return 1
+        },
+        denied => {
+            bore.input_error("unexpand", path, bore.permission_denied())
+            return 1
+        },
+        is_dir => {
+            bore.input_error("unexpand", path, bore.directory_reason())
+            return 1
+        },
+        io => {
+            bore.input_error("unexpand", path, bore.io_error())
+            return 1
+        },
+    }
+    var why = 0
+    var col = 0
+    var initial = true
+    var run = Run { start_col: 0, count: 0, col: 0, open: false, first: 0 as byte }
+    var pending = 0
+    var stop = false
+    while !stop {
+        var got = 0
+        region pass {
+            let read = bore.read_chunk(src, read_size()) else |e| match e {
+                eof => {
+                    got = -1
+                    List[byte]()
+                },
+                io => {
+                    got = -2
+                    List[byte]()
+                },
+            }
+            if got == 0 {
+                got = read.len
+                if got == 0 {
+                    got = -1
+                }
+            }
+            if got > 0 {
+                var k = 0
+                while k < got {
+                    chunk[k] = read[k]
+                    k += 1
+                }
+            }
+        }
+        if got == -2 {
+            why = 1
+            stop = true
+        } else if got == -1 {
+            stop = true
+        } else {
+            var at = 0
+            while at < got {
+                let b = chunk[at]
+                let n = b as int
+                if pending > 0 {
+                    bore.put_byte(mut out, b) else |_| {
+                        return 2
+                    }
+                    pending -= 1
+                    at += 1
+                    continue
+                }
+                let convert = o.all || initial
+                if (n == 32 || n == 9) && convert {
+                    if !run.open {
+                        run = Run { start_col: col, count: 0, col: col, open: true, first: b }
+                    }
+                    run.count += 1
+                    if n == 9 {
+                        let next = bore.next_stop(o.tabs, run.col)
+                        run.col = if next > run.col then next else run.col + 1
+                    } else {
+                        run.col += 1
+                    }
+                    col = run.col
+                    at += 1
+                    continue
+                }
+                if run.open {
+                    flush_run(run, o, mut out) else |_| {
+                        return 2
+                    }
+                    run.open = false
+                }
+                if n == 10 {
+                    bore.put_byte(mut out, b) else |_| {
+                        return 2
+                    }
+                    col = 0
+                    initial = true
+                    at += 1
+                    continue
+                }
+                initial = false
+                bore.put_byte(mut out, b) else |_| {
+                    return 2
+                }
+                if n == 9 {
+                    let next = bore.next_stop(o.tabs, col)
+                    col = if next > col then next else col + 1
+                } else if n == 8 {
+                    if col > 0 {
+                        col -= 1
+                    }
+                } else if n == 0 {
+                    col += 0
+                } else if o.utf8 && n >= 192 {
+                    pending = sequence_len(n) - 1
+                    col += width_ahead(chunk, at, got, b, pending)
+                } else {
+                    col += 1
+                }
+                at += 1
+            }
+        }
+    }
+    if why == 0 && run.open {
+        flush_run(run, o, mut out) else |_| {
+            return 2
+        }
+    }
+    bore.close_input(src)
+    if why == 1 {
+        bore.input_error("unexpand", path, bore.io_error())
+    }
+    why
+}
+
+/// Write the held run of blanks as tabs and then spaces.
+///
+/// A run of ONE blank is written back as it was — a single space or a
+/// single tab — whatever column it ends on. See the header: that is the
+/// measurement that separates this from a nearly-right `unexpand`.
+///
+/// The writer goes LAST: wolf-lang#449.
+fn flush_run(run: Run, o: Opts, mut out: bore.Out) -> () ! {io} {
+    if run.count == 1 {
+        // Verbatim, not rebuilt: measured, `unexpand` of a lone tab
+        // answers that tab, and of a lone space that space, whatever
+        // column either ends on.
+        bore.put_byte(mut out, run.first)?
+        return
+    }
+    var col = run.start_col
+    if run.count > 1 {
+        var going = true
+        while going {
+            let next = bore.next_stop(o.tabs, col)
+            if next > 0 && next <= run.col {
+                bore.put_byte(mut out, 9 as byte)?
+                col = next
+            } else {
+                going = false
+            }
+        }
+    }
+    while col < run.col {
+        bore.put_byte(mut out, 32 as byte)?
+        col += 1
+    }
+}
+
+/// How many bytes the UTF-8 sequence with this lead byte holds.
+fn sequence_len(lead: int) -> int {
+    if lead >= 240 {
+        return 4
+    }
+    if lead >= 224 {
+        return 3
+    }
+    2
+}
+
+/// The display width of the character whose lead byte sits at `at`, as
+/// `expand` measures it.
+fn width_ahead(chunk: List[byte], at: int, got: int, lead: byte, pending: int) -> int {
+    if at + pending >= got {
+        return bore.width_of(lead as int)
+    }
+    let n = pending + 1
+    var v = 0
+    let l = lead as int
+    if n == 2 {
+        v = l - 192
+    } else if n == 3 {
+        v = l - 224
+    } else {
+        v = l - 240
+    }
+    var k = 1
+    while k <= pending {
+        let c = chunk[at + k] as int
+        if c < 128 || c >= 192 {
+            return bore.width_of(l)
+        }
+        v = v * 64 + (c - 128)
+        k += 1
+    }
+    bore.width_of(v)
+}
+
+/// Write `s` straight out.
+fn emit(out: bore.Out, s: str) -> () ! {io} {
+    var b = List[byte]()
+    for x in s.bytes() {
+        (mut b).push(x)
+    }
+    bore.write_direct(out, b)?
+}
+
+fn help() -> str {
+    """
+    Usage: unexpand [OPTION]... [FILE]...
+    Convert runs of blanks in each FILE to tabs, writing to standard
+    output. With no FILE, or when FILE is -, read standard input.
+
+      -a, --all         convert every run of blanks, not only the one
+                          at the start of a line
+          --first-only  convert only the leading run, whatever -a says
+      -t, --tabs=LIST   a tab size, or a comma- or blank-separated list
+                          of stops, as expand takes; naming stops turns
+                          -a on
+          --help        print this help and exit
+          --version     print the version and exit
+
+    A run of ONE blank is never converted, whatever column it ends on.
+    A run of two or more becomes a tab for each stop it reaches and
+    spaces for what is left over.
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}

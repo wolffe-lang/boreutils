@@ -1,0 +1,493 @@
+# unexpand — GNU coreutils 9.11, black-box. The harness compares stdout,
+# stderr's shape and the exit status against the GNU binary.
+#
+# --help and --version print OUR text (GNU's is the FSF's prose), so
+# their cases compare the exit status and stderr only.
+#
+# The tab-stop grammar is `src/bore/tabs.lu`, shared with `expand`. The
+# cases that pin it are repeated here ON PURPOSE: one parser read two
+# ways is the defect sharing it is meant to prevent, and a case in
+# `expand.toml` alone would not catch it.
+#
+# The `roundtrip` cases are the point of the pair: `expand` then
+# `unexpand` on the same list has to be the identity on the parts of a
+# line that are blanks, and they are written against GNU's answer, not
+# against ours.
+
+# ----------------------------------------------------------- the defaults
+
+[[case]]
+name = "eight leading spaces become a tab"
+stdin = "        a\n"
+
+[[case]]
+name = "fewer than eight leading spaces stay spaces"
+stdin = "    a\n"
+
+[[case]]
+name = "blanks after the first non-blank are left alone"
+stdin = "    a       b\n"
+
+[[case]]
+name = "a line with no blanks at all"
+stdin = "hello\n"
+
+[[case]]
+name = "a line of blanks only"
+stdin = "                \n"
+
+[[case]]
+name = "empty input"
+stdin = ""
+
+[[case]]
+name = "empty lines"
+stdin = "\n\n\n"
+
+[[case]]
+name = "no trailing newline"
+stdin = "        a"
+
+[[case]]
+name = "standard input by default"
+stdin = "        a\n"
+
+[[case]]
+name = "a dash operand is standard input"
+args = ["-"]
+stdin = "        a\n"
+
+[[case]]
+name = "a file operand"
+args = ["tests/fixtures/blanks.txt"]
+
+[[case]]
+name = "two file operands"
+args = ["tests/fixtures/tabs.txt", "tests/fixtures/tabs.txt"]
+
+[[case]]
+name = "-- ends the options"
+args = ["--", "tests/fixtures/tabs.txt"]
+
+[[case]]
+name = "binary input"
+args = ["tests/fixtures/binary.bin"]
+
+[[case]]
+name = "existing tabs are part of the run"
+stdin = "\t  a\n"
+
+[[case]]
+name = "a tab after spaces in the leading run"
+stdin = "  \ta\n"
+
+# ------------------------------------------------- the one-blank rule
+
+[[case]]
+name = "a single space ending exactly on a stop is NOT converted"
+args = ["-a"]
+stdin = "abcdefg b\n"
+
+[[case]]
+name = "two spaces ending on a stop ARE converted"
+args = ["-a"]
+stdin = "abcdef  b\n"
+
+[[case]]
+name = "a single leading space"
+stdin = " a\n"
+
+[[case]]
+name = "a single leading tab"
+stdin = "\ta\n"
+
+[[case]]
+name = "two blanks that reach no stop stay spaces"
+args = ["-a"]
+stdin = "a  b\n"
+
+[[case]]
+name = "a long run whose first tab saves only one column"
+args = ["-a"]
+stdin = "abcdefgh\b        x\n"
+
+[[case]]
+name = "a run of exactly two at the start of a line"
+args = ["-a"]
+stdin = "  a\n"
+
+# --------------------------------------------------------------------- -a
+
+[[case]]
+name = "-a converts every run"
+args = ["-a"]
+stdin = "    a       b\n"
+
+[[case]]
+name = "--all"
+args = ["--all"]
+stdin = "    a       b\n"
+
+[[case]]
+name = "-a over two runs that each reach a stop"
+args = ["-a"]
+stdin = "a       b        c\n"
+
+[[case]]
+name = "-a on trailing blanks at the end of a line"
+args = ["-a"]
+stdin = "ab        \n"
+
+[[case]]
+name = "-a on a run that spans several stops"
+args = ["-a"]
+stdin = "a                       b\n"
+
+[[case]]
+name = "-a on a tab already there"
+args = ["-a"]
+stdin = "a\tb\n"
+
+[[case]]
+name = "-a on a file of tabs"
+args = ["-a", "tests/fixtures/tabs.txt"]
+
+[[case]]
+name = "--first-only overrides -a"
+args = ["-a", "--first-only", "-t", "4"]
+stdin = "    a    b\n"
+
+[[case]]
+name = "--first-only given before -a still wins"
+args = ["--first-only", "-a", "-t", "4"]
+stdin = "    a    b\n"
+
+[[case]]
+name = "--first-only after -t, which implies -a"
+args = ["-t", "4", "--first-only"]
+stdin = "    a    b\n"
+
+[[case]]
+name = "--first-only on its own"
+args = ["--first-only"]
+stdin = "        a        b\n"
+
+# ---------------------------------------------------------- the tab list
+
+[[case]]
+name = "-t 4 implies -a"
+args = ["-t", "4"]
+stdin = "x   a   b\n"
+
+[[case]]
+name = "--tabs"
+args = ["--tabs=4"]
+stdin = "    a   b\n"
+
+[[case]]
+name = "-t attached"
+args = ["-t4"]
+stdin = "    a   b\n"
+
+[[case]]
+name = "-t 4 is a SIZE, not a stop"
+args = ["-t", "4"]
+stdin = "            a\n"
+
+[[case]]
+name = "two explicit stops, and nothing past the last"
+args = ["-t", "3,7"]
+stdin = "   a    b          c\n"
+
+[[case]]
+name = "three explicit stops"
+args = ["-t", "3,4,5"]
+stdin = "   a b c        d\n"
+
+[[case]]
+name = "a slash repeat after explicit stops"
+args = ["-t", "3,/5"]
+stdin = "   a    b     c\n"
+
+[[case]]
+name = "a plus repeat after explicit stops"
+args = ["-t", "3,+5"]
+stdin = "   a    b     c\n"
+
+[[case]]
+name = "a slash repeat alone is a tab size"
+args = ["-t", "/4"]
+stdin = "        a\n"
+
+[[case]]
+name = "a plus repeat alone is a tab size"
+args = ["-t", "+4"]
+stdin = "        a\n"
+
+[[case]]
+name = "a slash repeat of zero falls back to the default"
+args = ["-t", "/0"]
+stdin = "        a\n"
+
+[[case]]
+name = "an explicit stop with a slash repeat of zero"
+args = ["-t", "3,/0"]
+stdin = "         a\n"
+
+[[case]]
+name = "stops separated by blanks"
+args = ["-t", "4 8"]
+stdin = "        a\n"
+
+[[case]]
+name = "-t given twice extends the list"
+args = ["-t", "3", "-t", "7"]
+stdin = "   a    b\n"
+
+[[case]]
+name = "-t given twice out of order is not ascending"
+args = ["-t", "4", "-t", "3"]
+stdin = "    a\n"
+
+[[case]]
+name = "-t 0 is refused"
+args = ["-t", "0"]
+stdin = "a b\n"
+
+[[case]]
+name = "-t with a decreasing list"
+args = ["-t", "4,2"]
+stdin = "a b\n"
+
+[[case]]
+name = "-t with an equal pair"
+args = ["-t", "3,3"]
+stdin = "a b\n"
+
+[[case]]
+name = "-t with letters"
+args = ["-t", "x"]
+stdin = "a b\n"
+
+[[case]]
+name = "-t with a digit and a letter"
+args = ["-t", "3k"]
+stdin = "a b\n"
+
+[[case]]
+name = "-t with a stop too large to hold"
+args = ["-t", "99999999999999999999"]
+stdin = "a b\n"
+
+[[case]]
+name = "-t with an empty argument"
+args = ["-t", ""]
+stdin = "a b\n"
+
+[[case]]
+name = "-t requires an argument"
+args = ["-t"]
+
+# --------------------------------------------------- the obsolete tab size
+
+[[case]]
+name = "the obsolete -N"
+args = ["-4"]
+stdin = "    a   b\n"
+
+[[case]]
+name = "the obsolete -N with a leading zero"
+args = ["-04"]
+stdin = "    a\n"
+
+[[case]]
+name = "a flag then the obsolete size"
+args = ["-a4"]
+stdin = "x   a   b\n"
+
+[[case]]
+name = "the obsolete size then a flag, which is all tab text"
+args = ["-4a"]
+stdin = "    a\n"
+
+[[case]]
+name = "after -- the obsolete size is a file name"
+args = ["--", "-4"]
+
+# ------------------------------------------------------- the column rules
+
+[[case]]
+name = "a backspace moves back one column"
+args = ["-a"]
+stdin = "abcdefgh\b        x\n"
+
+[[case]]
+name = "a backspace at column zero"
+args = ["-a"]
+stdin = "\b        x\n"
+
+[[case]]
+name = "a carriage return is an ordinary character here"
+args = ["-a"]
+stdin = "abcd\r        x\n"
+
+[[case]]
+name = "a NUL is worth no columns"
+args = ["-a", "tests/fixtures/nulrec.dat"]
+
+[[case]]
+name = "a carriage return file"
+args = ["-a", "tests/fixtures/crlf.txt"]
+
+[[case]]
+name = "UTF-8 characters are one column each"
+args = ["-a"]
+stdin = "é       x\n"
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "UTF-8 under LC_ALL=C counts the bytes"
+args = ["-a"]
+stdin = "é       x\n"
+
+[[case]]
+name = "a wide character is two columns"
+args = ["-a"]
+stdin = "世      x\n"
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "an invalid UTF-8 byte"
+args = ["-a", "tests/fixtures/bad.dat"]
+env = { LC_ALL = "C.UTF-8" }
+
+# ------------------------------------------------------------ round trips
+
+[[case]]
+name = "a round trip on the default stops leaves leading blanks alone"
+args = ["-a", "tests/fixtures/blanks.txt"]
+
+[[case]]
+name = "a round trip shape at -t 4"
+args = ["-a", "-t", "4"]
+stdin = "a   b       c           d\n"
+
+[[case]]
+name = "a round trip shape at -t 3,7"
+args = ["-t", "3,7"]
+stdin = "a  b   c    d\n"
+
+[[case]]
+name = "a round trip shape at -t 3,/5"
+args = ["-t", "3,/5"]
+stdin = "a  b  c     d\n"
+
+[[case]]
+name = "a round trip shape at -t 3,+5"
+args = ["-t", "3,+5"]
+stdin = "a  b     c     d\n"
+
+# --------------------------------------------------------------- the ends
+
+[[case]]
+name = "a missing operand"
+args = ["nope"]
+
+[[case]]
+name = "a missing operand among good ones"
+args = ["nope", "tests/fixtures/tabs.txt"]
+
+[[case]]
+name = "a directory operand"
+args = ["tests/fixtures"]
+
+[[case]]
+name = "an operand whose name needs quoting"
+args = ["a b"]
+
+[[case]]
+name = "an empty operand"
+args = [""]
+
+[[case]]
+name = "an unknown short option"
+args = ["-Q"]
+
+[[case]]
+name = "an unknown long option"
+args = ["--nope"]
+
+[[case]]
+name = "a long option given an argument it does not take"
+args = ["--all=x"]
+
+[[case]]
+name = "an abbreviated long option"
+args = ["--fir"]
+stdin = "        a        b\n"
+
+[[case]]
+name = "an ambiguous abbreviation"
+args = ["--a"]
+
+[[case]]
+name = "options after an operand permute"
+args = ["tests/fixtures/tabs.txt", "-a"]
+
+[[case]]
+name = "POSIXLY_CORRECT stops permuting"
+args = ["tests/fixtures/tabs.txt", "-a"]
+env = { POSIXLY_CORRECT = "1" }
+
+# ------------------------------------------------- help, version, and exit
+
+[[case]]
+name = "--help"
+args = ["--help"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "--version"
+args = ["--version"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "--help wins over a later bad option"
+args = ["--help", "-Q"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "a bad option before --help does not"
+args = ["-Q", "--help"]
+
+[[case]]
+name = "standard output closed"
+args = ["tests/fixtures/tabs.txt"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, version"
+args = ["--version"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, writing nothing"
+args = ["tests/fixtures/empty.txt"]
+stdout_closed = true
+
+[[case]]
+name = "a write error on a live descriptor"
+args = ["tests/fixtures/tabs.txt"]
+stdout_file = "/dev/full"
+compare = ["exit"]
+
+[[case]]
+name = "the reader goes away"
+args = ["tests/fixtures/twelve.txt"]
+stdout_bytes = 4
+
+[[case]]
+name = "a large input through a pipe"
+args = ["-a"]
+stdin = "a       bb      ccc     dddd\n"
+stdin_repeat = 4096

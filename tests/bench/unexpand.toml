@@ -1,0 +1,66 @@
+# unexpand — the bench. The work is per BYTE, plus a decision per RUN
+# of blanks: hold the run, then write the tabs it reaches and the spaces
+# left over.
+#
+# PREDICTION, committed in notes/bu07-the-pin-and-the-rest-of-b3.md
+# before the first run (release tier, GNU 9.11, kasumi):
+#
+#   0.3x to 0.6x, WORSE than `expand`, because the decision is per
+#   BLANK — a run has to be held before anything about it is known —
+#   where `expand` decides once per tab.
+#
+# The falsifier is a measured ratio outside that band, and the "worse
+# than expand" claim is falsified by any pair of comparable rows where
+# `unexpand` is the better ratio. The generated `big` input is words
+# separated by single spaces, which is the WORST case for the run-of-one
+# rule — every run is one blank and none of them converts — so the
+# blank-heavy rows build their own runs with `expand`.
+
+[[bench]]
+name = "start-up, no input"
+command = "{prog} < /dev/null"
+
+[[bench]]
+name = "ordinary lines, single spaces, nothing to convert"
+command = "LC_ALL=C {prog} < {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "very short lines"
+command = "LC_ALL=C {prog} < {input} > /dev/null"
+input = "lines"
+
+[[bench]]
+name = "-a over single spaces, which is the run-of-one rule at full rate"
+command = "LC_ALL=C {prog} -a < {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-a over long runs of blanks"
+command = "LC_ALL=C sed 's/ /        /g' {input} | {prog} -a > /dev/null"
+input = "lines"
+
+[[bench]]
+name = "-t 4 over long runs of blanks"
+command = "LC_ALL=C sed 's/ /        /g' {input} | {prog} -t 4 > /dev/null"
+input = "lines"
+
+[[bench]]
+name = "-t 3,7 over long runs, where the list ends"
+command = "LC_ALL=C sed 's/ /        /g' {input} | {prog} -t 3,7 > /dev/null"
+input = "lines"
+
+[[bench]]
+name = "the default, leading runs only"
+command = "LC_ALL=C sed 's/^/        /' {input} | {prog} > /dev/null"
+input = "lines"
+
+[[bench]]
+name = "under UTF-8, where every character is decoded"
+command = "LC_ALL=C.UTF-8 {prog} -a < {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "binary noise"
+command = "LC_ALL=C {prog} -a < {input} > /dev/null"
+input = "noise"
