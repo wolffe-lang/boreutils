@@ -33,10 +33,15 @@
 //!
 //! **A last line with no newline keeps none**, as `fold` does.
 //!
-//! **Memory is flat in the input**: one 256 KiB chunk written in place
-//! from inside the per-chunk `region` (wolf-lang#416), and nothing that
-//! grows with the line, because a tab's replacement is written straight
-//! out rather than buffered.
+//! **Memory is flat in the input**, and getting there took a
+//! measurement. Every pass reads one chunk, builds that chunk's output
+//! beside it, and hands it to `bore.write_direct` — all three inside
+//! one `region` that dies at the end of the pass, so `fs_read_chunk`'s
+//! per-call allocation cannot accumulate (wolf-lang#416). Writing byte
+//! by byte through `bore.put_byte` instead is correct and costs 2.8x
+//! the INPUT in resident memory, because the shared writer flushes by
+//! allocating a fresh buffer and the old one is never freed; 256 MiB
+//! peaked at 715 MB that way and at a few megabytes this way.
 
 use bore
 
@@ -108,19 +113,10 @@ fn main() -> int {
     if paths.len == 0 {
         (mut paths).push("-")
     }
-    let keeper = region()
-    var chunk = List[byte]()
-    in keeper {
-        var k = 0
-        while k < read_size() {
-            (mut chunk).push(0 as byte)
-            k += 1
-        }
-    }
     var status = 0
     var wfail = false
     for path in paths {
-        let code = one(mut out, path, o, mut chunk)
+        let code = one(out, path, o)
         if code != 0 {
             status = 1
         }
@@ -236,7 +232,7 @@ fn locale_is_utf8() -> bool {
 // ------------------------------------------------------------- the stream
 
 /// Expand one operand. 0 success, 1 this operand failed, 2 a failed write.
-fn one(mut out: bore.Out, path: str, o: Opts, mut chunk: List[byte]) -> int {
+fn one(out: bore.Out, path: str, o: Opts) -> int {
     let src = bore.open_input(path) else |e| match e {
         not_found => {
             bore.input_error("expand", path, bore.no_such_file())
@@ -259,105 +255,95 @@ fn one(mut out: bore.Out, path: str, o: Opts, mut chunk: List[byte]) -> int {
     var col = 0
     var initial = true
     // A character that straddles two chunks: how many bytes of it are
-    // still owed, and the column its lead byte asked for.
+    // still owed.
     var pending = 0
-    var lead = 0 as byte
     var stop = false
     while !stop {
-        var got = 0
+        // **The whole pass lives in the region, and the output with
+        // it.** A first draft wrote every byte through `bore.put_byte`,
+        // which is correct and costs 2.8x the input in memory: the
+        // shared writer flushes by ALLOCATING A FRESH BUFFER
+        // (`o.buf = List[byte]()`), and every one of those is abandoned
+        // in an arena that frees nothing, so 256 MiB peaked at 715 MB.
+        // Building the pass's output in the per-chunk region and
+        // handing it to `write_direct` — which takes the writer by READ
+        // for exactly this reason — is `cut`'s shape and peaks in
+        // megabytes.
         region pass {
-            let read = bore.read_chunk(src, read_size()) else |e| match e {
+            let chunk = bore.read_chunk(src, read_size()) else |e| match e {
                 eof => {
-                    got = -1
+                    stop = true
                     List[byte]()
                 },
                 io => {
-                    got = -2
+                    stop = true
+                    why = 1
                     List[byte]()
                 },
             }
-            if got == 0 {
-                got = read.len
-                if got == 0 {
-                    got = -1
-                }
-            }
-            if got > 0 {
-                var k = 0
-                while k < got {
-                    chunk[k] = read[k]
-                    k += 1
-                }
-            }
-        }
-        if got == -2 {
-            why = 1
-            stop = true
-        } else if got == -1 {
-            stop = true
-        } else {
-            var at = 0
-            while at < got {
-                let b = chunk[at]
-                let n = b as int
-                if pending > 0 {
-                    // A continuation byte of a character whose width was
-                    // already charged.
-                    bore.put_byte(mut out, b) else |_| {
-                        return 2
+            if chunk.len == 0 {
+                stop = true
+            } else {
+                var buf = List[byte]()
+                var at = 0
+                while at < chunk.len {
+                    let b = chunk[at]
+                    let n = b as int
+                    if pending > 0 {
+                        (mut buf).push(b)
+                        pending -= 1
+                        at += 1
+                        continue
                     }
-                    pending -= 1
-                    at += 1
-                    continue
-                }
-                if n == 10 {
-                    bore.put_byte(mut out, b) else |_| {
-                        return 2
+                    if n == 10 {
+                        (mut buf).push(b)
+                        col = 0
+                        initial = true
+                        at += 1
+                        continue
                     }
-                    col = 0
-                    initial = true
-                    at += 1
-                    continue
-                }
-                if n == 9 && (!o.initial || initial) {
-                    let next = bore.next_stop(o.tabs, col)
-                    var to = col + 1
-                    if next > col {
-                        to = next
-                    }
-                    while col < to {
-                        bore.put_byte(mut out, 32 as byte) else |_| {
-                            return 2
+                    if n == 9 && (!o.initial || initial) {
+                        let next = bore.next_stop(o.tabs, col)
+                        var to = col + 1
+                        if next > col {
+                            to = next
                         }
+                        while col < to {
+                            (mut buf).push(32 as byte)
+                            col += 1
+                        }
+                        at += 1
+                        continue
+                    }
+                    if n != 9 && n != 32 {
+                        initial = false
+                    }
+                    (mut buf).push(b)
+                    if n == 8 {
+                        if col > 0 {
+                            col -= 1
+                        }
+                    } else if n == 0 {
+                        // Measured, and in the C locale too: a NUL byte
+                        // is written and advances NOTHING, where every
+                        // other control byte — a BEL, a DEL — advances
+                        // one. `printf '\0\tZ' | expand` writes eight
+                        // spaces.
+                        col += 0
+                    } else if o.utf8 && n >= 192 {
+                        pending = sequence_len(n) - 1
+                        col += width_ahead(chunk, at, chunk.len, b, pending)
+                    } else {
                         col += 1
                     }
                     at += 1
-                    continue
                 }
-                if n != 9 && n != 32 {
-                    initial = false
-                }
-                bore.put_byte(mut out, b) else |_| {
-                    return 2
-                }
-                if n == 8 {
-                    if col > 0 {
-                        col -= 1
+                if buf.len > 0 {
+                    bore.write_direct(out, buf) else |_| {
+                        why = 2
+                        stop = true
                     }
-                } else if n == 0 {
-                    // Measured, and in the C locale too: a NUL byte is
-                    // written and advances NOTHING, where every other
-                    // control byte — a BEL, a DEL — advances one.
-                    // `printf '\0\tZ' | expand` writes eight spaces.
-                    col += 0
-                } else if o.utf8 && n >= 192 {
-                    lead = b
-                    pending = sequence_len(n) - 1
-                    col += width_ahead(chunk, at, got, lead, pending)
-                } else {
-                    col += 1
                 }
-                at += 1
             }
         }
     }
