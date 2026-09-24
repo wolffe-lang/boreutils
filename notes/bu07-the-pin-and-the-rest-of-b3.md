@@ -323,7 +323,7 @@ commits one apart:**
 | commit | run | the field job | conclusion |
 |---|---|---|---|
 | `7ffd256`, the plant | **35961824380** | **107511838008** | **failure** |
-| `4ce1f42`'s content at `09bc443`, the plant pulled | **35961806652** | 107511784597 | success |
+| `4ce1f42`, the plant pulled | **35962159388** | 107512849313 | success |
 
 The failing step is `what that exit code MEANS (B98)`:
 
@@ -444,7 +444,7 @@ have found it: both say EISDIR.
 | B73's mechanism | the `_POSIX2_VERSION` transcript in §2, kasumi, coreutils 9.11-2 |
 | B73's assertion seen red | the two `difftest` transcripts in §2, one refusing and one reporting |
 | B73 closed two skips | `tests/cases/tail.toml`, `tests/cases/uniq.toml`; `difftest` went from 17 skips to 15 on kasumi at that commit |
-| B98 seen red | run **35961824380**, job **107511838008**, step `what that exit code MEANS (B98)`; the same job one commit later is `success` in run **35961806652**, job 107511784597 |
+| B98 seen red | run **35961824380**, job **107511838008**, step `what that exit code MEANS (B98)`; the same job one commit later is `success` in run **35962159388**, job 107512849313 |
 | B98's standing gate | `tools/field-verdict-selftest`, run by the gauntlet on both hosts |
 | the ubuntu divergence | run **35960835138**, `FAIL tac: a directory operand`, `Invalid argument` against `Is a directory` |
 | the bench | `tools/bench --scale 0.25 --runs 5` on kasumi; tables in `README.md`; every bench file carries its prediction and was committed before the first run |
