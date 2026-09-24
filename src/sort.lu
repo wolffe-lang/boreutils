@@ -1,0 +1,522 @@
+//! member: false
+//!
+//! sort — write the lines of every input, sorted.
+//!
+//! References consulted: POSIX.1-2024 `sort` (the key grammar, `-b -d
+//! -f -i -n -r -t -k -u -c -m -o`, the last-resort comparison); GNU
+//! coreutils 9.11's `sort --help`, the info manual's `sort invocation`
+//! node, and black-box runs of the GNU binary (native `sort` on linux
+//! x86-64 at 9.11 under `LC_ALL=C`), including `--debug`'s key
+//! underlines as the instrument for where a key begins and ends;
+//! uutils/coreutils (MIT) and toybox (0BSD) as design references. Never
+//! GNU source.
+//!
+//! **The locale, stated.** Every comparison here is on BYTES, which is
+//! what GNU `sort` does under `LC_ALL=C` — the oracle's environment
+//! (`gnu-oracle.toml` `[oracle.env]`). Under another locale GNU
+//! collates by `LC_COLLATE` and this program still compares bytes; a
+//! blank is a space, a tab or (only reachable under `-z`) a newline, a
+//! letter is ASCII, `.` is the decimal point and there is no thousands
+//! separator. Measured: under `-z`, GNU splits fields at a newline as it
+//! does at a blank, so `a<LF>b c` has three fields.
+//!
+//! **Memory.** Every input is held in one `List[byte]`, sorted as an
+//! index of line starts, and written. A `List` grows by doubling and the
+//! arena frees nothing (wolf-std F-0011), so the held input costs about
+//! twice itself.
+//!
+//! **What is not here.** `-g`, `-V`, `-R`, `--random-source`,
+//! `--files0-from`, `--compress-program` and `--debug` are parsed, so a
+//! command line that combines them wrongly is refused exactly as GNU
+//! refuses it, and are then refused by name (status 2). A write error
+//! other than a closed descriptor cannot name its reason (wolf-lang#407).
+
+use bore
+
+// ------------------------------------------------------------- the model
+
+/// One sort key, or the global ordering options while they are parsed.
+///
+/// `sfield`/`schar` are the fields and characters to skip to the start
+/// (origin 0); `efield` is the 1-origin field the key ends in, or -1 for
+/// the end of the line, and `echar` 0 for the end of that field.
+struct Key {
+    sfield: int,
+    schar: int,
+    sblank: bool,
+    efield: int,
+    echar: int,
+    eblank: bool,
+    numeric: bool,
+    human: bool,
+    month: bool,
+    general: bool,
+    random: bool,
+    version: bool,
+    reverse: bool,
+    fold: bool,
+    dict: bool,
+    nonprint: bool,
+    /// The key named an option letter of its own, so it inherits none.
+    own: bool,
+}
+
+/// Everything a comparison needs.
+struct Conf {
+    keys: List[Key],
+    /// The field separator as a byte value, or -1 for blank-separated.
+    tab: int,
+    /// The global `-r`, which also reverses the last-resort comparison.
+    reverse: bool,
+    stable: bool,
+    unique: bool,
+    /// No key and no ordering option but `-r`: a byte comparison.
+    plain: bool,
+    delim: byte,
+}
+
+/// What the command line asked for beyond the comparison.
+struct Opts {
+    stable: bool,
+    unique: bool,
+    unsupported: str,
+}
+
+fn blank_key() -> Key {
+    Key {
+        sfield: 0,
+        schar: 0,
+        sblank: false,
+        efield: -1,
+        echar: 0,
+        eblank: false,
+        numeric: false,
+        human: false,
+        month: false,
+        general: false,
+        random: false,
+        version: false,
+        reverse: false,
+        fold: false,
+        dict: false,
+        nonprint: false,
+        own: false,
+    }
+}
+
+fn main() -> int {
+    // Standard output first: with descriptor 1 closed, the first file
+    // opened would take it (wolf-lang#405).
+    var out = bore.stdout()
+    var g = blank_key()
+    var o = Opts {
+        stable: false,
+        unique: false,
+        unsupported: "",
+    }
+    let p = bore.parse(options(), env_args(), bore.permute())
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i]
+        let v = p.values[i]
+        // Measured: `sort --help >&-` says `write error: Bad file
+        // descriptor`, the shape every utility's --help takes, not the
+        // two-line `fflush failed` a sorted output takes.
+        if k == "help" {
+            emit_text(out, help()) else |_| {
+                bore.write_error(out, "sort", "write error")
+                return 2
+            }
+            return 0
+        }
+        if k == "version" {
+            emit_text(out, bore.version_text("sort")) else |_| {
+                bore.write_error(out, "sort", "write error")
+                return 2
+            }
+            return 0
+        }
+        if k == "debug" {
+            o.unsupported = "--debug"
+        }
+        if k == "files0-from" {
+            o.unsupported = "--files0-from"
+        }
+        if k == "random-source" {
+            o.unsupported = "--random-source"
+        }
+        if k == "compress-program" {
+            o.unsupported = "--compress-program"
+        }
+        i += 1
+    }
+    if !bore.ok(p) {
+        eprint("sort: {p.error}\nTry 'sort --help' for more information.")
+        return 2
+    }
+    // With no key, the global options make one: the whole line.
+    var used = List[Key]()
+    (mut used).push(copy g)
+    if o.unsupported.len > 0 {
+        return fail("{o.unsupported} is not supported by this sort")
+    }
+    var plain = true
+    for k in used {
+        if k.numeric || k.human || k.month || k.fold || k.dict || k.nonprint || k.sblank {
+            plain = false
+        }
+    }
+    let delim = 10 as byte
+    let c = Conf {
+        keys: used,
+        tab: -1,
+        reverse: g.reverse,
+        stable: o.stable,
+        unique: o.unique,
+        plain: plain,
+        delim: delim,
+    }
+    var paths = List[str]()
+    for a in p.operands {
+        (mut paths).push(a)
+    }
+    if paths.len == 0 {
+        (mut paths).push("-")
+    }
+    sort_mode(c, paths, out)
+}
+
+fn options() -> List[bore.Opt] {
+    // GNU's own long-option table order, which its
+    // "ambiguous; possibilities:" line reports and so is observable.
+    var s = List[bore.Opt]()
+    (mut s).push(bore.flag("b", "ignore-leading-blanks"))
+    (mut s).push(bore.optional("", "check"))
+    (mut s).push(bore.takes("", "compress-program"))
+    (mut s).push(bore.flag("", "debug"))
+    (mut s).push(bore.flag("d", "dictionary-order"))
+    (mut s).push(bore.flag("f", "ignore-case"))
+    (mut s).push(bore.takes("", "files0-from"))
+    (mut s).push(bore.flag("g", "general-numeric-sort"))
+    (mut s).push(bore.flag("i", "ignore-nonprinting"))
+    (mut s).push(bore.takes("k", "key"))
+    (mut s).push(bore.flag("m", "merge"))
+    (mut s).push(bore.flag("M", "month-sort"))
+    (mut s).push(bore.flag("n", "numeric-sort"))
+    (mut s).push(bore.flag("h", "human-numeric-sort"))
+    (mut s).push(bore.flag("V", "version-sort"))
+    (mut s).push(bore.flag("R", "random-sort"))
+    (mut s).push(bore.takes("", "random-source"))
+    (mut s).push(bore.takes("", "sort"))
+    (mut s).push(bore.takes("o", "output"))
+    (mut s).push(bore.flag("r", "reverse"))
+    (mut s).push(bore.flag("s", "stable"))
+    (mut s).push(bore.takes("", "batch-size"))
+    (mut s).push(bore.takes("S", "buffer-size"))
+    (mut s).push(bore.takes("t", "field-separator"))
+    (mut s).push(bore.takes("T", "temporary-directory"))
+    (mut s).push(bore.flag("u", "unique"))
+    (mut s).push(bore.flag("z", "zero-terminated"))
+    (mut s).push(bore.takes("", "parallel"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    // Short-only, so they never appear in an ambiguity list.
+    (mut s).push(bore.flag("c", ""))
+    (mut s).push(bore.flag("C", ""))
+    // `-y` is an obsolete option GNU still accepts and ignores, and its
+    // argument is OPTIONAL (boreutils#8): measured, `sort -yr` takes `r`
+    // as `-y`'s word and does not reverse, while `sort -y -r` does.
+    (mut s).push(bore.optional("y", ""))
+    s
+}
+
+/// `sort`'s status for every trouble that is not a check's disorder.
+fn fail(msg: str) -> int {
+    bore.warn("sort", msg)
+    2
+}
+
+// ------------------------------------------------------------ comparison
+
+// --------------------------------------------------------- the sort proper
+
+/// The indices of the lines in `buf`, in input order: the skeleton
+/// does not sort yet.
+fn sort_index(c: Conf, buf: List[byte], starts: List[int]) -> List[int] {
+    let n = starts.len - 1
+    var a = List[int]()
+    var i = 0
+    while i < n {
+        (mut a).push(i)
+        i += 1
+    }
+    a
+}
+
+// ------------------------------------------------------------- the output
+
+/// How many bytes an output buffer holds.
+fn out_size() -> int {
+    65536
+}
+
+/// Write `bytes` to the destination: standard output when `fd` is -1,
+/// else the file `fd`.
+fn put_out(out: bore.Out, fd: int, bytes: List[byte]) -> () ! {io} {
+    if fd < 0 {
+        bore.write_direct(out, bytes)?
+        return
+    }
+    fs_write_chunk(fd, bytes) else |_| {
+        return io
+    }
+}
+
+/// A zeroed buffer of `out_size()` bytes, filled in place and written
+/// whole, so the output allocates nothing per write (the B152 lesson).
+fn fresh_buffer() -> List[byte] {
+    var b = List[byte]()
+    var i = 0
+    while i < out_size() {
+        (mut b).push(0 as byte)
+        i += 1
+    }
+    b
+}
+
+/// Write `ob[0..n]`: whole when full, else through a list built in a
+/// region of its own.
+fn put_part(out: bore.Out, fd: int, ob: List[byte], n: int) -> () ! {io} {
+    if n == 0 {
+        return
+    }
+    if n == ob.len {
+        put_out(out, fd, ob)?
+        return
+    }
+    var failed = false
+    region tail {
+        var t = List[byte]()
+        var i = 0
+        while i < n {
+            (mut t).push(ob[i])
+            i += 1
+        }
+        put_out(out, fd, t) else |_| {
+            failed = true
+        }
+    }
+    if failed {
+        return io
+    }
+}
+
+/// Write the held lines in `perm`'s order, each with its delimiter.
+/// Everything is taken by READ, so a caller inside a `region` may pass
+/// its region-local lists (wolf-lang#418).
+fn emit_lines(
+    c: Conf,
+    buf: List[byte],
+    starts: List[int],
+    perm: List[int],
+    out: bore.Out,
+    fd: int,
+) -> () ! {io} {
+    var ob = fresh_buffer()
+    var n = 0
+    var k = 0
+    while k < perm.len {
+        let x = perm[k]
+        k += 1
+        let s = starts[x]
+        let e = starts[x + 1] - 1
+        var i = s
+        while i <= e {
+            ob[n] = if i == e then c.delim else buf[i]
+            n += 1
+            if n == ob.len {
+                put_out(out, fd, ob)?
+                n = 0
+            }
+            i += 1
+        }
+    }
+    put_part(out, fd, ob, n)?
+}
+
+/// GNU's two lines for a failed flush of standard output, and its
+/// status. Only the closed descriptor's reason is known (wolf-lang#407).
+fn write_failed(out: bore.Out) -> int {
+    let why = if out.closed then bore.bad_descriptor() else bore.io_error()
+    bore.warn("sort", "fflush failed: 'standard output': {why}")
+    bore.warn("sort", "write error")
+    2
+}
+
+/// Write `s` straight to standard output.
+fn emit_text(out: bore.Out, s: str) -> () ! {io} {
+    var b = List[byte]()
+    for x in s.bytes() {
+        (mut b).push(x)
+    }
+    bore.write_direct(out, b)?
+}
+
+// ------------------------------------------------------------- the input
+
+/// The bytes asked of the host per read (bu01's measured knee).
+fn read_size() -> int {
+    262144
+}
+
+/// Report an input that could not be opened, in GNU's words.
+fn open_failed(path: str, why: str) {
+    bore.warn("sort", "cannot read: {bore.quote_name(path)}: {why}")
+}
+
+/// Report an input that opened and then failed to read.
+fn read_failed(path: str, why: str) {
+    bore.warn("sort", "read failed: {bore.quote_name(path)}: {why}")
+}
+
+/// Open `path` (`-` is standard input) and answer its descriptor, or
+/// report the failure in GNU's words and answer -1.
+fn open_in(path: str) -> int {
+    let src = bore.open_input(path) else |e| match e {
+        not_found => {
+            open_failed(path, bore.no_such_file())
+            return -1
+        },
+        denied => {
+            open_failed(path, bore.permission_denied())
+            return -1
+        },
+        is_dir => {
+            // Measured: GNU OPENS a directory and fails at the read.
+            read_failed(path, bore.directory_reason())
+            return -1
+        },
+        io => {
+            open_failed(path, bore.io_error())
+            return -1
+        },
+    }
+    src.fd
+}
+
+// ------------------------------------------------------------ sort mode
+
+/// Sort `paths` to standard output, in memory: every input is
+/// read into one list, the line indices are sorted, and the lines are
+/// written in that order.
+///
+/// Everything lives in `region run`, and each read in a `region pass`
+/// inside it, so a read's own allocation dies at once and only the
+/// bytes kept are charged to the run (wolf-lang#416).
+fn sort_mode(c: Conf, paths: List[str], out: bore.Out) -> int {
+    var status = 0
+    region run {
+        var buf = List[byte]()
+        var cur = 0
+        while cur < paths.len && status == 0 {
+            let fd = open_in(paths[cur])
+            if fd < 0 {
+                status = 2
+            }
+            var at_end = fd < 0
+            while !at_end {
+                region pass {
+                    let chunk = fs_read_chunk(fd, read_size()) else |e| match e {
+                        eof => {
+                            at_end = true
+                            List[byte]()
+                        },
+                        io => {
+                            read_failed(paths[cur], bore.io_error())
+                            status = 2
+                            at_end = true
+                            List[byte]()
+                        },
+                    }
+                    if chunk.len == 0 {
+                        at_end = true
+                    }
+                    in run {
+                        for b in chunk {
+                            (mut buf).push(b)
+                        }
+                    }
+                }
+            }
+            if fd >= 0 && paths[cur] != "-" {
+                fs_close(fd) else |_| {}
+            }
+            // GNU supplies a missing final delimiter, per file: `sort A
+            // B` never joins A's last line to B's first.
+            if buf.len > 0 && buf[buf.len - 1] != c.delim {
+                (mut buf).push(c.delim)
+            }
+            cur += 1
+        }
+        if status == 0 {
+            var starts = List[int]()
+            (mut starts).push(0)
+            var k = 0
+            while k < buf.len {
+                if buf[k] == c.delim {
+                    (mut starts).push(k + 1)
+                }
+                k += 1
+            }
+            let perm = sort_index(c, buf, starts)
+            emit_lines(c, buf, starts, perm, out, -1) else |_| {
+                status = write_failed(out)
+            }
+        }
+    }
+    status
+}
+
+fn help() -> str {
+    """
+    Usage: sort [OPTION]... [FILE]...
+    Write the lines of every FILE to standard output, sorted.
+    With no FILE, or when FILE is -, read standard input.
+
+    Ordering:
+      -b, --ignore-leading-blanks  skip the blanks that start a key
+      -d, --dictionary-order       compare only blanks, letters and digits
+      -f, --ignore-case            compare lower case as upper case
+      -i, --ignore-nonprinting     compare only printable bytes
+      -M, --month-sort             JAN < FEB < ... < DEC, anything else first
+      -h, --human-numeric-sort     numbers with an SI suffix (2K, 1G)
+      -n, --numeric-sort           an optional -, digits, an optional fraction
+      -r, --reverse                the greatest first
+          --sort=WORD              month, numeric or human-numeric by name
+    Other options:
+          --batch-size=N           merge at most N runs at once
+      -c, --check                  report the first line out of order; exit 1
+      -C, --check=quiet            exit 1 when out of order, and say nothing
+      -k, --key=KEYDEF             sort on a key; see below
+      -m, --merge                  merge inputs that are each sorted already
+      -o, --output=FILE            write to FILE, after all input is read
+      -s, --stable                 keep input order among equal keys
+      -S, --buffer-size=SIZE       hold at most SIZE of input before a run
+                                     goes to a temporary file (KiB unless a
+                                     suffix b, K, M, G ... says otherwise)
+      -t, --field-separator=SEP    fields end at SEP, not at blanks
+      -T, --temporary-directory=DIR  write runs to DIR, not $TMPDIR or /tmp
+          --parallel=N             accepted; this sort uses one thread
+      -u, --unique                 write the first of each run of equal keys
+      -z, --zero-terminated        lines end with NUL, not newline
+          --help                   print this help and exit
+          --version                print the version and exit
+
+    KEYDEF is F[.C][OPTS][,F[.C][OPTS]]: field F, character C, both from
+    1; the end defaults to the line's end, and C 0 at the end means the
+    field's end. OPTS are the ordering letters bdfhiMnr for this key
+    only. Comparison is by bytes, as GNU sort's under LC_ALL=C.
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}
