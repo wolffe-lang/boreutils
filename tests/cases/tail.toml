@@ -447,6 +447,117 @@ args = ["-s", "2", "tests/fixtures/twelve.txt"]
 name = "a sleep interval that is not a number"
 args = ["-s", "x", "tests/fixtures/twelve.txt"]
 
+# --follow[=WORD] is an OPTIONAL-argument option (boreutils#8): a word
+# is taken only when it is attached with `=`, it is matched as GNU's
+# argmatch matches (exact, or a unique prefix; the empty word is
+# ambiguous), and the last of -f, -F and --follow[=WORD] decides HOW to
+# follow. Following by name is refused for standard input before a byte
+# is read. Every case here terminates: a pipe ends the follow, and each
+# refusal is immediate. The timeout is what a regression would hit.
+
+[[case]]
+name = "follow with a word that is not one"
+args = ["--follow=bogus", "tests/fixtures/twelve.txt"]
+timeout = 5
+
+[[case]]
+name = "follow with an empty word is ambiguous"
+args = ["--follow=", "tests/fixtures/twelve.txt"]
+timeout = 5
+
+[[case]]
+name = "follow abbreviated, with a word that is not one"
+args = ["--fo=bogus", "tests/fixtures/twelve.txt"]
+timeout = 5
+
+[[case]]
+name = "follow's word is case-sensitive"
+args = ["--follow=Name", "tests/fixtures/twelve.txt"]
+timeout = 5
+
+[[case]]
+name = "follow by name refuses standard input"
+stdin = "a\nb\n"
+args = ["--follow=name"]
+timeout = 5
+
+[[case]]
+name = "follow by name refuses a dash among files"
+stdin = "a\nb\n"
+args = ["--follow=name", "-n", "1", "tests/fixtures/twelve.txt", "-"]
+timeout = 5
+
+[[case]]
+name = "F refuses standard input"
+stdin = "a\nb\n"
+args = ["-F"]
+timeout = 5
+
+[[case]]
+name = "follow by an abbreviated name refuses standard input"
+stdin = "a\nb\n"
+args = ["--follow=na", "-"]
+timeout = 5
+
+[[case]]
+name = "follow by descriptor on a pipe ends at end of input"
+stdin = "a\nb\nc\n"
+args = ["--follow=descriptor", "-n", "1"]
+timeout = 5
+
+[[case]]
+name = "follow by an abbreviated descriptor on a pipe"
+stdin = "a\nb\nc\n"
+args = ["--follow=d", "-n", "1"]
+timeout = 5
+
+[[case]]
+name = "a bare follow does not take the next word"
+stdin = "a\nb\nc\n"
+args = ["--follow", "-"]
+timeout = 5
+
+[[case]]
+name = "the last follow wins, descriptor after name"
+stdin = "a\nb\n"
+args = ["--follow=name", "--follow=descriptor", "-"]
+timeout = 5
+
+[[case]]
+name = "the last follow wins, f after name"
+stdin = "a\nb\n"
+args = ["--follow=name", "-f", "-"]
+timeout = 5
+
+[[case]]
+name = "the last follow wins, name after f"
+stdin = "a\nb\n"
+args = ["-f", "--follow=name", "-"]
+timeout = 5
+
+[[case]]
+name = "the last follow wins, F after f"
+stdin = "a\nb\n"
+args = ["-f", "-F", "-"]
+timeout = 5
+
+[[case]]
+name = "F then f keeps the retry and warns about it"
+stdin = "a\nb\n"
+args = ["-F", "-f", "-"]
+timeout = 5
+
+[[case]]
+name = "retry with a descriptor follow warns"
+stdin = "a\nb\n"
+args = ["--retry", "-f", "-"]
+timeout = 5
+
+[[case]]
+name = "a short f does not take a word"
+args = ["-f=name", "tests/fixtures/twelve.txt"]
+timeout = 5
+
 [[case]]
 name = "follow a regular file for ever"
 skip = "a live follow never returns, so it cannot be a differential case; the lane report carries the hand-run transcript"

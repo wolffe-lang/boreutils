@@ -41,7 +41,44 @@ fn check(args: List[str], permute: bool, want: str) {
     assert(got == want, "parse {joined(args)}: got {got}, want {want}")
 }
 
+/// A table with OPTIONAL-argument options (boreutils#8): `--follow`
+/// long-only, `-C`/`--color` with both names, and `-f` a plain flag.
+fn spec_optional() -> List[bore.Opt] {
+    var s = List[bore.Opt]()
+    (mut s).push(bore.optional("", "follow"))
+    (mut s).push(bore.optional("C", "color"))
+    (mut s).push(bore.flag("f", ""))
+    (mut s).push(bore.takes("n", "lines"))
+    s
+}
+
+fn flags(xs: List[bool]) -> str {
+    var out = ""
+    for x in xs {
+        out += if x then "[1]" else "[0]"
+    }
+    out
+}
+
+fn check_optional(args: List[str], want: str) {
+    let p = bore.parse(spec_optional(), args, true)
+    let got = "k={joined(p.keys)} v={joined(p.values)} g={flags(p.given)} o={joined(p.operands)} e={p.error}"
+    assert(got == want, "parse {joined(args)}: got {got}, want {want}")
+}
+
 fn main() {
+    // getopt_long's optional_argument: a word only when attached.
+    check_optional(words("--follow", "x", ""), "k=[follow] v=[] g=[0] o=[x] e=")
+    check_optional(words("--follow=name", "x", ""), "k=[follow] v=[name] g=[1] o=[x] e=")
+    check_optional(words("--follow=", "x", ""), "k=[follow] v=[] g=[1] o=[x] e=")
+    check_optional(words("--fol=d", "", ""), "k=[follow] v=[d] g=[1] o= e=")
+    check_optional(words("-C", "auto", ""), "k=[color] v=[] g=[0] o=[auto] e=")
+    check_optional(words("-Cauto", "", ""), "k=[color] v=[auto] g=[1] o= e=")
+    check_optional(words("-fC", "", ""), "k=[f][color] v=[][] g=[0][0] o= e=")
+    check_optional(words("-fCx", "", ""), "k=[f][color] v=[][x] g=[0][1] o= e=")
+    check_optional(words("-n", "3", ""), "k=[lines] v=[3] g=[1] o= e=")
+    check_optional(words("--color", "--follow", ""), "k=[color][follow] v=[][] g=[0][0] o= e=")
+    check_optional(words("--co", "", ""), "k=[color] v=[] g=[0] o= e=")
     check(words("a/b", "", ""), true, "k= v= o=[a/b] e=")
     check(words("-za", "x", ""), true, "k=[zero][multiple] v=[][] o=[x] e=")
     check(words("-s.h", "x", ""), true, "k=[suffix] v=[.h] o=[x] e=")
