@@ -1,0 +1,80 @@
+#!/bin/sh
+# field-verdict — what an exit code from the `field` leg MEANS (B98).
+#
+# The field leg runs the distro's own GNU so the divergences the cases
+# name with gnu_min / gnu_max stay honest (B44). It is INFORMATION, not
+# a verdict, and it carried `continue-on-error: true` to say so.
+#
+# **That is the right shape for a verdict difference and the wrong shape
+# for a death.** B98's finding: the leg had been dying of signal 13 in
+# run 35673565877 (job 106575197103) with a PARTIAL report, and because
+# the job was `continue-on-error` the death was an announced advisory
+# that nobody ever looked at. Three macOS deaths were noticed because
+# the gauntlet is a verdict; the identical linux deaths were not.
+#
+# THE RULING (bu07, 2026-09-24). The field leg is non-blocking about
+# WHAT GNU ANSWERED and blocking about WHETHER THE LEG RAN. So:
+#
+#   0    every case agreed with this runner's GNU          -> quiet
+#   1    at least one case differs                         -> ADVISORY
+#   2    the harness could not run at all (a missing
+#        binary, a malformed case file)                    -> LOUD
+#   >=128  the harness died of signal (code - 128)         -> LOUD
+#   other  anything unclassified                           -> LOUD
+#
+# The line is not "which exit codes are bad", it is "a difference is
+# data and a death is a defect". A leg that cannot say whether it
+# finished has produced no information at all, so treating its death as
+# information is a category error — and it is the fifteen false-signal
+# shapes' whole family: a green that means nothing in particular.
+#
+# usage: tools/field-verdict CODE
+# exit:  0 when the run may stand as information, 1 when it must be loud.
+set -eu
+
+if [ $# -ne 1 ]; then
+    echo "usage: tools/field-verdict CODE" >&2
+    exit 2
+fi
+code=$1
+
+case "$code" in
+'' | *[!0-9]*)
+    echo "field-verdict: LOUD — $code is not an exit code" >&2
+    exit 1
+    ;;
+esac
+
+if [ "$code" -eq 0 ]; then
+    echo "field-verdict: quiet — this runner's GNU agreed with every case"
+    exit 0
+fi
+
+if [ "$code" -eq 1 ]; then
+    echo "field-verdict: ADVISORY — at least one case differs against this"
+    echo "field-verdict: runner's own GNU. That is what this leg is for: the"
+    echo "field-verdict: gnu_min / gnu_max ranges are claims about the field"
+    echo "field-verdict: and this is the run that keeps them honest. Not a"
+    echo "field-verdict: verdict, and not a failure."
+    exit 0
+fi
+
+if [ "$code" -ge 128 ] && [ "$code" -lt 192 ]; then
+    echo "field-verdict: LOUD — the harness DIED of signal $((code - 128))" >&2
+    echo "field-verdict: (exit $code). A leg that cannot say whether it" >&2
+    echo "field-verdict: finished has produced no information, so this is a" >&2
+    echo "field-verdict: defect and not an advisory (B98). Signal 13 is a" >&2
+    echo "field-verdict: broken pipe and was boreutils#10's shape; the report" >&2
+    echo "field-verdict: above is whatever the run had already decided." >&2
+    exit 1
+fi
+
+if [ "$code" -eq 2 ]; then
+    echo "field-verdict: LOUD — the harness refused to run (exit 2): a" >&2
+    echo "field-verdict: missing binary, a malformed case file, or a pin it" >&2
+    echo "field-verdict: could not read. No cases were compared (B98)." >&2
+    exit 1
+fi
+
+echo "field-verdict: LOUD — exit $code is not a verdict this leg knows" >&2
+exit 1
