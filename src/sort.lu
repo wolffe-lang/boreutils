@@ -20,6 +20,14 @@
 //! separator. Measured: under `-z`, GNU splits fields at a newline as it
 //! does at a blank, so `a<LF>b c` has three fields.
 //!
+//! **Stable, and stated.** The sort is a merge sort of line indices,
+//! stable by construction. GNU's is not observable as stable or not,
+//! because after every key compares equal it compares the whole lines
+//! (the "last-resort comparison", reversed by a global `-r`); `-s` and
+//! `-u` turn that off, and then input order decides, as it does here.
+//! `-u` keeps the FIRST of each run of equal lines in input order —
+//! measured: `printf 'B\na\nb\nA\n' | sort -fu` is `a`, `B`.
+//!
 //! **Memory.** Every input is held in one `List[byte]`, sorted as an
 //! index of line starts, and written. A `List` grows by doubling and the
 //! arena frees nothing (wolf-std F-0011), so the held input costs about
@@ -238,19 +246,142 @@ fn fail(msg: str) -> int {
 
 // ------------------------------------------------------------ comparison
 
+/// Compare two lines as bytes.
+fn compare(c: Conf, a: List[byte], sa: int, ea: int, b: List[byte], sb: int, eb: int) -> int {
+    bytes_cmp(a, sa, ea, b, sb, eb)
+}
+
+/// `memcmp`, then the shorter first.
+fn bytes_cmp(a: List[byte], sa: int, ea: int, b: List[byte], sb: int, eb: int) -> int {
+    var i = sa
+    var j = sb
+    while i < ea && j < eb {
+        let x = a[i]
+        let y = b[j]
+        if x != y {
+            return if x < y then -1 else 1
+        }
+        i += 1
+        j += 1
+    }
+    if i < ea {
+        return 1
+    }
+    if j < eb {
+        return -1
+    }
+    0
+}
+
 // --------------------------------------------------------- the sort proper
 
-/// The indices of the lines in `buf`, in input order: the skeleton
-/// does not sort yet.
+/// The indices of the lines in `buf`, sorted. `starts` holds each
+/// line's first byte and, last, one past the final delimiter, so line
+/// `i` is `buf[starts[i] .. starts[i + 1] - 1]`.
+///
+/// A bottom-up merge sort over two index lists, after an insertion sort
+/// of each block of 16: stable, and O(n log n) comparisons whatever the
+/// input's order.
 fn sort_index(c: Conf, buf: List[byte], starts: List[int]) -> List[int] {
     let n = starts.len - 1
     var a = List[int]()
+    var t = List[int]()
     var i = 0
     while i < n {
         (mut a).push(i)
+        (mut t).push(0)
         i += 1
     }
-    a
+    let block = 16
+    var lo = 0
+    while lo < n {
+        let hi = if lo + block < n then lo + block else n
+        var k = lo + 1
+        while k < hi {
+            let v = a[k]
+            var j = k - 1
+            var moving = true
+            while moving && j >= lo {
+                let w = a[j]
+                if compare(
+                    c,
+                    buf,
+                    starts[w],
+                    starts[w + 1] - 1,
+                    buf,
+                    starts[v],
+                    starts[v + 1] - 1,
+                ) >
+                    0 {
+                    a[j + 1] = w
+                    j -= 1
+                } else {
+                    moving = false
+                }
+            }
+            a[j + 1] = v
+            k += 1
+        }
+        lo = hi
+    }
+    var width = block
+    var in_a = true
+    while width < n {
+        if in_a {
+            merge_pass(c, buf, starts, a, width, n, mut t)
+        } else {
+            merge_pass(c, buf, starts, t, width, n, mut a)
+        }
+        in_a = !in_a
+        width = width * 2
+    }
+    if in_a then a else t
+}
+
+/// One pass of the bottom-up merge: runs of `width` from `src` into
+/// `dst`, taking from the left run on a tie, which is what makes it
+/// stable. The written list is LAST (wolf-lang#449).
+fn merge_pass(
+    c: Conf,
+    buf: List[byte],
+    starts: List[int],
+    src: List[int],
+    width: int,
+    n: int,
+    mut dst: List[int],
+) {
+    var lo = 0
+    while lo < n {
+        let mid = if lo + width < n then lo + width else n
+        let hi = if mid + width < n then mid + width else n
+        var i = lo
+        var j = mid
+        var k = lo
+        while i < mid && j < hi {
+            let x = src[i]
+            let y = src[j]
+            if compare(c, buf, starts[y], starts[y + 1] - 1, buf, starts[x], starts[x + 1] - 1) <
+                0 {
+                dst[k] = y
+                j += 1
+            } else {
+                dst[k] = x
+                i += 1
+            }
+            k += 1
+        }
+        while i < mid {
+            dst[k] = src[i]
+            i += 1
+            k += 1
+        }
+        while j < hi {
+            dst[k] = src[j]
+            j += 1
+            k += 1
+        }
+        lo = hi
+    }
 }
 
 // ------------------------------------------------------------- the output
