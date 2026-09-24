@@ -1,0 +1,226 @@
+//! bore.tabs — the tab-stop list `expand` and `unexpand` share.
+//!
+//! One grammar, two consumers, and they MUST agree: `unexpand` is meant
+//! to undo `expand`, so a stop list the two read differently is a bug
+//! nobody would find until a round trip stopped being one. That is the
+//! same argument `bore.width_of` carries for `wc -L` and `fold`.
+//!
+//! References consulted: POSIX.1-2024 `expand` and `unexpand`; GNU
+//! coreutils 9.11's `--help` for both, the info manual's option
+//! descriptions, and black-box runs of the binaries (native on linux
+//! x86-64 at 9.11 under `LC_ALL=C`); uutils/coreutils (MIT) and toybox
+//! (0BSD) as design references. Never GNU source.
+//!
+//! The grammar, every rule measured against the binary:
+//!
+//! - The list is numbers separated by commas OR BLANKS, strictly
+//!   ascending and greater than zero. `-t 3,3` is
+//!   `tab sizes must be ascending`, and so is `-t 4,2`.
+//! - **ONE number alone is a tab SIZE, not a stop.** `-t 4` is stops at
+//!   4, 8, 12, … — `expand -t 4` of `a\tb\tc` is `a   b   c`. TWO or
+//!   more numbers are the stops themselves and nothing repeats: after
+//!   the last one, a tab is a SINGLE SPACE. `-t 4,8` of `a\tb\tc\td`
+//!   is `a   b   c d`, and that last single space is the rule readers
+//!   most often miss.
+//! - `/N` on the last item: past the last explicit stop, use multiples
+//!   of N. `-t 3,/5` stops at 3, then 5, 10, 15.
+//! - `+N` on the last item: past the last explicit stop, use the LAST
+//!   STOP plus multiples of N. `-t 3,+5` stops at 3, then 8, 13, 18 —
+//!   a different sequence from `/5`, and the pair is what makes the
+//!   two prefixes worth having.
+//! - With no explicit stop at all, both prefixes are relative to column
+//!   zero, so `-t /4` and `-t +4` are both `-t 4`.
+//! - `/0` and `+0` are NOT the `tab size cannot be 0` error — that is
+//!   for an explicit stop — and they do not mean "nothing repeats"
+//!   either. A zero repeat takes the LAST EXPLICIT STOP as its size:
+//!   `expand -t 3,/0` stops at 3, 6, 9 and `-t 5,/0` at 5, 10, 15.
+//!   With no explicit stop at all it is the default 8, which is what
+//!   `expand -t /0` answers.
+
+/// A parsed tab-stop list, or GNU's complaint about it.
+pub struct Tabs {
+    /// The explicit stops, ascending.
+    stops: List[int],
+    /// 0 nothing repeats, 1 multiples of `repeat`, 2 the last stop plus
+    /// multiples of `repeat`.
+    kind: int,
+    repeat: int,
+    /// GNU's message when the list is not one.
+    err: str,
+}
+
+/// The default: a stop every eight columns.
+pub fn default_tabs() -> Tabs {
+    Tabs { stops: List[int](), kind: 1, repeat: 8, err: "" }
+}
+
+/// Why the list is not a list, or `""`.
+pub fn tabs_error(t: Tabs) -> str {
+    t.err
+}
+
+/// One past the largest stop this module will answer.
+fn stop_cap() -> int {
+    4611686018427387903
+}
+
+/// Parse a `-t` argument.
+pub fn parse_tabs(spec: str) -> Tabs {
+    var t = Tabs { stops: List[int](), kind: 0, repeat: 0, err: "" }
+    let bs = spec.bytes()
+    var i = 0
+    var last = 0
+    var seen = 0
+    while i <= spec.len {
+        let sep = i == spec.len || separator(bs[i])
+        if !sep {
+            i += 1
+            continue
+        }
+        let item = spec[i - item_len(spec, i)..i]
+        if item.len > 0 {
+            var body = item
+            var kind = 0
+            if body.starts_with("/") {
+                kind = 1
+                body = body[1..]
+            } else if body.starts_with("+") {
+                kind = 2
+                body = body[1..]
+            }
+            let n = digits_of(body)
+            if n.err.len > 0 {
+                return Tabs { stops: List[int](), kind: 0, repeat: 0, err: n.err }
+            }
+            if kind == 0 {
+                if n.value == 0 {
+                    return Tabs {
+                        stops: List[int](),
+                        kind: 0,
+                        repeat: 0,
+                        err: "tab size cannot be 0",
+                    }
+                }
+                if seen > 0 && n.value <= last {
+                    return Tabs {
+                        stops: List[int](),
+                        kind: 0,
+                        repeat: 0,
+                        err: "tab sizes must be ascending",
+                    }
+                }
+                (mut t.stops).push(n.value)
+                last = n.value
+                seen += 1
+            } else {
+                t.kind = kind
+                t.repeat = n.value
+            }
+        }
+        i += 1
+    }
+    // One number and nothing else is a SIZE, not a stop.
+    if t.kind == 0 && t.stops.len == 1 {
+        t.kind = 1
+        t.repeat = t.stops[0]
+        t.stops = List[int]()
+    }
+    // A REPEAT OF ZERO is not the `tab size cannot be 0` error — that
+    // is for an explicit stop — and it is not "nothing repeats"
+    // either. Measured: `expand -t 3,/0` stops at 3, 6, 9 and
+    // `expand -t 5,/0` at 5, 10, 15, so a zero repeat takes the LAST
+    // EXPLICIT STOP as its size; with no explicit stop at all,
+    // `expand -t /0` is the default 8.
+    if t.kind != 0 && t.repeat == 0 {
+        if t.stops.len > 0 {
+            t.kind = 1
+            t.repeat = t.stops[t.stops.len - 1]
+        } else {
+            return default_tabs()
+        }
+    }
+    if t.stops.len == 0 && t.kind == 0 {
+        return default_tabs()
+    }
+    t
+}
+
+/// The length of the item ending just before `i`.
+fn item_len(spec: str, i: int) -> int {
+    let bs = spec.bytes()
+    var n = 0
+    var k = i - 1
+    while k >= 0 && !separator(bs[k]) {
+        n += 1
+        k -= 1
+    }
+    n
+}
+
+fn separator(b: byte) -> bool {
+    let n = b as int
+    n == 44 || n == 32 || n >= 9 && n <= 13
+}
+
+/// A parsed number, or GNU's complaint.
+struct Number {
+    value: int,
+    err: str,
+}
+
+fn digits_of(text: str) -> Number {
+    if text.len == 0 {
+        return Number { value: 0, err: "tab size contains invalid character(s): {quoted(text)}" }
+    }
+    let bs = text.bytes()
+    var i = 0
+    var v: int = 0
+    var over = false
+    while i < text.len {
+        let c = bs[i] as int
+        if c < 48 || c > 57 {
+            return Number {
+                value: 0,
+                err: "tab size contains invalid character(s): {quoted(text[i..i + 1])}",
+            }
+        }
+        let d = c - 48
+        if over || v > (stop_cap() - d) / 10 {
+            over = true
+        } else {
+            v = v * 10 + d
+        }
+        i += 1
+    }
+    if over {
+        return Number { value: 0, err: "tab stop is too large {quoted(text)}" }
+    }
+    Number { value: v, err: "" }
+}
+
+/// `s` in the single quotes GNU puts around the offending text here.
+fn quoted(s: str) -> str {
+    "'{s}'"
+}
+
+/// The next tab stop strictly after `col`, or -1 when the list names
+/// none — where a tab is written as a single space.
+pub fn next_stop(t: Tabs, col: int) -> int {
+    for s in t.stops {
+        if s > col {
+            return s
+        }
+    }
+    if t.kind == 0 || t.repeat == 0 {
+        return -1
+    }
+    var base = 0
+    if t.kind == 2 && t.stops.len > 0 {
+        base = t.stops[t.stops.len - 1]
+    }
+    if col < base {
+        return base + t.repeat
+    }
+    let steps = (col - base) / t.repeat + 1
+    base + steps * t.repeat
+}
