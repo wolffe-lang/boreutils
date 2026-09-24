@@ -170,8 +170,9 @@ queued behind the org's runner limit — see the PR for the head's).
 
 Every red run failed at the step `the differential suite against the
 oracle of record` (checked per job). **The evidence is each run's
-ubuntu gauntlet job; the macOS legs of these fourteen runs were
-CANCELLED unrun**, at 18:30 UTC, after sitting queued for up to an hour
+ubuntu gauntlet job; the macOS legs of thirteen of these fourteen
+runs were CANCELLED unrun** (the first red, 36034112311, ran its macOS
+leg and it failed like the ubuntu one), at 18:30 UTC, after sitting queued for up to an hour
 behind the org's macOS runner limit (other repos' long macOS jobs held
 every slot). They would have run the same corpus against Homebrew's
 9.11; cancelling them let the head's macOS leg through, and that leg is
