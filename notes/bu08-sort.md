@@ -268,3 +268,17 @@ and gives each batch a region: 42 MB for 1 GB, 808 MB at the default.
 - **§3b was wrong**: 324 `sort` cases against a band of 170–230.
 - **§3d's GNU memory was wrong in both directions** (above), because
   GNU sizes its buffer from the input and holds a 100 MB file whole.
+- **The first full macOS leg found one divergence** (run 36041719338,
+  job 107775230828: `difftest: 2076 passed, 1 failed, 37 skipped`). With
+  descriptor 1 closed, GNU 9.11 on macOS ends its flush failure with
+  `write error: Bad file descriptor` where both linux builds say `write
+  error`. The two C libraries leave `errno` differently; every other
+  `sort` case agreed on macOS. The answer is host-shaped here too, told
+  apart by `/proc/self/fd` as `bore.stdout` already does, rather than a
+  skip: both answers are known and each host gets its own.
+- **The field leg (ubuntu's GNU 9.4) is an advisory, read and
+  recorded**: at `0c7ebfe` it answered `2053 passed, 15 failed, 46
+  skipped` and `field-verdict: ADVISORY`, and all fifteen are the
+  `expand`/`fold`/`unexpand` multibyte rows bu07 recorded — no `sort` and
+  no `tail` case differs against 9.4. At the #8 red (`757fd83`) it was
+  27: the same fifteen and the twelve `tail` reds.
