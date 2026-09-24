@@ -12,6 +12,15 @@
 # derives no boreutils code from GPL source and leaves the licence rule
 # exactly where it was.
 #
+# THE BUILD, NOT ONLY THE SOURCE (B73). `configure_args` comes from the
+# pin file, so the tarball's digest and the configure line together say
+# which binary this is. What the pin file does NOT do is force the
+# obsolete-operand default one way: two third-party builds of this same
+# tarball disagree about it, and no pin file can name a build nobody
+# published. `[oracle.env]` in gnu-oracle.toml overrides the default at
+# RUN time instead, for the host's binary and the staged one alike, and
+# `tools/difftest` asserts that it took.
+#
 # Prints on stdout the directory to put FIRST on PATH, or an empty line
 # when the host already ships the oracle; everything else goes to stderr.
 # A staged build's binaries are UNPREFIXED, so a caller that uses one
@@ -49,6 +58,9 @@ sha256() {
 want=$(toml_oracle version)
 url=$(toml_oracle url)
 digest=$(toml_oracle sha256)
+# B73: which BUILD of the pinned source, stated in the pin file rather
+# than here, because it is part of what "the oracle of record" means.
+configure_args=$(toml_oracle configure_args)
 [ -n "$want" ] || { say "gnu-oracle.toml names no version"; exit 2; }
 
 prefix=${BORE_GNU_PREFIX-}
@@ -106,7 +118,8 @@ jobs=$( (command -v nproc >/dev/null 2>&1 && nproc) || sysctl -n hw.ncpu 2>/dev/
 say "building (this is the cost B44 ruled worth paying; it caches)"
 (
     cd "$src"
-    ./configure --prefix="$stage" --disable-nls --without-selinux >"$tmp/configure.log" 2>&1 ||
+    # shellcheck disable=SC2086
+    ./configure --prefix="$stage" $configure_args >"$tmp/configure.log" 2>&1 ||
         { tail -40 "$tmp/configure.log" >&2; exit 1; }
     make -j"$jobs" >"$tmp/make.log" 2>&1 || { tail -40 "$tmp/make.log" >&2; exit 1; }
     make install >"$tmp/install.log" 2>&1 || { tail -40 "$tmp/install.log" >&2; exit 1; }
