@@ -355,3 +355,195 @@ args = ["--rev", "tests/fixtures/sortsorted.txt"]
 [[case]]
 name = "y does not take the next word"
 args = ["-y", "-r", "tests/fixtures/sortsorted.txt"]
+
+# ------------------------------------------------------------ -n, -h, -M and --sort
+#
+# -n: optional blanks, an optional '-', digits, an optional '.' and
+# digits; no '+', no exponent, no thousands separator in the C locale;
+# an empty number is zero and signs on zero do not count. Lines equal
+# as numbers fall to the last-resort byte comparison. -h orders by sign,
+# then SI suffix, then value. -M folds the first three bytes after blanks
+# to upper case and compares JAN..DEC, anything else lowest.
+
+[[case]]
+name = "n on a mixed file"
+args = ["-n", "tests/fixtures/sortnums.txt"]
+
+[[case]]
+name = "n reversed"
+args = ["-nr", "tests/fixtures/sortnums.txt"]
+
+[[case]]
+name = "n unique"
+args = ["-nu", "tests/fixtures/sortnums.txt"]
+
+[[case]]
+name = "n stable"
+args = ["-ns", "tests/fixtures/sortnums.txt"]
+
+[[case]]
+name = "n with leading zeros"
+args = ["-n"]
+stdin = "007\n7\n07.0\n1\n"
+
+[[case]]
+name = "n unique keeps the first equal"
+args = ["-nu"]
+stdin = "007\n7\n07.0\n"
+
+[[case]]
+name = "n fractions digit by digit"
+args = ["-n"]
+stdin = "1.10\n1.9\n1.09\n1.1\n"
+
+[[case]]
+name = "n negative numbers"
+args = ["-n"]
+stdin = "-1\n-2\n-10\n-1.5\n-0.5\n"
+
+[[case]]
+name = "n every spelling of zero"
+args = ["-n"]
+stdin = "0.0\n-0\n.\n-.\n-\n0\n"
+
+[[case]]
+name = "n every spelling of zero, stable"
+args = ["-ns"]
+stdin = "0.0\n-0\n.\n-.\n-\n0\n"
+
+[[case]]
+name = "n plus is not a sign"
+args = ["-n"]
+stdin = "+5\n3\n-1\n"
+
+[[case]]
+name = "n stops at a comma"
+args = ["-n"]
+stdin = "1,000\n2\n999\n"
+
+[[case]]
+name = "n stops at an exponent"
+args = ["-n"]
+stdin = "1e3\n2\n1E5\n"
+
+[[case]]
+name = "n longer than any integer"
+args = ["-n"]
+stdin = "99999999999999999999999\n99999999999999999999998\n1\n-99999999999999999999999\n"
+
+[[case]]
+name = "n blank lines are zero"
+args = ["-n"]
+stdin = "1\n\n-1\n\n"
+
+[[case]]
+name = "n with leading tabs and spaces"
+args = ["-n"]
+stdin = "\t 5\n 4\n6\n"
+
+[[case]]
+name = "numeric-sort spelled long"
+args = ["--numeric-sort", "tests/fixtures/sortnums.txt"]
+
+[[case]]
+name = "n reversed stable"
+args = ["-nrs"]
+stdin = "10\n9\n010\n"
+
+[[case]]
+name = "h on sizes"
+args = ["-h", "tests/fixtures/sorthuman.txt"]
+
+[[case]]
+name = "h reversed"
+args = ["-hr", "tests/fixtures/sorthuman.txt"]
+
+[[case]]
+name = "h unique"
+args = ["-hu", "tests/fixtures/sorthuman.txt"]
+
+[[case]]
+name = "human-numeric-sort spelled long"
+args = ["--human-numeric-sort", "tests/fixtures/sorthuman.txt"]
+
+[[case]]
+name = "h plain numbers"
+args = ["-h"]
+stdin = "10\n9\n-3\n0\n"
+
+[[case]]
+name = "M on months"
+args = ["-M", "tests/fixtures/sortmonths.txt"]
+
+[[case]]
+name = "M reversed"
+args = ["-Mr", "tests/fixtures/sortmonths.txt"]
+
+[[case]]
+name = "M unique"
+args = ["-Mu", "tests/fixtures/sortmonths.txt"]
+
+[[case]]
+name = "month-sort spelled long"
+args = ["--month-sort", "tests/fixtures/sortmonths.txt"]
+
+[[case]]
+name = "M short names are not months"
+args = ["-M"]
+stdin = "ja\nJA\nJan\n"
+
+[[case]]
+name = "sort=numeric"
+args = ["--sort=numeric", "tests/fixtures/sortnums.txt"]
+
+[[case]]
+name = "sort=month"
+args = ["--sort=month", "tests/fixtures/sortmonths.txt"]
+
+[[case]]
+name = "sort=human-numeric"
+args = ["--sort=human-numeric", "tests/fixtures/sorthuman.txt"]
+
+[[case]]
+name = "sort=WORD abbreviated"
+args = ["--sort=n", "tests/fixtures/sortnums.txt"]
+
+[[case]]
+name = "sort=WORD that is not one"
+args = ["--sort=bogus", "tests/fixtures/sortnums.txt"]
+
+[[case]]
+name = "sort=WORD ambiguous"
+args = ["--sort=", "tests/fixtures/sortnums.txt"]
+
+[[case]]
+name = "sort=WORD case matters"
+args = ["--sort=Numeric", "tests/fixtures/sortnums.txt"]
+
+[[case]]
+name = "sort=month then numeric"
+args = ["--sort=month", "--sort=numeric", "tests/fixtures/sortnums.txt"]
+
+[[case]]
+name = "n and g together"
+args = ["-ng", "tests/fixtures/sortnums.txt"]
+
+[[case]]
+name = "n and M together"
+args = ["-nM", "tests/fixtures/sortnums.txt"]
+
+[[case]]
+name = "h and M together"
+args = ["-hM", "tests/fixtures/sortnums.txt"]
+
+[[case]]
+name = "n and R together"
+args = ["-nR", "tests/fixtures/sortnums.txt"]
+
+[[case]]
+name = "g and V together"
+args = ["-gV", "tests/fixtures/sortnums.txt"]
+
+[[case]]
+name = "all six numeric kinds"
+args = ["-ngMhRV", "tests/fixtures/sortnums.txt"]
