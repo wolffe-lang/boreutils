@@ -1,0 +1,69 @@
+# expand — the bench. The work is per BYTE: advance the column, and
+# where the byte is a tab write the spaces that reach the next stop.
+#
+# PREDICTION, committed in notes/bu07-the-pin-and-the-rest-of-b3.md
+# before the first run (release tier, GNU 9.11, kasumi):
+#
+#   0.4x to 0.7x. A tab-heavy input should be the BEST case, because
+#   one input byte becomes many output bytes and the per-byte decision
+#   is amortized over them.
+#
+# The falsifier is a measured ratio outside that band, and the
+# amortization claim is falsified if the tab-heavy row is not better
+# than the tab-free one. The generated inputs hold no tabs at all, so
+# the tab-heavy rows build their own through `unexpand` — which is a
+# fair input and also the only one this bench can make deterministically.
+
+[[bench]]
+name = "start-up, no input"
+command = "{prog} < /dev/null"
+
+[[bench]]
+name = "ordinary lines with no tab in them"
+command = "LC_ALL=C {prog} < {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "very short lines with no tab in them"
+command = "LC_ALL=C {prog} < {input} > /dev/null"
+input = "lines"
+
+[[bench]]
+name = "-t 4, a denser stop list"
+command = "LC_ALL=C {prog} -t 4 < {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-t 3,7, two explicit stops and a single space past them"
+command = "LC_ALL=C {prog} -t 3,7 < {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-t 3,/5, a repeat past the last stop"
+command = "LC_ALL=C {prog} -t 3,/5 < {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-i, which stops at the first non-blank of each line"
+command = "LC_ALL=C {prog} -i < {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "under UTF-8, where every character is decoded"
+command = "LC_ALL=C.UTF-8 {prog} < {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "a tab-heavy input, which is the amortized case"
+command = "LC_ALL=C sed 's/ /\\t/g' {input} | {prog} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "a tab-heavy input at -t 1, where a tab is one space"
+command = "LC_ALL=C sed 's/ /\\t/g' {input} | {prog} -t 1 > /dev/null"
+input = "big"
+
+[[bench]]
+name = "binary noise"
+command = "LC_ALL=C {prog} < {input} > /dev/null"
+input = "noise"

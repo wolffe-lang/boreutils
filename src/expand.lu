@@ -1,0 +1,443 @@
+//! member: false
+//!
+//! expand — convert tabs to spaces.
+//!
+//! References consulted: POSIX.1-2024 `expand`; GNU coreutils 9.11's
+//! `expand --help`, the info manual's option descriptions, and
+//! black-box runs of the GNU binary (native `expand` on linux x86-64 at
+//! 9.11, under `LC_ALL=C` and `LC_ALL=C.UTF-8`); uutils/coreutils (MIT)
+//! and toybox (0BSD) as design references. Never GNU source.
+//!
+//! **The tab-stop grammar is `bore.tabs`**, shared with `unexpand`
+//! because the two are meant to undo each other and a list they read
+//! differently would be a defect nobody finds until a round trip stops
+//! being one. Its header states every rule with the measurement behind
+//! it — including the two that surprise: ONE number is a tab SIZE and
+//! two or more are the stops themselves, and after the last explicit
+//! stop a tab is written as a SINGLE SPACE.
+//!
+//! **The column, measured character by character.** A tab goes to the
+//! next stop. A BACKSPACE moves back one column and never below zero —
+//! `printf 'ab\b\tc' | expand` writes seven spaces, not five. A
+//! CARRIAGE RETURN does NOT reset the column; it is an ordinary
+//! character worth one, which `fold` does not agree with and which is
+//! GNU's answer for both. A NUL advances NOTHING, and it is the only
+//! control byte that does not: a BEL and a DEL are each worth one.
+//! Under a UTF-8 locale a character is worth its display width
+//! (`bore.width_of`), so `é` is one column where under `LC_ALL=C` it is
+//! two — the bytes it is made of.
+//!
+//! **`-i` stops at the first non-blank of each line**, and a leading
+//! SPACE keeps the line initial: `expand -i` of `  <TAB>a<TAB>b`
+//! converts the first tab and leaves the second.
+//!
+//! **A last line with no newline keeps none**, as `fold` does.
+//!
+//! **Memory is flat in the input**: one 256 KiB chunk written in place
+//! from inside the per-chunk `region` (wolf-lang#416), and nothing that
+//! grows with the line, because a tab's replacement is written straight
+//! out rather than buffered.
+
+use bore
+
+/// What the command line asked for.
+struct Opts {
+    initial: bool,
+    tabs: bore.Tabs,
+    utf8: bool,
+}
+
+fn main() -> int {
+    // Standard output first: with descriptor 1 closed, the first file
+    // opened would take it (wolf-lang#405).
+    var out = bore.stdout()
+    var o = Opts { initial: false, tabs: bore.default_tabs(), utf8: locale_is_utf8() }
+    let rewritten = rewrite_obsolete(env_args())
+    let p = bore.parse(options(), rewritten, bore.permute())
+    var i = 0
+    var spec = ""
+    var given = false
+    while i < p.keys.len {
+        let k = p.keys[i]
+        let v = p.values[i]
+        if k == "help" {
+            emit(out, help()) else |_| {
+                bore.write_error(out, "expand", "write error")
+                return 1
+            }
+            return bore.finish(mut out, "expand", 0)
+        }
+        if k == "version" {
+            emit(out, bore.version_text("expand")) else |_| {
+                bore.write_error(out, "expand", "write error")
+                return 1
+            }
+            return bore.finish(mut out, "expand", 0)
+        }
+        if k == "initial" {
+            o.initial = true
+        }
+        if k == "tabs" {
+            // Measured: a second `-t` EXTENDS the list, it does not
+            // replace it. `expand -t 4 -t 3` is the list `4,3` and so
+            // is `tab sizes must be ascending`, not a tab size of 3.
+            if given {
+                spec = "{spec},{v}"
+            } else {
+                spec = v
+            }
+            given = true
+        }
+        i += 1
+    }
+    if !bore.ok(p) {
+        return bore.usage_error("expand", p.error)
+    }
+    if given {
+        let t = bore.parse_tabs(spec)
+        if bore.tabs_error(t).len > 0 {
+            bore.warn("expand", bore.tabs_error(t))
+            return 1
+        }
+        o.tabs = t
+    }
+    var paths = List[str]()
+    for a in p.operands {
+        (mut paths).push(a)
+    }
+    if paths.len == 0 {
+        (mut paths).push("-")
+    }
+    let keeper = region()
+    var chunk = List[byte]()
+    in keeper {
+        var k = 0
+        while k < read_size() {
+            (mut chunk).push(0 as byte)
+            k += 1
+        }
+    }
+    var status = 0
+    var wfail = false
+    for path in paths {
+        let code = one(mut out, path, o, mut chunk)
+        if code != 0 {
+            status = 1
+        }
+        if code == 2 {
+            wfail = true
+        }
+    }
+    if wfail {
+        bore.write_error(out, "expand", "write error")
+        return 1
+    }
+    // wolf-lang#449: the loop above claims `out` inside a conditional.
+    bore.finish_last("expand", status, mut out)
+}
+
+fn options() -> List[bore.Opt] {
+    // GNU's own long-option table order, which its
+    // "ambiguous; possibilities:" line reports and so is observable.
+    var s = List[bore.Opt]()
+    (mut s).push(bore.flag("i", "initial"))
+    (mut s).push(bore.takes("t", "tabs"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    s
+}
+
+/// The bytes asked of the host per read (bu01's measured knee).
+fn read_size() -> int {
+    262144
+}
+
+/// Rewrite the obsolete `-N` width into `-t N`, on `fold`'s rule: in a
+/// short-option argument the first DIGIT and everything after it in the
+/// same argument is the tab text. `--` ends it, and an argument that
+/// belongs to `-t` is left alone.
+fn rewrite_obsolete(argv: List[str]) -> List[str] {
+    var out = List[str]()
+    var rest_are_operands = false
+    var expect_arg = false
+    for a in argv {
+        if expect_arg {
+            expect_arg = false
+            (mut out).push(a)
+            continue
+        }
+        if rest_are_operands {
+            (mut out).push(a)
+            continue
+        }
+        if a == "--" {
+            rest_are_operands = true
+            (mut out).push(a)
+            continue
+        }
+        if a == "--tabs" {
+            expect_arg = true
+            (mut out).push(a)
+            continue
+        }
+        if !a.starts_with("-") || a.len < 2 || a.starts_with("--") {
+            (mut out).push(a)
+            continue
+        }
+        let bs = a.bytes()
+        var i = 1
+        var cut = -1
+        while i < a.len {
+            let c = bs[i] as int
+            if c == 116 {
+                if i + 1 == a.len {
+                    expect_arg = true
+                }
+                i = a.len
+            } else if c >= 48 && c <= 57 {
+                cut = i
+                i = a.len
+            } else {
+                i += 1
+            }
+        }
+        if cut < 0 {
+            (mut out).push(a)
+        } else if cut == 1 {
+            (mut out).push("-t{a[1..]}")
+        } else {
+            (mut out).push(a[0..cut])
+            (mut out).push("-t{a[cut..]}")
+        }
+    }
+    out
+}
+
+/// Whether the character set from the environment is UTF-8, on GNU's
+/// precedence: LC_ALL, then LC_CTYPE, then LANG, the first that is set.
+/// A copy of `cut`'s and `fold`'s; see `fold`'s note on why.
+fn locale_is_utf8() -> bool {
+    var v = env_get("LC_ALL") else ""
+    if v.len == 0 {
+        v = env_get("LC_CTYPE") else ""
+    }
+    if v.len == 0 {
+        v = env_get("LANG") else ""
+    }
+    let dot = v.rfind(".") else -1
+    var codeset = v
+    if dot >= 0 {
+        codeset = v[dot + 1..]
+    }
+    let l = codeset.lower()
+    l == "utf-8" || l == "utf8"
+}
+
+// ------------------------------------------------------------- the stream
+
+/// Expand one operand. 0 success, 1 this operand failed, 2 a failed write.
+fn one(mut out: bore.Out, path: str, o: Opts, mut chunk: List[byte]) -> int {
+    let src = bore.open_input(path) else |e| match e {
+        not_found => {
+            bore.input_error("expand", path, bore.no_such_file())
+            return 1
+        },
+        denied => {
+            bore.input_error("expand", path, bore.permission_denied())
+            return 1
+        },
+        is_dir => {
+            bore.input_error("expand", path, bore.directory_reason())
+            return 1
+        },
+        io => {
+            bore.input_error("expand", path, bore.io_error())
+            return 1
+        },
+    }
+    var why = 0
+    var col = 0
+    var initial = true
+    // A character that straddles two chunks: how many bytes of it are
+    // still owed, and the column its lead byte asked for.
+    var pending = 0
+    var lead = 0 as byte
+    var stop = false
+    while !stop {
+        var got = 0
+        region pass {
+            let read = bore.read_chunk(src, read_size()) else |e| match e {
+                eof => {
+                    got = -1
+                    List[byte]()
+                },
+                io => {
+                    got = -2
+                    List[byte]()
+                },
+            }
+            if got == 0 {
+                got = read.len
+                if got == 0 {
+                    got = -1
+                }
+            }
+            if got > 0 {
+                var k = 0
+                while k < got {
+                    chunk[k] = read[k]
+                    k += 1
+                }
+            }
+        }
+        if got == -2 {
+            why = 1
+            stop = true
+        } else if got == -1 {
+            stop = true
+        } else {
+            var at = 0
+            while at < got {
+                let b = chunk[at]
+                let n = b as int
+                if pending > 0 {
+                    // A continuation byte of a character whose width was
+                    // already charged.
+                    bore.put_byte(mut out, b) else |_| {
+                        return 2
+                    }
+                    pending -= 1
+                    at += 1
+                    continue
+                }
+                if n == 10 {
+                    bore.put_byte(mut out, b) else |_| {
+                        return 2
+                    }
+                    col = 0
+                    initial = true
+                    at += 1
+                    continue
+                }
+                if n == 9 && (!o.initial || initial) {
+                    let next = bore.next_stop(o.tabs, col)
+                    var to = col + 1
+                    if next > col {
+                        to = next
+                    }
+                    while col < to {
+                        bore.put_byte(mut out, 32 as byte) else |_| {
+                            return 2
+                        }
+                        col += 1
+                    }
+                    at += 1
+                    continue
+                }
+                if n != 9 && n != 32 {
+                    initial = false
+                }
+                bore.put_byte(mut out, b) else |_| {
+                    return 2
+                }
+                if n == 8 {
+                    if col > 0 {
+                        col -= 1
+                    }
+                } else if n == 0 {
+                    // Measured, and in the C locale too: a NUL byte is
+                    // written and advances NOTHING, where every other
+                    // control byte — a BEL, a DEL — advances one.
+                    // `printf '\0\tZ' | expand` writes eight spaces.
+                    col += 0
+                } else if o.utf8 && n >= 192 {
+                    lead = b
+                    pending = sequence_len(n) - 1
+                    col += width_ahead(chunk, at, got, lead, pending)
+                } else {
+                    col += 1
+                }
+                at += 1
+            }
+        }
+    }
+    bore.close_input(src)
+    if why == 1 {
+        bore.input_error("expand", path, bore.io_error())
+    }
+    why
+}
+
+/// How many bytes the UTF-8 sequence with this lead byte holds.
+fn sequence_len(lead: int) -> int {
+    if lead >= 240 {
+        return 4
+    }
+    if lead >= 224 {
+        return 3
+    }
+    2
+}
+
+/// The display width of the character whose lead byte sits at `at`.
+///
+/// A sequence cut short by the end of the chunk is charged its lead
+/// byte's own width, which is the same answer `wc` gives an invalid
+/// byte and is what both hosts answer.
+fn width_ahead(chunk: List[byte], at: int, got: int, lead: byte, pending: int) -> int {
+    if at + pending >= got {
+        return bore.width_of(lead as int)
+    }
+    let n = pending + 1
+    var v = 0
+    let l = lead as int
+    if n == 2 {
+        v = l - 192
+    } else if n == 3 {
+        v = l - 224
+    } else {
+        v = l - 240
+    }
+    var k = 1
+    while k <= pending {
+        let c = chunk[at + k] as int
+        if c < 128 || c >= 192 {
+            return bore.width_of(l)
+        }
+        v = v * 64 + (c - 128)
+        k += 1
+    }
+    bore.width_of(v)
+}
+
+/// Write `s` straight out.
+fn emit(out: bore.Out, s: str) -> () ! {io} {
+    var b = List[byte]()
+    for x in s.bytes() {
+        (mut b).push(x)
+    }
+    bore.write_direct(out, b)?
+}
+
+fn help() -> str {
+    """
+    Usage: expand [OPTION]... [FILE]...
+    Convert tabs in each FILE to spaces, writing to standard output.
+    With no FILE, or when FILE is -, read standard input.
+
+      -i, --initial     convert only the tabs before the first non-blank
+                          of a line
+      -t, --tabs=LIST   a tab size, or a comma- or blank-separated list
+                          of stops; a last item written /N repeats every
+                          N columns from zero and +N repeats every N
+                          from the last stop
+          --help        print this help and exit
+          --version     print the version and exit
+
+    One number is a SIZE: -t 4 stops at 4, 8, 12. Two or more are the
+    stops themselves, and after the last one a tab is a single space.
+    A backspace moves back one column; a carriage return does not.
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}
