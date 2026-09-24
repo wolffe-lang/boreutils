@@ -1,0 +1,84 @@
+#!/bin/bash
+# field-verdict-selftest — B98's gate, and it is seen red on every run.
+#
+# A gate nobody has watched fail is not a gate, and B98 is exactly a
+# gate nobody watched: the field leg's `continue-on-error` turned a
+# signal death into an announced advisory for as long as the leg
+# existed, so run 35673565877 (job 106575197103) died of signal 13 with
+# a partial report and reported `success`.
+#
+# This checks the ruling `tools/field-verdict` states, one exit code at
+# a time, and then PLANTS a real signal death — `tools/difftest` with
+# its reader gone, the same SIGPIPE at exit 141 that killed that run —
+# and requires the ruling to be loud about it.
+#
+# bash, not sh: `PIPESTATUS` is how the writer's status is read when the
+# reader is what went away, and that is the whole shape under test.
+#
+# usage: tools/field-verdict-selftest
+set -u
+BORE_ROOT=$(cd "$(dirname "$0")/.." && pwd)
+cd "$BORE_ROOT" || exit 2
+
+fails=0
+
+# expect WANT CODE LABEL — WANT is the exit tools/field-verdict must give.
+expect() {
+    local want=$1 code=$2 label=$3 out got
+    out=$(tools/field-verdict "$code" 2>&1) && got=0 || got=$?
+    if [ "$got" -ne "$want" ]; then
+        echo "field-verdict-selftest: REFUSED — $label: exit code $code was"
+        echo "field-verdict-selftest: judged $got where the ruling says $want."
+        echo "$out"
+        fails=$((fails + 1))
+    else
+        echo "ok   $label (code $code -> $got)"
+    fi
+}
+
+expect 0 0 "agreement is quiet"
+expect 0 1 "a verdict difference is an advisory, not a failure"
+expect 1 2 "a harness that could not run is loud"
+expect 1 141 "a broken pipe is loud (signal 13, boreutils#10's shape)"
+expect 1 143 "a SIGTERM is loud"
+expect 1 137 "a SIGKILL is loud"
+expect 1 9 "an exit code this leg does not know is loud"
+expect 1 banana "a non-number is loud"
+
+# The planted death. `head -c 1` takes one byte and goes away, so the
+# harness's next write is a broken pipe — which is the one pipe it
+# cannot answer for and where it exits 128 + SIGPIPE deliberately. The
+# writer's status is PIPESTATUS[0]; the pipeline's own status is
+# `head`'s and is 0, which is the whole reason a leg can die unnoticed.
+if [ -x target/release/basename ]; then
+    echo "field-verdict-selftest: planting a signal death in tools/difftest"
+    BORE_ORACLE_ANY=1 tools/difftest 2>/dev/null | head -c 1 >/dev/null
+    planted=${PIPESTATUS[0]}
+    echo "field-verdict-selftest: the plant exited $planted (the pipeline's"
+    echo "field-verdict-selftest: own status was 0, which is B98 in one line)"
+    if [ "$planted" -ge 128 ]; then
+        if tools/field-verdict "$planted" >/dev/null 2>&1; then
+            echo "field-verdict-selftest: REFUSED — the ruling called the"
+            echo "field-verdict-selftest: planted signal death $planted survivable."
+            fails=$((fails + 1))
+        else
+            echo "ok   the ruling is LOUD about the planted death ($planted)"
+        fi
+    else
+        # Not a failure of the ruling. Whether the writer reaches a
+        # second write before the reader is gone is a race, and since
+        # boreutils#10 a run that survives it is also correct. The table
+        # above is the gate; this is the witness when it can be had.
+        echo "note the plant did not take this run (exit $planted); the race"
+        echo "note went the other way. The table above still gated."
+    fi
+else
+    echo "note no target/release/basename, so no plant; run tools/build first"
+fi
+
+if [ "$fails" -ne 0 ]; then
+    echo "field-verdict-selftest: $fails ruling(s) wrong" >&2
+    exit 1
+fi
+echo "field-verdict-selftest: the field leg is LOUD about a death and quiet"
+echo "field-verdict-selftest: about a difference (B98)"
