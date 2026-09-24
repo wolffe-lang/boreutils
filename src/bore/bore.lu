@@ -75,21 +75,33 @@ fn chunk() -> int {
 
 /// One option a program accepts: a one-character short name, a long
 /// name, or both (`""` for the one it lacks), and whether it takes an
-/// argument.
+/// argument: always (`arg`), only when attached (`optional`), or never.
 pub struct Opt {
     short: str,
     long: str,
     arg: bool,
+    optional: bool,
 }
 
 /// An option that takes no argument.
 pub fn flag(short: str, long: str) -> Opt {
-    Opt { short: short, long: long, arg: false }
+    Opt { short: short, long: long, arg: false, optional: false }
 }
 
 /// An option that takes an argument.
 pub fn takes(short: str, long: str) -> Opt {
-    Opt { short: short, long: long, arg: true }
+    Opt { short: short, long: long, arg: true, optional: false }
+}
+
+/// An option whose argument is OPTIONAL — getopt_long's third state
+/// (boreutils#8). It takes a word only when the word is ATTACHED: after
+/// `=` for the long name (`--follow=name`), or in the same word for the
+/// short one (`-Cauto`). A bare `--follow` never eats the next word, so
+/// `tail --follow FILE` follows FILE. `Parsed.given` says whether a
+/// word was attached, which is how `--follow=` (an empty word, which
+/// GNU's argmatch calls ambiguous) differs from `--follow`.
+pub fn optional(short: str, long: str) -> Opt {
+    Opt { short: short, long: long, arg: false, optional: true }
 }
 
 /// The result of `parse`: the options in the order they were given,
@@ -97,12 +109,15 @@ pub fn takes(short: str, long: str) -> Opt {
 ///
 /// `keys[i]` is the long name of the i-th option given (its short name
 /// when it has no long name) and `values[i]` its argument, `""` when it
-/// takes none. Parsing stops at the first error, so every option before
-/// it is present: a program that acts on `--help` in order behaves as
-/// GNU's does for `--help -x` (help) and `-x --help` (the error).
+/// takes none; `given[i]` says whether an argument was supplied at all,
+/// which only an `optional` option can leave false while taking one.
+/// Parsing stops at the first error, so every option before it is
+/// present: a program that acts on `--help` in order behaves as GNU's
+/// does for `--help -x` (help) and `-x --help` (the error).
 pub struct Parsed {
     keys: List[str],
     values: List[str],
+    given: List[bool],
     operands: List[str],
     error: str,
 }
@@ -127,6 +142,7 @@ pub fn parse(spec: List[Opt], args: List[str], permute: bool) -> Parsed {
     var p = Parsed {
         keys: List[str](),
         values: List[str](),
+        given: List[bool](),
         operands: List[str](),
         error: "",
     }
@@ -159,7 +175,9 @@ pub fn parse(spec: List[Opt], args: List[str], permute: bool) -> Parsed {
             }
             let o = copy spec[k]
             var value = ""
+            var given = false
             if o.arg {
+                given = true
                 if eq >= 0 {
                     value = inline
                 } else if i < args.len {
@@ -169,12 +187,16 @@ pub fn parse(spec: List[Opt], args: List[str], permute: bool) -> Parsed {
                     p.error = "option '--{o.long}' requires an argument"
                     return p
                 }
+            } else if o.optional {
+                given = eq >= 0
+                value = inline
             } else if eq >= 0 {
                 p.error = "option '--{o.long}' doesn't allow an argument"
                 return p
             }
             (mut p.keys).push(o.long)
             (mut p.values).push(value)
+            (mut p.given).push(given)
         } else if a.starts_with("-") && a.len > 1 {
             var off = 1
             var done = false
@@ -188,7 +210,9 @@ pub fn parse(spec: List[Opt], args: List[str], permute: bool) -> Parsed {
                 }
                 let o = copy spec[k]
                 var value = ""
+                var given = false
                 if o.arg {
+                    given = true
                     if off < a.len {
                         value = a[off..]
                     } else if i < args.len {
@@ -199,9 +223,16 @@ pub fn parse(spec: List[Opt], args: List[str], permute: bool) -> Parsed {
                         return p
                     }
                     done = true
+                } else if o.optional && off < a.len {
+                    // Attached or nothing: the rest of the word is the
+                    // argument, and the next word is never taken.
+                    given = true
+                    value = a[off..]
+                    done = true
                 }
                 (mut p.keys).push(key_of(o))
                 (mut p.values).push(value)
+                (mut p.given).push(given)
             }
         } else {
             (mut p.operands).push(a)
@@ -274,6 +305,68 @@ fn possible(spec: List[Opt], name: str) -> str {
         }
     }
     str_from_utf8(out) else ""
+}
+
+/// Match `word` against an option's argument vocabulary the way GNU's
+/// argmatch does: an exact match, or else a PREFIX of the choices that
+/// all mean one thing. `meaning[i]` is what `choices[i]` means, so
+/// synonyms (`quiet`, `silent`) share one. Answers the meaning, `-1`
+/// for no match and `-2` for a prefix of choices that mean different
+/// things — which the empty word always is when there are two meanings.
+/// Measured against GNU 9.11: `tail --follow=na` is `name`,
+/// `--follow=` is ambiguous, `--follow=Name` matches nothing.
+pub fn argmatch(word: str, choices: List[str], meaning: List[int]) -> int {
+    var found = -1
+    var i = 0
+    while i < choices.len {
+        if choices[i] == word {
+            return meaning[i]
+        }
+        if choices[i].starts_with(word) {
+            if found == -1 {
+                found = meaning[i]
+            } else if found != meaning[i] {
+                found = -2
+            }
+        }
+        i += 1
+    }
+    found
+}
+
+/// Report an argument `argmatch` refused, in GNU's shape, and answer
+/// the status (1 — measured for `tail --follow=bogus` and for `sort
+/// --check=bogus` alike, though `sort`'s own usage status is 2):
+///
+///     prog: invalid argument 'bogus' for '--follow'
+///     Valid arguments are:
+///       - 'descriptor'
+///       - 'name'
+///     Try 'prog --help' for more information.
+///
+/// `ambiguous` (the -2 answer) says `ambiguous argument` instead.
+/// Choices that share a meaning share a line: `  - 'quiet', 'silent'`.
+pub fn argmatch_error(
+    prog: str,
+    word: str,
+    long: str,
+    choices: List[str],
+    meaning: List[int],
+    ambiguous: bool,
+) -> int {
+    let what = if ambiguous then "ambiguous" else "invalid"
+    var text = "{prog}: {what} argument {quote(word)} for {quote("--" + long)}\nValid arguments are:"
+    var i = 0
+    while i < choices.len {
+        if i > 0 && meaning[i] == meaning[i - 1] {
+            text += ", {quote(choices[i])}"
+        } else {
+            text += "\n  - {quote(choices[i])}"
+        }
+        i += 1
+    }
+    eprint("{text}\nTry '{prog} --help' for more information.")
+    1
 }
 
 // ------------------------------------------------------------ diagnostics
