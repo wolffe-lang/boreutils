@@ -257,7 +257,10 @@ and gives each batch a region: 42 MB for 1 GB, 808 MB at the default.
 
 - **README's corpus sentence was wrong at `eac2a32`**: it said 1,753
   passed and 19 skipped; kasumi answered 1,752 and 20, which is also
-  what this contract's §2 said. Corrected from this lane's run.
+  what this contract's §2 said. Its "macOS skips five more" was wrong
+  too: macOS skips 37, seventeen more than linux (run 36029854007, the
+  #8 green, before any `sort` case existed; no `sort` case is skipped on
+  either host). Both corrected from runs.
 - **Four commits of this lane were pushed with the wrong messages and
   replaced** (`0a68510`, `0f72f81`, `242c73b`, `533cc06`): a zsh array
   is 1-indexed, so each commit took the previous stage's message and one
