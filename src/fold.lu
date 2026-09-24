@@ -1,0 +1,624 @@
+//! member: false
+//!
+//! fold — wrap each input line to a given width.
+//!
+//! References consulted: POSIX.1-2024 `fold`; GNU coreutils 9.11's
+//! `fold --help`, the info manual's option descriptions, and black-box
+//! runs of the GNU binary (native `fold` on linux x86-64 at 9.11, under
+//! `LC_ALL=C` and under `LC_ALL=C.UTF-8`); uutils/coreutils (MIT) and
+//! toybox (0BSD) as design references. Never GNU source.
+//!
+//! **Three counting modes, and the default is not either of the other
+//! two.** `-b` counts BYTES, `-c` counts CHARACTERS, and the default
+//! counts DISPLAY COLUMNS — which is `-c` plus three control characters
+//! that move the cursor rather than advancing it:
+//!
+//! - a tab advances to the next multiple of 8, whatever `-w` says;
+//! - a backspace moves back one column, never past zero;
+//! - a carriage return returns to column zero.
+//!
+//! Measured: `printf 'a\tb\n' | fold -w 5` answers `a`, `<TAB>`, `b` on
+//! three lines, because the tab alone reaches column 8; `fold -b -w 5`
+//! answers the line unchanged, because it is three bytes. Under a UTF-8
+//! locale the default mode also uses the code point's WIDTH, so `世世`
+//! is four columns and two characters: `fold -w 3` breaks it and
+//! `fold -c -w 3` does not. The table is `bore.width_of`, which is the
+//! one `wc -L` uses — one answer about what a column is, or the two
+//! programs contradict each other.
+//!
+//! **`-b` and `-c` are last-wins**, not a combination: measured,
+//! `--bytes --characters` counts characters and `--characters --bytes`
+//! counts bytes.
+//!
+//! **The break.** A character is added to the current line when it still
+//! fits; when it does not, the line is written, the column resets, and
+//! the character starts the next one. A character that alone exceeds the
+//! width therefore gets a line to itself rather than being dropped —
+//! that is the `<TAB>` line above.
+//!
+//! **`-s` breaks after the last blank instead**, and keeps what follows:
+//! `fold -s -w 10` of `hello world again here` writes `hello `,
+//! `world `, `again here` — with the trailing blanks, because the break
+//! is AFTER the blank. Where the segment holds no blank at all, `-s`
+//! falls back to the hard break.
+//!
+//! **A last line with no newline keeps none.** `fold` passes the
+//! absence through, as `cat`, `head` and `tail` do, and unlike `cut`
+//! and `paste`, which supply one.
+//!
+//! **The obsolete width, and the one rule that explains every spelling.**
+//! `fold -3` is `fold -w 3`, and GNU reaches it like this: **wherever a
+//! short-option argument first holds a digit, that digit and EVERYTHING
+//! after it in the same argument is the width text**. So `-03` is 3,
+//! `-s3` is `-s -w 3`, and `-3s`, `-s3b` and `-1s2` are all the error
+//! `invalid number of columns` naming `3s`, `3b` and `1s2` — which is
+//! exactly what the binary answers, and is not what a reader would
+//! guess. `--` ends it: `fold -- -3` opens a file called `-3`.
+//!
+//! **Memory is flat in the input and linear in the longest line.** One
+//! 256 KiB chunk written in place from inside the per-chunk `region`
+//! (wolf-lang#416), and one line buffer grown by doubling and reused.
+
+use bore
+
+/// What the command line asked for.
+struct Opts {
+    /// 0 display columns, 1 bytes, 2 characters.
+    mode: int,
+    spaces: bool,
+    width: int,
+    utf8: bool,
+}
+
+fn main() -> int {
+    // Standard output first: with descriptor 1 closed, the first file
+    // opened would take it (wolf-lang#405).
+    var out = bore.stdout()
+    var o = Opts { mode: 0, spaces: false, width: 80, utf8: locale_is_utf8() }
+    let rewritten = rewrite_obsolete(env_args())
+    let p = bore.parse(options(), rewritten, bore.permute())
+    var i = 0
+    var width_text = ""
+    var width_given = false
+    while i < p.keys.len {
+        let k = p.keys[i]
+        let v = p.values[i]
+        if k == "help" {
+            emit(out, help()) else |_| {
+                bore.write_error(out, "fold", "write error")
+                return 1
+            }
+            return bore.finish(mut out, "fold", 0)
+        }
+        if k == "version" {
+            emit(out, bore.version_text("fold")) else |_| {
+                bore.write_error(out, "fold", "write error")
+                return 1
+            }
+            return bore.finish(mut out, "fold", 0)
+        }
+        if k == "bytes" {
+            o.mode = 1
+        }
+        if k == "characters" {
+            o.mode = 2
+        }
+        if k == "spaces" {
+            o.spaces = true
+        }
+        if k == "width" {
+            width_text = v
+            width_given = true
+        }
+        i += 1
+    }
+    if !bore.ok(p) {
+        return bore.usage_error("fold", p.error)
+    }
+    if width_given {
+        let w = parse_width(width_text)
+        if w.err.len > 0 {
+            bore.warn("fold", w.err)
+            return 1
+        }
+        o.width = w.value
+    }
+    var paths = List[str]()
+    for a in p.operands {
+        (mut paths).push(a)
+    }
+    if paths.len == 0 {
+        (mut paths).push("-")
+    }
+    let keeper = region()
+    var chunk = List[byte]()
+    var line = List[byte]()
+    in keeper {
+        var k = 0
+        while k < read_size() {
+            (mut chunk).push(0 as byte)
+            k += 1
+        }
+    }
+    var status = 0
+    var wfail = false
+    for path in paths {
+        let code = one(mut out, path, o, mut chunk, mut line, keeper)
+        if code != 0 {
+            status = 1
+        }
+        if code == 2 {
+            wfail = true
+        }
+    }
+    if wfail {
+        bore.write_error(out, "fold", "write error")
+        return 1
+    }
+    // wolf-lang#449: the loop above claims `out` inside a conditional.
+    bore.finish_last("fold", status, mut out)
+}
+
+fn options() -> List[bore.Opt] {
+    // GNU's own long-option table order, which its
+    // "ambiguous; possibilities:" line reports and so is observable.
+    var s = List[bore.Opt]()
+    (mut s).push(bore.flag("b", "bytes"))
+    (mut s).push(bore.flag("c", "characters"))
+    (mut s).push(bore.flag("s", "spaces"))
+    (mut s).push(bore.takes("w", "width"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    s
+}
+
+/// The bytes asked of the host per read (bu01's measured knee).
+fn read_size() -> int {
+    262144
+}
+
+/// One past the largest width this program will answer.
+fn width_cap() -> int {
+    4611686018427387903
+}
+
+// -------------------------------------------------------- the option edge
+
+/// Rewrite the obsolete width into `-w`.
+///
+/// The rule the header states, and it is one rule: in an argument that
+/// starts with a single `-`, the first DIGIT and everything after it is
+/// the width text. `-w` is the exception, because its own argument may
+/// be digits and is not one of these; `--` ends the rewriting.
+fn rewrite_obsolete(argv: List[str]) -> List[str] {
+    var out = List[str]()
+    var rest_are_operands = false
+    // An argument that BELONGS to `-w` is not a width of its own:
+    // measured, `fold -w -1` is `invalid number of columns: '-1'`, so
+    // the rewrite has to know which words are already spoken for.
+    var expect_arg = false
+    for a in argv {
+        if expect_arg {
+            expect_arg = false
+            (mut out).push(a)
+            continue
+        }
+        if rest_are_operands {
+            (mut out).push(a)
+            continue
+        }
+        if a == "--" {
+            rest_are_operands = true
+            (mut out).push(a)
+            continue
+        }
+        if a == "--width" {
+            expect_arg = true
+            (mut out).push(a)
+            continue
+        }
+        if !a.starts_with("-") || a.len < 2 || a.starts_with("--") {
+            (mut out).push(a)
+            continue
+        }
+        let bs = a.bytes()
+        var i = 1
+        var cut = -1
+        while i < a.len {
+            let c = bs[i] as int
+            if c == 119 {
+                // `-w`: the rest of this argument is its own, and when
+                // there is no rest the NEXT word is.
+                if i + 1 == a.len {
+                    expect_arg = true
+                }
+                i = a.len
+            } else if c >= 48 && c <= 57 {
+                cut = i
+                i = a.len
+            } else {
+                i += 1
+            }
+        }
+        if cut < 0 {
+            (mut out).push(a)
+        } else if cut == 1 {
+            (mut out).push("-w{a[1..]}")
+        } else {
+            (mut out).push(a[0..cut])
+            (mut out).push("-w{a[cut..]}")
+        }
+    }
+    out
+}
+
+/// A parsed `-w`, or GNU's complaint about it.
+struct Width {
+    value: int,
+    err: str,
+}
+
+/// Parse a width in GNU's shape.
+///
+/// Measured: a width that is not a number at all is
+/// `invalid number of columns: 'x'`, and a width that IS a number but is
+/// out of range — 0, or past what the host can hold — appends the C
+/// library's `strerror(ERANGE)`. That text is the host's, not GNU's:
+/// glibc says `Numerical result out of range` and Apple's says `Result
+/// too large`, so the two hosts word the same error differently at one
+/// coreutils release. This program prints glibc's, where GNU coreutils
+/// is native, and `tests/cases/fold.toml` records the divergence rather
+/// than pinning it — exactly as `nl -w 0` does.
+fn parse_width(text: str) -> Width {
+    let bs = text.bytes()
+    if text.len == 0 {
+        return Width { value: 0, err: invalid_width(text) }
+    }
+    var i = 0
+    var digits = 0
+    var value: int = 0
+    var over = false
+    while i < text.len {
+        let c = bs[i] as int
+        if c < 48 || c > 57 {
+            return Width { value: 0, err: invalid_width(text) }
+        }
+        let d = c - 48
+        if over || value > (width_cap() - d) / 10 {
+            over = true
+        } else {
+            value = value * 10 + d
+        }
+        digits += 1
+        i += 1
+    }
+    if digits == 0 {
+        return Width { value: 0, err: invalid_width(text) }
+    }
+    if over || value == 0 {
+        return Width { value: 0, err: "{invalid_width(text)}: {out_of_range()}" }
+    }
+    Width { value: value, err: "" }
+}
+
+fn invalid_width(text: str) -> str {
+    "invalid number of columns: {bore.quote(text)}"
+}
+
+/// glibc's `strerror(ERANGE)`. Apple's C library words it differently,
+/// which is why the cases that reach it are recorded and not pinned.
+fn out_of_range() -> str {
+    "Numerical result out of range"
+}
+
+/// Whether the character set from the environment is UTF-8, on GNU's
+/// precedence: LC_ALL, then LC_CTYPE, then LANG, the first that is set.
+///
+/// A copy of `cut`'s, which is a copy of `wc`'s. Both are standalone
+/// entries rather than parts of the `bore` module, so there was nothing
+/// to import when they were written; this one could import from `bore`
+/// and does not, because moving it is a change to `wc` and `cut` that
+/// belongs in its own commit rather than in `fold`'s.
+fn locale_is_utf8() -> bool {
+    var v = env_get("LC_ALL") else ""
+    if v.len == 0 {
+        v = env_get("LC_CTYPE") else ""
+    }
+    if v.len == 0 {
+        v = env_get("LANG") else ""
+    }
+    let dot = v.rfind(".") else -1
+    var codeset = v
+    if dot >= 0 {
+        codeset = v[dot + 1..]
+    }
+    let l = codeset.lower()
+    l == "utf-8" || l == "utf8"
+}
+
+// ------------------------------------------------------------- the stream
+
+/// Fold one operand. 0 success, 1 this operand failed, 2 a failed write.
+fn one(
+    mut out: bore.Out,
+    path: str,
+    o: Opts,
+    mut chunk: List[byte],
+    mut line: List[byte],
+    keeper: region,
+) -> int {
+    let src = bore.open_input(path) else |e| match e {
+        not_found => {
+            bore.input_error("fold", path, bore.no_such_file())
+            return 1
+        },
+        denied => {
+            bore.input_error("fold", path, bore.permission_denied())
+            return 1
+        },
+        is_dir => {
+            bore.input_error("fold", path, bore.directory_reason())
+            return 1
+        },
+        io => {
+            bore.input_error("fold", path, bore.io_error())
+            return 1
+        },
+    }
+    var why = 0
+    var held = 0
+    var stop = false
+    while !stop {
+        var got = 0
+        region pass {
+            let read = bore.read_chunk(src, read_size()) else |e| match e {
+                eof => {
+                    got = -1
+                    List[byte]()
+                },
+                io => {
+                    got = -2
+                    List[byte]()
+                },
+            }
+            if got == 0 {
+                got = read.len
+                if got == 0 {
+                    got = -1
+                }
+            }
+            if got > 0 {
+                var k = 0
+                while k < got {
+                    chunk[k] = read[k]
+                    k += 1
+                }
+            }
+        }
+        if got == -2 {
+            why = 1
+            stop = true
+        } else if got == -1 {
+            stop = true
+        } else {
+            var at = 0
+            while at < got {
+                let b = chunk[at]
+                ensure(mut line, held + 1, keeper)
+                line[held] = b
+                held += 1
+                if b as int == 10 {
+                    let code = fold_line(line, held, true, o, mut out)
+                    if code != 0 {
+                        return code
+                    }
+                    held = 0
+                }
+                at += 1
+            }
+        }
+    }
+    bore.close_input(src)
+    if why == 0 && held > 0 {
+        let code = fold_line(line, held, false, o, mut out)
+        if code != 0 {
+            return code
+        }
+    }
+    if why == 1 {
+        bore.input_error("fold", path, bore.io_error())
+    }
+    why
+}
+
+/// Make room for `n` bytes in `line`, in the region that outlives a chunk.
+fn ensure(mut line: List[byte], n: int, keeper: region) {
+    in keeper {
+        while line.len < n {
+            (mut line).push(0 as byte)
+        }
+    }
+}
+
+// --------------------------------------------------------------- the fold
+
+/// Write one input line, broken at the width. `terminated` says the
+/// input line ended with a newline, which decides whether the LAST piece
+/// gets one. Answers 0, or 2 for a failed write.
+fn fold_line(line: List[byte], len: int, terminated: bool, o: Opts, mut out: bore.Out) -> int {
+    // The newline itself is not part of what is measured or broken.
+    let body = if terminated then len - 1 else len
+    var start = 0
+    var at = 0
+    var col = 0
+    while at < body {
+        let step = next_char(line, at, body, o)
+        let after = advance(col, line, at, step, o)
+        if after > o.width && at > start {
+            var cut = at
+            if o.spaces {
+                // Break AFTER the last blank in the piece, and keep
+                // what follows: measured, `fold -s` writes the blank on
+                // the line it ends, not on the one it starts.
+                var j = at - 1
+                var found = -1
+                while j >= start {
+                    let c = line[j] as int
+                    if c == 32 || c == 9 {
+                        found = j
+                        j = start - 1
+                    } else {
+                        j -= 1
+                    }
+                }
+                if found >= 0 {
+                    cut = found + 1
+                }
+            }
+            put_piece(line, start, cut, true, mut out) else |_| {
+                return 2
+            }
+            start = cut
+            col = recolumn(line, start, at, o)
+            let again = advance(col, line, at, step, o)
+            col = again
+            at += step
+        } else {
+            col = after
+            at += step
+        }
+    }
+    put_piece(line, start, body, terminated, mut out) else |_| {
+        return 2
+    }
+    0
+}
+
+/// The columns `line[start..to]` occupies, for the piece kept after an
+/// `-s` break.
+fn recolumn(line: List[byte], start: int, to: int, o: Opts) -> int {
+    var col = 0
+    var at = start
+    while at < to {
+        let step = next_char(line, at, to, o)
+        col = advance(col, line, at, step, o)
+        at += step
+    }
+    col
+}
+
+/// How many bytes the character at `at` occupies.
+fn next_char(line: List[byte], at: int, to: int, o: Opts) -> int {
+    if o.mode == 1 || !o.utf8 {
+        return 1
+    }
+    var n = 1
+    while at + n < to && continuation(line[at + n]) {
+        n += 1
+    }
+    n
+}
+
+/// Whether `b` is a UTF-8 continuation byte, `10xxxxxx`.
+fn continuation(b: byte) -> bool {
+    b as int >= 128 && b as int < 192
+}
+
+/// The column after the character at `at`.
+fn advance(col: int, line: List[byte], at: int, step: int, o: Opts) -> int {
+    if o.mode == 1 || o.mode == 2 {
+        return col + 1
+    }
+    let c = line[at] as int
+    if step == 1 {
+        if c == 9 {
+            return col + 8 - col % 8
+        }
+        if c == 8 {
+            if col > 0 {
+                return col - 1
+            }
+            return 0
+        }
+        if c == 13 {
+            return 0
+        }
+    }
+    if !o.utf8 {
+        return col + 1
+    }
+    col + bore.width_of(decode(line, at, step))
+}
+
+/// The code point of the `step` bytes at `at`, or the lead byte itself
+/// when they are not a valid sequence — which is the rule `wc` measured
+/// and the one both hosts answer.
+fn decode(line: List[byte], at: int, step: int) -> int {
+    let lead = line[at] as int
+    if step == 1 {
+        return lead
+    }
+    var n = 0
+    if step == 2 && lead >= 192 {
+        n = lead - 192
+    } else if step == 3 && lead >= 224 {
+        n = lead - 224
+    } else if step == 4 && lead >= 240 {
+        n = lead - 240
+    } else {
+        return lead
+    }
+    var k = 1
+    while k < step {
+        n = n * 64 + (line[at + k] as int - 128)
+        k += 1
+    }
+    n
+}
+
+/// Write `line[from..to]`, with a newline after it when `nl` says so.
+///
+/// The writer goes LAST: wolf-lang#449 refuses the ordinary spelling at
+/// a call that follows a conditional also claiming `out`.
+fn put_piece(line: List[byte], from: int, to: int, nl: bool, mut out: bore.Out) -> () ! {io} {
+    var i = from
+    while i < to {
+        bore.put_byte(mut out, line[i])?
+        i += 1
+    }
+    if nl {
+        bore.put_byte(mut out, 10 as byte)?
+    }
+}
+
+/// Write `s` straight out.
+fn emit(out: bore.Out, s: str) -> () ! {io} {
+    var b = List[byte]()
+    for x in s.bytes() {
+        (mut b).push(x)
+    }
+    bore.write_direct(out, b)?
+}
+
+fn help() -> str {
+    """
+    Usage: fold [OPTION]... [FILE]...
+    Wrap each input line of each FILE to a width, writing to standard
+    output. With no FILE, or when FILE is -, read standard input.
+
+      -b, --bytes         count bytes, not display columns
+      -c, --characters    count characters, not display columns
+      -s, --spaces        break after the last blank, not in a word
+      -w, --width=WIDTH   use WIDTH columns instead of 80
+          --help          print this help and exit
+          --version       print the version and exit
+
+    By default a tab advances to the next multiple of 8, a backspace
+    moves back one column and a carriage return returns to column 0;
+    -b and -c count them as one unit like any other. The obsolete
+    -WIDTH spelling still works: a digit anywhere in a short option
+    argument begins the width, and the rest of that argument is it.
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}

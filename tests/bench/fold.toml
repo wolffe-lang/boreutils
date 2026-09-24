@@ -1,0 +1,82 @@
+# fold — the bench. The work is per CHARACTER: decide the column it
+# reaches, decide whether it still fits, copy it out.
+#
+# PREDICTION, committed in notes/bu07-the-pin-and-the-rest-of-b3.md
+# before the first run (release tier, GNU 9.11, kasumi):
+#
+#   0.5x to 0.9x for `-b`, which is a pure byte scan and a copy.
+#
+#   0.25x to 0.5x for the DEFAULT column mode, which interprets tab,
+#   backspace and carriage return per byte before it can advance.
+#
+#   `-s` should be the worst row of all, because a break makes it scan
+#   backwards through the piece for the last blank.
+#
+# The falsifier is a measured ratio outside either band, and the `-s`
+# claim is falsified by any `-s` row that is not the slowest of its
+# width. The UTF-8 rows are under LC_ALL=C.UTF-8 and the rest under
+# LC_ALL=C, because the locale decides which of the three counters runs.
+
+[[bench]]
+name = "start-up, no input"
+command = "{prog} < /dev/null"
+
+[[bench]]
+name = "-b, ordinary lines at the default width"
+command = "LC_ALL=C {prog} -b < {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-b, a width that breaks every line"
+command = "LC_ALL=C {prog} -b -w 20 < {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "the default column mode, ordinary lines"
+command = "LC_ALL=C {prog} < {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "the default column mode, a width that breaks every line"
+command = "LC_ALL=C {prog} -w 20 < {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-c in the C locale, which is bytes"
+command = "LC_ALL=C {prog} -c -w 20 < {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-c under UTF-8, which decodes"
+command = "LC_ALL=C.UTF-8 {prog} -c -w 20 < {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "the column mode under UTF-8, which decodes and looks up a width"
+command = "LC_ALL=C.UTF-8 {prog} -w 20 < {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-s at a width that breaks every line"
+command = "LC_ALL=C {prog} -s -w 20 < {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-s -b at the same width"
+command = "LC_ALL=C {prog} -s -b -w 20 < {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-w 1, the worst break rate there is"
+command = "LC_ALL=C {prog} -b -w 1 < {input} > /dev/null"
+input = "lines"
+
+[[bench]]
+name = "very short lines, where nothing breaks"
+command = "LC_ALL=C {prog} < {input} > /dev/null"
+input = "lines"
+
+[[bench]]
+name = "binary noise, one enormous line"
+command = "LC_ALL=C {prog} -b -w 64 < {input} > /dev/null"
+input = "noise"

@@ -1,0 +1,529 @@
+# fold — GNU coreutils 9.11, black-box. The harness compares stdout,
+# stderr's shape and the exit status against the GNU binary.
+#
+# --help and --version print OUR text (GNU's is the FSF's prose), so
+# their cases compare the exit status and stderr only.
+#
+# TWO cases are skipped and say why: a width that IS a number but out of
+# range appends the C library's strerror(ERANGE), and the two hosts word
+# that differently at one coreutils release — glibc `Numerical result
+# out of range`, Apple's `Result too large`. Same shape as `nl -w 0`.
+#
+# The UTF-8 cases set LC_ALL themselves, because the corpus otherwise
+# runs under LC_ALL=C where a byte is a character and a column.
+
+# ----------------------------------------------------------- the defaults
+
+[[case]]
+name = "the default width leaves a short line alone"
+stdin = "hello\n"
+
+[[case]]
+name = "a line exactly 80 columns"
+stdin = "0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890\n"
+
+[[case]]
+name = "standard input by default"
+stdin = "abcdefghij\n"
+
+[[case]]
+name = "a dash operand is standard input"
+args = ["-"]
+stdin = "abcdefghij\n"
+
+[[case]]
+name = "empty input"
+stdin = ""
+
+[[case]]
+name = "a file operand"
+args = ["tests/fixtures/plain.txt"]
+
+[[case]]
+name = "two file operands"
+args = ["tests/fixtures/plain.txt", "tests/fixtures/second.txt"]
+
+[[case]]
+name = "-- ends the options"
+args = ["--", "tests/fixtures/plain.txt"]
+
+# ------------------------------------------------------------------ -w
+
+[[case]]
+name = "-w 3"
+args = ["-w", "3"]
+stdin = "abcdefghij\n"
+
+[[case]]
+name = "--width"
+args = ["--width=3"]
+stdin = "abcdefghij\n"
+
+[[case]]
+name = "-w attached"
+args = ["-w3"]
+stdin = "abcdefghij\n"
+
+[[case]]
+name = "-w 1"
+args = ["-w", "1"]
+stdin = "abcdefghij\n"
+
+[[case]]
+name = "a line exactly the width"
+args = ["-w", "3"]
+stdin = "abc\n"
+
+[[case]]
+name = "a line one over the width"
+args = ["-w", "3"]
+stdin = "abcd\n"
+
+[[case]]
+name = "several lines, each broken"
+args = ["-w", "4"]
+stdin = "abcdefg\nhi\njklmnopqr\n"
+
+[[case]]
+name = "empty lines are left alone"
+args = ["-w", "3"]
+stdin = "\n\nabcd\n\n"
+
+[[case]]
+name = "no trailing newline"
+args = ["-w", "3"]
+stdin = "abcdefgh"
+
+[[case]]
+name = "no trailing newline and nothing to break"
+args = ["-w", "30"]
+stdin = "abcdefgh"
+
+[[case]]
+name = "a very long line"
+args = ["-w", "7"]
+stdin = "0123456789abcdef0123456789abcdef0123456789abcdef\n"
+
+[[case]]
+name = "-w given twice, the last wins"
+args = ["-w", "3", "-w", "5"]
+stdin = "abcdef\n"
+
+[[case]]
+name = "-w with a negative number"
+args = ["-w", "-1"]
+stdin = "abcdef\n"
+
+[[case]]
+name = "-w with letters"
+args = ["-w", "x"]
+stdin = "abcdef\n"
+
+[[case]]
+name = "-w with a suffix, which fold does not take"
+args = ["-w", "3k"]
+stdin = "abcdef\n"
+
+[[case]]
+name = "-w with an empty argument"
+args = ["-w", ""]
+stdin = "abcdef\n"
+
+[[case]]
+name = "-w requires an argument"
+args = ["-w"]
+
+[[case]]
+name = "-w 0, which is a number out of range"
+skip = "GNU appends its C library's strerror(ERANGE) to the message and the two hosts word it differently at one coreutils release: 'Numerical result out of range' under glibc and 'Result too large' under Apple's. boreutils prints glibc's, so this case cannot pass on both hosts."
+args = ["-w", "0"]
+stdin = "abcdef\n"
+
+[[case]]
+name = "-w past what the host can hold"
+skip = "Same strerror(ERANGE) divergence as the zero case above."
+args = ["-w", "99999999999999999999"]
+stdin = "abcdef\n"
+
+# --------------------------------------------------- the obsolete width
+
+[[case]]
+name = "the obsolete -N"
+args = ["-3"]
+stdin = "abcdefghij\n"
+
+[[case]]
+name = "the obsolete -N with a leading zero"
+args = ["-03"]
+stdin = "abcdef\n"
+
+[[case]]
+name = "-s before the digits is a flag and a width"
+args = ["-s3"]
+stdin = "aa bb cc dd\n"
+
+[[case]]
+name = "-b before the digits"
+args = ["-b3"]
+stdin = "abcdef\n"
+
+[[case]]
+name = "digits before a flag are all width text, and are not a number"
+args = ["-3s"]
+stdin = "aa bb cc dd\n"
+
+[[case]]
+name = "a flag, digits and another flag"
+args = ["-s3b"]
+stdin = "aa bb cc dd\n"
+
+[[case]]
+name = "digits either side of a flag"
+args = ["-1s2"]
+stdin = "abcdefghijklm\n"
+
+[[case]]
+name = "the obsolete width then -w, the last wins"
+args = ["-3", "-w", "5"]
+stdin = "abcdef\n"
+
+[[case]]
+name = "-w then the obsolete width, the last wins"
+args = ["-w", "5", "-3"]
+stdin = "abcdef\n"
+
+[[case]]
+name = "-w attached in a cluster is not the obsolete form"
+args = ["-sw3"]
+stdin = "aa bb cc\n"
+
+[[case]]
+name = "after -- the obsolete width is a file name"
+args = ["--", "-3"]
+
+[[case]]
+name = "the obsolete width with -s given separately"
+args = ["-3", "-s"]
+stdin = "aa bb cc dd\n"
+
+# ------------------------------------------------------------------ -b
+
+[[case]]
+name = "-b counts bytes"
+args = ["-b", "-w", "3"]
+stdin = "abcdefghij\n"
+
+[[case]]
+name = "--bytes"
+args = ["--bytes", "-w", "3"]
+stdin = "abcdefghij\n"
+
+[[case]]
+name = "-b makes a tab one unit"
+args = ["-b", "-w", "5"]
+stdin = "a\tb\n"
+
+[[case]]
+name = "-b makes a backspace one unit"
+args = ["-b", "-w", "3"]
+stdin = "ab\bcd\n"
+
+[[case]]
+name = "-b makes a carriage return one unit"
+args = ["-b", "-w", "3"]
+stdin = "ab\rcd\n"
+
+[[case]]
+name = "-b on binary input"
+args = ["-b", "-w", "16", "tests/fixtures/binary.bin"]
+
+# ------------------------------------------------------------------ -c
+
+[[case]]
+name = "-c in the C locale is -b"
+args = ["-c", "-w", "3"]
+stdin = "abcdefghij\n"
+
+[[case]]
+name = "--characters"
+args = ["--characters", "-w", "3"]
+stdin = "abcdefghij\n"
+
+[[case]]
+name = "-c counts characters under UTF-8"
+args = ["-c", "-w", "2"]
+stdin = "ééé\n"
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "-c counts a wide character as one"
+args = ["-c", "-w", "3"]
+stdin = "世世\n"
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "-c on an invalid UTF-8 byte counts it alone"
+args = ["-c", "-w", "2", "tests/fixtures/bad.dat"]
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "-c under LC_ALL=C is bytes again"
+args = ["-c", "-w", "2"]
+stdin = "ééé\n"
+
+[[case]]
+name = "-b then -c, the last wins"
+args = ["--bytes", "--characters", "-w", "2"]
+stdin = "éé\n"
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "-c then -b, the last wins"
+args = ["--characters", "--bytes", "-w", "2"]
+stdin = "éé\n"
+env = { LC_ALL = "C.UTF-8" }
+
+# ------------------------------------------------------- display columns
+
+[[case]]
+name = "a tab advances to the next multiple of eight"
+args = ["-w", "5"]
+stdin = "a\tb\n"
+
+[[case]]
+name = "a tab that still fits"
+args = ["-w", "16"]
+stdin = "abcdefg\tZ\n"
+
+[[case]]
+name = "a tab exactly at the boundary"
+args = ["-w", "10"]
+stdin = "abcdefg\tZ\n"
+
+[[case]]
+name = "a tab at column zero"
+args = ["-w", "9"]
+stdin = "\tx\n"
+
+[[case]]
+name = "two tabs in a row"
+args = ["-w", "20"]
+stdin = "a\t\tb\n"
+
+[[case]]
+name = "a tab in the middle of a broken line"
+args = ["-w", "12", "tests/fixtures/tabs.txt"]
+
+[[case]]
+name = "a backspace moves back a column"
+args = ["-w", "3"]
+stdin = "ab\bcd\n"
+
+[[case]]
+name = "a backspace at column zero does not go below it"
+args = ["-w", "3"]
+stdin = "\babc\n"
+
+[[case]]
+name = "a carriage return returns to column zero"
+args = ["-w", "3"]
+stdin = "ab\rcd\n"
+
+[[case]]
+name = "a carriage return in a longer line"
+args = ["-w", "4", "tests/fixtures/crlf.txt"]
+
+[[case]]
+name = "the default mode counts display width under UTF-8"
+args = ["-w", "3"]
+stdin = "世世\n"
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "the default mode on narrow multibyte characters"
+args = ["-w", "2"]
+stdin = "ééé\n"
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "the default mode on a combining sequence"
+args = ["-w", "2", "tests/fixtures/wide.txt"]
+env = { LC_ALL = "C.UTF-8" }
+
+# ------------------------------------------------------------------ -s
+
+[[case]]
+name = "-s breaks after the last blank"
+args = ["-s", "-w", "10"]
+stdin = "hello world again here\n"
+
+[[case]]
+name = "--spaces"
+args = ["--spaces", "-w", "10"]
+stdin = "hello world again here\n"
+
+[[case]]
+name = "-s at a width where the word does not fit"
+args = ["-s", "-w", "5"]
+stdin = "hello world again here\n"
+
+[[case]]
+name = "-s with no blank anywhere falls back to a hard break"
+args = ["-s", "-w", "3"]
+stdin = "abcdefgh\n"
+
+[[case]]
+name = "-s with a tab as the blank"
+args = ["-s", "-w", "4"]
+stdin = "aa\tbbbb\n"
+
+[[case]]
+name = "-s with leading blanks"
+args = ["-s", "-w", "4"]
+stdin = "   abcd\n"
+
+[[case]]
+name = "-s with trailing blanks"
+args = ["-s", "-w", "3"]
+stdin = "ab  \n"
+
+[[case]]
+name = "-s where the blank is the last character that fits"
+args = ["-s", "-w", "6"]
+stdin = "abcde fghij\n"
+
+[[case]]
+name = "-s with runs of blanks between words"
+args = ["-s", "-w", "8"]
+stdin = "aa    bb    cc\n"
+
+[[case]]
+name = "-s with a tab as the last blank in column mode"
+args = ["-s", "-w", "12"]
+stdin = "ab\tcd ef\n"
+
+[[case]]
+name = "-s and -b together"
+args = ["-s", "-b", "-w", "5"]
+stdin = "hello world again\n"
+
+[[case]]
+name = "-s on a line of blanks only"
+args = ["-s", "-w", "3"]
+stdin = "      \n"
+
+[[case]]
+name = "-s at width 1"
+args = ["-s", "-w", "1"]
+stdin = "a b c\n"
+
+[[case]]
+name = "-s over several lines"
+args = ["-s", "-w", "6", "tests/fixtures/two.txt"]
+
+# --------------------------------------------------------------- the ends
+
+[[case]]
+name = "a missing operand"
+args = ["nope"]
+
+[[case]]
+name = "a missing operand among good ones"
+args = ["-w", "3", "nope", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "a directory operand"
+args = ["tests/fixtures"]
+
+[[case]]
+name = "an operand whose name needs quoting"
+args = ["a b"]
+
+[[case]]
+name = "an empty operand"
+args = [""]
+
+[[case]]
+name = "an unknown short option"
+args = ["-Q"]
+
+[[case]]
+name = "an unknown long option"
+args = ["--nope"]
+
+[[case]]
+name = "a long option given an argument it does not take"
+args = ["--spaces=x"]
+
+[[case]]
+name = "an abbreviated long option"
+args = ["--wid=3"]
+stdin = "abcdef\n"
+
+[[case]]
+name = "options after an operand permute"
+args = ["tests/fixtures/plain.txt", "-w", "3"]
+
+[[case]]
+name = "POSIXLY_CORRECT stops permuting"
+args = ["tests/fixtures/plain.txt", "-w", "3"]
+env = { POSIXLY_CORRECT = "1" }
+
+# ------------------------------------------------- help, version, and exit
+
+[[case]]
+name = "--help"
+args = ["--help"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "--version"
+args = ["--version"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "--help wins over a later bad option"
+args = ["--help", "-Q"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "a bad option before --help does not"
+args = ["-Q", "--help"]
+
+[[case]]
+name = "standard output closed"
+args = ["-w", "3", "tests/fixtures/plain.txt"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, version"
+args = ["--version"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, writing nothing"
+args = ["tests/fixtures/empty.txt"]
+stdout_closed = true
+
+[[case]]
+name = "a write error on a live descriptor"
+args = ["-w", "3", "tests/fixtures/plain.txt"]
+stdout_file = "/dev/full"
+compare = ["exit"]
+
+[[case]]
+name = "the reader goes away"
+args = ["-w", "3", "tests/fixtures/twelve.txt"]
+stdout_bytes = 4
+
+[[case]]
+name = "a large input through a pipe"
+args = ["-w", "7"]
+stdin = "0123456789abcdef0123456789abcdef\n"
+stdin_repeat = 4096
+
+[[case]]
+name = "one very long line through a pipe"
+args = ["-w", "13"]
+stdin = "0123456789abcdef"
+stdin_repeat = 4096
