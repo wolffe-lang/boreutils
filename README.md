@@ -151,9 +151,9 @@ Every utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus. The corpus holds **2,114 cases**; a run on
 kasumi (linux x86-64) at this pin answers **2,094 passed, 0 failed, 20
 skipped**, and CI's macOS leg **2,077 passed, 0 failed, 37 skipped**
-(run 36044150121): the seventeen more are the `/dev/full` cases and
-the host-library divergences named below, which run where their answer
-is known. (The previous edition of this sentence said 1,753 and 19 for
+(run 36044150121): the seventeen more are every `/dev/full` case, one
+or two per utility, because macOS has no `/dev/full` (the two skip lists
+diffed, nothing else differs). (The previous edition of this sentence said 1,753 and 19 for
 the 1,772-case corpus, and "five more" on macOS; kasumi answered 1,752
 and 20 at that commit, `eac2a32`, and macOS 37 at this lane's first
 green, run 36029854007.) The corpus
