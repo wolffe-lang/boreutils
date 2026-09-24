@@ -435,6 +435,13 @@ fn breaks_dquote(n: int) -> bool {
     n == 124 || n == 125 || n == 126
 }
 
+/// **The closing quote is pushed as a byte, not written with `push_str`,
+/// and that is wolf-lang#449 rather than a style choice.** wolf 0.2.16's
+/// new exclusivity leg reads a `mut` claim made inside the loop above as
+/// living "inside the extent" of a LATER `push_str(mut out, …)`, which
+/// is two statements away and cannot be true. A builtin claim is not
+/// walked, so the one-byte push compiles where the call does not. Every
+/// release before 0.2.16 compiled both.
 fn single_quoted(s: str) -> str {
     var out = List[byte]()
     push_str(mut out, "'")
@@ -445,7 +452,7 @@ fn single_quoted(s: str) -> str {
             (mut out).push(b)
         }
     }
-    push_str(mut out, "'")
+    (mut out).push(39 as byte)
     str_from_utf8(out) else "'?'"
 }
 
@@ -482,7 +489,8 @@ fn spliced(s: str) -> str {
             push_str(mut out, escape(n))
         }
     }
-    push_str(mut out, "'")
+    // wolf-lang#449, as `single_quoted` above.
+    (mut out).push(39 as byte)
     str_from_utf8(out) else "'?'"
 }
 
