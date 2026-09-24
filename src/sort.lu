@@ -144,8 +144,40 @@ fn main() -> int {
             }
             return 0
         }
+        if k == "numeric-sort" {
+            g.numeric = true
+        }
+        if k == "human-numeric-sort" {
+            g.human = true
+        }
+        if k == "month-sort" {
+            g.month = true
+        }
+        if k == "general-numeric-sort" {
+            g.general = true
+        }
+        if k == "random-sort" {
+            g.random = true
+        }
+        if k == "version-sort" {
+            g.version = true
+        }
         if k == "reverse" {
             g.reverse = true
+        }
+        if k == "sort" {
+            let m = bore.argmatch(v, sort_words(), sort_meanings())
+            if m < 0 {
+                return bore.argmatch_error(
+                    "sort",
+                    v,
+                    "sort",
+                    sort_words(),
+                    sort_meanings(),
+                    m == -2,
+                )
+            }
+            set_letter(m, mut g)
         }
         if k == "stable" {
             o.stable = true
@@ -174,6 +206,23 @@ fn main() -> int {
     // With no key, the global options make one: the whole line.
     var used = List[Key]()
     (mut used).push(copy g)
+    for k in used {
+        let bad = incompatible(k)
+        if bad.len > 0 {
+            return fail("options '-{bad}' are incompatible")
+        }
+    }
+    for k in used {
+        if k.general {
+            o.unsupported = "-g (--general-numeric-sort)"
+        }
+        if k.random {
+            o.unsupported = "-R (--random-sort)"
+        }
+        if k.version {
+            o.unsupported = "-V (--version-sort)"
+        }
+    }
     if o.unsupported.len > 0 {
         return fail("{o.unsupported} is not supported by this sort")
     }
@@ -253,7 +302,111 @@ fn fail(msg: str) -> int {
     2
 }
 
+/// `--sort`'s vocabulary in GNU's order, each mapped to its letter's
+/// place in `set_letter`.
+fn sort_words() -> List[str] {
+    var w = List[str]()
+    (mut w).push("general-numeric")
+    (mut w).push("human-numeric")
+    (mut w).push("month")
+    (mut w).push("numeric")
+    (mut w).push("random")
+    (mut w).push("version")
+    w
+}
+
+fn sort_meanings() -> List[int] {
+    var m = List[int]()
+    var i = 0
+    while i < 6 {
+        (mut m).push(i)
+        i += 1
+    }
+    m
+}
+
+fn set_letter(m: int, mut k: Key) {
+    if m == 0 {
+        k.general = true
+    } else if m == 1 {
+        k.human = true
+    } else if m == 2 {
+        k.month = true
+    } else if m == 3 {
+        k.numeric = true
+    } else if m == 4 {
+        k.random = true
+    } else {
+        k.version = true
+    }
+}
+
+/// The option letters of a key GNU names when they cannot be combined,
+/// or `""` when they can. Measured: the letters print in the order
+/// `dfghiMnRV`, `i` is dropped when `d` is present (`-d` subsumes it),
+/// and `-b`/`-r` never print; two of `ghMnRV` together are refused, and
+/// so is `d` or `i` with any of `ghMn`.
+fn incompatible(k: Key) -> str {
+    var kinds = 0
+    if k.general {
+        kinds += 1
+    }
+    if k.human {
+        kinds += 1
+    }
+    if k.month {
+        kinds += 1
+    }
+    if k.numeric {
+        kinds += 1
+    }
+    if k.random {
+        kinds += 1
+    }
+    if k.version {
+        kinds += 1
+    }
+    let textual = k.dict || k.nonprint
+    let numberish = k.general || k.human || k.month || k.numeric
+    if kinds < 2 && !(textual && numberish) {
+        return ""
+    }
+    var s = ""
+    if k.dict {
+        s += "d"
+    }
+    if k.fold {
+        s += "f"
+    }
+    if k.general {
+        s += "g"
+    }
+    if k.human {
+        s += "h"
+    }
+    if k.nonprint && !k.dict {
+        s += "i"
+    }
+    if k.month {
+        s += "M"
+    }
+    if k.numeric {
+        s += "n"
+    }
+    if k.random {
+        s += "R"
+    }
+    if k.version {
+        s += "V"
+    }
+    s
+}
+
 // ------------------------------------------------------------ comparison
+
+fn is_blank(n: int) -> bool {
+    n == 32 || n == 9 || n == 10
+}
 
 /// Compare two lines: every key in order, then — unless `-s` or `-u` —
 /// the whole lines as bytes, reversed by a global `-r`.
@@ -278,13 +431,37 @@ fn compare_keys(c: Conf, a: List[byte], sa: int, ea: int, b: List[byte], sb: int
     }
     var ki = 0
     while ki < c.keys.len {
-        let d = bytes_cmp(a, sa, ea, b, sb, eb)
+        let d = key_cmp(c, ki, a, sa, ea, b, sb, eb)
         if d != 0 {
             return if c.keys[ki].reverse then -d else d
         }
         ki += 1
     }
     0
+}
+
+fn key_cmp(
+    c: Conf,
+    ki: int,
+    a: List[byte],
+    sa: int,
+    ea: int,
+    b: List[byte],
+    sb: int,
+    eb: int,
+) -> int {
+    if c.keys[ki].numeric {
+        return num_cmp(a, sa, ea, b, sb, eb, false)
+    }
+    if c.keys[ki].human {
+        return num_cmp(a, sa, ea, b, sb, eb, true)
+    }
+    if c.keys[ki].month {
+        let ma = month_of(a, sa, ea)
+        let mb = month_of(b, sb, eb)
+        return if ma < mb then -1 else if ma > mb then 1 else 0
+    }
+    bytes_cmp(a, sa, ea, b, sb, eb)
 }
 
 /// `memcmp`, then the shorter first.
@@ -305,6 +482,201 @@ fn bytes_cmp(a: List[byte], sa: int, ea: int, b: List[byte], sb: int, eb: int) -
     }
     if j < eb {
         return -1
+    }
+    0
+}
+
+fn upper(n: int) -> int {
+    if n >= 97 && n <= 122 {
+        return n - 32
+    }
+    n
+}
+
+/// `-n` and `-h`: optional blanks, an optional `-`, digits, an optional
+/// `.` and digits. Compared exactly, digit by digit — no conversion, so
+/// no rounding and no overflow. Signs on zero and leading zeros do not
+/// count. `-h` then orders by the SI suffix that immediately follows
+/// the number (none, then `kK`, `M`, `G`, … `Q`) before the value.
+fn num_cmp(a: List[byte], sa: int, ea: int, b: List[byte], sb: int, eb: int, human: bool) -> int {
+    var i = sa
+    while i < ea && is_blank(a[i] as int) {
+        i += 1
+    }
+    var j = sb
+    while j < eb && is_blank(b[j] as int) {
+        j += 1
+    }
+    var na = false
+    if i < ea && a[i] as int == 45 {
+        na = true
+        i += 1
+    }
+    var nb = false
+    if j < eb && b[j] as int == 45 {
+        nb = true
+        j += 1
+    }
+    let za = is_zero(a, i, ea)
+    let zb = is_zero(b, j, eb)
+    let sga = if za then 0 else if na then -1 else 1
+    let sgb = if zb then 0 else if nb then -1 else 1
+    if sga != sgb {
+        return if sga < sgb then -1 else 1
+    }
+    if sga == 0 {
+        return 0
+    }
+    if human {
+        let ra = suffix_rank(a, i, ea)
+        let rb = suffix_rank(b, j, eb)
+        if ra != rb {
+            let d = if ra < rb then -1 else 1
+            return d * sga
+        }
+    }
+    let m = magnitude_cmp(a, i, ea, b, j, eb)
+    m * sga
+}
+
+fn is_digit(n: int) -> bool {
+    n >= 48 && n <= 57
+}
+
+/// Whether the number at `i` (after its sign) is zero: every digit of
+/// it, whole and fraction, is `0`, or there are none.
+fn is_zero(a: List[byte], at: int, e: int) -> bool {
+    var i = at
+    while i < e && is_digit(a[i] as int) {
+        if a[i] as int != 48 {
+            return false
+        }
+        i += 1
+    }
+    if i < e && a[i] as int == 46 {
+        i += 1
+        while i < e && is_digit(a[i] as int) {
+            if a[i] as int != 48 {
+                return false
+            }
+            i += 1
+        }
+    }
+    true
+}
+
+/// The rank of the SI suffix right after the number at `i`.
+fn suffix_rank(a: List[byte], at: int, e: int) -> int {
+    var i = at
+    while i < e && is_digit(a[i] as int) {
+        i += 1
+    }
+    if i < e && a[i] as int == 46 {
+        i += 1
+        while i < e && is_digit(a[i] as int) {
+            i += 1
+        }
+    }
+    if i >= e {
+        return 0
+    }
+    let s = a[i] as int
+    if s == 107 || s == 75 {
+        return 1
+    }
+    let order = "MGTPEZYRQ".bytes()
+    var k = 0
+    while k < order.len {
+        if order[k] as int == s {
+            return k + 2
+        }
+        k += 1
+    }
+    0
+}
+
+/// Compare two unsigned decimal numbers in place.
+fn magnitude_cmp(a: List[byte], sa: int, ea: int, b: List[byte], sb: int, eb: int) -> int {
+    var i = sa
+    while i < ea && a[i] as int == 48 {
+        i += 1
+    }
+    var j = sb
+    while j < eb && b[j] as int == 48 {
+        j += 1
+    }
+    var li = i
+    while li < ea && is_digit(a[li] as int) {
+        li += 1
+    }
+    var lj = j
+    while lj < eb && is_digit(b[lj] as int) {
+        lj += 1
+    }
+    if li - i != lj - j {
+        return if li - i < lj - j then -1 else 1
+    }
+    while i < li {
+        if a[i] != b[j] {
+            return if a[i] < b[j] then -1 else 1
+        }
+        i += 1
+        j += 1
+    }
+    // The fractions, digit by digit; a missing digit is a zero.
+    var fi = li
+    var fj = lj
+    let da = fi < ea && a[fi] as int == 46
+    let db = fj < eb && b[fj] as int == 46
+    if da {
+        fi += 1
+    }
+    if db {
+        fj += 1
+    }
+    while true {
+        let x = if da && fi < ea && is_digit(a[fi] as int) then a[fi] as int else -1
+        let y = if db && fj < eb && is_digit(b[fj] as int) then b[fj] as int else -1
+        if x < 0 && y < 0 {
+            return 0
+        }
+        let xv = if x < 0 then 48 else x
+        let yv = if y < 0 then 48 else y
+        if xv != yv {
+            return if xv < yv then -1 else 1
+        }
+        if x >= 0 {
+            fi += 1
+        }
+        if y >= 0 {
+            fj += 1
+        }
+    }
+    0
+}
+
+/// `-M`: optional blanks, then the first three bytes folded to upper
+/// case against `JAN` … `DEC`; anything else is 0, below every month.
+fn month_of(a: List[byte], s: int, e: int) -> int {
+    var i = s
+    while i < e && is_blank(a[i] as int) {
+        i += 1
+    }
+    if e - i < 3 {
+        return 0
+    }
+    let x = upper(a[i] as int)
+    let y = upper(a[i + 1] as int)
+    let z = upper(a[i + 2] as int)
+    let names = "JANFEBMARAPRMAYJUNJULAUGSEPOCTNOVDEC".bytes()
+    var m = 0
+    while m < 12 {
+        if names[m * 3] as int == x &&
+            names[m * 3 + 1] as int == y &&
+            names[m * 3 + 2] as int == z {
+            return m + 1
+        }
+        m += 1
     }
     0
 }
