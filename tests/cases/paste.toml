@@ -1,0 +1,453 @@
+# paste — GNU coreutils 9.11, black-box. The harness compares stdout,
+# stderr's shape and the exit status against the GNU binary, so nothing
+# below states an answer; what the names claim is what was measured.
+#
+# --help and --version print OUR text (GNU's is the FSF's prose), so
+# their cases compare the exit status and stderr only.
+#
+# Fixtures used here:
+#   plain.txt   alpha / beta / gamma — three lines
+#   second.txt  one / two            — two lines
+#   one.txt     a                    — one line
+#   empty.txt   nothing
+#   nonl.txt    one line with NO final newline
+#   twelve.txt  l1 .. l12
+#   nulrec.dat  NUL-terminated records, for -z
+#   binary.bin  arbitrary bytes
+
+# ----------------------------------------------------------- the defaults
+
+[[case]]
+name = "two files side by side"
+args = ["tests/fixtures/plain.txt", "tests/fixtures/second.txt"]
+
+[[case]]
+name = "three files of three, two and one lines"
+args = ["tests/fixtures/plain.txt", "tests/fixtures/second.txt", "tests/fixtures/one.txt"]
+
+[[case]]
+name = "the longest file first"
+args = ["tests/fixtures/one.txt", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "one file is the file"
+args = ["tests/fixtures/plain.txt"]
+
+[[case]]
+name = "standard input by default"
+stdin = "a\nb\n"
+
+[[case]]
+name = "a dash operand is standard input"
+args = ["-"]
+stdin = "a\nb\n"
+
+[[case]]
+name = "no operands at all, empty input"
+stdin = ""
+
+[[case]]
+name = "an empty file beside a full one"
+args = ["tests/fixtures/plain.txt", "tests/fixtures/empty.txt"]
+
+[[case]]
+name = "an empty file before a full one"
+args = ["tests/fixtures/empty.txt", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "two empty files"
+args = ["tests/fixtures/empty.txt", "tests/fixtures/empty.txt"]
+
+[[case]]
+name = "one empty file"
+args = ["tests/fixtures/empty.txt"]
+
+[[case]]
+name = "a file with no final newline"
+args = ["tests/fixtures/nonl.txt", "tests/fixtures/second.txt"]
+
+[[case]]
+name = "a file with no final newline, on its own"
+args = ["tests/fixtures/nonl.txt"]
+
+[[case]]
+name = "no final newline in the LONGER file"
+args = ["tests/fixtures/second.txt", "tests/fixtures/nonl.txt"]
+
+[[case]]
+name = "empty lines are fields too"
+stdin = "\n\na\n"
+
+[[case]]
+name = "the same file twice"
+args = ["tests/fixtures/plain.txt", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "four files"
+args = [
+    "tests/fixtures/one.txt",
+    "tests/fixtures/second.txt",
+    "tests/fixtures/plain.txt",
+    "tests/fixtures/twelve.txt",
+]
+
+[[case]]
+name = "-- ends the options"
+args = ["--", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "binary input is byte exact"
+args = ["tests/fixtures/binary.bin", "tests/fixtures/one.txt"]
+
+# ------------------------------------------------- standard input, shared
+
+[[case]]
+name = "two dashes pair consecutive lines"
+args = ["-", "-"]
+stdin = "p\nq\nr\ns\n"
+
+[[case]]
+name = "three dashes take three at a time"
+args = ["-", "-", "-"]
+stdin = "p\nq\nr\ns\n"
+
+[[case]]
+name = "two dashes on an odd number of lines"
+args = ["-", "-"]
+stdin = "p\nq\nr\n"
+
+[[case]]
+name = "two dashes on one line"
+args = ["-", "-"]
+stdin = "p\n"
+
+[[case]]
+name = "a file and standard input"
+args = ["tests/fixtures/plain.txt", "-"]
+stdin = "x\ny\n"
+
+[[case]]
+name = "standard input and a file"
+args = ["-", "tests/fixtures/plain.txt"]
+stdin = "x\ny\n"
+
+[[case]]
+name = "two dashes with a delimiter"
+args = ["-d", ",", "-", "-"]
+stdin = "p\nq\nr\ns\n"
+
+# --------------------------------------------------------------------- -d
+
+[[case]]
+name = "-d one character"
+args = ["-d", ",", "tests/fixtures/plain.txt", "tests/fixtures/second.txt"]
+
+[[case]]
+name = "--delimiters"
+args = ["--delimiters=,", "tests/fixtures/plain.txt", "tests/fixtures/second.txt"]
+
+[[case]]
+name = "-d attached"
+args = ["-d,", "tests/fixtures/plain.txt", "tests/fixtures/second.txt"]
+
+[[case]]
+name = "-d two characters cycle, and reset each record"
+args = [
+    "-d",
+    ",:",
+    "tests/fixtures/plain.txt",
+    "tests/fixtures/second.txt",
+    "tests/fixtures/one.txt",
+]
+
+[[case]]
+name = "-d a list longer than the gaps"
+args = ["-d", ",:;|", "tests/fixtures/plain.txt", "tests/fixtures/second.txt"]
+
+[[case]]
+name = "-d a list shorter than the gaps"
+args = [
+    "-d",
+    ",",
+    "tests/fixtures/plain.txt",
+    "tests/fixtures/second.txt",
+    "tests/fixtures/one.txt",
+]
+
+[[case]]
+name = "-d an explicit tab"
+args = ["-d", "\t", "tests/fixtures/plain.txt", "tests/fixtures/second.txt"]
+
+[[case]]
+name = "-d a newline"
+args = ["-d", "\\n", "tests/fixtures/plain.txt", "tests/fixtures/second.txt"]
+
+[[case]]
+name = "-d a backslash-t escape"
+args = ["-d", "\\t", "tests/fixtures/plain.txt", "tests/fixtures/second.txt"]
+
+[[case]]
+name = "-d a backslash-backslash"
+args = ["-d", "\\\\", "tests/fixtures/plain.txt", "tests/fixtures/second.txt"]
+
+[[case]]
+name = "-d backslash-zero is NO delimiter"
+args = ["-d", "\\0", "tests/fixtures/plain.txt", "tests/fixtures/second.txt"]
+
+[[case]]
+name = "-d an empty list is the same as backslash-zero"
+args = ["-d", "", "tests/fixtures/plain.txt", "tests/fixtures/second.txt"]
+
+[[case]]
+name = "-d backslash-zero among real delimiters"
+args = [
+    "-d",
+    ",\\0:",
+    "tests/fixtures/plain.txt",
+    "tests/fixtures/second.txt",
+    "tests/fixtures/one.txt",
+    "tests/fixtures/plain.txt",
+]
+
+[[case]]
+name = "-d backslash-b is a backspace"
+args = ["-d", "\\b", "tests/fixtures/one.txt", "tests/fixtures/one.txt"]
+
+[[case]]
+name = "-d backslash-f is a form feed"
+args = ["-d", "\\f", "tests/fixtures/one.txt", "tests/fixtures/one.txt"]
+
+[[case]]
+name = "-d backslash-r is a carriage return"
+args = ["-d", "\\r", "tests/fixtures/one.txt", "tests/fixtures/one.txt"]
+
+[[case]]
+name = "-d backslash-v is a vertical tab"
+args = ["-d", "\\v", "tests/fixtures/one.txt", "tests/fixtures/one.txt"]
+
+[[case]]
+name = "-d backslash-a is the LETTER a, not a bell"
+args = ["-d", "\\a", "tests/fixtures/one.txt", "tests/fixtures/one.txt"]
+
+[[case]]
+name = "-d an unknown escape is the character itself"
+args = ["-d", "\\q", "tests/fixtures/one.txt", "tests/fixtures/one.txt"]
+
+[[case]]
+name = "-d an escaped digit that is not zero"
+args = ["-d", "\\1", "tests/fixtures/one.txt", "tests/fixtures/one.txt"]
+
+[[case]]
+name = "-d a list ending in a lone backslash"
+args = ["-d", "\\", "tests/fixtures/plain.txt", "tests/fixtures/second.txt"]
+
+[[case]]
+name = "-d a list that is only escapes"
+args = ["-d", "\\n\\t", "tests/fixtures/plain.txt", "tests/fixtures/second.txt", "tests/fixtures/one.txt"]
+
+[[case]]
+name = "-d a space"
+args = ["-d", " ", "tests/fixtures/plain.txt", "tests/fixtures/second.txt"]
+
+[[case]]
+name = "-d requires an argument"
+args = ["-d"]
+
+[[case]]
+name = "-d given twice, the last wins"
+args = ["-d", ",", "-d", ":", "tests/fixtures/plain.txt", "tests/fixtures/second.txt"]
+
+# --------------------------------------------------------------------- -s
+
+[[case]]
+name = "-s one file"
+args = ["-s", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "--serial"
+args = ["--serial", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "-s two files, one line of output each"
+args = ["-s", "tests/fixtures/plain.txt", "tests/fixtures/second.txt"]
+
+[[case]]
+name = "-s with a delimiter list that cycles within the file"
+args = ["-s", "-d", ",:", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "-s with a delimiter list, two files, and the reset between them"
+args = ["-s", "-d", ",:", "tests/fixtures/plain.txt", "tests/fixtures/second.txt"]
+
+[[case]]
+name = "-s on a file with no final newline"
+args = ["-s", "tests/fixtures/nonl.txt"]
+
+[[case]]
+name = "-s on an empty file"
+args = ["-s", "tests/fixtures/empty.txt"]
+
+[[case]]
+name = "-s on an empty file between full ones"
+args = ["-s", "tests/fixtures/one.txt", "tests/fixtures/empty.txt", "tests/fixtures/second.txt"]
+
+[[case]]
+name = "-s on a one-line file"
+args = ["-s", "tests/fixtures/one.txt"]
+
+[[case]]
+name = "-s on standard input"
+args = ["-s"]
+stdin = "p\nq\nr\n"
+
+[[case]]
+name = "-s with two dashes"
+args = ["-s", "-", "-"]
+stdin = "p\nq\n"
+
+[[case]]
+name = "-s with backslash-zero"
+args = ["-s", "-d", "\\0", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "-s on twelve lines with a three-item list"
+args = ["-s", "-d", ",:;", "tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "-s and -z together"
+args = ["-s", "-z", "tests/fixtures/nulrec.dat"]
+
+# --------------------------------------------------------------------- -z
+
+[[case]]
+name = "-z on NUL records"
+args = ["-z", "tests/fixtures/nulrec.dat", "tests/fixtures/nulrec.dat"]
+
+[[case]]
+name = "--zero-terminated"
+args = ["--zero-terminated", "tests/fixtures/nulrec.dat"]
+
+[[case]]
+name = "-z on a newline file, which has no records to speak of"
+args = ["-z", "tests/fixtures/plain.txt", "tests/fixtures/second.txt"]
+
+[[case]]
+name = "-z with a delimiter"
+args = ["-z", "-d", ",", "tests/fixtures/nulrec.dat", "tests/fixtures/nulrec.dat"]
+
+# --------------------------------------------------------------- the ends
+
+[[case]]
+name = "a missing operand"
+args = ["nope"]
+
+[[case]]
+name = "a missing operand among good ones"
+args = ["tests/fixtures/plain.txt", "nope", "tests/fixtures/second.txt"]
+
+[[case]]
+name = "two missing operands"
+args = ["nope", "alsonope"]
+
+[[case]]
+name = "a missing operand under -s"
+args = ["-s", "tests/fixtures/plain.txt", "nope"]
+
+[[case]]
+name = "a directory operand"
+args = ["tests/fixtures"]
+
+[[case]]
+name = "an operand whose name needs quoting"
+args = ["a b"]
+
+[[case]]
+name = "an empty operand"
+args = [""]
+
+[[case]]
+name = "an unknown short option"
+args = ["-Q"]
+
+[[case]]
+name = "an unknown long option"
+args = ["--nope"]
+
+[[case]]
+name = "a long option given an argument it does not take"
+args = ["--serial=x"]
+
+[[case]]
+name = "an abbreviated long option"
+args = ["--ser", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "a cluster of short options"
+args = ["-sd", ",", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "options after an operand permute"
+args = ["tests/fixtures/plain.txt", "-s"]
+
+[[case]]
+name = "POSIXLY_CORRECT stops permuting"
+args = ["tests/fixtures/plain.txt", "-s"]
+env = { POSIXLY_CORRECT = "1" }
+
+# ------------------------------------------------- help, version, and exit
+
+[[case]]
+name = "--help"
+args = ["--help"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "--version"
+args = ["--version"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "--help wins over a later bad option"
+args = ["--help", "-Q"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "a bad option before --help does not"
+args = ["-Q", "--help"]
+
+[[case]]
+name = "standard output closed"
+args = ["tests/fixtures/plain.txt"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, version"
+args = ["--version"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, writing nothing"
+args = ["tests/fixtures/empty.txt"]
+stdout_closed = true
+
+[[case]]
+name = "a write error on a live descriptor"
+args = ["tests/fixtures/plain.txt"]
+stdout_file = "/dev/full"
+compare = ["exit"]
+
+[[case]]
+name = "the reader goes away"
+args = ["tests/fixtures/twelve.txt"]
+stdout_bytes = 4
+
+[[case]]
+name = "a large input through a pipe"
+stdin = "0123456789abcdef0123456789abcdef\n"
+stdin_repeat = 4096
+
+[[case]]
+name = "a large input paired with itself"
+args = ["-", "-"]
+stdin = "0123456789abcdef\n"
+stdin_repeat = 4096

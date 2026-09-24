@@ -1,0 +1,70 @@
+# paste — the bench. The work is per LINE: find the delimiter, copy the
+# line into a reusable buffer, write it, write one delimiter byte.
+#
+# PREDICTION, committed in notes/bu07-the-pin-and-the-rest-of-b3.md
+# before the first run (release tier, GNU 9.11, kasumi):
+#
+#   0.5x to 0.8x SERIAL (-s), which is one stream and a delimiter per
+#   line — close to `cat -n`'s shape.
+#
+#   0.3x to 0.6x PARALLEL, which is N open streams and a record
+#   assembled per output line, so the per-line cost is paid N times.
+#
+# The falsifier is a measured ratio outside either band. The parallel
+# rows pair a file with ITSELF through two operands, which is the same
+# bytes twice and keeps the comparison honest about the per-record cost
+# rather than about the input size.
+
+[[bench]]
+name = "start-up, no input"
+command = "{prog} < /dev/null"
+
+[[bench]]
+name = "-s, ordinary lines"
+command = "LC_ALL=C {prog} -s {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-s, very short lines"
+command = "LC_ALL=C {prog} -s {input} > /dev/null"
+input = "lines"
+
+[[bench]]
+name = "-s with a two-item delimiter list"
+command = "LC_ALL=C {prog} -s -d ,: {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "one file, which is a copy with a record terminator"
+command = "LC_ALL=C {prog} {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "two files side by side"
+command = "LC_ALL=C {prog} {input} {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "two files of very short lines"
+command = "LC_ALL=C {prog} {input} {input} > /dev/null"
+input = "lines"
+
+[[bench]]
+name = "four files side by side"
+command = "LC_ALL=C {prog} {input} {input} {input} {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "two files with a delimiter list"
+command = "LC_ALL=C {prog} -d ,: {input} {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "two files with no delimiter at all"
+command = "LC_ALL=C {prog} -d '\\0' {input} {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "a pipe paired with itself, which reads one stream twice"
+command = "LC_ALL=C {prog} - - < {input} > /dev/null"
+input = "lines"

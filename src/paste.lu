@@ -1,0 +1,571 @@
+//! member: false
+//!
+//! paste — write the corresponding lines of each file side by side.
+//!
+//! References consulted: POSIX.1-2024 `paste`; GNU coreutils 9.11's
+//! `paste --help`, the info manual's option descriptions, and black-box
+//! runs of the GNU binary (native `paste` on linux x86-64 at 9.11 under
+//! `LC_ALL=C`); uutils/coreutils (MIT) and toybox (0BSD) as design
+//! references. Never GNU source.
+//!
+//! **The delimiter LIST is the whole utility**, and it is the shape bu04
+//! named: easy to get ninety per cent right and hard to get exactly
+//! right. Every rule below was measured against the binary.
+//!
+//! - The list CYCLES, one delimiter per gap, and it RESETS: per output
+//!   record in parallel mode, per file under `-s`. So `paste -d ,: A B C`
+//!   writes `a1,b1:c1` and starts the next record at `,` again, while
+//!   `paste -s -d ,: A` writes `a1,a2:a3` — the same list, counted
+//!   differently, and the two are separate cases.
+//! - A delimiter is written between EVERY pair of fields, including the
+//!   pairs where one side is a file that has run out: three files of
+//!   three, two and one lines answer `a3<TAB><TAB>` on the last record.
+//! - `\0` in the list is not a NUL, it is NO DELIMITER AT ALL: `paste
+//!   -d '\0' A B` writes `a1b1`. An empty list (`-d ''`) means the same
+//!   thing.
+//! - The escapes, measured one at a time and NOT the C set: `\n`, `\t`,
+//!   `\\`, `\0` as above, and `\b`, `\f`, `\r`, `\v`. **`\a` is not
+//!   one** — it answers a literal `a`, as does every other `\X`. A list
+//!   ending in a lone backslash is the error `delimiter list ends with
+//!   an unescaped backslash`.
+//!
+//! **Every `-` operand shares ONE standard input**, which is why
+//! `printf 'p\nq\nr\ns\n' | paste - -` answers two records of two
+//! fields and not one file read twice. Operands are mapped to readers
+//! rather than owning them, so the second `-` continues where the first
+//! stopped, exactly as GNU's single stdin stream does.
+//!
+//! **A missing final newline is supplied** — `paste` is a record
+//! utility and every record it writes ends with the line delimiter,
+//! which `cut` also does and `cat`, `head` and `tail` do not.
+//!
+//! **Memory is flat in the input and linear in the longest line.** Each
+//! reader keeps one 256 KiB chunk, written in place from inside the
+//! per-chunk `region` so that `fs_read_chunk`'s per-call allocation
+//! cannot accumulate (wolf-lang#416), and one line buffer per operand
+//! that is grown by doubling and then reused rather than rebuilt — the
+//! shape `uniq` and `nl` arrived at.
+
+use bore
+
+/// What the command line asked for.
+struct Opts {
+    serial: bool,
+    line_delim: byte,
+    /// One entry per delimiter, in order. -1 is `\0`: no delimiter.
+    delims: List[int],
+}
+
+/// One input stream. Several operands may share one of these, which is
+/// what `paste - -` needs.
+struct Reader {
+    src: bore.In,
+    /// The live chunk, allocated once and written in place.
+    chunk: List[byte],
+    len: int,
+    pos: int,
+    ended: bool,
+    failed: bool,
+}
+
+/// One operand's current line. Separate from the reader because two
+/// `-` operands share a reader and must not share a line.
+struct Field {
+    bytes: List[byte],
+    len: int,
+    present: bool,
+}
+
+fn main() -> int {
+    // Standard output first: with descriptor 1 closed, the first file
+    // opened would take it (wolf-lang#405).
+    var out = bore.stdout()
+    var o = Opts { serial: false, line_delim: 10 as byte, delims: List[int]() }
+    var spec = "\t"
+    let p = bore.parse(options(), env_args(), bore.permute())
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i]
+        let v = p.values[i]
+        if k == "help" {
+            emit(out, help()) else |_| {
+                bore.write_error(out, "paste", "write error")
+                return 1
+            }
+            return bore.finish(mut out, "paste", 0)
+        }
+        if k == "version" {
+            emit(out, bore.version_text("paste")) else |_| {
+                bore.write_error(out, "paste", "write error")
+                return 1
+            }
+            return bore.finish(mut out, "paste", 0)
+        }
+        if k == "delimiters" {
+            spec = v
+        }
+        if k == "serial" {
+            o.serial = true
+        }
+        if k == "zero-terminated" {
+            o.line_delim = 0 as byte
+        }
+        i += 1
+    }
+    if !bore.ok(p) {
+        return bore.usage_error("paste", p.error)
+    }
+    let parsed = parse_delims(spec)
+    if parsed.err.len > 0 {
+        bore.warn("paste", parsed.err)
+        return 1
+    }
+    o.delims = parsed.items
+    var paths = List[str]()
+    for a in p.operands {
+        (mut paths).push(a)
+    }
+    if paths.len == 0 {
+        (mut paths).push("-")
+    }
+    if o.serial {
+        return serial(mut out, paths, o)
+    }
+    parallel(mut out, paths, o)
+}
+
+fn options() -> List[bore.Opt] {
+    // GNU's own long-option table order, which its
+    // "ambiguous; possibilities:" line reports and so is observable.
+    var s = List[bore.Opt]()
+    (mut s).push(bore.takes("d", "delimiters"))
+    (mut s).push(bore.flag("s", "serial"))
+    (mut s).push(bore.flag("z", "zero-terminated"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    s
+}
+
+/// The bytes asked of the host per read (bu01's measured knee).
+fn read_size() -> int {
+    262144
+}
+
+// -------------------------------------------------------- the delimiters
+
+/// A parsed delimiter list, or GNU's complaint about it.
+struct Delims {
+    items: List[int],
+    err: str,
+}
+
+/// Parse `-d`'s argument. Each item is a byte value, or -1 for `\0`,
+/// which is "no delimiter" rather than a NUL byte.
+///
+/// An EMPTY list is one `\0`: measured, `paste -d '' A B` and
+/// `paste -d '\0' A B` answer the same bytes.
+fn parse_delims(spec: str) -> Delims {
+    var items = List[int]()
+    let bs = spec.bytes()
+    var i = 0
+    while i < bs.len {
+        let c = bs[i] as int
+        if c != 92 {
+            (mut items).push(c)
+            i += 1
+            continue
+        }
+        if i + 1 >= bs.len {
+            return Delims {
+                items: items,
+                err: "delimiter list ends with an unescaped backslash: {spec}",
+            }
+        }
+        (mut items).push(escape_of(bs[i + 1] as int))
+        i += 2
+    }
+    if items.len == 0 {
+        (mut items).push(-1)
+    }
+    Delims { items: items, err: "" }
+}
+
+/// The byte a `\X` names, or -1 for `\0`.
+///
+/// Measured one escape at a time against the binary: this is NOT the C
+/// escape set. `\a` answers a literal `a`, where every other utility in
+/// this repository would make it a bell, and an unknown `\X` answers X.
+fn escape_of(c: int) -> int {
+    if c == 110 {
+        return 10
+    }
+    if c == 116 {
+        return 9
+    }
+    if c == 92 {
+        return 92
+    }
+    if c == 48 {
+        return -1
+    }
+    if c == 98 {
+        return 8
+    }
+    if c == 102 {
+        return 12
+    }
+    if c == 114 {
+        return 13
+    }
+    if c == 118 {
+        return 11
+    }
+    c
+}
+
+// ----------------------------------------------------------- the readers
+
+/// An unopened reader, for an operand that could not be opened.
+fn dead_reader() -> Reader {
+    Reader {
+        src: bore.In { fd: -1, name: "" },
+        chunk: List[byte](),
+        len: 0,
+        pos: 0,
+        ended: true,
+        failed: true,
+    }
+}
+
+/// Open `path`, reporting GNU's diagnostic and answering a dead reader
+/// when it cannot be opened.
+fn open_reader(path: str, keeper: region) -> Reader {
+    let src = bore.open_input(path) else |e| match e {
+        not_found => {
+            bore.input_error("paste", path, bore.no_such_file())
+            return dead_reader()
+        },
+        denied => {
+            bore.input_error("paste", path, bore.permission_denied())
+            return dead_reader()
+        },
+        is_dir => {
+            bore.input_error("paste", path, bore.directory_reason())
+            return dead_reader()
+        },
+        io => {
+            bore.input_error("paste", path, bore.io_error())
+            return dead_reader()
+        },
+    }
+    var chunk = List[byte]()
+    in keeper {
+        var k = 0
+        while k < read_size() {
+            (mut chunk).push(0 as byte)
+            k += 1
+        }
+    }
+    Reader { src: src, chunk: chunk, len: 0, pos: 0, ended: false, failed: false }
+}
+
+/// Fill `r`'s chunk. Answers false at the end of the stream.
+///
+/// The bytes are COPIED into a list that was allocated once, so the
+/// per-call allocation `fs_read_chunk` makes dies with the block
+/// (wolf-lang#416) and this program's memory does not grow with the
+/// input.
+fn refill(mut r: Reader) -> bool {
+    if r.ended {
+        return false
+    }
+    var got = 0
+    region pass {
+        let chunk = bore.read_chunk(r.src, read_size()) else |e| match e {
+            eof => {
+                got = 0
+                List[byte]()
+            },
+            io => {
+                got = -1
+                List[byte]()
+            },
+        }
+        if got == 0 {
+            got = chunk.len
+        }
+        if got > 0 {
+            var k = 0
+            while k < got {
+                r.chunk[k] = chunk[k]
+                k += 1
+            }
+        }
+    }
+    if got <= 0 {
+        r.ended = true
+        if got < 0 {
+            r.failed = true
+        }
+        return false
+    }
+    r.len = got
+    r.pos = 0
+    true
+}
+
+/// Make room for `n` bytes in `f`, in the region that outlives a chunk.
+fn ensure(mut f: Field, n: int, keeper: region) {
+    in keeper {
+        while f.bytes.len < n {
+            (mut f.bytes).push(0 as byte)
+        }
+    }
+}
+
+/// Read one line of `r` into `f`, up to and including `delim`.
+///
+/// `f.present` says there was a line at all; a last line with no
+/// delimiter after it is still a line.
+fn next_line(mut r: Reader, mut f: Field, delim: byte, keeper: region) {
+    f.len = 0
+    f.present = false
+    var done = false
+    while !done {
+        if r.pos >= r.len {
+            if !refill(mut r) {
+                done = true
+                continue
+            }
+        }
+        var k = r.pos
+        var hit = -1
+        while k < r.len {
+            if r.chunk[k] == delim {
+                hit = k
+                k = r.len
+            } else {
+                k += 1
+            }
+        }
+        let stop = if hit >= 0 then hit else r.len
+        let n = stop - r.pos
+        if n > 0 {
+            ensure(mut f, f.len + n, keeper)
+            var j = 0
+            while j < n {
+                f.bytes[f.len + j] = r.chunk[r.pos + j]
+                j += 1
+            }
+            f.len += n
+            f.present = true
+        }
+        if hit >= 0 {
+            r.pos = hit + 1
+            f.present = true
+            done = true
+        } else {
+            r.pos = r.len
+        }
+    }
+}
+
+// ------------------------------------------------------------- the modes
+
+/// `-s`: one file at a time, its lines joined by the cycling list.
+fn serial(mut out: bore.Out, paths: List[str], o: Opts) -> int {
+    let keeper = region()
+    var status = 0
+    var wfail = false
+    for path in paths {
+        var r = open_reader(path, keeper)
+        if r.failed {
+            status = 1
+            continue
+        }
+        var f = Field { bytes: List[byte](), len: 0, present: false }
+        var n = 0
+        var going = true
+        while going {
+            next_line(mut r, mut f, o.line_delim, keeper)
+            if !f.present {
+                going = false
+            } else {
+                if n > 0 {
+                    put_delim(o.delims, n - 1, mut out) else |_| {
+                        wfail = true
+                        going = false
+                    }
+                }
+                put_field(f, mut out) else |_| {
+                    wfail = true
+                    going = false
+                }
+                n += 1
+            }
+        }
+        // Measured: a file with NO lines still ends a record, so
+        // `paste -s empty` writes one bare delimiter. The count is not
+        // what decides it; having opened the file is.
+        if !wfail {
+            bore.put_byte(mut out, o.line_delim) else |_| {
+                wfail = true
+            }
+        }
+        if r.failed {
+            bore.input_error("paste", path, bore.io_error())
+            status = 1
+        }
+        bore.close_input(r.src)
+        if wfail {
+            bore.write_error(out, "paste", "write error")
+            return 1
+        }
+    }
+    // wolf-lang#449: the loop above claims `out` inside a conditional.
+    bore.finish_last("paste", status, mut out)
+}
+
+/// The default: one record of corresponding lines at a time.
+fn parallel(mut out: bore.Out, paths: List[str], o: Opts) -> int {
+    let keeper = region()
+    var readers = List[Reader]()
+    var slot = List[int]()
+    var fields = List[Field]()
+    var status = 0
+    var stdin_at = -1
+    // Measured: an operand that cannot be opened ENDS the run, with the
+    // diagnostic and status 1 and NOTHING on standard output — even
+    // when the operands before it opened. `paste A nope B` writes no
+    // record at all and names only `nope`, so the opens happen up
+    // front and the first failure is the last thing that happens.
+    for path in paths {
+        if path == "-" && stdin_at >= 0 {
+            // Every `-` shares ONE standard input, as GNU's single
+            // stream does: the second one continues where the first
+            // stopped.
+            (mut slot).push(stdin_at)
+        } else {
+            let r = open_reader(path, keeper)
+            if r.failed {
+                for open in readers {
+                    bore.close_input(open.src)
+                }
+                return 1
+            }
+            (mut slot).push(readers.len)
+            if path == "-" {
+                stdin_at = readers.len
+            }
+            (mut readers).push(r)
+        }
+        (mut fields).push(Field { bytes: List[byte](), len: 0, present: false })
+    }
+    var wfail = false
+    var going = true
+    while going {
+        var any = false
+        var k = 0
+        while k < slot.len {
+            next_line(mut readers[slot[k]], mut fields[k], o.line_delim, keeper)
+            if fields[k].present {
+                any = true
+            }
+            k += 1
+        }
+        if !any {
+            going = false
+        } else {
+            var j = 0
+            while j < slot.len {
+                if j > 0 {
+                    put_delim(o.delims, j - 1, mut out) else |_| {
+                        wfail = true
+                        j = slot.len
+                        going = false
+                    }
+                }
+                if j < slot.len {
+                    put_field(fields[j], mut out) else |_| {
+                        wfail = true
+                        going = false
+                    }
+                }
+                j += 1
+            }
+            if going {
+                bore.put_byte(mut out, o.line_delim) else |_| {
+                    wfail = true
+                    going = false
+                }
+            }
+        }
+    }
+    for r in readers {
+        if r.failed && !r.ended {
+            status = 1
+        }
+        bore.close_input(r.src)
+    }
+    if wfail {
+        bore.write_error(out, "paste", "write error")
+        return 1
+    }
+    // wolf-lang#449, as `serial` above.
+    bore.finish_last("paste", status, mut out)
+}
+
+/// Write the `n`-th delimiter of the cycling list. `-1` is no delimiter.
+///
+/// The writer goes LAST: wolf-lang#449 refuses `put_delim(mut out, …)`
+/// at a call that follows a conditional also claiming `out`.
+fn put_delim(delims: List[int], n: int, mut out: bore.Out) -> () ! {io} {
+    let d = delims[n % delims.len]
+    if d < 0 {
+        return
+    }
+    bore.put_byte(mut out, d as byte)?
+}
+
+/// Write a field's bytes. The writer goes last, as `put_delim`.
+fn put_field(f: Field, mut out: bore.Out) -> () ! {io} {
+    var i = 0
+    while i < f.len {
+        bore.put_byte(mut out, f.bytes[i])?
+        i += 1
+    }
+}
+
+/// Write `s` straight out.
+fn emit(out: bore.Out, s: str) -> () ! {io} {
+    var b = List[byte]()
+    for x in s.bytes() {
+        (mut b).push(x)
+    }
+    bore.write_direct(out, b)?
+}
+
+fn help() -> str {
+    """
+    Usage: paste [OPTION]... [FILE]...
+    Write the corresponding lines of each FILE side by side, separated
+    by tabs, to standard output. With no FILE, or when FILE is -, read
+    standard input.
+
+      -d, --delimiters=LIST  use the characters of LIST in turn instead
+                               of tabs; \\n, \\t, \\\\ and \\0 (no delimiter
+                               at all) are understood
+      -s, --serial           one file at a time, its own lines joined,
+                               instead of the files side by side
+      -z, --zero-terminated  the line delimiter is NUL, not newline
+          --help             print this help and exit
+          --version          print the version and exit
+
+    The LIST is used one delimiter per gap and starts again at its
+    beginning for every output record, or for every file under -s.
+    Every `-` operand reads the same standard input, so `paste - -`
+    pairs consecutive lines.
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}
