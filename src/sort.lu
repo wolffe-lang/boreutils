@@ -96,8 +96,14 @@ struct Conf {
 /// What the command line asked for beyond the comparison.
 struct Opts {
     tab: int,
+    output: str,
+    has_output: bool,
+    /// 0 sort, or the check mode's letter: `c` (99) or `C` (67).
+    check: int,
+    merge: bool,
     stable: bool,
     unique: bool,
+    zero: bool,
     unsupported: str,
 }
 
@@ -131,8 +137,13 @@ fn main() -> int {
     var keys = List[Key]()
     var o = Opts {
         tab: -1,
+        output: "",
+        has_output: false,
+        check: 0,
+        merge: false,
         stable: false,
         unique: false,
+        zero: false,
         unsupported: "",
     }
     let p = bore.parse(options(), env_args(), bore.permute())
@@ -226,11 +237,50 @@ fn main() -> int {
             }
             o.tab = t
         }
+        if k == "check" || k == "c" || k == "C" {
+            var mode = 99
+            if k == "C" {
+                mode = 67
+            }
+            if k == "check" && p.given[i] {
+                let m = bore.argmatch(v, check_words(), check_meanings())
+                if m < 0 {
+                    return bore.argmatch_error(
+                        "sort",
+                        v,
+                        "check",
+                        check_words(),
+                        check_meanings(),
+                        m == -2,
+                    )
+                }
+                if m == 1 {
+                    mode = 67
+                }
+            }
+            if o.check != 0 && o.check != mode {
+                return fail("options '-cC' are incompatible")
+            }
+            o.check = mode
+        }
+        if k == "merge" {
+            o.merge = true
+        }
+        if k == "output" {
+            if o.has_output && o.output != v {
+                return fail("multiple output files specified")
+            }
+            o.output = v
+            o.has_output = true
+        }
         if k == "stable" {
             o.stable = true
         }
         if k == "unique" {
             o.unique = true
+        }
+        if k == "zero-terminated" {
+            o.zero = true
         }
         if k == "debug" {
             o.unsupported = "--debug"
@@ -272,6 +322,15 @@ fn main() -> int {
             return fail("options '-{bad}' are incompatible")
         }
     }
+    if o.check != 0 {
+        let letter = if o.check == 67 then "C" else "c"
+        if o.has_output {
+            return fail("options '-{letter}o' are incompatible")
+        }
+        if p.operands.len > 1 {
+            return fail("extra operand {bore.quote(p.operands[1])} not allowed with -{letter}")
+        }
+    }
     for k in used {
         if k.general {
             o.unsupported = "-g (--general-numeric-sort)"
@@ -292,7 +351,7 @@ fn main() -> int {
             plain = false
         }
     }
-    let delim = 10 as byte
+    let delim = if o.zero then 0 as byte else 10 as byte
     let c = Conf {
         keys: used,
         tab: o.tab,
@@ -309,7 +368,13 @@ fn main() -> int {
     if paths.len == 0 {
         (mut paths).push("-")
     }
-    sort_mode(c, paths, out)
+    if o.check != 0 {
+        return check(c, paths[0], o.check == 67)
+    }
+    if o.merge {
+        return merge_mode(c, paths, o, out)
+    }
+    sort_mode(c, paths, o, out)
 }
 
 fn options() -> List[bore.Opt] {
@@ -346,7 +411,8 @@ fn options() -> List[bore.Opt] {
     (mut s).push(bore.takes("", "parallel"))
     (mut s).push(bore.flag("", "help"))
     (mut s).push(bore.flag("", "version"))
-    // Short-only, so they never appear in an ambiguity list.
+    // Short-only, so they never appear in an ambiguity list: `-c` is its
+    // own option and takes no word, unlike `--check[=WORD]`.
     (mut s).push(bore.flag("c", ""))
     (mut s).push(bore.flag("C", ""))
     // `-y` is an obsolete option GNU still accepts and ignores, and its
@@ -382,6 +448,24 @@ fn sort_meanings() -> List[int] {
         (mut m).push(i)
         i += 1
     }
+    m
+}
+
+/// `--check`'s vocabulary: `quiet` and `silent` are one meaning (1,
+/// `-C`), `diagnose-first` the other (0, `-c`).
+fn check_words() -> List[str] {
+    var w = List[str]()
+    (mut w).push("quiet")
+    (mut w).push("silent")
+    (mut w).push("diagnose-first")
+    w
+}
+
+fn check_meanings() -> List[int] {
+    var m = List[int]()
+    (mut m).push(1)
+    (mut m).push(1)
+    (mut m).push(0)
     m
 }
 
@@ -1299,6 +1383,44 @@ fn write_failed(out: bore.Out) -> int {
     2
 }
 
+/// The same for a `-o` file.
+fn file_write_failed(path: str) -> int {
+    bore.warn("sort", "fflush failed: {bore.quote_name(path)}: {bore.io_error()}")
+    bore.warn("sort", "write error")
+    2
+}
+
+/// Open the `-o` file for writing, or report why not and answer -1.
+fn open_output(path: str) -> int {
+    if fs_is_dir(path) {
+        bore.warn("sort", "open failed: {bore.quote_name(path)}: {bore.directory_reason()}")
+        return -1
+    }
+    let fd = fs_open_mode(path, 1) else |e| match e {
+        not_found => {
+            bore.warn("sort", "open failed: {bore.quote_name(path)}: {bore.no_such_file()}")
+            return -1
+        },
+        denied => {
+            bore.warn("sort", "open failed: {bore.quote_name(path)}: {bore.permission_denied()}")
+            return -1
+        },
+        exists => {
+            bore.warn("sort", "open failed: {bore.quote_name(path)}: {bore.io_error()}")
+            return -1
+        },
+        invalid => {
+            bore.warn("sort", "open failed: {bore.quote_name(path)}: {bore.io_error()}")
+            return -1
+        },
+        io => {
+            bore.warn("sort", "open failed: {bore.quote_name(path)}: {bore.io_error()}")
+            return -1
+        },
+    }
+    fd
+}
+
 /// Write `s` straight to standard output.
 fn emit_text(out: bore.Out, s: str) -> () ! {io} {
     var b = List[byte]()
@@ -1326,15 +1448,27 @@ fn read_failed(path: str, why: str) {
 }
 
 /// Open `path` (`-` is standard input) and answer its descriptor, or
-/// report the failure in GNU's words and answer -1.
-fn open_in(path: str) -> int {
+/// report the failure in GNU's words and answer -1. Measured: a sort or
+/// a merge says `cannot read: NAME`, a check says `open failed: NAME`.
+fn open_in(path: str, checking: bool) -> int {
     let src = bore.open_input(path) else |e| match e {
         not_found => {
-            open_failed(path, bore.no_such_file())
+            if checking {
+                bore.warn("sort", "open failed: {bore.quote_name(path)}: {bore.no_such_file()}")
+            } else {
+                open_failed(path, bore.no_such_file())
+            }
             return -1
         },
         denied => {
-            open_failed(path, bore.permission_denied())
+            if checking {
+                bore.warn(
+                    "sort",
+                    "open failed: {bore.quote_name(path)}: {bore.permission_denied()}",
+                )
+            } else {
+                open_failed(path, bore.permission_denied())
+            }
             return -1
         },
         is_dir => {
@@ -1352,20 +1486,20 @@ fn open_in(path: str) -> int {
 
 // ------------------------------------------------------------ sort mode
 
-/// Sort `paths` to standard output, in memory: every input is
+/// Sort `paths` to standard output or `-o`, in memory: every input is
 /// read into one list, the line indices are sorted, and the lines are
 /// written in that order.
 ///
 /// Everything lives in `region run`, and each read in a `region pass`
 /// inside it, so a read's own allocation dies at once and only the
 /// bytes kept are charged to the run (wolf-lang#416).
-fn sort_mode(c: Conf, paths: List[str], out: bore.Out) -> int {
+fn sort_mode(c: Conf, paths: List[str], o: Opts, out: bore.Out) -> int {
     var status = 0
     region run {
         var buf = List[byte]()
         var cur = 0
         while cur < paths.len && status == 0 {
-            let fd = open_in(paths[cur])
+            let fd = open_in(paths[cur], false)
             if fd < 0 {
                 status = 2
             }
@@ -1415,12 +1549,395 @@ fn sort_mode(c: Conf, paths: List[str], out: bore.Out) -> int {
                 k += 1
             }
             let perm = sort_index(c, buf, starts)
-            emit_lines(c, buf, starts, perm, out, -1) else |_| {
-                status = write_failed(out)
+            var ofd = -1
+            if o.has_output {
+                ofd = open_output(o.output)
+            }
+            if o.has_output && ofd < 0 {
+                status = 2
+            } else {
+                var wrote = true
+                emit_lines(c, buf, starts, perm, out, ofd) else |_| {
+                    wrote = false
+                }
+                if ofd >= 0 {
+                    fs_close(ofd) else |_| {}
+                }
+                if !wrote {
+                    status = if ofd >= 0 {
+                        file_write_failed(o.output)
+                    } else {
+                        write_failed(out)
+                    }
+                }
             }
         }
     }
     status
+}
+
+// ------------------------------------------------------------ the merge
+
+/// The readers of a merge: one slot of `slot` bytes per input in
+/// `pool`, the current line of each as `[ls, le)` (absolute), and the
+/// valid bytes of each slot.
+struct Rd {
+    fds: List[int],
+    names: List[str],
+    pool: List[byte],
+    slot: int,
+    len: List[int],
+    ls: List[int],
+    le: List[int],
+    started: List[bool],
+    eof: List[bool],
+    failed: bool,
+}
+
+fn readers(fds: List[int], names: List[str]) -> Rd {
+    var r = Rd {
+        fds: copy fds,
+        names: copy names,
+        pool: List[byte](),
+        slot: read_size(),
+        len: List[int](),
+        ls: List[int](),
+        le: List[int](),
+        started: List[bool](),
+        eof: List[bool](),
+        failed: false,
+    }
+    var i = 0
+    while i < fds.len * r.slot {
+        (mut r.pool).push(0 as byte)
+        i += 1
+    }
+    var k = 0
+    while k < fds.len {
+        (mut r.len).push(0)
+        (mut r.ls).push(0)
+        (mut r.le).push(0)
+        (mut r.started).push(false)
+        (mut r.eof).push(false)
+        k += 1
+    }
+    r
+}
+
+/// Advance reader `r` to its next line. Answers whether there is one.
+/// A last line with no delimiter is a line, ending at the data's end.
+fn next_line(r: int, delim: byte, mut rd: Rd) -> bool {
+    var pos = r * rd.slot
+    if rd.started[r] {
+        pos = rd.le[r] + 1
+    }
+    rd.started[r] = true
+    while true {
+        let base = r * rd.slot
+        let end = base + rd.len[r]
+        if pos > end {
+            return false
+        }
+        var q = pos
+        while q < end && rd.pool[q] != delim {
+            q += 1
+        }
+        if q < end {
+            rd.ls[r] = pos
+            rd.le[r] = q
+            return true
+        }
+        if rd.eof[r] {
+            if pos < end {
+                rd.ls[r] = pos
+                rd.le[r] = end
+                return true
+            }
+            return false
+        }
+        // Keep the partial line: move it to the slot's start.
+        let keep = end - pos
+        var k = 0
+        while k < keep {
+            rd.pool[base + k] = rd.pool[pos + k]
+            k += 1
+        }
+        rd.len[r] = keep
+        pos = base
+        if keep == rd.slot {
+            grow(mut rd)
+            pos = r * rd.slot
+        }
+        let b2 = r * rd.slot
+        let want = rd.slot - rd.len[r]
+        let fd = rd.fds[r]
+        var got = 0
+        var ended = false
+        var bad = false
+        region pass {
+            let chunk = fs_read_chunk(fd, want) else |e| match e {
+                eof => {
+                    ended = true
+                    List[byte]()
+                },
+                io => {
+                    bad = true
+                    List[byte]()
+                },
+            }
+            var i = 0
+            let at = b2 + rd.len[r]
+            while i < chunk.len {
+                rd.pool[at + i] = chunk[i]
+                i += 1
+            }
+            got = chunk.len
+        }
+        if bad {
+            read_failed(rd.names[r], bore.io_error())
+            rd.failed = true
+            return false
+        }
+        if got == 0 {
+            ended = true
+        }
+        rd.len[r] += got
+        if ended {
+            rd.eof[r] = true
+        }
+    }
+    false
+}
+
+/// Double every slot, keeping each reader's bytes and lines in place
+/// relative to its slot. Only a line longer than a slot reaches here.
+fn grow(mut rd: Rd) {
+    let old = rd.slot
+    let slot = old * 2
+    var pool = List[byte]()
+    var i = 0
+    while i < rd.fds.len * slot {
+        (mut pool).push(0 as byte)
+        i += 1
+    }
+    var r = 0
+    while r < rd.fds.len {
+        var k = 0
+        while k < rd.len[r] {
+            pool[r * slot + k] = rd.pool[r * old + k]
+            k += 1
+        }
+        let shift = r * slot - r * old
+        rd.ls[r] += shift
+        rd.le[r] += shift
+        r += 1
+    }
+    rd.pool = pool
+    rd.slot = slot
+}
+
+/// Merge the readers' lines to the destination. Ties go to the
+/// earlier reader, which keeps a merge of runs stable. Under `-u` a
+/// line whose keys equal the last one written is dropped, and the last
+/// one is kept in `last`, because its slot is overwritten as the
+/// reader moves on. Answers 0, or 2 after a read failure (reported),
+/// or 3 for a write failure (for the caller to report).
+fn merge_into(c: Conf, out: bore.Out, fd: int, mut rd: Rd) -> int {
+    var live = List[bool]()
+    var r = 0
+    while r < rd.fds.len {
+        (mut live).push(next_line(r, c.delim, mut rd))
+        r += 1
+    }
+    if rd.failed {
+        return 2
+    }
+    var ob = fresh_buffer()
+    var n = 0
+    // Under -u, the last line written, in one reused buffer.
+    var last = List[byte]()
+    var llen = 0
+    var have_last = false
+    while true {
+        var best = -1
+        var k = 0
+        while k < live.len {
+            if live[k] {
+                if best < 0 {
+                    best = k
+                } else if compare(
+                    c,
+                    rd.pool,
+                    rd.ls[k],
+                    rd.le[k],
+                    rd.pool,
+                    rd.ls[best],
+                    rd.le[best],
+                ) <
+                    0 {
+                    best = k
+                }
+            }
+            k += 1
+        }
+        if best < 0 {
+            break
+        }
+        let s = rd.ls[best]
+        let e = rd.le[best]
+        var keep = true
+        if c.unique && have_last {
+            keep = compare_keys(c, last, 0, llen, rd.pool, s, e) != 0
+        }
+        if keep {
+            if c.unique {
+                while last.len < e - s {
+                    (mut last).push(0 as byte)
+                }
+                var j = s
+                while j < e {
+                    last[j - s] = rd.pool[j]
+                    j += 1
+                }
+                llen = e - s
+                have_last = true
+            }
+            var i = s
+            while i <= e {
+                ob[n] = if i == e then c.delim else rd.pool[i]
+                n += 1
+                if n == ob.len {
+                    put_out(out, fd, ob) else |_| {
+                        return 3
+                    }
+                    n = 0
+                }
+                i += 1
+            }
+        }
+        live[best] = next_line(best, c.delim, mut rd)
+        if rd.failed {
+            return 2
+        }
+    }
+    put_part(out, fd, ob, n) else |_| {
+        return 3
+    }
+    0
+}
+
+// ------------------------------------------------------------ merge mode
+
+/// `-m`: every operand is a sorted input, merged as it stands. Every
+/// input is opened before a line is written, so a missing one fails
+/// the whole command with nothing written.
+fn merge_mode(c: Conf, paths: List[str], o: Opts, out: bore.Out) -> int {
+    var fds = List[int]()
+    for p in paths {
+        let f = open_in(p, false)
+        if f < 0 {
+            for x in fds {
+                fs_close(x) else |_| {}
+            }
+            return 2
+        }
+        (mut fds).push(f)
+    }
+    var ofd = -1
+    if o.has_output {
+        ofd = open_output(o.output)
+        if ofd < 0 {
+            return 2
+        }
+    }
+    var rd = readers(fds, paths)
+    let code = merge_into(c, out, ofd, mut rd)
+    if ofd >= 0 {
+        fs_close(ofd) else |_| {}
+    }
+    if code == 3 {
+        return if ofd >= 0 then file_write_failed(o.output) else write_failed(out)
+    }
+    code
+}
+
+// ------------------------------------------------------------ check mode
+
+/// `-c` / `-C`: is the one input sorted? Under `-u`, strictly. The
+/// first disorder is reported as `sort: NAME:N: disorder: LINE` —
+/// written as bytes, because LINE is whatever the input held — and the
+/// status is 1.
+fn check(c: Conf, path: str, quiet: bool) -> int {
+    let fd = open_in(path, true)
+    if fd < 0 {
+        return 2
+    }
+    var fds = List[int]()
+    (mut fds).push(fd)
+    var names = List[str]()
+    (mut names).push(path)
+    var rd = readers(fds, names)
+    // The previous line, copied into one buffer that is reused, so the
+    // check's memory does not grow with its input.
+    var prev = List[byte]()
+    var plen = 0
+    var have = false
+    var n = 0
+    var status = 0
+    while status == 0 && next_line(0, c.delim, mut rd) {
+        n += 1
+        let s = rd.ls[0]
+        let e = rd.le[0]
+        if have {
+            let d = compare(c, prev, 0, plen, rd.pool, s, e)
+            if d > 0 || c.unique && d == 0 {
+                if !quiet {
+                    disorder(path, n, rd.pool, s, e, c.delim)
+                }
+                status = 1
+            }
+        }
+        while prev.len < e - s {
+            (mut prev).push(0 as byte)
+        }
+        var i = s
+        while i < e {
+            prev[i - s] = rd.pool[i]
+            i += 1
+        }
+        plen = e - s
+        have = true
+    }
+    if path != "-" {
+        fs_close(fd) else |_| {}
+    }
+    if rd.failed {
+        return 2
+    }
+    status
+}
+
+/// Write `sort: NAME:N: disorder: LINE` and the line's delimiter to
+/// standard error as bytes: a line need not be UTF-8, and `eprint`
+/// takes a `str`. Measured: under `-z` the message ends in a NUL.
+fn disorder(path: str, n: int, a: List[byte], s: int, e: int, delim: byte) {
+    var b = List[byte]()
+    for x in "sort: {path}:{n}: disorder: ".bytes() {
+        (mut b).push(x)
+    }
+    var i = s
+    while i < e {
+        (mut b).push(a[i])
+        i += 1
+    }
+    (mut b).push(delim)
+    let fd = fs_open_mode("/dev/stderr", 2) else |_| {
+        let text = str_from_utf8(b) else "sort: {path}:{n}: disorder"
+        eprint_raw(text)
+        return
+    }
+    fs_write_chunk(fd, b) else |_| {}
+    fs_close(fd) else |_| {}
 }
 
 fn help() -> str {
