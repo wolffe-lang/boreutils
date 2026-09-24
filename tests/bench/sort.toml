@@ -1,0 +1,90 @@
+# sort — the bench. The work is: read every input into one list, sort
+# an index of its lines with a merge sort, write the lines in that order;
+# past the run budget (-S), sort each run into a temporary file and merge.
+#
+# PREDICTION, committed in notes/bu08-sort.md §3c before the first run
+# (release tier, GNU 9.11, kasumi), and made from the ORACLE'S BUILD:
+# GNU sorts on min(nproc, 8) threads — 8 on kasumi — and compares with
+# memcmp; this program sorts on one thread with a byte loop. Ratios are
+# GNU time over ours:
+#
+#   start-up                       0.8x to 1.2x
+#   whole lines, 10 MB (scale 0.01) 0.10x to 0.30x
+#   whole lines, 100 MB (scale 0.1) 0.06x to 0.20x
+#   through a pipe, 100 MB         0.06x to 0.20x
+#   -n, 10 MB                      0.15x to 0.40x
+#   -t -k key, 10 MB               0.10x to 0.35x
+#   --parallel=1, 10 MB            0.30x to 0.70x   (the fair row)
+#   external merge (-S 10M), 100 MB 0.10x to 0.30x
+#
+# The falsifier is a measured ratio outside its band. The README carries
+# the peak resident memory beside the ratios, per input size.
+
+[[bench]]
+name = "start-up, no input"
+command = "{prog} < /dev/null"
+
+[[bench]]
+name = "whole lines, a file operand"
+command = "LC_ALL=C {prog} {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "whole lines, through a pipe"
+command = "LC_ALL=C {prog} < {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "whole lines, one thread each (--parallel=1)"
+command = "LC_ALL=C {prog} --parallel=1 {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "very short lines"
+command = "LC_ALL=C {prog} {input} > /dev/null"
+input = "lines"
+
+[[bench]]
+name = "binary noise"
+command = "LC_ALL=C {prog} {input} > /dev/null"
+input = "noise"
+
+[[bench]]
+name = "-r"
+command = "LC_ALL=C {prog} -r {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-u"
+command = "LC_ALL=C {prog} -u {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-f"
+command = "LC_ALL=C {prog} -f {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-n (text, so every line is zero and the last resort decides)"
+command = "LC_ALL=C {prog} -n {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-t ' ' -k2,2, a one-field key"
+command = "LC_ALL=C {prog} -t ' ' -k2,2 {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-k2, a key to the end of the line"
+command = "LC_ALL=C {prog} -k2 {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-s -k1,1, stable on a short key"
+command = "LC_ALL=C {prog} -s -k1,1 {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "the external merge, -S 10M"
+command = "LC_ALL=C {prog} -S 10M -T ${TMPDIR:-/tmp} {input} > /dev/null"
+input = "big"
