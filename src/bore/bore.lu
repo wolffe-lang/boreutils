@@ -830,6 +830,30 @@ pub fn output_ok(o: Out, prog: str) -> bool {
     true
 }
 
+// ------------------------------------------- the wolf-lang#449 spellings
+//
+// wolf 0.2.16's new exclusivity leg (E1002, CHANGELOG "a container
+// element is a place") walks everything spelled AFTER a `mut` argument,
+// and the walk is not bounded by the call's argument list: it reaches
+// statements BEFORE the call and reports them as living inside its
+// extent. What it refuses is the shape this module prescribes — write
+// something under a condition, then call the shared writer — and it
+// lands on seven of the fifteen utilities. A `mut` argument with
+// NOTHING spelled after it is not walked, which is the whole of the
+// workaround. Filed with its witness and four controls as
+// wolf-lang#449; delete these two and their call sites at the release
+// that closes it.
+
+/// `put` with the writer last. See wolf-lang#449 above.
+pub fn put_last(s: str, mut o: Out) -> () ! {io} {
+    put(mut o, s)?
+}
+
+/// `finish` with the writer last. See wolf-lang#449 above.
+pub fn finish_last(prog: str, status: int, mut o: Out) -> int {
+    finish(mut o, prog, status)
+}
+
 /// Flush `o` and answer `status`, or report the write error and answer 1.
 ///
 /// This is the last act of every boreutils program, and on the common
