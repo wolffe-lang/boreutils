@@ -28,6 +28,16 @@
 //! `-u` keeps the FIRST of each run of equal lines in input order —
 //! measured: `printf 'B\na\nb\nA\n' | sort -fu` is `a`, `B`.
 //!
+//! **The key, measured with `--debug`.** Without `-t` a field is its
+//! leading blanks plus the non-blanks after them. `-k F.C` starts C-1
+//! characters into field F (after its blanks under `b`); `,F` ends at
+//! the end of field F and `,F.C` ends C characters after field F's
+//! start (after its blanks under `b`) — and that end is NOT clamped to
+//! the field: `-t: -k1,1.4` over `ab:cd` is `ab:c`. A key whose end is
+//! before its start is empty. Global ordering options are inherited by
+//! a key only when the key names no option letter of its own; `-b`
+//! inherited attaches to both ends.
+//!
 //! **Memory.** Every input is held in one `List[byte]`, sorted as an
 //! index of line starts, and written. A `List` grows by doubling and the
 //! arena frees nothing (wolf-std F-0011), so the held input costs about
@@ -85,6 +95,7 @@ struct Conf {
 
 /// What the command line asked for beyond the comparison.
 struct Opts {
+    tab: int,
     stable: bool,
     unique: bool,
     unsupported: str,
@@ -117,7 +128,9 @@ fn main() -> int {
     // opened would take it (wolf-lang#405).
     var out = bore.stdout()
     var g = blank_key()
+    var keys = List[Key]()
     var o = Opts {
+        tab: -1,
         stable: false,
         unique: false,
         unsupported: "",
@@ -192,6 +205,27 @@ fn main() -> int {
             }
             set_letter(m, mut g)
         }
+        if k == "key" {
+            var key = blank_key()
+            let err = parse_key(v, mut key)
+            if err.len > 0 {
+                return fail(err)
+            }
+            (mut keys).push(key)
+        }
+        if k == "field-separator" {
+            let t = tab_of(v)
+            if t == -2 {
+                return fail("empty tab")
+            }
+            if t == -3 {
+                return fail("multi-character tab {bore.quote(v)}")
+            }
+            if o.tab >= 0 && o.tab != t {
+                return fail("incompatible tabs")
+            }
+            o.tab = t
+        }
         if k == "stable" {
             o.stable = true
         }
@@ -216,9 +250,22 @@ fn main() -> int {
         eprint("sort: {p.error}\nTry 'sort --help' for more information.")
         return 2
     }
-    // With no key, the global options make one: the whole line.
+    // A key that names no option letter inherits every global one; a
+    // global -b attaches to both of its ends.
     var used = List[Key]()
-    (mut used).push(copy g)
+    if keys.len == 0 {
+        var d = copy g
+        d.own = false
+        (mut used).push(d)
+    } else {
+        for k in keys {
+            var d = copy k
+            if !d.own {
+                inherit(g, mut d)
+            }
+            (mut used).push(d)
+        }
+    }
     for k in used {
         let bad = incompatible(k)
         if bad.len > 0 {
@@ -239,7 +286,7 @@ fn main() -> int {
     if o.unsupported.len > 0 {
         return fail("{o.unsupported} is not supported by this sort")
     }
-    var plain = true
+    var plain = keys.len == 0
     for k in used {
         if k.numeric || k.human || k.month || k.fold || k.dict || k.nonprint || k.sblank {
             plain = false
@@ -248,7 +295,7 @@ fn main() -> int {
     let delim = 10 as byte
     let c = Conf {
         keys: used,
-        tab: -1,
+        tab: o.tab,
         reverse: g.reverse,
         stable: o.stable,
         unique: o.unique,
@@ -354,6 +401,21 @@ fn set_letter(m: int, mut k: Key) {
     }
 }
 
+fn inherit(g: Key, mut k: Key) {
+    k.sblank = g.sblank
+    k.eblank = g.eblank
+    k.numeric = g.numeric
+    k.human = g.human
+    k.month = g.month
+    k.general = g.general
+    k.random = g.random
+    k.version = g.version
+    k.reverse = g.reverse
+    k.fold = g.fold
+    k.dict = g.dict
+    k.nonprint = g.nonprint
+}
+
 /// The option letters of a key GNU names when they cannot be combined,
 /// or `""` when they can. Measured: the letters print in the order
 /// `dfghiMnRV`, `i` is dropped when `d` is present (`-d` subsumes it),
@@ -415,22 +477,259 @@ fn incompatible(k: Key) -> str {
     s
 }
 
+/// `-t`'s argument as a byte value: -2 empty, -3 more than one
+/// character. `\0` is GNU's documented spelling of the NUL separator.
+fn tab_of(v: str) -> int {
+    if v.len == 0 {
+        return -2
+    }
+    if v == "\\0" {
+        return 0
+    }
+    if v.len > 1 {
+        return -3
+    }
+    v.bytes()[0] as int
+}
+
+// -------------------------------------------------------- the key grammar
+
+/// Where a decimal count ends, and its value: `strtoumax`'s shape, so
+/// leading white space and a `+` are taken, a `-` is not, and an
+/// overflow clamps rather than failing (measured: `-k
+/// 99999999999999999999` is accepted).
+struct Count {
+    value: int,
+    next: int,
+}
+
+fn count_at(b: List[byte], at: int) -> Count {
+    var i = at
+    while i < b.len && is_space(b[i] as int) {
+        i += 1
+    }
+    if i < b.len && b[i] as int == 43 {
+        i += 1
+    }
+    let first = i
+    var v = 0
+    while i < b.len && b[i] as int >= 48 && b[i] as int <= 57 {
+        if v < huge() / 10 {
+            v = v * 10 + (b[i] as int - 48)
+        } else {
+            v = huge()
+        }
+        i += 1
+    }
+    if i == first {
+        return Count { value: -1, next: at }
+    }
+    Count { value: v, next: i }
+}
+
+/// A count past any line: fields and offsets clamp here.
+fn huge() -> int {
+    1152921504606846975
+}
+
+fn is_space(n: int) -> bool {
+    n == 32 || n >= 9 && n <= 13
+}
+
+/// The rest of `s` from byte `at`, for a diagnostic.
+fn rest(s: str, at: int) -> str {
+    s.get(at..) else s
+}
+
+/// Parse a KEYDEF, `F[.C][OPTS][,F[.C][OPTS]]`, into `k`. Answers the
+/// whole diagnostic GNU prints, or `""`. Every wording below was read
+/// off GNU 9.11.
+fn parse_key(spec: str, mut k: Key) -> str {
+    let b = spec.bytes()
+    let whole = "invalid field specification {bore.quote(spec)}"
+    let f = count_at(b, 0)
+    if f.value < 0 {
+        return "invalid number at field start: invalid count at start of {bore.quote(spec)}"
+    }
+    if f.value == 0 {
+        return "field number is zero: {whole}"
+    }
+    k.sfield = f.value - 1
+    var i = f.next
+    if i < b.len && b[i] as int == 46 {
+        let c = count_at(b, i + 1)
+        if c.value < 0 {
+            return "invalid number after '.': invalid count at start of {bore.quote(rest(spec, i + 1))}"
+        }
+        if c.value == 0 {
+            return "character offset is zero: {whole}"
+        }
+        k.schar = c.value - 1
+        i = c.next
+    }
+    while i < b.len && letter(b[i] as int, true, mut k) {
+        i += 1
+    }
+    if i < b.len && b[i] as int == 44 {
+        let e = count_at(b, i + 1)
+        if e.value < 0 {
+            return "invalid number after ',': invalid count at start of {bore.quote(rest(spec, i + 1))}"
+        }
+        if e.value == 0 {
+            return "field number is zero: {whole}"
+        }
+        k.efield = e.value
+        i = e.next
+        if i < b.len && b[i] as int == 46 {
+            let c = count_at(b, i + 1)
+            if c.value < 0 {
+                return "invalid number after '.': invalid count at start of {bore.quote(rest(spec, i + 1))}"
+            }
+            k.echar = c.value
+            i = c.next
+        }
+        while i < b.len && letter(b[i] as int, false, mut k) {
+            i += 1
+        }
+    }
+    if i < b.len {
+        return "stray character in field spec: {whole}"
+    }
+    ""
+}
+
+/// Apply one ordering letter to `k`, answering whether it was one. `b`
+/// attaches to the end of the key it follows; the others to the key.
+fn letter(c: int, start: bool, mut k: Key) -> bool {
+    if c == 98 {
+        if start {
+            k.sblank = true
+        } else {
+            k.eblank = true
+        }
+    } else if c == 100 {
+        k.dict = true
+    } else if c == 102 {
+        k.fold = true
+    } else if c == 103 {
+        k.general = true
+    } else if c == 104 {
+        k.human = true
+    } else if c == 105 {
+        k.nonprint = true
+    } else if c == 77 {
+        k.month = true
+    } else if c == 110 {
+        k.numeric = true
+    } else if c == 82 {
+        k.random = true
+    } else if c == 114 {
+        k.reverse = true
+    } else if c == 86 {
+        k.version = true
+    } else {
+        return false
+    }
+    k.own = true
+    true
+}
+
 // ------------------------------------------------------------ comparison
 
 fn is_blank(n: int) -> bool {
     n == 32 || n == 9 || n == 10
 }
 
-/// Where key `ki` of the line `a[s..e]` begins: past its blanks under
-/// `-b`.
+/// Where key `ki` of the line `a[s..e]` begins.
 fn key_begin(c: Conf, ki: int, a: List[byte], s: int, e: int) -> int {
     var p = s
+    var f = c.keys[ki].sfield
+    if c.tab >= 0 {
+        while f > 0 && p < e {
+            while p < e && a[p] as int != c.tab {
+                p += 1
+            }
+            if p < e {
+                p += 1
+            }
+            f -= 1
+        }
+    } else {
+        while f > 0 && p < e {
+            while p < e && is_blank(a[p] as int) {
+                p += 1
+            }
+            while p < e && !is_blank(a[p] as int) {
+                p += 1
+            }
+            f -= 1
+        }
+    }
     if c.keys[ki].sblank {
         while p < e && is_blank(a[p] as int) {
             p += 1
         }
     }
-    p
+    let ch = c.keys[ki].schar
+    if ch > e - p {
+        return e
+    }
+    p + ch
+}
+
+/// Where key `ki` of the line `a[s..e]` ends (exclusive).
+fn key_end(c: Conf, ki: int, a: List[byte], s: int, e: int) -> int {
+    if c.keys[ki].efield < 0 {
+        return e
+    }
+    var p = s
+    var f = c.keys[ki].efield - 1
+    if c.tab >= 0 {
+        while f > 0 && p < e {
+            while p < e && a[p] as int != c.tab {
+                p += 1
+            }
+            if p < e {
+                p += 1
+            }
+            f -= 1
+        }
+    } else {
+        while f > 0 && p < e {
+            while p < e && is_blank(a[p] as int) {
+                p += 1
+            }
+            while p < e && !is_blank(a[p] as int) {
+                p += 1
+            }
+            f -= 1
+        }
+    }
+    let ch = c.keys[ki].echar
+    if ch == 0 {
+        if c.tab >= 0 {
+            while p < e && a[p] as int != c.tab {
+                p += 1
+            }
+        } else {
+            while p < e && is_blank(a[p] as int) {
+                p += 1
+            }
+            while p < e && !is_blank(a[p] as int) {
+                p += 1
+            }
+        }
+        return p
+    }
+    if c.keys[ki].eblank {
+        while p < e && is_blank(a[p] as int) {
+            p += 1
+        }
+    }
+    if ch > e - p {
+        return e
+    }
+    p + ch
 }
 
 /// Compare two lines: every key in order, then — unless `-s` or `-u` —
@@ -457,8 +756,16 @@ fn compare_keys(c: Conf, a: List[byte], sa: int, ea: int, b: List[byte], sb: int
     var ki = 0
     while ki < c.keys.len {
         let ka = key_begin(c, ki, a, sa, ea)
+        var kae = key_end(c, ki, a, sa, ea)
+        if kae < ka {
+            kae = ka
+        }
         let kb = key_begin(c, ki, b, sb, eb)
-        let d = key_cmp(c, ki, a, ka, ea, b, kb, eb)
+        var kbe = key_end(c, ki, b, sb, eb)
+        if kbe < kb {
+            kbe = kb
+        }
+        let d = key_cmp(c, ki, a, ka, kae, b, kb, kbe)
         if d != 0 {
             return if c.keys[ki].reverse then -d else d
         }
