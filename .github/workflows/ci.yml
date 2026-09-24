@@ -20,7 +20,10 @@
 #
 # The `field` job below is the other half of the ruling and is
 # INFORMATION, not a verdict: it runs the distro's own GNU so the
-# divergences the cases name with gnu_min / gnu_max stay honest.
+# divergences the cases name with gnu_min / gnu_max stay honest. It is
+# non-blocking about WHAT GNU ANSWERED and blocking about WHETHER THE
+# LEG RAN — that is B98's ruling, and `tools/field-verdict` is where it
+# is written down and `tools/field-verdict-selftest` is the gate on it.
 #
 # The toolchain is acquired from the release archives BY DIGEST
 # (tools/fetch-toolchain refuses on a mismatch); nothing is built from
@@ -118,6 +121,14 @@ jobs:
       - name: the report survives the process (boreutils#10)
         run: tools/difftest-evidence
 
+      # B98. The `field` leg's ruling is a shell script, so it is tested
+      # like one: every exit code the leg can produce, judged, plus a
+      # REAL planted SIGPIPE death of `tools/difftest` whose pipeline
+      # status is 0 — which is how the leg died unnoticed in run
+      # 35673565877 in the first place.
+      - name: a death on the field leg is loud (B98)
+        run: tools/field-verdict-selftest
+
       - name: smoke bench
         run: tools/bench --scale 0.0005 --runs 3
 
@@ -130,7 +141,15 @@ jobs:
   field:
     name: the field's GNU (information, not a verdict)
     runs-on: ubuntu-latest
-    continue-on-error: true
+    # NO `continue-on-error` on the job any more (B98). It made the leg
+    # non-blocking about everything, including its own death: in run
+    # 35673565877 `tools/difftest` here took exit 141 from signal 13,
+    # left a partial report, and the job reported `success`, because
+    # linux's pipe block is 4096 bytes and macOS's is 16384 so only the
+    # macOS deaths were ever loud enough to notice. The advisory now
+    # lives on the one step that earns it — the differential run, whose
+    # exit 1 is a divergence and is DATA — and `tools/field-verdict`
+    # decides which of the two a given exit code is.
     timeout-minutes: 30
     env:
       BORE_GNU_PREFIX: ""
@@ -149,5 +168,24 @@ jobs:
       - name: build (release)
         run: tools/build
 
+      # `continue-on-error` HERE, not on the job: a divergence against
+      # the runner's own GNU is the finding this leg exists to make.
       - name: the differential suite against the distro's GNU
-        run: tools/difftest
+        id: differential
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          tools/difftest
+          code=$?
+          set -e
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          exit $code
+
+      # And the ruling, which is NOT continue-on-error: a leg that
+      # cannot say whether it finished has produced no information, so a
+      # signal death or a harness refusal reds the build even though a
+      # verdict difference does not (B98).
+      - name: what that exit code MEANS (B98)
+        shell: bash
+        run: tools/field-verdict '${{ steps.differential.outputs.code }}'
