@@ -63,7 +63,7 @@ GNU coreutils is the oracle and must be installed: natively on linux,
 record** below.
 
 **Windows is out of scope.** The only byte-exact route to standard
-input and output in wolf 0.2.14 is reopening `/dev/stdin` and
+input and output in wolf 0.2.16 is reopening `/dev/stdin` and
 `/dev/stdout` (wolf-lang#405), which windows does not have. CI runs on
 linux and macOS.
 
@@ -85,7 +85,7 @@ and measured black-box against GNU:
   works around it.
 
 Two things GNU says that boreutils cannot yet say. The reason text
-after a failed write is `strerror(errno)`, and wolf 0.2.14 carries no
+after a failed write is `strerror(errno)`, and wolf 0.2.16 carries no
 errno text behind an `io` row (wolf-lang#407), so a full disk is
 `write error: Input/output error` here against GNU's `write error: No
 space left on device`; the status is the same and the differential case
@@ -106,11 +106,41 @@ verdict depends on which host ran it is a matrix rather than an oracle.
   against any other. `BORE_ORACLE_ANY=1` runs anyway and says on every
   run that the result is information.
 - `tools/fetch-oracle` installs the oracle by sha256 digest where the
-  host does not already ship it. CI does this and caches it.
+  host does not already ship it, with the configure line the pin file
+  names. CI does this and caches it.
 - Where an older GNU still in the field behaves differently, the case
   names the range it describes with `gnu_min` / `gnu_max`, and CI's
   non-blocking `field` job runs the distro's own GNU so those ranges
   stay honest.
+
+**The pin is a version AND an environment** (B73). Two builds of one
+coreutils release disagree about the obsolete `+N` operand form —
+Arch's `tail +3` reads "from line 3" and Homebrew's reads `+3` as a
+file name — because gnulib decides it from a value `configure` compiles
+in. A pin file cannot name a build nobody published, and it does not
+have to: `$_POSIX2_VERSION` overrides that value at run time, so
+`[oracle.env]` in `gnu-oracle.toml` pins it beside `LC_ALL`, and every
+build answers the same. `[oracle.probe]` then runs one command whose
+answer the build-time default decides — `uniq +1 /dev/null` — and
+`tools/difftest` refuses a verdict when the answer is not the one the
+pin file declares, exactly as it refuses one against the wrong version.
+On the `field` leg the probe is reported rather than enforced, which is
+how B73 was found in the first place.
+
+What that does NOT close is the other half: divergences that are the
+two hosts' C LIBRARY rather than coreutils at all — `seq -f %a`, the
+`strerror(ERANGE)` wording, the width table — and a build identity
+would not have helped there either. Those stay recorded skips.
+
+**A death on the `field` leg is loud, a difference is not** (B98). The
+leg used to carry `continue-on-error` on the whole job, which made it
+non-blocking about everything including its own death: it had been
+dying of signal 13 with a partial report and reporting success. The
+advisory now sits on the differential step alone, and
+`tools/field-verdict` decides what an exit code means — 0 quiet, 1 an
+advisory, a signal death or a harness refusal LOUD.
+`tools/field-verdict-selftest` gates that, planting a real SIGPIPE
+death of the harness on every CI run.
 
 The oracle is a binary we run, never a source we read; building it
 derives no boreutils code from GPL source.
@@ -118,8 +148,14 @@ derives no boreutils code from GPL source.
 ## Status
 
 Every utility below is byte-for-byte identical to GNU coreutils 9.11 on
-its differential corpus: **1,272 differential cases, 0 failing, 16
-skipped.** Four `wc` cases are skipped and say why in
+its differential corpus. The corpus holds **1,772 cases**; a run on
+kasumi (linux x86-64) at this pin answers **1,753 passed, 0 failed, 19
+skipped**, and macOS skips five more that need `/dev/full`. The corpus
+and the run are stated separately on purpose: an earlier edition of this
+paragraph called the passing count the case count, which quietly
+subtracted the skips from the corpus instead of naming them.
+
+Four `wc` cases are skipped and say why in
 the case file: two errno shapes that no wolf fs row can carry
 (wolf-lang#407), and two code points whose display width the two hosts'
 own `wcwidth` disagree about. Five more run only on a host with
@@ -132,15 +168,25 @@ descriptor 1 closed, 9.11 stops at the first write that fails and 9.4
 keeps walking, so `wc FILE nope >&-` names the missing file on 9.4 and
 not on 9.11.
 
-**The transform set adds nine more skips, all the same shape, and none
+**The transform set adds eight more skips, all the same shape, and none
 of them a coreutils version difference.** They are places where the two
 hosts' C LIBRARIES disagree at one coreutils release, or where GNU's
-long double gives an answer exact arithmetic does not: `uniq +1` (a
-BUILD-TIME POSIX2 setting, not a release, so Arch reads it as a skip and
-Homebrew as a file name), `seq -f %a`, `seq 1 1 1e400`, `seq 1e30 …` and
-two long-double stalls, `nl -w 0`'s `strerror(ERANGE)` wording, and one
-BRE construct `nl` here does not implement. Each names both hosts'
-answers in its own `skip` line.
+long double gives an answer exact arithmetic does not: `seq -f %a`,
+`seq 1 1 1e400`, `seq 1e30 …` and two long-double stalls, `nl -w 0`'s
+`strerror(ERANGE)` wording, and one BRE construct `nl` here does not
+implement. Each names both hosts' answers in its own `skip` line.
+
+**It used to be nine, and `uniq +1` was the ninth.** That one was a
+BUILD-TIME POSIX2 setting rather than a release, so Arch read `+1` as
+"skip one character" and Homebrew as a file name; `tail +3` was skipped
+for the same reason. Both are ordinary cases now, because the oracle
+pins the environment that decides it (B73, above). The text-tools
+milestone adds four skips of its own and no more: two `fold -w` values
+that are numbers OUT OF RANGE, where GNU appends the C library's
+`strerror(ERANGE)` and the two hosts word it differently — the same
+shape as `nl -w 0` — and two `tac -r` expressions, `\(…\)` and `\|`,
+that are outside the regular-expression subset that utility states in
+its header.
 
 "vs GNU" is wall-clock from `tools/bench`, GNU's time divided by ours,
 so above 1.00 is faster than GNU. It is a measurement on a stated host,
@@ -217,7 +263,7 @@ file is 16 MiB of nought-to-seven-letter lines.
 So `cat` starts up level with GNU on both hosts and loses on bulk
 copying, by 1.6x on macOS and by 6x on linux. GNU moves the bytes
 without a round trip through user space where the host allows it, and
-wolf 0.2.14 exposes neither `splice` nor `copy_file_range`, so every
+wolf 0.2.16 exposes neither `splice` nor `copy_file_range`, so every
 byte we copy is read into a list and written back out.
 
 Memory is level, and flat in the size of the input either way: copying
@@ -287,7 +333,7 @@ whole fresh list.
 
 **`tail` on a regular file is O(size) here and O(1) for GNU, and no
 amount of tuning closes that.** GNU seeks to the end and reads a few
-kilobytes; wolf 0.2.14 has no seek, no tell and no positional read
+kilobytes; wolf 0.2.16 has no seek, no tell and no positional read
 (wolf-lang#426, filed by this lane), so boreutils reads the file
 forward. On a PIPE, where GNU cannot seek either, the comparison is
 fair and boreutils is level with it: 1.00x on `-c` and 0.60x on `-n`.
@@ -428,6 +474,102 @@ where that bound is the line and not the chunk, `uniq` peaks at 527 MB
 against GNU's 70 MB and `nl` at 398 MB: the line is materialized six to
 eight times over on the way through, and GNU holds one copy.
 
+The text-tools set — `tac`, `paste`, `fold`, `expand` and `unexpand` —
+finishes B3, and its table is the first in this repository where wolf is
+AHEAD of GNU on most rows. kasumi (linux x86-64, 16 cpus) at load 2–5,
+release tier, GNU coreutils 9.11, 5 runs, 256 MiB of generated text and
+16 MiB of very short lines. Wave 45 forbids builds on nomad-1, so there
+is no macOS column.
+
+**The predictions were written into `notes/bu07-the-pin-and-the-rest-of-b3.md`
+and the bench files before anything was measured, and four of the five
+were wrong.**
+
+| bench | boreutils | GNU | vs GNU |
+|---|---:|---:|---:|
+| `tac`, ordinary lines, a file | 778 ms | 139 ms | 0.18x |
+| `tac`, ordinary lines, a pipe | 778 ms | 142 ms | 0.18x |
+| `tac`, very short lines | 89 ms | 53 ms | 0.60x |
+| `tac -b` | 773 ms | 139 ms | 0.18x |
+| `tac -s ' '` | 1142 ms | 562 ms | 0.49x |
+| `tac -r -s q`, a literal expression | 1245 ms | 3472 ms | **2.79x** |
+| `tac -r -s '[aeiou][aeiou]*'` | 2072 ms | 4329 ms | **2.09x** |
+| `paste -s` | 837 ms | 481 ms | 0.57x |
+| `paste`, one file | 780 ms | 294 ms | 0.38x |
+| `paste`, two files | 1629 ms | 609 ms | 0.37x |
+| `paste`, four files | 3312 ms | 1158 ms | 0.35x |
+| `fold -b` | 867 ms | 1191 ms | **1.37x** |
+| `fold`, display columns | 980 ms | 1676 ms | **1.71x** |
+| `fold -c` under UTF-8 | 1164 ms | 1395 ms | **1.20x** |
+| `fold`, columns under UTF-8 | 1776 ms | 1902 ms | **1.07x** |
+| `fold -s` | 1276 ms | 2697 ms | **2.11x** |
+| `fold -b -w 64` on binary noise | 220 ms | 1132 ms | **5.15x** |
+| `expand` | 707 ms | 2101 ms | **2.97x** |
+| `expand -t 3,7` | 702 ms | 2118 ms | **3.02x** |
+| `expand -i` | 694 ms | 1596 ms | **2.30x** |
+| `expand` on a tab-heavy input | 3274 ms | 3312 ms | **1.01x** |
+| `expand` on binary noise | 177 ms | 1500 ms | **8.47x** |
+| `unexpand` | 668 ms | 1701 ms | **2.55x** |
+| `unexpand -a` | 1170 ms | 3145 ms | **2.69x** |
+| `unexpand -a` over long blank runs | 348 ms | 351 ms | **1.01x** |
+| `unexpand -a` under UTF-8 | 1190 ms | 3561 ms | **2.99x** |
+| `unexpand` on binary noise | 173 ms | 1594 ms | **9.23x** |
+
+**`tac` is the one that loses, and the reason is `tail`'s reason.** GNU
+seeks to the end of a regular file and walks backwards through it; wolf
+0.2.16 has no seek, no tell and no positional read (wolf-lang#426), so
+`tac` reads the whole input forward before it can answer anything. That
+is 0.18x, and through a pipe — where GNU cannot seek either — it is
+*still* 0.18x, because GNU buffers a pipe to `$TMPDIR` and reads it back
+with the same seek. There is no arrangement of this program that closes
+that gap today.
+
+**`tac -r` is the other side of the same coin.** GNU's regular-expression
+path gives up the seek and runs `re_search` backwards over the buffer,
+and a small hand-written matcher beats it by 2.1x to 2.8x on the same
+input. So `tac` is 0.18x where GNU has a syscall we do not and 2.8x
+where neither of us does.
+
+**Where GNU decodes and we do not have to, we win by a lot.** `expand`,
+`unexpand` and `fold` are 1.0x to 9.2x, and the largest ratios are on
+BINARY NOISE — 8.5x and 9.2x — because coreutils 9.x runs these
+utilities through a multibyte decoder even in the C locale, and invalid
+bytes are its slowest path. The smallest ratios are where the OUTPUT is
+large: `expand` on a tab-heavy input is 1.01x, because there both sides
+are writing, not deciding.
+
+**`fold -s` was predicted to be the worst row and is the best of its
+width** (2.11x). The backwards scan for the last blank runs once per
+break over a piece that is at most `-w` bytes long; GNU pays more for
+the same decision.
+
+Memory is flat in the input for four of the five. Peak RSS over
+256 MiB, ours against GNU's: `paste -s` 3.4 MB against 1.7 MB, `paste`
+of two files 4.3 MB against 1.7 MB, `fold` 4.4 MB against 2.0 MB,
+`expand` 3.3 MB against 2.0 MB, `unexpand -a` 3.4 MB against 2.0 MB.
+
+**Getting there was a measurement, not a habit.** All five first wrote
+their output through `bore.put_byte`, which is correct and cost **2.6 to
+2.8 times the output in resident memory**: the shared writer empties its
+buffer by allocating a fresh one, and every replacement is abandoned in
+an arena that frees nothing, so `expand` over 256 MiB peaked at 715 MB
+and `paste` of two such files at 1.35 GB. The three that read and write
+a chunk at a time now build each pass's output inside the per-chunk
+`region` and hand it to `write_direct`; `tac` and `paste` cannot do that
+and use `bore.Sink`, one buffer filled in place and written whole.
+
+**`tac` is the exception and always will be**: it holds the whole input,
+so 256 MiB peaks at **515 MB**, twice the input, against GNU's 1.8 MB.
+The factor of two is not the design, it is `List` having no capacity
+surface at 0.2.16 (wolf-std F-0011): a list built by pushing doubles,
+and each doubling abandons the previous buffer. Sizing it up front from
+`fs_fstat` does not help — filling it is itself a run of pushes — and
+that was measured rather than assumed.
+
+A single line that is the whole input is the other bound: a 64 MiB line
+with no newline in it costs `fold` 322 MB and `paste` 131 MB, against
+GNU's 2.0 MB and 1.7 MB, for the same reason.
+
 | utility | status | vs GNU |
 |---|---|---|
 | `true` | done | start-up only |
@@ -445,3 +587,8 @@ eight times over on the way through, and GNU holds one copy.
 | `uniq` | done | 0.46x to **1.01x** (linux) |
 | `seq` | done | 0.07x on integers, **1.27x to 1.96x** everywhere else (linux) |
 | `nl` | done | 0.51x to **1.20x** (linux) |
+| `tac` | done | 0.18x on a stream, **2.09x to 2.79x** under `-r` (linux) |
+| `paste` | done | 0.35x to 0.57x (linux) |
+| `fold` | done | **1.07x to 5.15x** (linux) |
+| `expand` | done | **1.01x to 8.47x** (linux) |
+| `unexpand` | done | **1.00x to 9.23x** (linux) |
