@@ -50,8 +50,17 @@
 //! the native tier (measured, 8 × 50 MB peaked at 924 MB), while a
 //! `region run { }` block does (118 MB). No seek is needed
 //! (wolf-lang#426 does not bound this). A `List` grows by doubling and
-//! the arena frees nothing (wolf-std F-0011), so the held input costs
-//! about twice itself.
+//! the arena frees nothing (wolf-std F-0011), so a run costs about three
+//! times its budget — twice for the bytes, and the line index — and a
+//! run never reads past its budget, because one push across a power of
+//! two doubles the list again. Measured on kasumi: 1 GB sorted with the
+//! default budget peaks at 808 MB (GNU: 3.0 GB), and at `-S 10M` the
+//! peak is 41 MB for 100 MB and for 1 GB alike.
+//!
+//! **Temporary files are created with the host's default mode**, 0666
+//! less the umask, where GNU's are 0600: wolf has no surface to create a
+//! file with a mode (wolf-lang#346), so under a permissive umask another
+//! user can read a run while it exists.
 //!
 //! **What is not here.** `-g`, `-V`, `-R`, `--random-source`,
 //! `--files0-from`, `--compress-program` and `--debug` are parsed, so a
@@ -1781,17 +1790,43 @@ fn sort_mode(c: Conf, paths: List[str], o: Opts, out: bore.Out) -> int {
             var blen = buf.len
             var full = false
             while !full && !exhausted && status == 0 {
-                if fd < 0 {
+                // A run ends when its list reaches the budget, at its last
+                // whole line, and the rest is carried; each read asks for
+                // no more than the budget has left, so the list never
+                // crosses it. Crossing a power of two doubles a list, and
+                // at the default budget that one push cost 512 MiB
+                // (measured: 1 GB sorted at 1,060 MB of peak RSS). With no
+                // whole line held yet, reading goes on.
+                if blen >= o.budget {
+                    var q = blen - 1
+                    while q >= 0 && buf[q] != c.delim {
+                        q -= 1
+                    }
+                    if q >= 0 && blen - (q + 1) <= carry.len {
+                        var k = q + 1
+                        while k < blen {
+                            carry[carry_len] = buf[k]
+                            carry_len += 1
+                            k += 1
+                        }
+                        blen = q + 1
+                        full = true
+                    }
+                }
+                if fd < 0 && !full {
                     fd = open_in(paths[cur], false)
                     if fd < 0 {
                         status = 2
                     }
                 }
-                if status == 0 {
+                if status == 0 && !full {
                     var at_end = false
-                    let before = blen
+                    var want = o.budget - blen
+                    if want <= 0 || want > read_size() {
+                        want = read_size()
+                    }
                     region pass {
-                        let chunk = fs_read_chunk(fd, read_size()) else |e| match e {
+                        let chunk = fs_read_chunk(fd, want) else |e| match e {
                             eof => {
                                 at_end = true
                                 List[byte]()
@@ -1829,23 +1864,6 @@ fn sort_mode(c: Conf, paths: List[str], o: Opts, out: bore.Out) -> int {
                             exhausted = true
                         }
                         if blen >= o.budget {
-                            full = true
-                        }
-                    } else if status == 0 && blen >= o.budget {
-                        // End the run at the last delimiter this read
-                        // brought in, and carry what follows it.
-                        var q = blen - 1
-                        while q >= before && buf[q] != c.delim {
-                            q -= 1
-                        }
-                        if q >= before {
-                            var k = q + 1
-                            while k < blen {
-                                carry[carry_len] = buf[k]
-                                carry_len += 1
-                                k += 1
-                            }
-                            blen = q + 1
                             full = true
                         }
                     }
@@ -2216,7 +2234,13 @@ fn merge_runs(c: Conf, dir: str, o: Opts, ids: List[int], out: bore.Out) -> int 
                     (mut group).push(runs[k])
                     k += 1
                 }
-                let code = merge_temps(c, dir, group, out, tfd)
+                // Each merge's readers and buffers die with its region:
+                // measured, without it 1 GB at -S 10M grew to 61 MB of
+                // peak RSS against 41 MB for 100 MB, 4 MiB per batch.
+                var code = 0
+                region batch {
+                    code = merge_temps(c, dir, group, out, tfd)
+                }
                 fs_close(tfd) else |_| {}
                 remove_temps(dir, group)
                 (mut next).push(id)
