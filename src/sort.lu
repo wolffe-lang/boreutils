@@ -1550,10 +1550,24 @@ fn emit_lines(
 
 /// GNU's two lines for a failed flush of standard output, and its
 /// status. Only the closed descriptor's reason is known (wolf-lang#407).
+///
+/// **The second line is host-shaped, and both shapes are GNU 9.11's.**
+/// With descriptor 1 closed, linux's GNU (Arch's and the staged build
+/// on ubuntu alike) says a bare `write error`, and macOS's Homebrew
+/// build says `write error: Bad file descriptor` — measured on CI, run
+/// 36041719338, the only case in the corpus that differed on macOS. The
+/// two C libraries leave `errno` differently after the failed flush.
+/// The host is told apart the way `bore.stdout` tells it: linux
+/// publishes `/proc/self/fd`, macOS has no `/proc`, and asking by path
+/// opens no descriptor.
 fn write_failed(out: bore.Out) -> int {
     let why = if out.closed then bore.bad_descriptor() else bore.io_error()
     bore.warn("sort", "fflush failed: 'standard output': {why}")
-    bore.warn("sort", "write error")
+    if out.closed && !fs_is_dir("/proc/self/fd") {
+        bore.warn("sort", "write error: {why}")
+    } else {
+        bore.warn("sort", "write error")
+    }
     2
 }
 
