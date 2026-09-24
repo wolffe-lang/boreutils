@@ -690,3 +690,296 @@ args = ["-ih", "tests/fixtures/sortnums.txt"]
 [[case]]
 name = "d f i and n together"
 args = ["-dfin", "tests/fixtures/sortnums.txt"]
+
+# ------------------------------------------------------------ -t and -k
+#
+# POSIX's key grammar: F[.C][OPTS][,F[.C][OPTS]]. Without -t a field is
+# its leading blanks and the non-blanks after them; with -t the separator
+# belongs to neither field. A key's end at ,F.C counts C characters from
+# field F's start and is not clamped to the field (read off --debug). A
+# key with option letters of its own inherits no global option.
+
+[[case]]
+name = "k on the second field"
+args = ["-k", "2", "tests/fixtures/sortfields.txt"]
+
+[[case]]
+name = "k on the second field only"
+args = ["-k", "2,2", "tests/fixtures/sortfields.txt"]
+
+[[case]]
+name = "k 2b skips the field's blanks"
+args = ["-k", "2b", "tests/fixtures/sortfields.txt"]
+
+[[case]]
+name = "k 2,2n numeric on one field"
+args = ["-k", "2,2n", "tests/fixtures/sortfields.txt"]
+
+[[case]]
+name = "k 2n spans to the end"
+args = ["-k", "2n", "tests/fixtures/sortfields.txt"]
+
+[[case]]
+name = "k with global n inherited"
+args = ["-n", "-k", "2,2", "tests/fixtures/sortfields.txt"]
+
+[[case]]
+name = "k with global b inherited"
+args = ["-b", "-k", "2,2", "tests/fixtures/sortfields.txt"]
+
+[[case]]
+name = "k with its own letter inherits nothing"
+args = ["-n", "-k", "2,2b", "tests/fixtures/sortfields.txt"]
+
+[[case]]
+name = "k global r inherited"
+args = ["-r", "-k", "1,1", "tests/fixtures/sortfields.txt"]
+
+[[case]]
+name = "k own r only"
+args = ["-k", "1,1r", "-k", "2,2n", "tests/fixtures/sortfields.txt"]
+
+[[case]]
+name = "two keys"
+args = ["-k", "1,1", "-k", "3,3", "tests/fixtures/sortfields.txt"]
+
+[[case]]
+name = "two keys, the second numeric"
+args = ["-k", "1b,1", "-k", "2n", "tests/fixtures/sortfields.txt"]
+
+[[case]]
+name = "k with s keeps input order"
+args = ["-s", "-k", "1,1", "tests/fixtures/sortfields.txt"]
+
+[[case]]
+name = "k with u"
+args = ["-u", "-k", "1,1", "tests/fixtures/sortfields.txt"]
+
+[[case]]
+name = "k with u, blanks skipped"
+args = ["-u", "-k", "1b,1", "tests/fixtures/sortfields.txt"]
+
+[[case]]
+name = "k last resort breaks ties"
+args = ["-k", "1,1"]
+stdin = "a 2\na 1\nb 0\n"
+
+[[case]]
+name = "k last resort reversed by r"
+args = ["-r", "-k", "1,1"]
+stdin = "a 2\na 1\nb 0\n"
+
+[[case]]
+name = "k own r does not reverse the last resort"
+args = ["-k", "1,1r"]
+stdin = "a 2\na 1\nb 0\n"
+
+[[case]]
+name = "k on a character"
+args = ["-k", "1.2,1.2"]
+stdin = "abc\nbad\ncab\n"
+
+[[case]]
+name = "k from a character to the end"
+args = ["-k", "1.3"]
+stdin = "abc\nabd\nabb\n"
+
+[[case]]
+name = "k char past the field end"
+args = ["-t", ":", "-k", "1,1.4"]
+stdin = "ab:cd\nab:cb\nab:ca\n"
+
+[[case]]
+name = "k char past the line end"
+args = ["-k", "1.9"]
+stdin = "abc\nab\n"
+
+[[case]]
+name = "k end before start is empty"
+args = ["-k", "2,1"]
+stdin = "b a\na b\n"
+
+[[case]]
+name = "k field past the line"
+args = ["-k", "5"]
+stdin = "b\na\n"
+
+[[case]]
+name = "k 2.2b,2.3"
+args = ["-k", "2.2b,2.3"]
+stdin = " ab  cd ef\n ab  ca ef\n"
+
+[[case]]
+name = "k 2.2,2.3b"
+args = ["-k", "2.2,2.3b"]
+stdin = " ab  cd ef\n ab  ca ef\n"
+
+[[case]]
+name = "k 1,1.9b"
+args = ["-k", "1,1.9b"]
+stdin = " ab  cd ef\n  ab cd eg\n"
+
+[[case]]
+name = "k end char zero is the field end"
+args = ["-k", "1,1.0"]
+stdin = "b a\na b\n"
+
+[[case]]
+name = "k a tab is a blank"
+args = ["-k", "2"]
+stdin = "a\tb c\na b d\n"
+
+[[case]]
+name = "t on the passwd fixture"
+args = ["-t", ":", "-k", "3,3n", "tests/fixtures/sortpasswd.txt"]
+
+[[case]]
+name = "t by shell then name"
+args = ["-t", ":", "-k", "7,7", "-k", "1,1", "tests/fixtures/sortpasswd.txt"]
+
+[[case]]
+name = "t by home directory, reversed"
+args = ["-t", ":", "-k", "6r", "tests/fixtures/sortpasswd.txt"]
+
+[[case]]
+name = "t with empty fields"
+args = ["-t", ":", "-k", "2", "tests/fixtures/colons.txt"]
+
+[[case]]
+name = "t a field that is not there"
+args = ["-t", ":", "-k", "3"]
+stdin = "a:b:c\nb:a\n"
+
+[[case]]
+name = "t a space separator"
+args = ["-t", " ", "-k", "2"]
+stdin = " b a\na  c\n"
+
+[[case]]
+name = "t NUL spelled backslash zero"
+args = ["-t", "\\0", "-k", "2"]
+stdin = "a\u0000c\nb\u0000a\n"
+
+[[case]]
+name = "t the same twice"
+args = ["-t", ":", "-t", ":", "-k", "2", "tests/fixtures/colons.txt"]
+
+[[case]]
+name = "field-separator spelled long"
+args = ["--field-separator=:", "--key=2", "tests/fixtures/colons.txt"]
+
+[[case]]
+name = "key abbreviated"
+args = ["--ke=2", "tests/fixtures/sortfields.txt"]
+
+[[case]]
+name = "t two different"
+args = ["-t", ":", "-t", ","]
+
+[[case]]
+name = "t empty"
+args = ["-t", ""]
+
+[[case]]
+name = "t two characters"
+args = ["-t", "::"]
+
+[[case]]
+name = "t a backslash escape is two characters"
+args = ["-t", "\\t"]
+
+[[case]]
+name = "k field zero"
+args = ["-k", "0", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "k character zero"
+args = ["-k", "1.0", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "k end field zero"
+args = ["-k", "1,0", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "k not a number"
+args = ["-k", "x", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "k empty"
+args = ["-k", "", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "k a stray letter"
+args = ["-k", "1x", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "k nothing after the dot"
+args = ["-k", "1.", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "k not a number after the dot"
+args = ["-k", "1.x", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "k two dots"
+args = ["-k", "1..2", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "k nothing after the comma"
+args = ["-k", "1,", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "k a negative field"
+args = ["-k", "-1", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "k a plus sign is taken"
+args = ["-k", "+2", "tests/fixtures/sortfields.txt"]
+
+[[case]]
+name = "k a leading blank is taken"
+args = ["-k", " 2", "tests/fixtures/sortfields.txt"]
+
+[[case]]
+name = "k b before the dot is stray"
+args = ["-k", "1b.2", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "k three dots"
+args = ["-k", "1.2.3", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "k two commas"
+args = ["-k", "1,2,3", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "k a stray letter at the end"
+args = ["-k", "1,1.1x", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "k a huge field clamps"
+args = ["-k", "99999999999999999999", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "k a huge character clamps"
+args = ["-k", "1.99999999999999999999", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "k letters b twice"
+args = ["-k", "1bb", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "k incompatible letters"
+args = ["-k", "1,1dn", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "k incompatible across ends"
+args = ["-k", "1n,1M", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "k global letters do not reach a key with its own"
+args = ["-n", "-k", "1,1d", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "k the first bad key wins"
+args = ["-k", "0", "-k", "x", "tests/fixtures/sortsorted.txt"]
