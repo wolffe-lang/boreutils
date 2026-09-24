@@ -31,7 +31,10 @@
 //! positional read (wolf-lang#426, filed by bu03 for `tail`), so this
 //! program holds the whole input in one `List[byte]` whatever the
 //! operand is. That is the one utility in B3 whose memory is NOT flat in
-//! the input, and the README says so beside the number.
+//! the input, and the README says so beside the number: 256 MiB peaks
+//! at 1.20 GB here against GNU's 2.2 MB, because a list built by
+//! pushing doubles and each doubling abandons its old buffer in an
+//! arena that frees nothing (wolf-std F-0011: no capacity surface).
 //!
 //! **`-r`, and what it is NOT.** With `-r` the separator is a regular
 //! expression, and GNU's `tac` matches it in a way no manual page
@@ -217,8 +220,23 @@ fn one(mut out: bore.Out, path: str, o: Opts, pat: Pattern) -> int {
     // keeper outlives the per-chunk region, which is what stops
     // `fs_read_chunk`'s per-call allocation from accumulating
     // (wolf-lang#416).
+    //
+    //
+    // **Memory is about 4.6 times the input, and the reason is the
+    // list.** `List` has no capacity surface at 0.2.14 (wolf-std
+    // F-0011), so a list built by pushing GROWS BY DOUBLING, and every
+    // doubling abandons the previous buffer in an arena that frees
+    // nothing. Measured on kasumi with 256 MiB: 1.20 GB of peak
+    // resident memory against GNU's 2.2 MB, and it is the same figure
+    // for a file operand and for a pipe. Sizing the list up front from
+    // `fs_fstat` does NOT help, and that was measured too: filling it
+    // with zeroes is itself a run of pushes and doubles exactly the
+    // same way. The fix upstream is a capacity or a fill primitive; the
+    // fix here would be a list OF CHUNKS with an index division per
+    // byte, which the `-r` path could not afford.
     let keeper = region()
     var buf = List[byte]()
+    var held = 0
     var why = 0
     var stop = false
     while !stop {
@@ -240,6 +258,7 @@ fn one(mut out: bore.Out, path: str, o: Opts, pat: Pattern) -> int {
                 in keeper {
                     for b in chunk {
                         (mut buf).push(b)
+                        held += 1
                     }
                 }
             }
@@ -250,7 +269,7 @@ fn one(mut out: bore.Out, path: str, o: Opts, pat: Pattern) -> int {
         cannot_read("tac", path, bore.io_error())
         return 1
     }
-    reverse(mut out, buf, o, pat) else |_| {
+    reverse(mut out, buf, held, o, pat) else |_| {
         return 2
     }
     0
@@ -273,21 +292,22 @@ fn cannot_read(prog: str, name: str, why: str) {
 /// The separators are found BACKWARDS, and each one is bounded by the
 /// start of the one found before it — see the header, and the
 /// `[0-9][0-9]*` measurement that decides it.
-fn reverse(mut out: bore.Out, buf: List[byte], o: Opts, pat: Pattern) -> () ! {io} {
-    if buf.len == 0 {
+fn reverse(mut out: bore.Out, buf: List[byte], len: int, o: Opts, pat: Pattern) -> () ! {io} {
+    if len == 0 {
         return
     }
     // An empty separator names no split at all, so the whole input is
     // one record. Measured: `tac -s ''` is the identity.
     if o.sep.len == 0 {
-        put_range(buf, 0, buf.len, mut out)?
+        put_range(buf, 0, len, mut out)?
         return
     }
-    var region_end = buf.len
-    var bound = buf.len
+    let sep = o.sep.bytes()
+    var region_end = len
+    var bound = len
     var searching = true
     while searching {
-        let at = find_back(buf, bound, o, pat)
+        let at = find_back(buf, bound, o, pat, sep)
         if at.start < 0 {
             searching = false
         } else {
@@ -316,7 +336,7 @@ struct Found {
 /// The `bound` is the whole of GNU's discipline: a separator may not run
 /// past the start of the one already found, which is why `[0-9][0-9]*`
 /// splits `22` into two separators rather than taking it whole.
-fn find_back(buf: List[byte], bound: int, o: Opts, pat: Pattern) -> Found {
+fn find_back(buf: List[byte], bound: int, o: Opts, pat: Pattern, sep: List[byte]) -> Found {
     if o.regex {
         if pat.anchored {
             if bound > 0 {
@@ -337,7 +357,9 @@ fn find_back(buf: List[byte], bound: int, o: Opts, pat: Pattern) -> Found {
         }
         return Found { start: -1, stop: -1 }
     }
-    let sep = o.sep.bytes()
+    // `sep` is materialized ONCE by the caller: `o.sep.bytes()` here
+    // would build a fresh list per record, and per-record allocations
+    // in the ambient region are what the 29 GB above was made of.
     var s = bound - sep.len
     while s >= 0 {
         var j = 0
@@ -501,19 +523,28 @@ fn match_at(pat: Pattern, buf: List[byte], from: int, limit: int) -> int {
 
 /// Match atom `ai` onwards at `si`. Greedy, with backtracking, which is
 /// what makes `ab*c` take all the `b`s and give them back when it must.
+/// **Nothing here copies an `Atom`, and that is a MEASUREMENT.** The
+/// first draft opened with `let a = copy pat.atoms[ai]`, which is the
+/// obvious spelling and copies the atom's 256-entry bracket table on
+/// every call. `step` runs once per input byte per candidate start, and
+/// those copies land in the ambient region, which frees nothing until
+/// the frame ends: `tac -r -s '[aeiou][aeiou]*'` over 256 MiB peaked at
+/// **29 GB of resident memory** and the bench run was killed at exit
+/// 137. Reading the fields through the place instead — `pat.atoms[ai].
+/// quant` — allocates nothing and the same run peaks in megabytes.
 fn step(pat: Pattern, ai: int, buf: List[byte], si: int, limit: int) -> int {
     if ai >= pat.atoms.len {
         return si
     }
-    let a = copy pat.atoms[ai]
-    if a.quant == 0 {
-        if si < limit && accepts(a, buf[si]) {
+    let quant = pat.atoms[ai].quant
+    if quant == 0 {
+        if si < limit && accepts(pat, ai, buf[si]) {
             return step(pat, ai + 1, buf, si + 1, limit)
         }
         return -1
     }
-    if a.quant == 3 {
-        if si < limit && accepts(a, buf[si]) {
+    if quant == 3 {
+        if si < limit && accepts(pat, ai, buf[si]) {
             let r = step(pat, ai + 1, buf, si + 1, limit)
             if r >= 0 {
                 return r
@@ -522,10 +553,10 @@ fn step(pat: Pattern, ai: int, buf: List[byte], si: int, limit: int) -> int {
         return step(pat, ai + 1, buf, si, limit)
     }
     var n = 0
-    while si + n < limit && accepts(a, buf[si + n]) {
+    while si + n < limit && accepts(pat, ai, buf[si + n]) {
         n += 1
     }
-    let least = if a.quant == 2 then 1 else 0
+    let least = if quant == 2 then 1 else 0
     var k = n
     while k >= least {
         let r = step(pat, ai + 1, buf, si + k, limit)
@@ -537,15 +568,16 @@ fn step(pat: Pattern, ai: int, buf: List[byte], si: int, limit: int) -> int {
     -1
 }
 
-/// Whether the atom accepts the byte.
-fn accepts(a: Atom, b: byte) -> bool {
-    if a.kind == 1 {
+/// Whether atom `ai` accepts the byte. Reads through the place; see
+/// `step`'s note on why it does not take the atom by value.
+fn accepts(pat: Pattern, ai: int, b: byte) -> bool {
+    if pat.atoms[ai].kind == 1 {
         return true
     }
-    if a.kind == 2 {
-        return a.set[b as int]
+    if pat.atoms[ai].kind == 2 {
+        return pat.atoms[ai].set[b as int]
     }
-    a.byte == b
+    pat.atoms[ai].byte == b
 }
 
 /// Write `s` straight out.
