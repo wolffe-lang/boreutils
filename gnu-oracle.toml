@@ -32,6 +32,63 @@
 # case re-measured against the new release, every `gnu_min` / `gnu_max`
 # range re-checked, and the README's divergence table updated. A bump
 # that only silences a red CI is the bug this file exists to prevent.
+#
+# ## B73 — A VERSION IS NOT THE WHOLE PIN (ruled 2026-09-24 by bu07)
+#
+# B73 said: two GNU 9.11 builds disagree about `tail +3` — Arch's native
+# 9.11 reads it as "from line 3", Homebrew's 9.11 reads `+3` as a file
+# name and fails to open it — so `gnu-oracle.toml` pins a version and
+# must pin a BUILD IDENTITY too, or say why it cannot.
+#
+# **It cannot pin a build identity, and it does not have to.** Both
+# halves of that sentence are load-bearing.
+#
+# *Why it cannot.* There is nothing to pin. Homebrew and Arch compile
+# the same tarball this file already pins by sha256; neither publishes
+# an identifier that names its build, and the one string a differential
+# harness can read — `--version` — is identical by construction. A pin
+# file cannot name a build nobody has named.
+#
+# *Why it does not have to.* The disagreement is not a build IDENTITY,
+# it is a build-time DEFAULT, and the environment overrides it.
+# gnulib's `posix2_version()` decides whether the obsolete `+N` operand
+# form is read, and it reads `$_POSIX2_VERSION` FIRST, falling back to
+# the value `configure` compiled in only when the variable is unset.
+# Measured on kasumi (Arch, coreutils 9.11-2), where the compiled-in
+# default is the older one:
+#
+#     $ tail +3 five-lines.txt            -> lines 3, 4, 5
+#     $ _POSIX2_VERSION=200112 tail +3 five-lines.txt
+#       tail: cannot open '+3' for reading: No such file or directory
+#     $ uniq +1 two-lines.txt             -> one line
+#     $ _POSIX2_VERSION=200112 uniq +1 two-lines.txt
+#       uniq: +1: No such file or directory
+#
+# and the forms that are NOT decided by it do not move: `head -3`,
+# `tail -3` and `tail -3l` answer the same either way.
+#
+# So the oracle of record is a VERSION AND AN ENVIRONMENT, `[oracle.env]`
+# below, and `tools/difftest` builds every case's environment from it —
+# both sides, ours and GNU's. That is not new in kind: the harness has
+# always pinned `LC_ALL=C` for exactly this reason, and this file simply
+# takes that pin out of the harness's source and states it where the
+# rest of the pin lives.
+#
+# **And a pinned environment is a claim, so it is asserted.**
+# `[oracle.probe]` names one observation the build-time default decides,
+# `difftest` makes it before it runs a case, and refuses when the answer
+# is not the one this file declares — the same refusal the version
+# assertion makes, for the same reason. An environment that silently
+# stopped taking effect would be a green that changed what it measures,
+# which is the thirteenth false-signal shape and the whole of B44.
+#
+# **What this closes and what it does not.** `tail +3` and `uniq +1`
+# were skipped cases naming two answers; both are ordinary differential
+# cases now and run on every host. It does NOT close B75's other nine
+# divergences: those are the two hosts' C LIBRARY and long-double
+# arithmetic (`seq -f %a`, `nl -w 0`'s `strerror(ERANGE)`, the width
+# table), and a build identity would not have helped there either — the
+# disagreement is not in coreutils at all. Those stay recorded skips.
 
 [oracle]
 # The GNU coreutils release boreutils is drop-in for.
@@ -43,7 +100,42 @@ version = "9.11"
 url = "https://ftp.gnu.org/gnu/coreutils/coreutils-9.11.tar.xz"
 sha256 = "394024eda0a5955217ceda9cd1201e65dc8fa3aa29c2951135a49521d57c3cc3"
 
-# What the field ships, for the record, measured 2026-09-18. Neither is
-# the oracle; the first is why this file exists.
+# How `tools/fetch-oracle` configures that tarball. Here rather than in
+# the script because it is part of what "the oracle of record" means:
+# the digest says which source, this says which build of it. Note that
+# it does NOT set `--enable-...` anything about POSIX2, deliberately —
+# the staged build takes the default and `[oracle.env]` below is what
+# makes the default unreachable.
+configure_args = "--disable-nls --without-selinux"
+
+# What the field ships, for the record, measured 2026-09-18 and
+# re-measured 2026-09-24. Neither is the oracle; the first is why this
+# file exists, and the second is why `[oracle.env]` exists.
 #   ubuntu-latest       9.4
-#   Homebrew, Arch      9.11
+#   Homebrew            9.11, obsolete `+N` operands OFF
+#   Arch                9.11, obsolete `+N` operands ON  (B73)
+
+[oracle.env]
+# The environment every case runs under, on BOTH sides. `difftest`
+# builds each child's environment from PATH plus this table, then the
+# case's own `env`, so a case may still override one of these.
+#
+# `LC_ALL` was hard-coded in the harness until this ruling. `_POSIX2_VERSION`
+# is B73's: it takes `posix2_version()` off the build-time default, so
+# two builds of one tarball answer the same.
+LC_ALL = "C"
+_POSIX2_VERSION = "200112"
+
+[oracle.probe]
+# The assertion that `[oracle.env]` took. Run GNU's `util` with `args`
+# under the environment above; the exit status must be `status`.
+#
+# `uniq +1 /dev/null` is the whole of B73 in one command. Where the
+# obsolete operand form is live, `+1` is "skip one character",
+# `/dev/null` is the input, and the status is 0. Where it is not, `+1`
+# is a file name that does not exist and the status is 1. The pinned
+# environment must make it 1 on every host, whoever built the binary.
+util = "uniq"
+args = ["+1", "/dev/null"]
+status = 1
+why = "the obsolete +N operand form is off, so +1 is a file name (B73)"
