@@ -547,3 +547,146 @@ args = ["-gV", "tests/fixtures/sortnums.txt"]
 [[case]]
 name = "all six numeric kinds"
 args = ["-ngMhRV", "tests/fixtures/sortnums.txt"]
+
+# ------------------------------------------------------------ -f, -d, -i and -b
+#
+# -f folds lower case to upper case; -d compares only blanks, letters
+# and digits; -i only printable bytes, and has no effect beside -d; -b
+# skips the blanks that start the key (with no -k, the line).
+
+[[case]]
+name = "f folds case"
+args = ["-f", "tests/fixtures/sortwords.txt"]
+
+[[case]]
+name = "f on mixed case"
+args = ["-f", "tests/fixtures/mixedcase.txt"]
+
+[[case]]
+name = "f puts underscore after letters"
+args = ["-f"]
+stdin = "_a\nb\nA\n"
+
+[[case]]
+name = "f unique keeps the first seen"
+args = ["-fu"]
+stdin = "B\na\nb\nA\n"
+
+[[case]]
+name = "f stable"
+args = ["-fs"]
+stdin = "B\na\nb\nA\n"
+
+[[case]]
+name = "f reversed"
+args = ["-fr"]
+stdin = "B\na\nb\nA\n"
+
+[[case]]
+name = "ignore-case spelled long"
+args = ["--ignore-case", "tests/fixtures/sortwords.txt"]
+
+[[case]]
+name = "d ignores punctuation"
+args = ["-d"]
+stdin = "a-b\nab\na b\n_a\n"
+
+[[case]]
+name = "d on words"
+args = ["-d", "tests/fixtures/sortwords.txt"]
+
+[[case]]
+name = "d unique"
+args = ["-du"]
+stdin = "a-b\nab\na.b\n"
+
+[[case]]
+name = "d keeps tabs"
+args = ["-d"]
+stdin = "a\tb\na b\nab\n"
+
+[[case]]
+name = "dictionary-order spelled long"
+args = ["--dictionary-order", "tests/fixtures/sortwords.txt"]
+
+[[case]]
+name = "i ignores control bytes"
+args = ["-i"]
+stdin = "a\u0001b\nab\naa\n"
+
+[[case]]
+name = "i on the control fixture"
+args = ["-i", "tests/fixtures/ctrl.txt"]
+
+[[case]]
+name = "i ignores high bytes"
+args = ["-i", "tests/fixtures/utf8.txt", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "i ignores tabs"
+args = ["-i"]
+stdin = "a\tc\nab\n"
+
+[[case]]
+name = "ignore-nonprinting spelled long"
+args = ["--ignore-nonprinting", "tests/fixtures/ctrl.txt"]
+
+[[case]]
+name = "d and i together"
+args = ["-di"]
+stdin = "a\tc\na\u0001b\nab\n"
+
+[[case]]
+name = "d and f together"
+args = ["-df", "tests/fixtures/sortwords.txt"]
+
+[[case]]
+name = "f d and i together"
+args = ["-dfi", "tests/fixtures/sortwords.txt"]
+
+[[case]]
+name = "b on indented lines"
+args = ["-b"]
+stdin = "  a\n b\nc\n\td\n"
+
+[[case]]
+name = "b on words"
+args = ["-b", "tests/fixtures/sortwords.txt"]
+
+[[case]]
+name = "b unique"
+args = ["-bu"]
+stdin = " a\na\n  a\n"
+
+[[case]]
+name = "ignore-leading-blanks spelled long"
+args = ["--ignore-leading-blanks", "tests/fixtures/sortwords.txt"]
+
+[[case]]
+name = "b with n"
+args = ["-bn"]
+stdin = " 2\n1\n  3\n"
+
+[[case]]
+name = "d and n together"
+args = ["-dn", "tests/fixtures/sortnums.txt"]
+
+[[case]]
+name = "i and n together"
+args = ["-in", "tests/fixtures/sortnums.txt"]
+
+[[case]]
+name = "d and M together"
+args = ["-dM", "tests/fixtures/sortmonths.txt"]
+
+[[case]]
+name = "i and g together"
+args = ["-ig", "tests/fixtures/sortnums.txt"]
+
+[[case]]
+name = "i and h together"
+args = ["-ih", "tests/fixtures/sortnums.txt"]
+
+[[case]]
+name = "d f i and n together"
+args = ["-dfin", "tests/fixtures/sortnums.txt"]
