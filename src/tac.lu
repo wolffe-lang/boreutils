@@ -153,10 +153,12 @@ fn main() -> int {
     if paths.len == 0 {
         (mut paths).push("-")
     }
+    let keeper = region()
+    var sink = bore.sink(keeper)
     var status = 0
     var wfail = false
     for path in paths {
-        let code = one(mut out, path, o, pat)
+        let code = one(out, path, o, pat, mut sink)
         if code != 0 {
             status = 1
         }
@@ -164,11 +166,15 @@ fn main() -> int {
             wfail = true
         }
     }
+    bore.sink_done(out, mut sink) else |_| {
+        wfail = true
+    }
     if wfail {
         bore.write_error(out, "tac", "write error")
         return 1
     }
-    bore.finish(mut out, "tac", status)
+    // wolf-lang#449: the loop above claims `out` inside a conditional.
+    bore.finish_last("tac", status, mut out)
 }
 
 fn options() -> List[bore.Opt] {
@@ -193,7 +199,7 @@ fn read_size() -> int {
 /// Reverse one operand. Answers 0 for success, 1 for a failure of this
 /// operand, or 2 for a failed write, which is the whole program's
 /// failure and is reported once at the end.
-fn one(mut out: bore.Out, path: str, o: Opts, pat: Pattern) -> int {
+fn one(out: bore.Out, path: str, o: Opts, pat: Pattern, mut sink: bore.Sink) -> int {
     let src = bore.open_input(path) else |e| match e {
         not_found => {
             cannot_open("tac", path, bore.no_such_file())
@@ -234,7 +240,7 @@ fn one(mut out: bore.Out, path: str, o: Opts, pat: Pattern) -> int {
     // same way. The fix upstream is a capacity or a fill primitive; the
     // fix here would be a list OF CHUNKS with an index division per
     // byte, which the `-r` path could not afford.
-    let keeper = region()
+    let hold = region()
     var buf = List[byte]()
     var held = 0
     var why = 0
@@ -255,7 +261,7 @@ fn one(mut out: bore.Out, path: str, o: Opts, pat: Pattern) -> int {
             if chunk.len == 0 {
                 stop = true
             } else {
-                in keeper {
+                in hold {
                     for b in chunk {
                         (mut buf).push(b)
                         held += 1
@@ -269,7 +275,7 @@ fn one(mut out: bore.Out, path: str, o: Opts, pat: Pattern) -> int {
         cannot_read("tac", path, bore.io_error())
         return 1
     }
-    reverse(mut out, buf, held, o, pat) else |_| {
+    reverse(out, buf, held, o, pat, mut sink) else |_| {
         return 2
     }
     0
@@ -292,14 +298,21 @@ fn cannot_read(prog: str, name: str, why: str) {
 /// The separators are found BACKWARDS, and each one is bounded by the
 /// start of the one found before it — see the header, and the
 /// `[0-9][0-9]*` measurement that decides it.
-fn reverse(mut out: bore.Out, buf: List[byte], len: int, o: Opts, pat: Pattern) -> () ! {io} {
+fn reverse(
+    out: bore.Out,
+    buf: List[byte],
+    len: int,
+    o: Opts,
+    pat: Pattern,
+    mut sink: bore.Sink,
+) -> () ! {io} {
     if len == 0 {
         return
     }
     // An empty separator names no split at all, so the whole input is
     // one record. Measured: `tac -s ''` is the identity.
     if o.sep.len == 0 {
-        put_range(buf, 0, len, mut out)?
+        put_range(buf, 0, len, out, mut sink)?
         return
     }
     let sep = o.sep.bytes()
@@ -312,16 +325,16 @@ fn reverse(mut out: bore.Out, buf: List[byte], len: int, o: Opts, pat: Pattern) 
             searching = false
         } else {
             if o.before {
-                put_range(buf, at.start, region_end, mut out)?
+                put_range(buf, at.start, region_end, out, mut sink)?
                 region_end = at.start
             } else {
-                put_range(buf, at.stop, region_end, mut out)?
+                put_range(buf, at.stop, region_end, out, mut sink)?
                 region_end = at.stop
             }
             bound = at.start
         }
     }
-    put_range(buf, 0, region_end, mut out)?
+    put_range(buf, 0, region_end, out, mut sink)?
 }
 
 /// Where a separator was found: `start` is -1 when there is none.
@@ -380,20 +393,20 @@ fn find_back(buf: List[byte], bound: int, o: Opts, pat: Pattern, sep: List[byte]
     Found { start: -1, stop: -1 }
 }
 
-/// Write `buf[from..to]`.
+/// Write `buf[from..to]` through the sink.
 ///
-/// One byte at a time into the shared writer's own buffer, which is what
-/// keeps this program's memory at the input rather than at twice it: a
-/// list of the output would be a second copy of everything.
+/// A `bore.Sink` rather than `bore.put_byte`: the shared writer's flush
+/// allocates a fresh buffer every 64 KiB and abandons the old one, which
+/// costs this program 2.8x its output on top of the input it already
+/// holds. `bore/sink.lu`'s header has the measurement.
 ///
-/// **The writer goes last**, which is wolf-lang#449 and not a style: at
-/// 0.2.16 a call spelled `put_range(mut out, …)` after a conditional
-/// that also claimed `out` is refused, and a `mut` argument with nothing
-/// after it is not walked.
-fn put_range(buf: List[byte], from: int, to: int, mut out: bore.Out) -> () ! {io} {
+/// The sink goes LAST in every signature here, which is wolf-lang#449:
+/// a `mut` argument with anything spelled after it drags the whole
+/// preceding conditional into its claim at 0.2.16.
+fn put_range(buf: List[byte], from: int, to: int, out: bore.Out, mut sink: bore.Sink) -> () ! {io} {
     var i = from
     while i < to {
-        bore.put_byte(mut out, buf[i])?
+        bore.sink_push(buf[i], out, mut sink)?
         i += 1
     }
 }
