@@ -294,9 +294,16 @@ args = ["-n", "1", "tests/fixtures/ta\tb"]
 name = "an unknown option"
 args = ["-Q", "tests/fixtures/twelve.txt"]
 
+# B73, RESOLVED: this was a skip, because Arch's 9.11 read `tail +3 f` as
+# from-line-3 and Homebrew's 9.11 read `+3` as a file name — the same
+# release, two builds, and `difftest` bounds a case by VERSION. It is an
+# ordinary case now. `gnu-oracle.toml`'s `[oracle.env]` pins
+# `_POSIX2_VERSION=200112`, which takes gnulib's `posix2_version()` off
+# the build-time default, so every build answers the POSIX reading that
+# boreutils implements; `[oracle.probe]` asserts the pin took before any
+# case runs. `+NUM` is in neither POSIX.1-2024 nor GNU's --help.
 [[case]]
 name = "a leading plus is an operand, not the old from-line-K form"
-skip = "the two oracles disagree at the SAME version: Arch's native 9.11 reads `tail +3 f` as from-line-3, Homebrew's 9.11 reads +3 as a file name and fails to open it. +NUM is in neither POSIX.1-2024 nor GNU's --help, so boreutils treats it as an operand; difftest bounds by version and the version is the same on both sides, so this cannot be a case"
 args = ["+3", "tests/fixtures/twelve.txt"]
 
 # ------------------------------------------------------------------- -z

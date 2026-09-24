@@ -274,11 +274,17 @@ name = "-f after a digit wins"
 args = ["-1", "-f2", "-c"]
 stdin = "p q r s\np q r t\n"
 
+# B73, RESOLVED: was a skip for the same reason as `tail +3` — GNU gates
+# the obsolete `+N` on a BUILD-TIME POSIX2 version, not on the release,
+# so Arch's `uniq` read it as skip-one-character where Homebrew's
+# `guniq` reported a missing file. `gnu-oracle.toml`'s `[oracle.env]`
+# pins `_POSIX2_VERSION=200112` for both sides and `[oracle.probe]` runs
+# this very command as its assertion, so the case is now the ordinary
+# one it always should have been.
 [[case]]
-name = "the obsolete +N is a file name here, and GNU's own hosts disagree"
+name = "the obsolete +N is a file name"
 args = ["+1"]
 stdin = "a\na\nb\n"
-skip = "GNU gates +N on a build-time POSIX2 version, not on the release: at coreutils 9.11 Arch's uniq reads it as skip-one-character and Homebrew's guniq reports '+1: No such file or directory'. boreutils takes the POSIX reading, so this case cannot pass on both hosts and is recorded rather than pinned."
 
 # ------------------------------------------------------ --all-repeated
 
