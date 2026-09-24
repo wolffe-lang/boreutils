@@ -86,9 +86,12 @@ struct Opts {
     quiet: bool,
     verbose: bool,
     follow: bool,
+    /// `--follow=name` or `-F`: accepted, and followed by descriptor
+    /// (see the header), but it still decides what GNU refuses.
+    by_name: bool,
     /// The `-s` interval in milliseconds.
     sleep_ms: int,
-    warn_retry: bool,
+    retry: bool,
     warn_pid: bool,
 }
 
@@ -104,8 +107,9 @@ fn main() -> int {
         quiet: false,
         verbose: false,
         follow: false,
+        by_name: false,
         sleep_ms: 1000,
-        warn_retry: false,
+        retry: false,
         warn_pid: false,
     }
     var args = List[str]()
@@ -121,13 +125,11 @@ fn main() -> int {
         }
         var i = 1
         while i < argv.len {
-            (mut args).push(rewrite_follow(argv[i]))
+            (mut args).push(argv[i])
             i += 1
         }
     } else {
-        for a in argv {
-            (mut args).push(rewrite_follow(a))
-        }
+        args = argv
     }
     let p = bore.parse(options(), args, bore.permute())
     var i = 0
@@ -164,11 +166,37 @@ fn main() -> int {
                 return 1
             }
         }
-        if k == "follow" || k == "F" {
+        // The LAST of -f, -F and --follow[=WORD] decides how to follow
+        // (measured: `-F -f` follows the descriptor, `-f -F` the name).
+        if k == "f" {
             o.follow = true
+            o.by_name = false
+        }
+        if k == "follow" {
+            o.follow = true
+            o.by_name = false
+            if p.given[i] {
+                let m = bore.argmatch(v, follow_words(), follow_meanings())
+                if m < 0 {
+                    return bore.argmatch_error(
+                        "tail",
+                        v,
+                        "follow",
+                        follow_words(),
+                        follow_meanings(),
+                        m == -2,
+                    )
+                }
+                o.by_name = m == 1
+            }
+        }
+        if k == "F" {
+            o.follow = true
+            o.by_name = true
+            o.retry = true
         }
         if k == "retry" {
-            o.warn_retry = true
+            o.retry = true
         }
         if k == "pid" {
             o.warn_pid = true
@@ -199,12 +227,14 @@ fn main() -> int {
         return bore.usage_error("tail", p.error)
     }
     if !o.follow {
-        if o.warn_retry {
+        if o.retry {
             bore.warn("tail", "warning: --retry ignored; --retry is useful only when following")
         }
         if o.warn_pid {
             bore.warn("tail", "warning: PID ignored; --pid=PID is useful only when following")
         }
+    } else if o.retry && !o.by_name {
+        bore.warn("tail", "warning: --retry only effective for the initial open")
     }
     var paths = List[str]()
     for a in p.operands {
@@ -212,6 +242,16 @@ fn main() -> int {
     }
     if paths.len == 0 {
         (mut paths).push("-")
+    }
+    // Following by NAME re-opens a path, and standard input has none:
+    // GNU refuses before it reads a byte of any operand.
+    if o.follow && o.by_name {
+        for path in paths {
+            if path == "-" {
+                bore.warn("tail", "cannot follow '-' by name")
+                return 1
+            }
+        }
     }
     let show = o.verbose || !o.quiet && paths.len > 1
     var status = 0
@@ -245,7 +285,7 @@ fn options() -> List[bore.Opt] {
     // "ambiguous; possibilities:" line reports and so is observable.
     var s = List[bore.Opt]()
     (mut s).push(bore.takes("c", "bytes"))
-    (mut s).push(bore.flag("f", "follow"))
+    (mut s).push(bore.optional("", "follow"))
     (mut s).push(bore.takes("n", "lines"))
     (mut s).push(bore.takes("", "max-unchanged-stats"))
     (mut s).push(bore.takes("", "pid"))
@@ -257,7 +297,9 @@ fn options() -> List[bore.Opt] {
     (mut s).push(bore.flag("z", "zero-terminated"))
     (mut s).push(bore.flag("", "help"))
     (mut s).push(bore.flag("", "version"))
-    // Short-only, so it never appears in an ambiguity list.
+    // Short-only, so they never appear in an ambiguity list. `-f` is
+    // its own option and takes no word: `-f=name` is `-f` then `-=`.
+    (mut s).push(bore.flag("f", ""))
     (mut s).push(bore.flag("F", ""))
     s
 }
@@ -267,26 +309,20 @@ fn read_size() -> int {
     262144
 }
 
-/// `--follow[=WORD]` flattened to `-f`.
-///
-/// `bore.parse` has no OPTIONAL-argument option: `Opt.arg` is a `bool`,
-/// so `--follow` either always takes a word or never does, and GNU's
-/// `-f` is the third thing. Reported to the orchestrator as a gap in
-/// `bore`, not in wolf; until it closes, `--follow=name` is rewritten
-/// here, which is safe because `follow` is the only long option `tail`
-/// has that starts with `f`.
-fn rewrite_follow(a: str) -> str {
-    if !a.starts_with("--f") {
-        return a
-    }
-    let eq = a.find("=") else -1
-    if eq < 0 {
-        return a
-    }
-    if !"follow".starts_with(a[2..eq]) {
-        return a
-    }
-    "-f"
+/// `--follow`'s vocabulary, in GNU's order (its "Valid arguments" list
+/// prints them so), and what each means: 0 descriptor, 1 name.
+fn follow_words() -> List[str] {
+    var w = List[str]()
+    (mut w).push("descriptor")
+    (mut w).push("name")
+    w
+}
+
+fn follow_meanings() -> List[int] {
+    var m = List[int]()
+    (mut m).push(0)
+    (mut m).push(1)
+    m
 }
 
 /// Whether `a` is the obsolete `-NUM…` spelling.
