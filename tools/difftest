@@ -70,10 +70,20 @@ Case file (TOML, one file per utility, any number of [[case]] tables):
                                  #   not printable. A case outside the
                                  #   range is reported as a SKIP.
 
-The environment is built from scratch for every run: PATH, LC_ALL=C,
-then the case's env (which may override LC_ALL). Nothing else leaks in
-from the host, so a POSIXLY_CORRECT in the caller's shell cannot change
-a verdict.
+The environment is built from scratch for every run: PATH, then
+`[oracle.env]` from gnu-oracle.toml, then the case's env (which may
+override either). Nothing else leaks in from the host, so a
+POSIXLY_CORRECT in the caller's shell cannot change a verdict.
+
+THE ENVIRONMENT IS PART OF THE PIN (B73). `LC_ALL=C` used to be written
+here; it is in gnu-oracle.toml now, beside `_POSIX2_VERSION=200112`,
+because both are the same kind of thing: a setting that decides what
+GNU's answer IS, and that a differential suite must therefore state
+rather than inherit. The second one is what makes two builds of one
+coreutils release agree about the obsolete `+N` operand form, which
+Homebrew's 9.11 and Arch's 9.11 otherwise do not. `[oracle.probe]`
+asserts that the environment took, and this harness refuses a verdict
+when it did not, exactly as it refuses one against the wrong version.
 
 GNU's name per host: plain on linux, g-prefixed on macOS (Homebrew's
 coreutils). $BORE_GNU_PREFIX overrides.
@@ -138,14 +148,69 @@ def die(msg):
 
 
 def oracle_of_record():
-    """The GNU version gnu-oracle.toml names, as a string."""
+    """The `[oracle]` table of gnu-oracle.toml, version asserted present."""
     path = os.path.join(ROOT, "gnu-oracle.toml")
     try:
         with open(path, "rb") as fh:
             doc = tomllib.load(fh)
-        return str(doc["oracle"]["version"])
+        table = doc["oracle"]
+        str(table["version"])
+        return table
     except (OSError, KeyError, tomllib.TOMLDecodeError) as e:
         die(f"{path}: no oracle version here ({e})")
+
+
+def oracle_env(table):
+    """`[oracle.env]`: the environment every case runs under, both sides."""
+    env = table.get("env", {})
+    if not isinstance(env, dict):
+        die("gnu-oracle.toml: [oracle.env] is not a table")
+    return {str(k): str(v) for k, v in env.items()}
+
+
+def assert_probe(table, prefix, env, loose):
+    """`[oracle.probe]`: check the pinned environment actually took.
+
+    A pinned environment nobody checks is the failure B44 named one
+    level up: a green that has quietly changed what it measures. The
+    probe is one observation whose answer is decided by how the oracle
+    was BUILT and overridden by how it is RUN, so it fails loudly on a
+    host where the override stopped working.
+    """
+    probe = table.get("probe")
+    if probe is None:
+        return
+    for key in ("util", "args", "status"):
+        if key not in probe:
+            die(f"gnu-oracle.toml: [oracle.probe] has no {key}")
+    exe = shutil.which(prefix + probe["util"])
+    if exe is None:
+        die(f"GNU '{prefix}{probe['util']}' not found on PATH for the probe")
+    child = {"PATH": os.environ.get("PATH", "/usr/bin:/bin")}
+    child.update(env)
+    got = subprocess.run([exe] + [str(a) for a in probe["args"]], env=child,
+                         stdout=subprocess.DEVNULL,
+                         stderr=subprocess.DEVNULL).returncode
+    want = int(probe["status"])
+    what = " ".join([probe["util"]] + [str(a) for a in probe["args"]])
+    if got == want:
+        print(f"difftest: oracle profile OK — `{what}` exits {got} "
+              f"({probe.get('why', '')})")
+        return
+    if loose:
+        # The `field` leg. A build profile that differs is the finding
+        # this leg exists to make — it is how B73 was found in the first
+        # place — so it is REPORTED here and refuses nothing.
+        print(f"difftest: ORACLE PROFILE DIFFERS: `{what}` exits {got} "
+              f"where gnu-oracle.toml wants {want} "
+              f"({probe.get('why', 'no reason given')})")
+        return
+    die(f"the pinned environment did not take: `{what}` exits {got} where "
+        f"gnu-oracle.toml's [oracle.probe] wants {want} "
+        f"({probe.get('why', 'no reason given')}). This build of GNU "
+        f"coreutils answers differently from the oracle of record and no "
+        f"verdict is possible against it. Set BORE_ORACLE_ANY=1 to run "
+        f"against it for information.")
 
 
 def gnu_prefix():
@@ -185,8 +250,9 @@ def feed(proc, data):
         pass
 
 
-def run(exe, argv0, case):
-    env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "LC_ALL": "C"}
+def run(exe, argv0, case, base_env):
+    env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin")}
+    env.update(base_env)
     env.update(case.get("env", {}))
     stdin = subprocess.DEVNULL
     data = None
@@ -346,7 +412,12 @@ def main(argv):
     # The oracle of record, asserted. A drifting oracle is the failure
     # this check exists for: it is not that the wrong GNU gives wrong
     # answers, it is that nobody notices which GNU gave them.
-    want = oracle_of_record()
+    table = oracle_of_record()
+    want = str(table["version"])
+    base_env = oracle_env(table)
+    if base_env:
+        shown = " ".join(f"{k}={v}" for k, v in sorted(base_env.items()))
+        print(f"difftest: oracle environment, {shown}")
     loose = bool(os.environ.get("BORE_ORACLE_ANY"))
     if have == version_tuple(want):
         print(f"difftest: oracle of record, GNU coreutils {want}")
@@ -360,6 +431,9 @@ def main(argv):
             f"record and this host has {version}. Install the oracle "
             f"(tools/fetch-oracle), or set BORE_ORACLE_ANY=1 to run "
             f"against this one for information.")
+
+    # The build profile, asserted — and on the `field` leg, reported.
+    assert_probe(table, prefix, base_env, loose)
 
     passed = failed = skipped = 0
     for util in utils:
@@ -400,8 +474,8 @@ def main(argv):
             fields = case.get("compare",
                               ALL if sink is None and not case.get("stdout_closed")
                               else CLOSED)
-            b = run(bore, util, case)
-            g = run(gnu, prefix + oracle, case)
+            b = run(bore, util, case, base_env)
+            g = run(gnu, prefix + oracle, case, base_env)
             ok = (b is not None and g is not None
                   and all(b[f] == g[f] for f in fields))
             if ok:
