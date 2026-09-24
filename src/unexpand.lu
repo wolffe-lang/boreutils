@@ -41,11 +41,14 @@
 //!
 //! **A last line with no newline keeps none.**
 //!
-//! **Memory is flat in the input and linear in the longest RUN OF
-//! BLANKS** — not in the longest line. A run has to be held because
-//! what it becomes is not known until it ends; everything else is
-//! written straight out. One 256 KiB chunk written in place from inside
-//! the per-chunk `region` (wolf-lang#416).
+//! **Memory is flat in the input.** A run of blanks is held as four
+//! integers and a byte rather than as its bytes — what it becomes is
+//! decided from the columns it spans — so nothing here grows with the
+//! input or with a line. Every pass reads one chunk, builds that
+//! chunk's output beside it and hands it to `bore.write_direct`, all
+//! inside one `region` that dies at the end of the pass
+//! (wolf-lang#416); writing byte by byte through the shared writer
+//! instead costs 2.7x the input, which `expand`'s header measures.
 
 use bore
 
@@ -134,19 +137,10 @@ fn main() -> int {
     if paths.len == 0 {
         (mut paths).push("-")
     }
-    let keeper = region()
-    var chunk = List[byte]()
-    in keeper {
-        var k = 0
-        while k < read_size() {
-            (mut chunk).push(0 as byte)
-            k += 1
-        }
-    }
     var status = 0
     var wfail = false
     for path in paths {
-        let code = one(mut out, path, o, mut chunk)
+        let code = one(out, path, o)
         if code != 0 {
             status = 1
         }
@@ -305,7 +299,7 @@ struct Run {
 
 /// Unexpand one operand. 0 success, 1 this operand failed, 2 a failed
 /// write.
-fn one(mut out: bore.Out, path: str, o: Opts, mut chunk: List[byte]) -> int {
+fn one(out: bore.Out, path: str, o: Opts) -> int {
     let src = bore.open_input(path) else |e| match e {
         not_found => {
             bore.input_error("unexpand", path, bore.no_such_file())
@@ -331,107 +325,109 @@ fn one(mut out: bore.Out, path: str, o: Opts, mut chunk: List[byte]) -> int {
     var pending = 0
     var stop = false
     while !stop {
-        var got = 0
+        // The whole pass lives in the region, output included, and
+        // `bore.write_direct` takes the writer by READ so it can be
+        // handed a region-local list. Writing byte by byte through
+        // `bore.put_byte` instead costs 2.7x the input in memory; see
+        // `expand`'s note, which measured it.
         region pass {
-            let read = bore.read_chunk(src, read_size()) else |e| match e {
+            let chunk = bore.read_chunk(src, read_size()) else |e| match e {
                 eof => {
-                    got = -1
+                    stop = true
                     List[byte]()
                 },
                 io => {
-                    got = -2
+                    stop = true
+                    why = 1
                     List[byte]()
                 },
             }
-            if got == 0 {
-                got = read.len
-                if got == 0 {
-                    got = -1
-                }
-            }
-            if got > 0 {
-                var k = 0
-                while k < got {
-                    chunk[k] = read[k]
-                    k += 1
-                }
-            }
-        }
-        if got == -2 {
-            why = 1
-            stop = true
-        } else if got == -1 {
-            stop = true
-        } else {
-            var at = 0
-            while at < got {
-                let b = chunk[at]
-                let n = b as int
-                if pending > 0 {
-                    bore.put_byte(mut out, b) else |_| {
-                        return 2
+            if chunk.len == 0 {
+                stop = true
+            } else {
+                var buf = List[byte]()
+                var at = 0
+                while at < chunk.len {
+                    let b = chunk[at]
+                    let n = b as int
+                    if pending > 0 {
+                        (mut buf).push(b)
+                        pending -= 1
+                        at += 1
+                        continue
                     }
-                    pending -= 1
-                    at += 1
-                    continue
-                }
-                let convert = o.all || initial
-                if (n == 32 || n == 9) && convert {
-                    if !run.open {
-                        run = Run { start_col: col, count: 0, col: col, open: true, first: b }
+                    let convert = o.all || initial
+                    if (n == 32 || n == 9) && convert {
+                        if !run.open {
+                            // Field by field, not a fresh `Run`: a
+                            // struct built here would be allocated in
+                            // `pass` and has to outlive it (E1010).
+                            run.start_col = col
+                            run.count = 0
+                            run.col = col
+                            run.open = true
+                            run.first = b
+                        }
+                        run.count += 1
+                        if n == 9 {
+                            let next = bore.next_stop(o.tabs, run.col)
+                            run.col = if next > run.col then next else run.col + 1
+                        } else {
+                            run.col += 1
+                        }
+                        col = run.col
+                        at += 1
+                        continue
                     }
-                    run.count += 1
+                    if run.open {
+                        flush_run(run, o, mut buf)
+                        run.open = false
+                    }
+                    if n == 10 {
+                        (mut buf).push(b)
+                        col = 0
+                        initial = true
+                        at += 1
+                        continue
+                    }
+                    initial = false
+                    (mut buf).push(b)
                     if n == 9 {
-                        let next = bore.next_stop(o.tabs, run.col)
-                        run.col = if next > run.col then next else run.col + 1
+                        let next = bore.next_stop(o.tabs, col)
+                        col = if next > col then next else col + 1
+                    } else if n == 8 {
+                        if col > 0 {
+                            col -= 1
+                        }
+                    } else if n == 0 {
+                        col += 0
+                    } else if o.utf8 && n >= 192 {
+                        pending = sequence_len(n) - 1
+                        col += width_ahead(chunk, at, chunk.len, b, pending)
                     } else {
-                        run.col += 1
+                        col += 1
                     }
-                    col = run.col
                     at += 1
-                    continue
                 }
-                if run.open {
-                    flush_run(run, o, mut out) else |_| {
-                        return 2
+                if buf.len > 0 {
+                    bore.write_direct(out, buf) else |_| {
+                        why = 2
+                        stop = true
                     }
-                    run.open = false
                 }
-                if n == 10 {
-                    bore.put_byte(mut out, b) else |_| {
-                        return 2
-                    }
-                    col = 0
-                    initial = true
-                    at += 1
-                    continue
-                }
-                initial = false
-                bore.put_byte(mut out, b) else |_| {
-                    return 2
-                }
-                if n == 9 {
-                    let next = bore.next_stop(o.tabs, col)
-                    col = if next > col then next else col + 1
-                } else if n == 8 {
-                    if col > 0 {
-                        col -= 1
-                    }
-                } else if n == 0 {
-                    col += 0
-                } else if o.utf8 && n >= 192 {
-                    pending = sequence_len(n) - 1
-                    col += width_ahead(chunk, at, got, b, pending)
-                } else {
-                    col += 1
-                }
-                at += 1
             }
         }
     }
     if why == 0 && run.open {
-        flush_run(run, o, mut out) else |_| {
-            return 2
+        // The run that ends with the input, in its own region.
+        region last {
+            var buf = List[byte]()
+            flush_run(run, o, mut buf)
+            if buf.len > 0 {
+                bore.write_direct(out, buf) else |_| {
+                    why = 2
+                }
+            }
         }
     }
     bore.close_input(src)
@@ -447,30 +443,29 @@ fn one(mut out: bore.Out, path: str, o: Opts, mut chunk: List[byte]) -> int {
 /// single tab — whatever column it ends on. See the header: that is the
 /// measurement that separates this from a nearly-right `unexpand`.
 ///
-/// The writer goes LAST: wolf-lang#449.
-fn flush_run(run: Run, o: Opts, mut out: bore.Out) -> () ! {io} {
+/// It writes into the pass's own output list rather than the shared
+/// writer, so it cannot fail and has no row.
+fn flush_run(run: Run, o: Opts, mut buf: List[byte]) {
     if run.count == 1 {
         // Verbatim, not rebuilt: measured, `unexpand` of a lone tab
         // answers that tab, and of a lone space that space, whatever
         // column either ends on.
-        bore.put_byte(mut out, run.first)?
+        (mut buf).push(run.first)
         return
     }
     var col = run.start_col
-    if run.count > 1 {
-        var going = true
-        while going {
-            let next = bore.next_stop(o.tabs, col)
-            if next > 0 && next <= run.col {
-                bore.put_byte(mut out, 9 as byte)?
-                col = next
-            } else {
-                going = false
-            }
+    var going = true
+    while going {
+        let next = bore.next_stop(o.tabs, col)
+        if next > 0 && next <= run.col {
+            (mut buf).push(9 as byte)
+            col = next
+        } else {
+            going = false
         }
     }
     while col < run.col {
-        bore.put_byte(mut out, 32 as byte)?
+        (mut buf).push(32 as byte)
         col += 1
     }
 }
