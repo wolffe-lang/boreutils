@@ -264,3 +264,94 @@ stdout_closed = true
 name = "standard output closed, help"
 args = ["--help"]
 stdout_closed = true
+
+# ------------------------------------------------------------ -r, -u and -s
+#
+# POSIX's -r reverses the comparison; GNU's last-resort comparison of
+# whole lines is reversed with it. -u keeps the first of each run of
+# equal lines and turns the last resort off; -s turns it off and keeps
+# input order among equal keys.
+
+[[case]]
+name = "r reverses"
+args = ["-r", "tests/fixtures/sortwords.txt"]
+
+[[case]]
+name = "r on standard input"
+args = ["-r"]
+stdin = "a\nc\nb\n"
+
+[[case]]
+name = "r keeps duplicates"
+args = ["-r", "tests/fixtures/sortdups.txt"]
+
+[[case]]
+name = "r with empty lines"
+args = ["-r"]
+stdin = "b\n\na\n"
+
+[[case]]
+name = "reverse spelled long"
+args = ["--reverse", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "r twice is still r"
+args = ["-r", "-r", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "u drops duplicates"
+args = ["-u", "tests/fixtures/sortdups.txt"]
+
+[[case]]
+name = "u on groups"
+args = ["-u", "tests/fixtures/groups.txt"]
+
+[[case]]
+name = "u with r"
+args = ["-ur", "tests/fixtures/sortdups.txt"]
+
+[[case]]
+name = "u on empty lines"
+args = ["-u"]
+stdin = "\n\na\n\n"
+
+[[case]]
+name = "unique spelled long"
+args = ["--unique", "tests/fixtures/sortdups.txt"]
+
+[[case]]
+name = "u keeps distinct lines"
+args = ["-u", "tests/fixtures/sortwords.txt"]
+
+[[case]]
+name = "s on whole lines changes nothing"
+args = ["-s", "tests/fixtures/sortwords.txt"]
+
+[[case]]
+name = "stable spelled long"
+args = ["--stable", "tests/fixtures/sortwords.txt"]
+
+[[case]]
+name = "s with r"
+args = ["-sr", "tests/fixtures/sortdups.txt"]
+
+[[case]]
+name = "u and s together"
+args = ["-us", "tests/fixtures/sortdups.txt"]
+
+[[case]]
+name = "options permute with operands"
+args = ["tests/fixtures/sortsorted2.txt", "-r"]
+
+[[case]]
+name = "POSIXLY_CORRECT stops the permutation"
+args = ["tests/fixtures/sortsorted2.txt", "-r"]
+env = { POSIXLY_CORRECT = "1" }
+
+[[case]]
+name = "a prefix naming one option"
+args = ["--rev", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "y does not take the next word"
+args = ["-y", "-r", "tests/fixtures/sortsorted.txt"]
