@@ -44,7 +44,10 @@
 //! per-chunk `region` so that `fs_read_chunk`'s per-call allocation
 //! cannot accumulate (wolf-lang#416), and one line buffer per operand
 //! that is grown by doubling and then reused rather than rebuilt — the
-//! shape `uniq` and `nl` arrived at.
+//! shape `uniq` and `nl` arrived at. The OUTPUT goes through a
+//! `bore.Sink` for the same reason: the shared writer's flush allocates
+//! a fresh buffer each time and abandons the old one, which cost this
+//! program 1.35 GB pasting two 256 MiB files before the sink existed.
 
 use bore
 
@@ -375,6 +378,7 @@ fn next_line(mut r: Reader, mut f: Field, delim: byte, keeper: region) {
 /// `-s`: one file at a time, its lines joined by the cycling list.
 fn serial(mut out: bore.Out, paths: List[str], o: Opts) -> int {
     let keeper = region()
+    var sink = bore.sink(keeper)
     var status = 0
     var wfail = false
     for path in paths {
@@ -392,12 +396,12 @@ fn serial(mut out: bore.Out, paths: List[str], o: Opts) -> int {
                 going = false
             } else {
                 if n > 0 {
-                    put_delim(o.delims, n - 1, mut out) else |_| {
+                    put_delim(o.delims, n - 1, out, mut sink) else |_| {
                         wfail = true
                         going = false
                     }
                 }
-                put_field(f, mut out) else |_| {
+                put_field(f, out, mut sink) else |_| {
                     wfail = true
                     going = false
                 }
@@ -408,7 +412,7 @@ fn serial(mut out: bore.Out, paths: List[str], o: Opts) -> int {
         // `paste -s empty` writes one bare delimiter. The count is not
         // what decides it; having opened the file is.
         if !wfail {
-            bore.put_byte(mut out, o.line_delim) else |_| {
+            bore.sink_push(o.line_delim, out, mut sink) else |_| {
                 wfail = true
             }
         }
@@ -422,6 +426,13 @@ fn serial(mut out: bore.Out, paths: List[str], o: Opts) -> int {
             return 1
         }
     }
+    bore.sink_done(out, mut sink) else |_| {
+        wfail = true
+    }
+    if wfail {
+        bore.write_error(out, "paste", "write error")
+        return 1
+    }
     // wolf-lang#449: the loop above claims `out` inside a conditional.
     bore.finish_last("paste", status, mut out)
 }
@@ -429,6 +440,7 @@ fn serial(mut out: bore.Out, paths: List[str], o: Opts) -> int {
 /// The default: one record of corresponding lines at a time.
 fn parallel(mut out: bore.Out, paths: List[str], o: Opts) -> int {
     let keeper = region()
+    var sink = bore.sink(keeper)
     var readers = List[Reader]()
     var slot = List[int]()
     var fields = List[Field]()
@@ -479,14 +491,14 @@ fn parallel(mut out: bore.Out, paths: List[str], o: Opts) -> int {
             var j = 0
             while j < slot.len {
                 if j > 0 {
-                    put_delim(o.delims, j - 1, mut out) else |_| {
+                    put_delim(o.delims, j - 1, out, mut sink) else |_| {
                         wfail = true
                         j = slot.len
                         going = false
                     }
                 }
                 if j < slot.len {
-                    put_field(fields[j], mut out) else |_| {
+                    put_field(fields[j], out, mut sink) else |_| {
                         wfail = true
                         going = false
                     }
@@ -494,7 +506,7 @@ fn parallel(mut out: bore.Out, paths: List[str], o: Opts) -> int {
                 j += 1
             }
             if going {
-                bore.put_byte(mut out, o.line_delim) else |_| {
+                bore.sink_push(o.line_delim, out, mut sink) else |_| {
                     wfail = true
                     going = false
                 }
@@ -507,6 +519,9 @@ fn parallel(mut out: bore.Out, paths: List[str], o: Opts) -> int {
         }
         bore.close_input(r.src)
     }
+    bore.sink_done(out, mut sink) else |_| {
+        wfail = true
+    }
     if wfail {
         bore.write_error(out, "paste", "write error")
         return 1
@@ -517,21 +532,27 @@ fn parallel(mut out: bore.Out, paths: List[str], o: Opts) -> int {
 
 /// Write the `n`-th delimiter of the cycling list. `-1` is no delimiter.
 ///
-/// The writer goes LAST: wolf-lang#449 refuses `put_delim(mut out, …)`
-/// at a call that follows a conditional also claiming `out`.
-fn put_delim(delims: List[int], n: int, mut out: bore.Out) -> () ! {io} {
+/// Through a `bore.Sink` rather than `bore.put_byte`: the shared
+/// writer's flush allocates a fresh buffer every 64 KiB and abandons
+/// the old one, which cost this program 2.6x its output — 1.35 GB
+/// pasting two 256 MiB files. `bore/sink.lu`'s header measures it.
+///
+/// The sink goes LAST: wolf-lang#449 refuses a `mut` argument with
+/// anything spelled after it at a call that follows a conditional
+/// claiming the same place.
+fn put_delim(delims: List[int], n: int, out: bore.Out, mut sink: bore.Sink) -> () ! {io} {
     let d = delims[n % delims.len]
     if d < 0 {
         return
     }
-    bore.put_byte(mut out, d as byte)?
+    bore.sink_push(d as byte, out, mut sink)?
 }
 
-/// Write a field's bytes. The writer goes last, as `put_delim`.
-fn put_field(f: Field, mut out: bore.Out) -> () ! {io} {
+/// Write a field's bytes. The sink goes last, as `put_delim`.
+fn put_field(f: Field, out: bore.Out, mut sink: bore.Sink) -> () ! {io} {
     var i = 0
     while i < f.len {
-        bore.put_byte(mut out, f.bytes[i])?
+        bore.sink_push(f.bytes[i], out, mut sink)?
         i += 1
     }
 }
