@@ -983,3 +983,302 @@ args = ["-n", "-k", "1,1d", "tests/fixtures/sortsorted.txt"]
 [[case]]
 name = "k the first bad key wins"
 args = ["-k", "0", "-k", "x", "tests/fixtures/sortsorted.txt"]
+
+# ------------------------------------------------------------ -c, -C, -m, -o and -z
+#
+# -c reports the first line out of order as FILE:N and exits 1, using
+# the full comparison (the last resort included, unless -s); with -u,
+# equal neighbours are disorder too. -C says nothing. -m merges inputs
+# that are each already sorted, as they stand. -o writes to a file after
+# reading everything, so it may name an input. -z ends lines with NUL.
+
+[[case]]
+name = "c on sorted input"
+args = ["-c", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "c on unsorted input"
+args = ["-c", "tests/fixtures/sortwords.txt"]
+
+[[case]]
+name = "c on standard input"
+args = ["-c"]
+stdin = "a\nc\nb\n"
+
+[[case]]
+name = "c names standard input as a dash"
+args = ["-c", "-"]
+stdin = "b\na\n"
+
+[[case]]
+name = "c on empty input"
+args = ["-c", "tests/fixtures/empty.txt"]
+
+[[case]]
+name = "c on a last line with no newline"
+args = ["-c"]
+stdin = "b\na"
+
+[[case]]
+name = "c with duplicates is sorted"
+args = ["-c", "tests/fixtures/sortdups.txt"]
+
+[[case]]
+name = "c with u and duplicates is not"
+args = ["-cu", "tests/fixtures/sortdups.txt"]
+
+[[case]]
+name = "c with r"
+args = ["-cr", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "c with n"
+args = ["-cn"]
+stdin = "2\n10\n9\n"
+
+[[case]]
+name = "c uses the last resort"
+args = ["-c", "-k", "1,1"]
+stdin = "a 2\na 1\n"
+
+[[case]]
+name = "c with s does not"
+args = ["-cs", "-k", "1,1"]
+stdin = "a 2\na 1\n"
+
+[[case]]
+name = "c with u on equal keys"
+args = ["-cu", "-k", "1,1"]
+stdin = "a 1\na 2\n"
+
+[[case]]
+name = "c a missing file"
+args = ["-c", "nope"]
+
+[[case]]
+name = "C a missing file"
+args = ["-C", "nope"]
+
+[[case]]
+name = "c a directory"
+args = ["-c", "tests/fixtures"]
+
+[[case]]
+name = "c two files"
+args = ["-c", "tests/fixtures/sortsorted.txt", "tests/fixtures/sortsorted2.txt"]
+
+[[case]]
+name = "c with o"
+args = ["-c", "-o", "x", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "C with o"
+args = ["-C", "-o", "x", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "C two files"
+args = ["-C", "tests/fixtures/sortsorted.txt", "tests/fixtures/sortsorted2.txt"]
+
+[[case]]
+name = "C on unsorted input says nothing"
+args = ["-C", "tests/fixtures/sortwords.txt"]
+
+[[case]]
+name = "C on sorted input"
+args = ["-C", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "check alone is c"
+args = ["--check", "tests/fixtures/sortwords.txt"]
+
+[[case]]
+name = "check=quiet"
+args = ["--check=quiet", "tests/fixtures/sortwords.txt"]
+
+[[case]]
+name = "check=silent"
+args = ["--check=silent", "tests/fixtures/sortwords.txt"]
+
+[[case]]
+name = "check=diagnose-first"
+args = ["--check=diagnose-first", "tests/fixtures/sortwords.txt"]
+
+[[case]]
+name = "check=WORD abbreviated"
+args = ["--check=q", "tests/fixtures/sortwords.txt"]
+
+[[case]]
+name = "check=WORD that is not one"
+args = ["--check=bogus", "tests/fixtures/sortwords.txt"]
+
+[[case]]
+name = "check=WORD empty is ambiguous"
+args = ["--check=", "tests/fixtures/sortwords.txt"]
+
+[[case]]
+name = "check abbreviated"
+args = ["--che", "tests/fixtures/sortwords.txt"]
+
+[[case]]
+name = "check does not take the next word"
+args = ["--check", "-"]
+stdin = "b\na\n"
+
+[[case]]
+name = "c then C"
+args = ["-c", "-C", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "C then c"
+args = ["-C", "-c", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "c and m: c wins"
+args = ["-c", "-m"]
+stdin = "b\na\n"
+
+[[case]]
+name = "c with z"
+args = ["-cz"]
+stdin = "b\u0000a\u0000"
+
+[[case]]
+name = "c with standard output closed"
+args = ["-c", "tests/fixtures/sortwords.txt"]
+stdout_closed = true
+
+[[case]]
+name = "m two sorted files"
+args = ["-m", "tests/fixtures/sortsorted.txt", "tests/fixtures/sortsorted2.txt"]
+
+[[case]]
+name = "m three files and standard input"
+args = ["-m", "tests/fixtures/sortsorted2.txt", "-", "tests/fixtures/sortsorted.txt"]
+stdin = "c\nd\n"
+
+[[case]]
+name = "m unsorted input is merged as it stands"
+args = ["-m", "tests/fixtures/sortwords.txt", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "m r on reverse-sorted inputs"
+args = ["-mr"]
+stdin = "z\ny\nx\n"
+
+[[case]]
+name = "m u across files"
+args = ["-mu", "tests/fixtures/sortsorted.txt", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "m u on duplicates"
+args = ["-mu", "tests/fixtures/sortdups.txt", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "m a last line with no newline"
+args = ["-m", "tests/fixtures/nonl.txt", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "m with keys"
+args = ["-m", "-k", "2,2n"]
+stdin = "a 1\nb 2\nc 3\n"
+
+[[case]]
+name = "m a missing file"
+args = ["-m", "tests/fixtures/sortsorted.txt", "nope"]
+
+[[case]]
+name = "m a directory"
+args = ["-m", "tests/fixtures", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "m one file"
+args = ["-m", "tests/fixtures/sortwords.txt"]
+
+[[case]]
+name = "m empty inputs"
+args = ["-m", "tests/fixtures/empty.txt", "tests/fixtures/empty.txt"]
+
+[[case]]
+name = "merge spelled long"
+args = ["--merge", "tests/fixtures/sortsorted.txt", "tests/fixtures/sortsorted2.txt"]
+
+[[case]]
+name = "o to standard output's path"
+args = ["-o", "/dev/stdout", "tests/fixtures/sortwords.txt"]
+
+[[case]]
+name = "o twice the same"
+args = ["-o", "/dev/stdout", "-o", "/dev/stdout", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "o twice different"
+args = ["-o", "/dev/stdout", "-o", "/dev/null", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "o a directory"
+args = ["-o", "tests/fixtures", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "o a path that cannot exist"
+args = ["-o", "/nonexistent/x", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "o empty"
+args = ["-o", "", "tests/fixtures/sortsorted.txt"]
+
+[[case]]
+name = "o a missing input is reported first"
+args = ["-o", "/nonexistent/x", "nope"]
+
+[[case]]
+name = "output spelled long"
+args = ["--output=/dev/stdout", "tests/fixtures/sortwords.txt"]
+
+[[case]]
+name = "m with o"
+args = ["-m", "-o", "/dev/stdout", "tests/fixtures/sortsorted.txt", "tests/fixtures/sortsorted2.txt"]
+
+[[case]]
+name = "z sorts NUL-terminated items"
+args = ["-z"]
+stdin = "b\u0000a\u0000c\u0000"
+
+[[case]]
+name = "z keeps newlines inside items"
+args = ["-z"]
+stdin = "a\u0000c\na\u0000b\u0000"
+
+[[case]]
+name = "z supplies a missing NUL"
+args = ["-z"]
+stdin = "b\u0000a"
+
+[[case]]
+name = "z on newline text is one item"
+args = ["-z"]
+stdin = "b\na\n"
+
+[[case]]
+name = "z a newline is a blank between fields"
+args = ["-z", "-k2"]
+stdin = "a\nb c\u0000a b\u0000"
+
+[[case]]
+name = "z a newline starts a field"
+args = ["-z", "-k2"]
+stdin = "x\u0000b\nc\u0000"
+
+[[case]]
+name = "z with u"
+args = ["-zu"]
+stdin = "a\u0000a\u0000b\u0000"
+
+[[case]]
+name = "z with m"
+args = ["-zm"]
+stdin = "a\u0000c\u0000"
+
+[[case]]
+name = "zero-terminated spelled long"
+args = ["--zero-terminated"]
+stdin = "b\u0000a\u0000"
