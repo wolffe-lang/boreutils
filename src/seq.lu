@@ -205,7 +205,9 @@ fn mul_small(m: List[int], k: int) -> List[int] {
 /// the caller only ever widens.
 fn rescale(d: Dec, scale: int) -> Dec {
     if scale <= d.scale {
-        return d
+        // 0.2.16 refuses a bare move-out of a `read` parameter
+        // (wolf-lang#366); the value has to be handed on independently.
+        return copy d
     }
     Dec {
         neg: d.neg,
