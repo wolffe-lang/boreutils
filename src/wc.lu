@@ -57,7 +57,8 @@
 //! `-c`. In UTF-8 mode `-m`, `-w` and `-L` decode UTF-8, an invalid byte
 //! is consumed alone and counts as NO character while still belonging to
 //! a word and having width 0 (measured against GNU on both hosts), and
-//! `-L` uses the compact width table in `width_of`: the C0/C1 controls
+//! `-L` uses the compact width table in `bore.width_of` (it lived here
+//! until `fold` needed the same answer): the C0/C1 controls
 //! and the main combining and format ranges are 0, the East Asian Wide
 //! and Fullwidth ranges and emoji are 2, everything else is 1. That
 //! table agrees with both hosts' `wcwidth` on every code point in the
@@ -191,163 +192,6 @@ pub fn wide_space(n: int) -> bool {
         return true
     }
     n == 12288
-}
-
-/// The display width of the code point `n`, in the compact table this
-/// program documents: 0 for the controls and the main combining and
-/// format ranges, 2 for the East Asian Wide and Fullwidth ranges and
-/// emoji, 1 otherwise.
-pub fn width_of(n: int) -> int {
-    if n < 32 || n >= 127 && n < 160 {
-        return 0
-    }
-    if zero_width(n) {
-        return 0
-    }
-    if wide(n) {
-        return 2
-    }
-    1
-}
-
-fn zero_width(n: int) -> bool {
-    if n < 768 {
-        return false
-    }
-    if n <= 879 {
-        return true
-    }
-    if n >= 1155 && n <= 1161 {
-        return true
-    }
-    if n >= 1425 && n <= 1469 {
-        return true
-    }
-    if n == 1471 || n >= 1473 && n <= 1474 || n >= 1476 && n <= 1477 {
-        return true
-    }
-    if n == 1479 || n >= 1552 && n <= 1562 || n >= 1611 && n <= 1631 {
-        return true
-    }
-    if n == 1648 || n >= 1750 && n <= 1756 || n >= 1759 && n <= 1764 {
-        return true
-    }
-    if n >= 1767 && n <= 1768 {
-        return true
-    }
-    if n >= 1770 && n <= 1773 {
-        return true
-    }
-    if n >= 1840 && n <= 1866 {
-        return true
-    }
-    if n >= 2027 && n <= 2035 {
-        return true
-    }
-    if n >= 2260 && n <= 2306 {
-        return true
-    }
-    if n >= 3633 && n <= 3642 {
-        return true
-    }
-    if n >= 3655 && n <= 3662 {
-        return true
-    }
-    if n >= 3761 && n <= 3772 {
-        return true
-    }
-    if n >= 4448 && n <= 4607 {
-        return true
-    }
-    if n >= 7616 && n <= 7679 {
-        return true
-    }
-    if n >= 8203 && n <= 8207 {
-        return true
-    }
-    if n >= 8234 && n <= 8238 {
-        return true
-    }
-    if n >= 8288 && n <= 8303 {
-        return true
-    }
-    if n >= 8400 && n <= 8432 {
-        return true
-    }
-    if n >= 12330 && n <= 12335 {
-        return true
-    }
-    if n >= 12441 && n <= 12442 {
-        return true
-    }
-    if n == 64286 {
-        return true
-    }
-    if n >= 65024 && n <= 65039 {
-        return true
-    }
-    if n >= 65056 && n <= 65071 {
-        return true
-    }
-    if n == 65279 || n >= 65529 && n <= 65531 {
-        return true
-    }
-    n >= 917760 && n <= 917999
-}
-
-fn wide(n: int) -> bool {
-    if n < 4352 {
-        return false
-    }
-    if n <= 4447 {
-        return true
-    }
-    if n >= 8986 && n <= 8987 {
-        return true
-    }
-    if n >= 9193 && n <= 9196 {
-        return true
-    }
-    if n >= 11904 && n <= 12287 {
-        return true
-    }
-    if n >= 12288 && n <= 19903 {
-        return true
-    }
-    if n >= 19968 && n <= 42191 {
-        return true
-    }
-    if n >= 44032 && n <= 55203 {
-        return true
-    }
-    if n >= 63744 && n <= 64255 {
-        return true
-    }
-    if n >= 65040 && n <= 65049 {
-        return true
-    }
-    if n >= 65072 && n <= 65131 {
-        return true
-    }
-    if n >= 65281 && n <= 65376 {
-        return true
-    }
-    if n >= 65504 && n <= 65510 {
-        return true
-    }
-    if n >= 127744 && n <= 128764 {
-        return true
-    }
-    if n >= 128992 && n <= 129003 {
-        return true
-    }
-    if n >= 129292 && n <= 129750 {
-        return true
-    }
-    if n >= 131072 && n <= 196605 {
-        return true
-    }
-    n >= 196608 && n <= 262141
 }
 
 // ---------------------------------------------------------- the counting
@@ -649,7 +493,7 @@ fn scan_general(src: bore.In, utf8: bool) -> Counts ! {io} {
                     } else if point == 9 {
                         pos = (pos / 8 + 1) * 8
                     } else {
-                        pos += width_of(point)
+                        pos += bore.width_of(point)
                     }
                     if wide_space(point) {
                         inword = false
