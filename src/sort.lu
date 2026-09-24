@@ -144,6 +144,15 @@ fn main() -> int {
             }
             return 0
         }
+        if k == "reverse" {
+            g.reverse = true
+        }
+        if k == "stable" {
+            o.stable = true
+        }
+        if k == "unique" {
+            o.unique = true
+        }
         if k == "debug" {
             o.unsupported = "--debug"
         }
@@ -246,9 +255,36 @@ fn fail(msg: str) -> int {
 
 // ------------------------------------------------------------ comparison
 
-/// Compare two lines as bytes.
+/// Compare two lines: every key in order, then — unless `-s` or `-u` —
+/// the whole lines as bytes, reversed by a global `-r`.
 fn compare(c: Conf, a: List[byte], sa: int, ea: int, b: List[byte], sb: int, eb: int) -> int {
-    bytes_cmp(a, sa, ea, b, sb, eb)
+    if c.plain {
+        let d = bytes_cmp(a, sa, ea, b, sb, eb)
+        return if c.reverse then -d else d
+    }
+    let d = compare_keys(c, a, sa, ea, b, sb, eb)
+    if d != 0 || c.stable || c.unique {
+        return d
+    }
+    let r = bytes_cmp(a, sa, ea, b, sb, eb)
+    if c.reverse then -r else r
+}
+
+/// Compare the keys only: what `-u` calls equal.
+fn compare_keys(c: Conf, a: List[byte], sa: int, ea: int, b: List[byte], sb: int, eb: int) -> int {
+    if c.plain {
+        let d = bytes_cmp(a, sa, ea, b, sb, eb)
+        return if c.reverse then -d else d
+    }
+    var ki = 0
+    while ki < c.keys.len {
+        let d = bytes_cmp(a, sa, ea, b, sb, eb)
+        if d != 0 {
+            return if c.keys[ki].reverse then -d else d
+        }
+        ki += 1
+    }
+    0
 }
 
 /// `memcmp`, then the shorter first.
@@ -442,7 +478,8 @@ fn put_part(out: bore.Out, fd: int, ob: List[byte], n: int) -> () ! {io} {
     }
 }
 
-/// Write the held lines in `perm`'s order, each with its delimiter.
+/// Write the held lines in `perm`'s order, each with its delimiter,
+/// dropping under `-u` every line whose keys equal the last one kept.
 /// Everything is taken by READ, so a caller inside a `region` may pass
 /// its region-local lists (wolf-lang#418).
 fn emit_lines(
@@ -455,12 +492,19 @@ fn emit_lines(
 ) -> () ! {io} {
     var ob = fresh_buffer()
     var n = 0
+    var last = -1
     var k = 0
     while k < perm.len {
         let x = perm[k]
         k += 1
         let s = starts[x]
         let e = starts[x + 1] - 1
+        if c.unique && last >= 0 {
+            if compare_keys(c, buf, starts[last], starts[last + 1] - 1, buf, s, e) == 0 {
+                continue
+            }
+        }
+        last = x
         var i = s
         while i <= e {
             ob[n] = if i == e then c.delim else buf[i]
