@@ -175,17 +175,9 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
-          # PLANTED, and reverted in the next commit. B98's ruling says a
-          # SIGNAL death on this leg is loud even though a verdict
-          # difference is not, and a ruling nobody has watched fail is
-          # not a ruling. `head -c 1` takes one byte and goes away, so
-          # the harness's next write is the broken pipe it exits 141 on
-          # — the same death run 35673565877 took unnoticed. Note that
-          # the PIPELINE's own status is `head`'s and is 0, which is
-          # exactly how it went unnoticed.
           set +e
-          tools/difftest | head -c 1 > /dev/null
-          code=${PIPESTATUS[0]}
+          tools/difftest
+          code=$?
           set -e
           echo "code=$code" >> "$GITHUB_OUTPUT"
           exit $code
