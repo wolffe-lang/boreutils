@@ -1,0 +1,72 @@
+# tac — the bench. The work is: read the WHOLE input into one list, walk
+# it backwards looking for separators, and write the records out in the
+# order they are found.
+#
+# PREDICTION, committed in notes/bu07-the-pin-and-the-rest-of-b3.md
+# before the first run (release tier, GNU 9.11, kasumi):
+#
+#   0.3x to 0.6x on a FILE. GNU seeks to the end and walks backwards
+#   through it; wolf 0.2.14 has no seek, no tell and no positional read
+#   (wolf-lang#426), so this reads the whole file forward first and the
+#   comparison is a read against a seek, exactly as `tail`'s is.
+#
+#   0.6x to 0.9x through a PIPE, where GNU cannot seek either and has to
+#   buffer the input as we do — the only fair comparison in this file.
+#
+# The falsifier is a measured ratio outside either band. `tac` is also
+# the one utility in B3 whose MEMORY is the input rather than flat in it,
+# and the README carries the peak RSS beside the ratio.
+
+[[bench]]
+name = "start-up, no input"
+command = "{prog} < /dev/null"
+
+[[bench]]
+name = "ordinary lines, a file operand"
+command = "LC_ALL=C {prog} {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "ordinary lines, through a pipe"
+command = "LC_ALL=C {prog} < {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "very short lines, a file operand"
+command = "LC_ALL=C {prog} {input} > /dev/null"
+input = "lines"
+
+[[bench]]
+name = "very short lines, through a pipe"
+command = "LC_ALL=C {prog} < {input} > /dev/null"
+input = "lines"
+
+[[bench]]
+name = "-b, the separator before its record"
+command = "LC_ALL=C {prog} -b {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-s, a one-character separator that is not a newline"
+command = "LC_ALL=C {prog} -s ' ' {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-s, a separator of several characters"
+command = "LC_ALL=C {prog} -s 'the' {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-r, a literal expression"
+command = "LC_ALL=C {prog} -r -s 'q' {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "-r, a bracket expression with a quantifier"
+command = "LC_ALL=C {prog} -r -s '[aeiou][aeiou]*' {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "binary noise, no separator anywhere near"
+command = "LC_ALL=C {prog} -s 'zzzz' {input} > /dev/null"
+input = "noise"

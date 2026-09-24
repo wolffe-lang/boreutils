@@ -1,0 +1,510 @@
+# tac — GNU coreutils 9.11, black-box. Every expectation here was read
+# off the GNU binary; the harness compares stdout, stderr's shape and the
+# exit status against it, so nothing below states an answer.
+#
+# `tac` is a GNU utility, not a POSIX one, so GNU's `--help` and the info
+# manual are the whole specification and the binary settles the rest.
+#
+# --help and --version print OUR text (GNU's is the FSF's prose), so
+# their cases compare the exit status and stderr only.
+#
+# Fixtures used here:
+#   plain.txt    alpha / beta / gamma, three lines with a final newline
+#   nonl.txt     one line with NO final newline — the case everyone gets
+#                wrong, because the last record has no separator
+#   twelve.txt   l1 .. l12
+#   empty.txt    nothing at all
+#   one.txt      a single line
+#   blanks.txt   runs of empty lines, top and tail
+#   seps.txt     a x b x c x — a custom single-character separator
+#   digits.txt   a1b22c — the regex record-splitting measurement
+#   binary.bin   arbitrary bytes, for the byte-exactness claim
+
+# ----------------------------------------------------------- the defaults
+
+[[case]]
+name = "three lines"
+args = ["tests/fixtures/plain.txt"]
+
+[[case]]
+name = "standard input by default"
+stdin = "a\nb\nc\n"
+
+[[case]]
+name = "a dash operand is standard input"
+args = ["-"]
+stdin = "a\nb\nc\n"
+
+[[case]]
+name = "a last record with no separator keeps none"
+args = ["tests/fixtures/nonl.txt"]
+
+[[case]]
+name = "no trailing newline, several records"
+stdin = "a\nb\nc"
+
+[[case]]
+name = "empty input"
+args = ["tests/fixtures/empty.txt"]
+
+[[case]]
+name = "empty standard input"
+stdin = ""
+
+[[case]]
+name = "one byte and no separator"
+stdin = "x"
+
+[[case]]
+name = "a single separator and nothing else"
+stdin = "\n"
+
+[[case]]
+name = "two separators in a row"
+stdin = "a\n\nb\n"
+
+[[case]]
+name = "leading separator"
+stdin = "\na\nb\n"
+
+[[case]]
+name = "runs of empty lines"
+args = ["tests/fixtures/blanks.txt"]
+
+[[case]]
+name = "twelve lines"
+args = ["tests/fixtures/twelve.txt"]
+
+[[case]]
+name = "a one-line file"
+args = ["tests/fixtures/one.txt"]
+
+[[case]]
+name = "binary input is byte exact"
+args = ["tests/fixtures/binary.bin"]
+
+[[case]]
+name = "NUL bytes in the records"
+stdin_file = "nulrec.dat"
+
+[[case]]
+name = "CRLF is not special"
+args = ["tests/fixtures/crlf.txt"]
+
+[[case]]
+name = "UTF-8 passes through as bytes"
+args = ["tests/fixtures/utf8.txt"]
+
+[[case]]
+name = "-- ends the options"
+args = ["--", "tests/fixtures/plain.txt"]
+
+# ----------------------------------------------------------- the operands
+
+[[case]]
+name = "two operands are reversed separately"
+args = ["tests/fixtures/plain.txt", "tests/fixtures/second.txt"]
+
+[[case]]
+name = "the same operand twice"
+args = ["tests/fixtures/one.txt", "tests/fixtures/one.txt"]
+
+[[case]]
+name = "a file and standard input"
+args = ["tests/fixtures/one.txt", "-"]
+stdin = "s1\ns2\n"
+
+[[case]]
+name = "standard input twice reads it once"
+args = ["-", "-"]
+stdin = "s1\ns2\n"
+
+[[case]]
+name = "an empty operand among full ones"
+args = ["tests/fixtures/one.txt", "tests/fixtures/empty.txt", "tests/fixtures/second.txt"]
+
+# --------------------------------------------------------------------- -b
+
+[[case]]
+name = "-b puts the separator before its record"
+args = ["-b", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "--before"
+args = ["--before", "tests/fixtures/plain.txt"]
+
+[[case]]
+name = "-b with no trailing separator"
+stdin = "a\nb\nc"
+
+[[case]]
+name = "-b on input with no separator at all"
+args = ["-b"]
+stdin = "abc"
+
+[[case]]
+name = "-b on a leading separator"
+args = ["-b"]
+stdin = "\na\nb\n"
+
+[[case]]
+name = "-b on empty input"
+args = ["-b"]
+stdin = ""
+
+[[case]]
+name = "-b on a single separator"
+args = ["-b"]
+stdin = "\n"
+
+[[case]]
+name = "-b on two separators in a row"
+args = ["-b"]
+stdin = "a\n\nb\n"
+
+# --------------------------------------------------------------------- -s
+
+[[case]]
+name = "-s a single character"
+args = ["-s", "x", "tests/fixtures/seps.txt"]
+
+[[case]]
+name = "--separator"
+args = ["--separator=x", "tests/fixtures/seps.txt"]
+
+[[case]]
+name = "-s attached"
+args = ["-sx", "tests/fixtures/seps.txt"]
+
+[[case]]
+name = "-s where the input ends with the separator"
+args = ["-s", "x"]
+stdin = "axbxcx"
+
+[[case]]
+name = "-s where it does not"
+args = ["-s", "x"]
+stdin = "axbxc"
+
+[[case]]
+name = "-s several characters"
+args = ["-s", "SEP"]
+stdin = "aSEPbSEPc"
+
+[[case]]
+name = "-s several characters, trailing"
+args = ["-s", "SEP"]
+stdin = "aSEPbSEPcSEP"
+
+[[case]]
+name = "-s a separator that overlaps itself"
+args = ["-s", "aa"]
+stdin = "xaaaay"
+
+[[case]]
+name = "-s a separator longer than the input"
+args = ["-s", "abcdef"]
+stdin = "ab"
+
+[[case]]
+name = "-s the empty string"
+args = ["-s", ""]
+stdin = "abc"
+
+[[case]]
+name = "-s the empty string on empty input"
+args = ["-s", ""]
+stdin = ""
+
+[[case]]
+name = "-s a newline, spelled out"
+args = ["-s", "\n"]
+stdin = "a\nb\n"
+
+[[case]]
+name = "-s a tab"
+args = ["-s", "\t"]
+stdin = "a\tb\tc"
+
+[[case]]
+name = "-s where the whole input is one separator"
+args = ["-s", "abc"]
+stdin = "abc"
+
+[[case]]
+name = "-s with -b"
+args = ["-b", "-s", "x"]
+stdin = "axbxc"
+
+[[case]]
+name = "-s with -b, trailing separator"
+args = ["-b", "-s", "x"]
+stdin = "axbxcx"
+
+[[case]]
+name = "-s with -b, several characters"
+args = ["-b", "-s", "SEP"]
+stdin = "aSEPbSEPc"
+
+[[case]]
+name = "-s requires an argument"
+args = ["-s"]
+
+# --------------------------------------------------------------------- -r
+
+[[case]]
+name = "-r a literal expression"
+args = ["-r", "-s", "x"]
+stdin = "axbxc"
+
+[[case]]
+name = "--regex"
+args = ["--regex", "--separator=x"]
+stdin = "axbxc"
+
+[[case]]
+name = "-r a dot matches any byte"
+args = ["-r", "-s", "."]
+stdin = "abc"
+
+[[case]]
+name = "-r a bracket expression"
+args = ["-r", "-s", "[xy]"]
+stdin = "axbyc"
+
+[[case]]
+name = "-r a negated bracket expression"
+args = ["-r", "-s", "[^abc]"]
+stdin = "axbyc"
+
+[[case]]
+name = "-r a bracket range"
+args = ["-r", "-s", "[0-9]"]
+stdin = "a1b2c"
+
+[[case]]
+name = "-r [[:digit:]] is a bracket and a literal bracket, not a class"
+args = ["-r", "-s", "[[:digit:]]"]
+stdin = "a1b2c"
+
+[[case]]
+name = "-r [[:alpha:]] likewise, over digits"
+args = ["-r", "-s", "[[:alpha:]]"]
+stdin = "1a2b3"
+
+[[case]]
+name = "-r [[:space:]] likewise, over blanks"
+args = ["-r", "-s", "[[:space:]]"]
+stdin = "a b\tc"
+
+[[case]]
+name = "-r a star, and the backwards bound that splits a run"
+args = ["-r", "-s", "[0-9][0-9]*", "tests/fixtures/digits.txt"]
+
+[[case]]
+name = "-r a plus over a run"
+args = ["-r", "-s", "[0-9]+"]
+stdin = "a11b2c"
+
+[[case]]
+name = "-r a question mark matching the empty string"
+args = ["-r", "-s", "b?"]
+stdin = "aXbY"
+
+[[case]]
+name = "-r a star that can match nothing"
+args = ["-r", "-s", "x*"]
+stdin = "abc"
+
+[[case]]
+name = "-r a greedy star inside a longer expression"
+args = ["-r", "-s", "ab*c"]
+stdin = "aXabbcY"
+
+[[case]]
+name = "-r an anchored expression"
+args = ["-r", "-s", "^a"]
+stdin = "aba"
+
+[[case]]
+name = "-r an anchor that does not match"
+args = ["-r", "-s", "^z"]
+stdin = "aba"
+
+[[case]]
+name = "-r an escaped metacharacter"
+args = ["-r", "-s", "\\."]
+stdin = "a.b.c"
+
+[[case]]
+name = "-r an escaped star"
+args = ["-r", "-s", "a\\*"]
+stdin = "xa*ya*z"
+
+[[case]]
+name = "-r with -b"
+args = ["-r", "-b", "-s", "[0-9]"]
+stdin = "a1b2c"
+
+[[case]]
+name = "-r an expression matching nothing"
+args = ["-r", "-s", "[0-9]"]
+stdin = "abc"
+
+[[case]]
+name = "-r an empty expression"
+args = ["-r", "-s", ""]
+stdin = "abc"
+
+[[case]]
+name = "-r a two-atom literal"
+args = ["-r", "-s", "SE"]
+stdin = "aSEbSEc"
+
+[[case]]
+name = "-r on empty input"
+args = ["-r", "-s", "."]
+stdin = ""
+
+[[case]]
+name = "-r a bracket holding a right bracket first"
+args = ["-r", "-s", "[]x]"]
+stdin = "a]b"
+
+[[case]]
+name = "-r a bracket holding a literal dash last"
+args = ["-r", "-s", "[x-]"]
+stdin = "a-b"
+
+# Outside the subset this program states. GNU takes `\(…\)` and `\|`;
+# this `tac` reads the backslash as "the next character is literal", so
+# it would split on a parenthesis. Recorded rather than pinned, exactly
+# as `nl` records the BRE constructs it does not implement.
+[[case]]
+name = "-r a group, which this tac does not implement"
+skip = "GNU reads \\( … \\) as a group and this subset reads the backslash as an escape, so GNU splits on `xy` and boreutils splits on `(` and `)`. wolf 0.2.14 has no regular-expression surface to borrow and the header states the subset; the divergence is recorded here rather than pinned."
+args = ["-r", "-s", "\\(xy\\)"]
+stdin = "axyb"
+
+[[case]]
+name = "-r an alternation, which this tac does not implement"
+skip = "GNU reads \\| as alternation; this subset reads it as a literal bar. Same reason as the group case above."
+args = ["-r", "-s", "x\\|y"]
+stdin = "axbyc"
+
+# --------------------------------------------------------------- the ends
+
+[[case]]
+name = "a missing operand"
+args = ["nope"]
+
+[[case]]
+name = "a missing operand among good ones"
+args = ["tests/fixtures/one.txt", "nope", "tests/fixtures/second.txt"]
+
+[[case]]
+name = "a directory operand"
+args = ["tests/fixtures"]
+
+[[case]]
+name = "an operand whose name needs quoting"
+args = ["a b"]
+
+[[case]]
+name = "an operand with a single quote in it"
+args = ["a'b"]
+
+[[case]]
+name = "an operand with a tab in it"
+args = ["a\tb"]
+
+[[case]]
+name = "an empty operand"
+args = [""]
+
+[[case]]
+name = "an unknown short option"
+args = ["-Q"]
+
+[[case]]
+name = "an unknown long option"
+args = ["--nope"]
+
+[[case]]
+name = "a long option that does not take an argument"
+args = ["--before=x"]
+
+[[case]]
+name = "an abbreviated long option"
+args = ["--sep=x"]
+stdin = "axb"
+
+[[case]]
+name = "an ambiguous abbreviation"
+args = ["--b"]
+
+[[case]]
+name = "a cluster of short options"
+args = ["-br", "-s", "[0-9]"]
+stdin = "a1b2c"
+
+[[case]]
+name = "options after an operand permute"
+args = ["tests/fixtures/one.txt", "-b"]
+
+[[case]]
+name = "POSIXLY_CORRECT stops permuting"
+args = ["tests/fixtures/one.txt", "-b"]
+env = { POSIXLY_CORRECT = "1" }
+
+# ------------------------------------------------- help, version, and exit
+
+[[case]]
+name = "--help"
+args = ["--help"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "--version"
+args = ["--version"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "--help wins over a later bad option"
+args = ["--help", "-Q"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "a bad option before --help does not"
+args = ["-Q", "--help"]
+
+[[case]]
+name = "standard output closed"
+args = ["tests/fixtures/plain.txt"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, version"
+args = ["--version"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, writing nothing"
+args = ["tests/fixtures/empty.txt"]
+stdout_closed = true
+
+[[case]]
+name = "a write error on a live descriptor"
+args = ["tests/fixtures/plain.txt"]
+stdout_file = "/dev/full"
+compare = ["exit"]
+
+[[case]]
+name = "the reader goes away"
+args = ["tests/fixtures/twelve.txt"]
+stdout_bytes = 4
+
+[[case]]
+name = "a large input through a pipe"
+stdin = "0123456789abcdef0123456789abcdef\n"
+stdin_repeat = 4096

@@ -1,0 +1,580 @@
+//! member: false
+//!
+//! tac — write each file to standard output, last record first.
+//!
+//! References consulted: POSIX.1-2024 (which does not specify `tac` at
+//! all — it is a GNU utility, so the specification here is GNU's own);
+//! GNU coreutils 9.11's `tac --help`, the info manual's option
+//! descriptions, and black-box runs of the GNU binary (native `tac` on
+//! linux x86-64 at 9.11 under `LC_ALL=C`); uutils/coreutils (MIT) and
+//! toybox (0BSD) as design references. Never GNU source.
+//!
+//! **The model, measured.** A separator SPLITS the input into records
+//! and belongs to the record it touches: after it by default, before it
+//! under `-b`. So `a\nb\nc\n` is three records `a\n`, `b\n`, `c\n` and
+//! reverses to `c\nb\na\n`, while `a\nb\nc` — no separator after `c` —
+//! is `a\n`, `b\n`, `c` and reverses to `cb\na\n`, which is the answer
+//! that surprises people and is GNU's. Under `-b` the same input is
+//! `a`, `\nb`, `\nc` and reverses to `\nc\nb` + `a`.
+//!
+//! **Nothing is added.** Unlike `cut`, `tac` never supplies a missing
+//! final separator: what went in comes out, reordered.
+//!
+//! **Each operand is reversed on its own**, not the concatenation:
+//! `tac A A` writes A reversed twice.
+//!
+//! **Memory is the input, and that is the design.** `tac` owes the LAST
+//! record first, so it cannot answer anything until it has read
+//! everything; GNU says as much in its own `--help` ("Non-seekable input
+//! is buffered to $TMPDIR"). GNU seeks backwards through a regular file
+//! and never holds it; wolf 0.2.14 has no seek, no tell and no
+//! positional read (wolf-lang#426, filed by bu03 for `tail`), so this
+//! program holds the whole input in one `List[byte]` whatever the
+//! operand is. That is the one utility in B3 whose memory is NOT flat in
+//! the input, and the README says so beside the number.
+//!
+//! **`-r`, and what it is NOT.** With `-r` the separator is a regular
+//! expression, and GNU's `tac` matches it in a way no manual page
+//! describes: the buffer is searched BACKWARDS, and a match may not
+//! extend past the start of the separator already found. Measured, with
+//! the separator `[0-9][0-9]*` over `a1b22c`: a forward greedy match
+//! would take `22` as one separator and answer `cb22a1`, and GNU
+//! answers `c2b2a1` — it found `2` at 4, then `2` at 3 bounded by the
+//! first, then `1`. This program reproduces that discipline exactly,
+//! because it is what decides where the records fall.
+//!
+//! The expression grammar here is a SUBSET of GNU's, stated rather than
+//! implied, because wolf 0.2.14 has no regular-expression surface to
+//! borrow and `nl` set the precedent of writing the subset out:
+//!
+//! - a literal byte, `.`, a bracket expression (`[abc]`, `[^abc]` and
+//!   ranges), and `^` anchoring the match to the start of the input;
+//! - the quantifiers `*`, `+` and `?`, greedy, applied to one atom;
+//! - a backslash makes the next character literal.
+//!
+//! Outside it: `\(…\)` groups, `\|` alternation, `\{n,m\}` intervals and
+//! `$`. GNU takes the first two and refuses the last two as literals
+//! (measured: `tac -r -s 'b\{2\}'` matches nothing and `tac -r -s 'c$'`
+//! matches nothing, both at 9.11), so the two that differ are recorded
+//! as skipped cases in `tests/cases/tac.toml` naming both answers.
+//!
+//! **And `[[:digit:]]` is NOT a character class here, because it is not
+//! one to GNU either.** Measured: `tac -r -s '[[:digit:]]'` over
+//! `a1b2c` answers the input unchanged, which is what a bracket holding
+//! the six characters `[:digit` followed by a literal `]` does — the
+//! syntax `tac` compiles has no class names in it. So this program
+//! reads it the same way, and `tests/cases/tac.toml` has the case that
+//! says so.
+
+use bore
+
+/// What the command line asked for.
+struct Opts {
+    before: bool,
+    regex: bool,
+    sep: str,
+}
+
+/// One atom of the expression subset: `kind` 0 a literal byte, 1 `.`,
+/// 2 a bracket expression; `quant` 0 exactly one, 1 `*`, 2 `+`, 3 `?`.
+struct Atom {
+    kind: int,
+    byte: byte,
+    set: List[bool],
+    quant: int,
+}
+
+/// A parsed expression, or GNU's complaint about why it is not one.
+struct Pattern {
+    atoms: List[Atom],
+    anchored: bool,
+    err: str,
+}
+
+fn main() -> int {
+    // Standard output first: with descriptor 1 closed, the first file
+    // opened would take it (wolf-lang#405).
+    var out = bore.stdout()
+    var o = Opts { before: false, regex: false, sep: "\n" }
+    let p = bore.parse(options(), env_args(), bore.permute())
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i]
+        let v = p.values[i]
+        if k == "help" {
+            emit(out, help()) else |_| {
+                bore.write_error(out, "tac", "write error")
+                return 1
+            }
+            return bore.finish(mut out, "tac", 0)
+        }
+        if k == "version" {
+            emit(out, bore.version_text("tac")) else |_| {
+                bore.write_error(out, "tac", "write error")
+                return 1
+            }
+            return bore.finish(mut out, "tac", 0)
+        }
+        if k == "before" {
+            o.before = true
+        }
+        if k == "regex" {
+            o.regex = true
+        }
+        if k == "separator" {
+            o.sep = v
+        }
+        i += 1
+    }
+    if !bore.ok(p) {
+        return bore.usage_error("tac", p.error)
+    }
+    var pat = Pattern { atoms: List[Atom](), anchored: false, err: "" }
+    if o.regex {
+        // Measured: an empty separator is fine WITHOUT `-r`, where it
+        // simply names no split, and is refused WITH it.
+        if o.sep.len == 0 {
+            bore.warn("tac", "separator cannot be empty")
+            return 1
+        }
+        pat = compile(o.sep)
+        if pat.err.len > 0 {
+            bore.warn("tac", pat.err)
+            return 1
+        }
+    }
+    var paths = List[str]()
+    for a in p.operands {
+        (mut paths).push(a)
+    }
+    if paths.len == 0 {
+        (mut paths).push("-")
+    }
+    var status = 0
+    var wfail = false
+    for path in paths {
+        let code = one(mut out, path, o, pat)
+        if code != 0 {
+            status = 1
+        }
+        if code == 2 {
+            wfail = true
+        }
+    }
+    if wfail {
+        bore.write_error(out, "tac", "write error")
+        return 1
+    }
+    bore.finish(mut out, "tac", status)
+}
+
+fn options() -> List[bore.Opt] {
+    // GNU's own long-option table order, which its
+    // "ambiguous; possibilities:" line reports and so is observable.
+    var s = List[bore.Opt]()
+    (mut s).push(bore.flag("b", "before"))
+    (mut s).push(bore.flag("r", "regex"))
+    (mut s).push(bore.takes("s", "separator"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    s
+}
+
+/// The bytes asked of the host per read (bu01's measured knee).
+fn read_size() -> int {
+    262144
+}
+
+// ------------------------------------------------------------- the stream
+
+/// Reverse one operand. Answers 0 for success, 1 for a failure of this
+/// operand, or 2 for a failed write, which is the whole program's
+/// failure and is reported once at the end.
+fn one(mut out: bore.Out, path: str, o: Opts, pat: Pattern) -> int {
+    let src = bore.open_input(path) else |e| match e {
+        not_found => {
+            cannot_open("tac", path, bore.no_such_file())
+            return 1
+        },
+        denied => {
+            cannot_open("tac", path, bore.permission_denied())
+            return 1
+        },
+        is_dir => {
+            // Measured: GNU OPENS the directory and fails at the read,
+            // so it says `tac: NAME: read error: Is a directory` with
+            // the name quoted only when it has to be — a different
+            // shape from the `failed to open 'NAME' for reading` above.
+            cannot_read("tac", path, bore.directory_reason())
+            return 1
+        },
+        io => {
+            cannot_open("tac", path, bore.io_error())
+            return 1
+        },
+    }
+    // The whole input, because the last record is owed first. The
+    // keeper outlives the per-chunk region, which is what stops
+    // `fs_read_chunk`'s per-call allocation from accumulating
+    // (wolf-lang#416).
+    let keeper = region()
+    var buf = List[byte]()
+    var why = 0
+    var stop = false
+    while !stop {
+        region pass {
+            let chunk = bore.read_chunk(src, read_size()) else |e| match e {
+                eof => {
+                    stop = true
+                    List[byte]()
+                },
+                io => {
+                    stop = true
+                    why = 1
+                    List[byte]()
+                },
+            }
+            if chunk.len == 0 {
+                stop = true
+            } else {
+                in keeper {
+                    for b in chunk {
+                        (mut buf).push(b)
+                    }
+                }
+            }
+        }
+    }
+    bore.close_input(src)
+    if why == 1 {
+        cannot_read("tac", path, bore.io_error())
+        return 1
+    }
+    reverse(mut out, buf, o, pat) else |_| {
+        return 2
+    }
+    0
+}
+
+/// GNU's wording when `tac` cannot open an operand. Measured: it is
+/// `failed to open 'NAME' for reading`, where `head` and `tail` say
+/// `cannot open`, and the name is quoted even when it need not be.
+fn cannot_open(prog: str, name: str, why: str) {
+    eprint("{prog}: failed to open {bore.quote_always(name)} for reading: {why}")
+}
+
+/// GNU's wording when the operand opened and the read failed.
+fn cannot_read(prog: str, name: str, why: str) {
+    eprint("{prog}: {bore.quote_name(name)}: read error: {why}")
+}
+
+/// Write `buf`'s records in reverse.
+///
+/// The separators are found BACKWARDS, and each one is bounded by the
+/// start of the one found before it — see the header, and the
+/// `[0-9][0-9]*` measurement that decides it.
+fn reverse(mut out: bore.Out, buf: List[byte], o: Opts, pat: Pattern) -> () ! {io} {
+    if buf.len == 0 {
+        return
+    }
+    // An empty separator names no split at all, so the whole input is
+    // one record. Measured: `tac -s ''` is the identity.
+    if o.sep.len == 0 {
+        put_range(buf, 0, buf.len, mut out)?
+        return
+    }
+    var region_end = buf.len
+    var bound = buf.len
+    var searching = true
+    while searching {
+        let at = find_back(buf, bound, o, pat)
+        if at.start < 0 {
+            searching = false
+        } else {
+            if o.before {
+                put_range(buf, at.start, region_end, mut out)?
+                region_end = at.start
+            } else {
+                put_range(buf, at.stop, region_end, mut out)?
+                region_end = at.stop
+            }
+            bound = at.start
+        }
+    }
+    put_range(buf, 0, region_end, mut out)?
+}
+
+/// Where a separator was found: `start` is -1 when there is none.
+struct Found {
+    start: int,
+    stop: int,
+}
+
+/// The LAST separator that starts before `bound` and ends at or before
+/// it.
+///
+/// The `bound` is the whole of GNU's discipline: a separator may not run
+/// past the start of the one already found, which is why `[0-9][0-9]*`
+/// splits `22` into two separators rather than taking it whole.
+fn find_back(buf: List[byte], bound: int, o: Opts, pat: Pattern) -> Found {
+    if o.regex {
+        if pat.anchored {
+            if bound > 0 {
+                let e = match_at(pat, buf, 0, bound)
+                if e >= 0 {
+                    return Found { start: 0, stop: e }
+                }
+            }
+            return Found { start: -1, stop: -1 }
+        }
+        var s = bound - 1
+        while s >= 0 {
+            let e = match_at(pat, buf, s, bound)
+            if e >= 0 {
+                return Found { start: s, stop: e }
+            }
+            s -= 1
+        }
+        return Found { start: -1, stop: -1 }
+    }
+    let sep = o.sep.bytes()
+    var s = bound - sep.len
+    while s >= 0 {
+        var j = 0
+        var hit = true
+        while j < sep.len {
+            if buf[s + j] != sep[j] {
+                hit = false
+                j = sep.len
+            } else {
+                j += 1
+            }
+        }
+        if hit {
+            return Found { start: s, stop: s + sep.len }
+        }
+        s -= 1
+    }
+    Found { start: -1, stop: -1 }
+}
+
+/// Write `buf[from..to]`.
+///
+/// One byte at a time into the shared writer's own buffer, which is what
+/// keeps this program's memory at the input rather than at twice it: a
+/// list of the output would be a second copy of everything.
+///
+/// **The writer goes last**, which is wolf-lang#449 and not a style: at
+/// 0.2.16 a call spelled `put_range(mut out, …)` after a conditional
+/// that also claimed `out` is refused, and a `mut` argument with nothing
+/// after it is not walked.
+fn put_range(buf: List[byte], from: int, to: int, mut out: bore.Out) -> () ! {io} {
+    var i = from
+    while i < to {
+        bore.put_byte(mut out, buf[i])?
+        i += 1
+    }
+}
+
+// ------------------------------------------------------------ the subset
+
+/// Parse the expression subset the header states.
+fn compile(spec: str) -> Pattern {
+    var atoms = List[Atom]()
+    var anchored = false
+    let bs = spec.bytes()
+    var i = 0
+    if bs.len > 0 && bs[0] as int == 94 {
+        anchored = true
+        i = 1
+    }
+    while i < bs.len {
+        var a = Atom { kind: 0, byte: 0 as byte, set: List[bool](), quant: 0 }
+        let c = bs[i] as int
+        if c == 92 {
+            // A backslash makes the next character literal. GNU gives
+            // `\(`, `\|` and `\{` meanings this subset does not have,
+            // and the header says which.
+            if i + 1 >= bs.len {
+                return Pattern {
+                    atoms: atoms,
+                    anchored: anchored,
+                    err: "trailing backslash in the separator",
+                }
+            }
+            a.byte = bs[i + 1]
+            i += 2
+        } else if c == 46 {
+            a.kind = 1
+            i += 1
+        } else if c == 91 {
+            let br = bracket(bs, i)
+            if br.err.len > 0 {
+                return Pattern { atoms: atoms, anchored: anchored, err: br.err }
+            }
+            a.kind = 2
+            a.set = br.set
+            i = br.next
+        } else {
+            a.byte = bs[i]
+            i += 1
+        }
+        if i < bs.len {
+            let q = bs[i] as int
+            if q == 42 {
+                a.quant = 1
+                i += 1
+            } else if q == 43 {
+                a.quant = 2
+                i += 1
+            } else if q == 63 {
+                a.quant = 3
+                i += 1
+            }
+        }
+        (mut atoms).push(a)
+    }
+    Pattern { atoms: atoms, anchored: anchored, err: "" }
+}
+
+/// A parsed bracket expression.
+struct Bracket {
+    set: List[bool],
+    next: int,
+    err: str,
+}
+
+/// One `[…]`, with `^` negation, ranges and the `[:class:]` names.
+fn bracket(bs: List[byte], at: int) -> Bracket {
+    var set = List[bool]()
+    var k = 0
+    while k < 256 {
+        (mut set).push(false)
+        k += 1
+    }
+    var i = at + 1
+    var negate = false
+    if i < bs.len && bs[i] as int == 94 {
+        negate = true
+        i += 1
+    }
+    var first = true
+    var closed = false
+    while i < bs.len && !closed {
+        let c = bs[i] as int
+        if c == 93 && !first {
+            closed = true
+            i += 1
+        } else if i + 2 < bs.len && bs[i + 1] as int == 45 && bs[i + 2] as int != 93 {
+            var lo = c
+            let hi = bs[i + 2] as int
+            while lo <= hi {
+                set[lo] = true
+                lo += 1
+            }
+            i += 3
+            first = false
+        } else {
+            set[c] = true
+            i += 1
+            first = false
+        }
+    }
+    if !closed {
+        return Bracket { set: set, next: i, err: "unmatched [ in the separator" }
+    }
+    if negate {
+        var n = 0
+        while n < 256 {
+            set[n] = !set[n]
+            n += 1
+        }
+    }
+    Bracket { set: set, next: i, err: "" }
+}
+
+/// The end of the greedy match of `pat` at `from`, bounded by `limit`,
+/// or -1 when it does not match there.
+fn match_at(pat: Pattern, buf: List[byte], from: int, limit: int) -> int {
+    step(pat, 0, buf, from, limit)
+}
+
+/// Match atom `ai` onwards at `si`. Greedy, with backtracking, which is
+/// what makes `ab*c` take all the `b`s and give them back when it must.
+fn step(pat: Pattern, ai: int, buf: List[byte], si: int, limit: int) -> int {
+    if ai >= pat.atoms.len {
+        return si
+    }
+    let a = copy pat.atoms[ai]
+    if a.quant == 0 {
+        if si < limit && accepts(a, buf[si]) {
+            return step(pat, ai + 1, buf, si + 1, limit)
+        }
+        return -1
+    }
+    if a.quant == 3 {
+        if si < limit && accepts(a, buf[si]) {
+            let r = step(pat, ai + 1, buf, si + 1, limit)
+            if r >= 0 {
+                return r
+            }
+        }
+        return step(pat, ai + 1, buf, si, limit)
+    }
+    var n = 0
+    while si + n < limit && accepts(a, buf[si + n]) {
+        n += 1
+    }
+    let least = if a.quant == 2 then 1 else 0
+    var k = n
+    while k >= least {
+        let r = step(pat, ai + 1, buf, si + k, limit)
+        if r >= 0 {
+            return r
+        }
+        k -= 1
+    }
+    -1
+}
+
+/// Whether the atom accepts the byte.
+fn accepts(a: Atom, b: byte) -> bool {
+    if a.kind == 1 {
+        return true
+    }
+    if a.kind == 2 {
+        return a.set[b as int]
+    }
+    a.byte == b
+}
+
+/// Write `s` straight out.
+fn emit(out: bore.Out, s: str) -> () ! {io} {
+    var b = List[byte]()
+    for x in s.bytes() {
+        (mut b).push(x)
+    }
+    bore.write_direct(out, b)?
+}
+
+fn help() -> str {
+    """
+    Usage: tac [OPTION]... [FILE]...
+    Write each FILE to standard output, last record first.
+    With no FILE, or when FILE is -, read standard input.
+
+      -b, --before             the separator belongs before its record,
+                                 not after it
+      -r, --regex              read the separator as a regular expression
+      -s, --separator=STRING   split on STRING instead of a newline
+          --help               print this help and exit
+          --version            print the version and exit
+
+    Each FILE is reversed on its own. A separator that is not there is
+    not supplied: input with no trailing separator answers output with
+    none. With -r the expression is a literal, ., a bracket expression
+    or ^, with the quantifiers *, + and ?.
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}
