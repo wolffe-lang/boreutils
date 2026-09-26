@@ -265,10 +265,7 @@ fn empty_spec() -> Spec {
     Spec { kind: List[int](), a: List[int](), b: List[int](), error: "", warns: List[str]() }
 }
 
-// The writer goes LAST: wolf-lang#449 refuses `push_item(mut sp, …)` at
-// the two call sites below, because the branch above them claims
-// `sp.warns` and 0.2.16 reads that as living inside this call.
-fn push_item(kind: int, a: int, b: int, mut sp: Spec) {
+fn push_item(mut sp: Spec, kind: int, a: int, b: int) {
     (mut sp.kind).push(kind)
     (mut sp.a).push(a)
     (mut sp.b).push(b)
@@ -424,7 +421,7 @@ pub fn parse_set(text: str) -> Spec {
                 return sp
             }
             if br.matched {
-                push_item(br.kind, br.a, br.b, mut sp)
+                push_item(mut sp, br.kind, br.a, br.b)
                 i = br.next
                 continue
             }
@@ -443,12 +440,11 @@ pub fn parse_set(text: str) -> Spec {
                 sp.error = "range-endpoints of '{endpoint(c.value)}-{endpoint(c2.value)}' are in reverse collating sequence order"
                 return sp
             }
-            push_item(1, c.value, c2.value, mut sp)
+            push_item(mut sp, 1, c.value, c2.value)
             i = c2.next
             continue
         }
-        // wolf-lang#449: the range branch above claims `sp.warns`.
-        push_item(0, c.value, c.value, mut sp)
+        push_item(mut sp, 0, c.value, c.value)
         i = j
     }
     sp
