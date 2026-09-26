@@ -477,8 +477,7 @@ fn main() -> int {
         } else {
             bore.put(mut h, bore.version_text("uniq")) else |_| {}
         }
-        // wolf-lang#449: the branch above claims `h`.
-        return bore.finish_last("uniq", 0, mut h)
+        return bore.finish(mut h, "uniq", 0)
     }
     if !bore.ok(p) {
         return bore.usage_error("uniq", p.error)
