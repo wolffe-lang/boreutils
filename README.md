@@ -63,7 +63,7 @@ GNU coreutils is the oracle and must be installed: natively on linux,
 record** below.
 
 **Windows is out of scope.** The only byte-exact route to standard
-input and output in wolf 0.2.16 is reopening `/dev/stdin` and
+input and output in wolf 0.2.17 is reopening `/dev/stdin` and
 `/dev/stdout` (wolf-lang#405), which windows does not have. CI runs on
 linux and macOS.
 
@@ -85,7 +85,7 @@ and measured black-box against GNU:
   works around it.
 
 Two things GNU says that boreutils cannot yet say. The reason text
-after a failed write is `strerror(errno)`, and wolf 0.2.16 carries no
+after a failed write is `strerror(errno)`, and wolf 0.2.17 carries no
 errno text behind an `io` row (wolf-lang#407), so a full disk is
 `write error: Input/output error` here against GNU's `write error: No
 space left on device`; the status is the same and the differential case
@@ -269,7 +269,7 @@ file is 16 MiB of nought-to-seven-letter lines.
 So `cat` starts up level with GNU on both hosts and loses on bulk
 copying, by 1.6x on macOS and by 6x on linux. GNU moves the bytes
 without a round trip through user space where the host allows it, and
-wolf 0.2.16 exposes neither `splice` nor `copy_file_range`, so every
+wolf 0.2.17 exposes neither `splice` nor `copy_file_range`, so every
 byte we copy is read into a list and written back out.
 
 Memory is level, and flat in the size of the input either way: copying
@@ -339,7 +339,7 @@ whole fresh list.
 
 **`tail` on a regular file is O(size) here and O(1) for GNU, and no
 amount of tuning closes that.** GNU seeks to the end and reads a few
-kilobytes; wolf 0.2.16 has no seek, no tell and no positional read
+kilobytes; wolf 0.2.17 has no seek, no tell and no positional read
 (wolf-lang#426, filed by this lane), so boreutils reads the file
 forward. On a PIPE, where GNU cannot seek either, the comparison is
 fair and boreutils is level with it: 1.00x on `-c` and 0.60x on `-n`.
@@ -523,7 +523,7 @@ were wrong.**
 
 **`tac` is the one that loses, and the reason is `tail`'s reason.** GNU
 seeks to the end of a regular file and walks backwards through it; wolf
-0.2.16 has no seek, no tell and no positional read (wolf-lang#426), so
+0.2.17 has no seek, no tell and no positional read (wolf-lang#426), so
 `tac` reads the whole input forward before it can answer anything. That
 is 0.18x, and through a pipe — where GNU cannot seek either — it is
 *still* 0.18x, because GNU buffers a pipe to `$TMPDIR` and reads it back
@@ -567,7 +567,7 @@ and use `bore.Sink`, one buffer filled in place and written whole.
 **`tac` is the exception and always will be**: it holds the whole input,
 so 256 MiB peaks at **515 MB**, twice the input, against GNU's 1.8 MB.
 The factor of two is not the design, it is `List` having no capacity
-surface at 0.2.16 (wolf-std F-0011): a list built by pushing doubles,
+surface at 0.2.17 (wolf-std F-0011): a list built by pushing doubles,
 and each doubling abandons the previous buffer. Sizing it up front from
 `fs_fstat` does not help — filling it is itself a run of pushes — and
 that was measured rather than assumed.
