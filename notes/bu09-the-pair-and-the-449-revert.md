@@ -320,7 +320,10 @@ states. 3c held.** The largest relative move, `echo`'s −5.0 %, is
 
 ### CI
 
-Filled at the head sha (below).
+A note cannot cite the run of the commit that carries it, so the CI
+evidence at the head sha — run id, all three legs — is in PR #14's
+body, read with `gh run view`. The code head `96a939f` ran as
+36276407921.
 
 ## 5. Done-when
 
