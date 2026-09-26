@@ -189,7 +189,138 @@ each, generated inputs (64 MiB of text where the utility reads input),
 
 ## 4. Evidence index
 
-Filled as the evidence lands.
+All measurement on kasumi (CachyOS, x86_64, 16 cores, load under 0.1 at
+the start), logs under `~/lanes/bu09/`. Three trees, each a clone of
+origin: **base** = trunk `aa37bb9` at 0.2.16 / 0.1.38 / std `070884c`;
+**pin** = `fd8950c` (the pin commit, source unchanged) at 0.2.17 /
+0.1.40 / std `14f0ab2`; **head** = `96a939f` (every revert, plus the
+README and sink comment restated at 0.2.17). The head difftest also ran
+at `8f5fd33`, the last source-changing commit, with the same answer.
+
+### 3a and 3b scored: the difftest
+
+| tree | answer | sorted verdict list (2,114 lines) sha256 | log |
+|---|---|---|---|
+| base `aa37bb9` | `difftest: 2094 passed, 0 failed, 20 skipped` | `b97c0e91b8d20373…` | `base-difftest.log` |
+| pin `fd8950c` | `difftest: 2094 passed, 0 failed, 20 skipped` | `b97c0e91b8d20373…` | `pin-difftest.log` |
+| head `8f5fd33` | `difftest: 2094 passed, 0 failed, 20 skipped` | `b97c0e91b8d20373…` | `head-8f5fd33-difftest.log` |
+| head `96a939f` | `difftest: 2094 passed, 0 failed, 20 skipped` | `b97c0e91b8d20373…` | `head-difftest.log` |
+
+The verdict list is every `ok` / `FAIL` / `SKIP` line, sorted
+(`*-verdicts.txt`); `diff base-verdicts.txt pin-verdicts.txt` and
+`diff pin-verdicts.txt head-verdicts.txt` both print nothing, and the
+full digest is `b97c0e91b8d203737eb42c10234517f2ffbcdb7e6d0ba1b70e185b8a3dfc5817`
+for all four. **The comparison was seen to fire**: the base list with
+its first line dropped diffs against head as `0a1 > ok   basename: a
+backslash operand in the diagnostic`. Each run asserted the oracle
+(`GNU coreutils 9.11`, `LC_ALL=C _POSIX2_VERSION=200112`, the `uniq +1
+/dev/null` probe OK). **3a held; 3b's difftest half held.**
+
+### 3b scored: every site seen compiling, and seen refused at 0.2.16
+
+**At 0.2.17, every commit builds all 21 utilities** under
+`--deny-warnings` — built one commit at a time from a clean `target/`,
+`~/lanes/bu09/percommit.txt`, one line per commit (`sha ok built errors`):
+
+| commit | built | errors | site(s) |
+|---|---|---|---|
+| `fdf0191` | 21 | 0 | 3, 4 |
+| `d379096` | 21 | 0 | 5 |
+| `51c2a27` | 21 | 0 | 6, 7 |
+| `295114b` | 21 | 0 | 8 |
+| `4e3a360` | 21 | 0 | 9–11 |
+| `f0a62db` | 21 | 0 | 12 |
+| `56b4a01` | 21 | 0 | 13–14 |
+| `85c91db` | 21 | 0 | 15 |
+| `725e56e` | 21 | 0 | 16 |
+| `1decc4e` | 21 | 0 | 17 |
+| `eb1dc25` | 21 | 0 | 18 |
+| `a402a5e` | 21 | 0 | 19 |
+| `69849bc` | 21 | 0 | 20 |
+| `b2e9087` | 21 | 0 | 21 |
+| `bb62ff3` | 21 | 0 | 1, 2 |
+| `8f5fd33` | 21 | 0 | `put_last` / `finish_last` deleted |
+
+and head `96a939f`: 21 built, `wolf test: 1 passed`, `wolf fmt --check`
+clean, `BUILD_EXIT=0` (`head-build.log`).
+
+**The control: head's source under the 0.2.16 archive** (the same
+`wolf` binary and std tree as base, `WOLF_STD` set, `--release
+--deny-warnings`, `~/lanes/bu09/red216/`). All 21 utilities are refused,
+exit 2, **every error E1002 and nothing else**
+(`red216-summary.txt`). The distinct locations, which are where 0.2.16
+put the claim it misread:
+
+| location | inventory site |
+|---|---|
+| `bore/bore.lu` :536, :538, :557, :562, :564, :568, :572, :575 (in all 21) | 1, 2 |
+| `true.lu:24`, `false.lu:24` | 3, 4 |
+| `uniq.lu:478` | 5 |
+| `wc.lu:597`, `wc.lu:943` | 6, 7 |
+| `echo.lu` :35, :36, :39, :40 | 8 |
+| `tr.lu:437`, `tr.lu:443` | 9–11 |
+| `tac.lu:327`, `tac.lu:330` (`` `sink` goes `mut` … while `sink` is lent ``) | 19 |
+| `paste.lu` :399, :404, :415 | 13, 18, 20 |
+
+Sites 12 and 14 (`tac`'s `finish`, `paste`'s second `finish`) are not
+separately visible: 0.2.16 names the claim it misread, and in those two
+functions the claims it names are the sink's.
+
+So the natural shape is refused at 0.2.16 and accepted at 0.2.17 for
+bu07's eleven and for the sink family: **the revert and the fix are
+seen red and green on the same source.** And one thing the control
+shows that §2 did not predict: **`fold`, `expand`, `unexpand` (sites
+15–17) and `sort`'s `merge_pass` (site 21) draw no E1002 of their own
+at 0.2.16** — those four followed the writer-last convention, not a
+refusal. They are reverted all the same, because the convention was
+#449's and its comments said so.
+
+`git grep '#449' aa37bb9 -- src` finds 24 lines in 14 files; the same
+pattern over head's `src` finds none, and `git grep -n
+'put_last\|finish_last' -- src` is empty.
+
+### 3c scored: peak RSS
+
+`~/lanes/bu09/rss.sh`, raw lines `rss-raw.txt` (`state util KB rc`, 108
+lines, none empty — the first attempt's `2>/dev/null` swallowed
+`/usr/bin/time`'s own report and printed nothing, so it now writes
+through `-o` and refuses an empty value before any comparison). Three
+rounds, the three states interleaved in each round, 64 MiB of generated
+text (`in.txt`, 67,108,907 bytes, seed 9, deleted after).
+
+| utility | workload | base KB | pin KB | head KB | head vs base (median) |
+|---|---|---|---|---|---|
+| true | `--version` | 2336 2524 2456 | 2448 2404 2368 | 2520 2492 2532 | +2.6 % |
+| false | `--version` | 2360 2436 2528 | 2332 2528 2540 | 2488 2456 2516 | +2.1 % |
+| echo | 1,000 operands | 2620 2668 2544 | 2500 2612 2644 | 2484 2488 2620 | −5.0 % (132 KB) |
+| uniq | file | 6256 6328 6316 | 6320 6336 6264 | 6224 6316 6212 | −1.5 % |
+| wc | file | 4416 4448 4384 | 4408 4392 4400 | 4336 4296 4416 | −1.8 % |
+| tr | `a-z A-Z` < file | 7004 6976 6856 | 6844 6836 6856 | 6952 6928 6828 | −0.7 % |
+| tac | file | 201152 201048 201188 | 201064 199428 200572 | 199608 201184 199680 | −0.7 % |
+| paste | file file | 4536 4532 4488 | 4536 4536 4536 | 4484 4500 4524 | −0.7 % |
+| fold | `-w 40` file | 4536 4540 4488 | 4484 4400 4536 | 4500 4508 4404 | −0.8 % |
+| expand | file | 3732 3772 3804 | 3756 3756 3772 | 3500 3772 3788 | 0.0 % |
+| unexpand | `-a` file | 3364 3336 3264 | 3256 3332 3272 | 3312 3320 3372 | −0.5 % |
+| sort | `-S 10M -T` file | 43868 46752 44204 | 42988 44204 44236 | 46696 43624 42404 | −1.3 % |
+
+**Every utility is inside max(5 %, 2 MB) between every pair of
+states. 3c held.** The largest relative move, `echo`'s −5.0 %, is
+132 KB on a 2.5 MB process, inside its own spread across rounds.
+
+### Predictions, scored
+
+| prediction | result |
+|---|---|
+| 3a: pin alone, verdict list identical, 2094/0/20 | **held** |
+| 3a: #438 adds no copy (no non-`Copy` place is index-stored) | **held** by the RSS table (pin within band of base everywhere); not separately instrumented |
+| 3b: every site compiles in its natural shape at 0.2.17 | **held** (16 commits × 21 utilities) |
+| 3b: verdict list identical after the revert | **held** |
+| 3c: peak RSS within band at every step | **held** (12 of 12) |
+| (not predicted) which inventory sites 0.2.16 actually refused | a finding: four of the inherited sites (15, 16, 17, 21) never were; §2 called them convention, and the control confirms it |
+
+### CI
+
+Filled at the head sha (below).
 
 ## 5. Done-when
 
