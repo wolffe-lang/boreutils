@@ -3,7 +3,7 @@
 //! **Why this exists, measured.** `bore.put` and `bore.put_byte` buffer
 //! into the writer's own list and `flush` empties it by ALLOCATING A
 //! FRESH ONE (`o.buf = List[byte]()`), because `List` has no capacity
-//! or truncate surface at 0.2.16 (wolf-std F-0011). Every one of those
+//! or truncate surface at 0.2.17 (wolf-std F-0011). Every one of those
 //! replacements is abandoned in an arena that frees nothing, so a
 //! program that writes bulk output through them pays about **2.8 times
 //! its own output in resident memory**: `expand` over 256 MiB peaked at
