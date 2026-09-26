@@ -433,8 +433,7 @@ fn serial(mut out: bore.Out, paths: List[str], o: Opts) -> int {
         bore.write_error(out, "paste", "write error")
         return 1
     }
-    // wolf-lang#449: the loop above claims `out` inside a conditional.
-    bore.finish_last("paste", status, mut out)
+    bore.finish(mut out, "paste", status)
 }
 
 /// The default: one record of corresponding lines at a time.
@@ -526,8 +525,7 @@ fn parallel(mut out: bore.Out, paths: List[str], o: Opts) -> int {
         bore.write_error(out, "paste", "write error")
         return 1
     }
-    // wolf-lang#449, as `serial` above.
-    bore.finish_last("paste", status, mut out)
+    bore.finish(mut out, "paste", status)
 }
 
 /// Write the `n`-th delimiter of the cycling list. `-1` is no delimiter.
