@@ -158,7 +158,7 @@ fn main() -> int {
     var status = 0
     var wfail = false
     for path in paths {
-        let code = one(out, path, o, pat, mut sink)
+        let code = one(mut sink, out, path, o, pat)
         if code != 0 {
             status = 1
         }
@@ -198,7 +198,7 @@ fn read_size() -> int {
 /// Reverse one operand. Answers 0 for success, 1 for a failure of this
 /// operand, or 2 for a failed write, which is the whole program's
 /// failure and is reported once at the end.
-fn one(out: bore.Out, path: str, o: Opts, pat: Pattern, mut sink: bore.Sink) -> int {
+fn one(mut sink: bore.Sink, out: bore.Out, path: str, o: Opts, pat: Pattern) -> int {
     let src = bore.open_input(path) else |e| match e {
         not_found => {
             cannot_open("tac", path, bore.no_such_file())
@@ -274,7 +274,7 @@ fn one(out: bore.Out, path: str, o: Opts, pat: Pattern, mut sink: bore.Sink) -> 
         cannot_read("tac", path, bore.io_error())
         return 1
     }
-    reverse(out, buf, held, o, pat, mut sink) else |_| {
+    reverse(mut sink, out, buf, held, o, pat) else |_| {
         return 2
     }
     0
@@ -298,12 +298,12 @@ fn cannot_read(prog: str, name: str, why: str) {
 /// start of the one found before it — see the header, and the
 /// `[0-9][0-9]*` measurement that decides it.
 fn reverse(
+    mut sink: bore.Sink,
     out: bore.Out,
     buf: List[byte],
     len: int,
     o: Opts,
     pat: Pattern,
-    mut sink: bore.Sink,
 ) -> () ! {io} {
     if len == 0 {
         return
@@ -311,7 +311,7 @@ fn reverse(
     // An empty separator names no split at all, so the whole input is
     // one record. Measured: `tac -s ''` is the identity.
     if o.sep.len == 0 {
-        put_range(buf, 0, len, out, mut sink)?
+        put_range(mut sink, buf, 0, len, out)?
         return
     }
     let sep = o.sep.bytes()
@@ -324,16 +324,16 @@ fn reverse(
             searching = false
         } else {
             if o.before {
-                put_range(buf, at.start, region_end, out, mut sink)?
+                put_range(mut sink, buf, at.start, region_end, out)?
                 region_end = at.start
             } else {
-                put_range(buf, at.stop, region_end, out, mut sink)?
+                put_range(mut sink, buf, at.stop, region_end, out)?
                 region_end = at.stop
             }
             bound = at.start
         }
     }
-    put_range(buf, 0, region_end, out, mut sink)?
+    put_range(mut sink, buf, 0, region_end, out)?
 }
 
 /// Where a separator was found: `start` is -1 when there is none.
@@ -398,11 +398,7 @@ fn find_back(buf: List[byte], bound: int, o: Opts, pat: Pattern, sep: List[byte]
 /// allocates a fresh buffer every 64 KiB and abandons the old one, which
 /// costs this program 2.8x its output on top of the input it already
 /// holds. `bore/sink.lu`'s header has the measurement.
-///
-/// The sink goes LAST in every signature here, which is wolf-lang#449:
-/// a `mut` argument with anything spelled after it drags the whole
-/// preceding conditional into its claim at 0.2.16.
-fn put_range(buf: List[byte], from: int, to: int, out: bore.Out, mut sink: bore.Sink) -> () ! {io} {
+fn put_range(mut sink: bore.Sink, buf: List[byte], from: int, to: int, out: bore.Out) -> () ! {io} {
     var i = from
     while i < to {
         bore.sink_push(mut sink, buf[i], out)?
