@@ -166,7 +166,7 @@ fn main() -> int {
             wfail = true
         }
     }
-    bore.sink_done(out, mut sink) else |_| {
+    bore.sink_done(mut sink, out) else |_| {
         wfail = true
     }
     if wfail {
@@ -405,7 +405,7 @@ fn find_back(buf: List[byte], bound: int, o: Opts, pat: Pattern, sep: List[byte]
 fn put_range(buf: List[byte], from: int, to: int, out: bore.Out, mut sink: bore.Sink) -> () ! {io} {
     var i = from
     while i < to {
-        bore.sink_push(buf[i], out, mut sink)?
+        bore.sink_push(mut sink, buf[i], out)?
         i += 1
     }
 }

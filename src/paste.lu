@@ -412,7 +412,7 @@ fn serial(mut out: bore.Out, paths: List[str], o: Opts) -> int {
         // `paste -s empty` writes one bare delimiter. The count is not
         // what decides it; having opened the file is.
         if !wfail {
-            bore.sink_push(o.line_delim, out, mut sink) else |_| {
+            bore.sink_push(mut sink, o.line_delim, out) else |_| {
                 wfail = true
             }
         }
@@ -426,7 +426,7 @@ fn serial(mut out: bore.Out, paths: List[str], o: Opts) -> int {
             return 1
         }
     }
-    bore.sink_done(out, mut sink) else |_| {
+    bore.sink_done(mut sink, out) else |_| {
         wfail = true
     }
     if wfail {
@@ -505,7 +505,7 @@ fn parallel(mut out: bore.Out, paths: List[str], o: Opts) -> int {
                 j += 1
             }
             if going {
-                bore.sink_push(o.line_delim, out, mut sink) else |_| {
+                bore.sink_push(mut sink, o.line_delim, out) else |_| {
                     wfail = true
                     going = false
                 }
@@ -518,7 +518,7 @@ fn parallel(mut out: bore.Out, paths: List[str], o: Opts) -> int {
         }
         bore.close_input(r.src)
     }
-    bore.sink_done(out, mut sink) else |_| {
+    bore.sink_done(mut sink, out) else |_| {
         wfail = true
     }
     if wfail {
@@ -543,14 +543,14 @@ fn put_delim(delims: List[int], n: int, out: bore.Out, mut sink: bore.Sink) -> (
     if d < 0 {
         return
     }
-    bore.sink_push(d as byte, out, mut sink)?
+    bore.sink_push(mut sink, d as byte, out)?
 }
 
 /// Write a field's bytes. The sink goes last, as `put_delim`.
 fn put_field(f: Field, out: bore.Out, mut sink: bore.Sink) -> () ! {io} {
     var i = 0
     while i < f.len {
-        bore.sink_push(f.bytes[i], out, mut sink)?
+        bore.sink_push(mut sink, f.bytes[i], out)?
         i += 1
     }
 }

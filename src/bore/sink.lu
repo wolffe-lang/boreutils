@@ -27,11 +27,6 @@
 //! A `Sink` writes through `write_direct`, so it does not mark the
 //! writer as having been written to; a program using one reports its
 //! own write failures, as `cat` and `cut` do.
-//!
-//! **The sink is the LAST parameter of both calls, and that is
-//! wolf-lang#449**: at 0.2.16 a `mut` argument with anything spelled
-//! after it drags a preceding conditional into its claim, and every
-//! call site here follows one.
 
 /// How many bytes a sink holds before it writes.
 fn sink_size() -> int {
@@ -59,7 +54,7 @@ pub fn sink(keeper: region) -> Sink {
 }
 
 /// Append one byte, writing the whole buffer when it fills.
-pub fn sink_push(b: byte, o: Out, mut s: Sink) -> () ! {io} {
+pub fn sink_push(mut s: Sink, b: byte, o: Out) -> () ! {io} {
     s.buf[s.len] = b
     s.len += 1
     if s.len == sink_size() {
@@ -70,7 +65,7 @@ pub fn sink_push(b: byte, o: Out, mut s: Sink) -> () ! {io} {
 
 /// Write what is left. The tail is shorter than the buffer, so it is
 /// the one place a list is built — in a region that dies at the `}`.
-pub fn sink_done(o: Out, mut s: Sink) -> () ! {io} {
+pub fn sink_done(mut s: Sink, o: Out) -> () ! {io} {
     if s.len == 0 {
         return
     }
