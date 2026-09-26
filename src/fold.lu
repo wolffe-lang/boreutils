@@ -151,8 +151,7 @@ fn main() -> int {
         bore.write_error(out, "fold", "write error")
         return 1
     }
-    // wolf-lang#449: the loop above claims `out` inside a conditional.
-    bore.finish_last("fold", status, mut out)
+    bore.finish(mut out, "fold", status)
 }
 
 fn options() -> List[bore.Opt] {
