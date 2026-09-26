@@ -40,16 +40,14 @@ fn main() -> int {
             return bore.finish(mut out, "echo", 0)
         }
     }
-    // wolf-lang#449: the --help / --version block above claims `out`,
-    // so this call takes the writer last.
-    write_args(args, posix, mut out) else |_| {
+    write_args(mut out, args, posix) else |_| {
         bore.write_error(out, "echo", "write error")
         return 1
     }
     bore.finish(mut out, "echo", 0)
 }
 
-fn write_args(args: List[str], posix: bool, mut out: bore.Out) -> () ! {io} {
+fn write_args(mut out: bore.Out, args: List[str], posix: bool) -> () ! {io} {
     var i = 0
     var newline = true
     var escapes = posix
