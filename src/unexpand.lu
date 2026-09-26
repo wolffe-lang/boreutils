@@ -152,8 +152,7 @@ fn main() -> int {
         bore.write_error(out, "unexpand", "write error")
         return 1
     }
-    // wolf-lang#449: the loop above claims `out` inside a conditional.
-    bore.finish_last("unexpand", status, mut out)
+    bore.finish(mut out, "unexpand", status)
 }
 
 fn options() -> List[bore.Opt] {
