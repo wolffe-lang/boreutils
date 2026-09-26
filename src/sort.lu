@@ -1393,9 +1393,9 @@ fn sort_index(c: Conf, buf: List[byte], starts: List[int]) -> List[int] {
     var in_a = true
     while width < n {
         if in_a {
-            merge_pass(c, buf, starts, a, width, n, mut t)
+            merge_pass(mut t, c, buf, starts, a, width, n)
         } else {
-            merge_pass(c, buf, starts, t, width, n, mut a)
+            merge_pass(mut a, c, buf, starts, t, width, n)
         }
         in_a = !in_a
         width = width * 2
@@ -1405,15 +1405,15 @@ fn sort_index(c: Conf, buf: List[byte], starts: List[int]) -> List[int] {
 
 /// One pass of the bottom-up merge: runs of `width` from `src` into
 /// `dst`, taking from the left run on a tie, which is what makes it
-/// stable. The written list is LAST (wolf-lang#449).
+/// stable.
 fn merge_pass(
+    mut dst: List[int],
     c: Conf,
     buf: List[byte],
     starts: List[int],
     src: List[int],
     width: int,
     n: int,
-    mut dst: List[int],
 ) {
     var lo = 0
     while lo < n {
