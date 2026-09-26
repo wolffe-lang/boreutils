@@ -596,8 +596,7 @@ fn emit(mut out: bore.Out, c: Counts, sel: Sel, width: int, label: str) -> () ! 
         bore.put(mut out, " ")?
         bore.put(mut out, label)?
     }
-    // wolf-lang#449: the label block above claims `out`.
-    bore.put_last("\n", mut out)?
+    bore.put(mut out, "\n")?
 }
 
 // ----------------------------------------------------------------- input
@@ -946,8 +945,7 @@ fn main() -> int {
             return 1
         }
     }
-    // wolf-lang#449: the total block above claims `out`.
-    bore.finish_last("wc", status, mut out)
+    bore.finish(mut out, "wc", status)
 }
 
 /// Count one input and print its line. The row says the line was not
