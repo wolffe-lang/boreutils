@@ -396,12 +396,12 @@ fn serial(mut out: bore.Out, paths: List[str], o: Opts) -> int {
                 going = false
             } else {
                 if n > 0 {
-                    put_delim(o.delims, n - 1, out, mut sink) else |_| {
+                    put_delim(mut sink, o.delims, n - 1, out) else |_| {
                         wfail = true
                         going = false
                     }
                 }
-                put_field(f, out, mut sink) else |_| {
+                put_field(mut sink, f, out) else |_| {
                     wfail = true
                     going = false
                 }
@@ -490,14 +490,14 @@ fn parallel(mut out: bore.Out, paths: List[str], o: Opts) -> int {
             var j = 0
             while j < slot.len {
                 if j > 0 {
-                    put_delim(o.delims, j - 1, out, mut sink) else |_| {
+                    put_delim(mut sink, o.delims, j - 1, out) else |_| {
                         wfail = true
                         j = slot.len
                         going = false
                     }
                 }
                 if j < slot.len {
-                    put_field(fields[j], out, mut sink) else |_| {
+                    put_field(mut sink, fields[j], out) else |_| {
                         wfail = true
                         going = false
                     }
@@ -534,11 +534,7 @@ fn parallel(mut out: bore.Out, paths: List[str], o: Opts) -> int {
 /// writer's flush allocates a fresh buffer every 64 KiB and abandons
 /// the old one, which cost this program 2.6x its output — 1.35 GB
 /// pasting two 256 MiB files. `bore/sink.lu`'s header measures it.
-///
-/// The sink goes LAST: wolf-lang#449 refuses a `mut` argument with
-/// anything spelled after it at a call that follows a conditional
-/// claiming the same place.
-fn put_delim(delims: List[int], n: int, out: bore.Out, mut sink: bore.Sink) -> () ! {io} {
+fn put_delim(mut sink: bore.Sink, delims: List[int], n: int, out: bore.Out) -> () ! {io} {
     let d = delims[n % delims.len]
     if d < 0 {
         return
@@ -546,8 +542,8 @@ fn put_delim(delims: List[int], n: int, out: bore.Out, mut sink: bore.Sink) -> (
     bore.sink_push(mut sink, d as byte, out)?
 }
 
-/// Write a field's bytes. The sink goes last, as `put_delim`.
-fn put_field(f: Field, out: bore.Out, mut sink: bore.Sink) -> () ! {io} {
+/// Write a field's bytes, through the sink as `put_delim`.
+fn put_field(mut sink: bore.Sink, f: Field, out: bore.Out) -> () ! {io} {
     var i = 0
     while i < f.len {
         bore.sink_push(mut sink, f.bytes[i], out)?
