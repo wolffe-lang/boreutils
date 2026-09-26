@@ -23,9 +23,7 @@ fn main() -> int {
     } else if args[0] == "--version" {
         bore.put(mut out, bore.version_text("true")) else |_| {}
     }
-    // wolf-lang#449: `finish(mut out, …)` here is refused at 0.2.16
-    // because the conditional above claims `out`.
-    bore.finish_last("true", status, mut out)
+    bore.finish(mut out, "true", status)
 }
 
 fn help() -> str {
