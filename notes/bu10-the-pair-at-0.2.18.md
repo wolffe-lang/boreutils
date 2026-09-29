@@ -139,7 +139,127 @@ band.
 
 ## 4. Evidence index
 
-*(Written after the measurement.)*
+All measurement on kasumi (CachyOS, x86_64, 16 cores), logs under
+`~/lanes/bu10/`. Three trees, each a fresh clone of origin: **base** =
+trunk `74069bd` at 0.2.17 / 0.1.40 / std `14f0ab2`; **pin** = `337f230`
+(the pin commit, source unchanged) at 0.2.18 / 0.1.41 / std `14f0ab2`;
+**head** = `c75bdd1` (the pin plus the README and `sink.lu` comments
+restated at 0.2.18). Toolchains staged by `tools/fetch-toolchain` from
+`~/lanes/bu10/arch/`, each archive digest-checked by the tool.
+
+### 3a scored: the build
+
+**Per utility, `--release --deny-warnings --error-limit=0`**
+(`~/lanes/bu10/probe.sh`, `pin-probe.txt`, one log per utility in
+`pin-probe/`): identity `wolf 0.2.18 (wolfgang, pin ec56a08)`, std
+`14f0ab2c6a64e86240113e21c4da9f746380eb29`, the flag present, and **all
+21 utilities `rc=0 errors=0 warnings=0`**. std `14f0ab2` compiles under
+0.2.18 (every utility reaches `std.env`). **0.2.18 refuses no site in
+boreutils; there is nothing to fix.**
+
+Then `tools/build` + `tools/check-test` + `tools/check-fmt` at pin and at
+head: 21 built, `wolf test: 1 passed`, fmt clean, `BUILD_EXIT=0`
+(`pin-build.log`, `head-build.log`).
+
+**The zero was seen to fire** (`~/lanes/bu10/plant.sh`, `plant.txt`):
+the 0.2.18 CHANGELOG's two witnesses, each alone in its directory, built
+by the same command and counted by the same `grep -cE '^error'`:
+
+| witness | 0.2.17, plain | 0.2.17, `--deny-warnings` | 0.2.18, plain | 0.2.18, `--deny-warnings` |
+|---|---|---|---|---|
+| #464 (`var t = move xs` from a `mut` param) | rc 0, W1002, **prints `2`** | rc 2, `error[W1002]` | rc 2, **`error[E1001]` `xs` may return to the caller with its value moved away** | rc 2, `error[W1002]` only |
+| #460 (`move xs[0]`; `xs[1] = [5]`; read `xs[0]`) | rc 0, **prints `2 2 1`** | rc 0, prints `2 2 1` | rc 2, **`error[E1001]` `xs[0].len` is used here after its value moved away** | rc 2, the same E1001 |
+
+So the staged 0.2.18 carries both refusals and the probe's count sees
+them; 21 zeros are a measurement, not a dark search.
+
+**Found, not predicted, and filed: wolf-lang#469.** The last column's
+#464 row is wrong in a way the CHANGELOG says was fixed: under
+`--deny-warnings` 0.2.18 stops on W1002's "the body never writes it"
+(promoted by `deny W1002`, help: "drop the `mut`") and **never reports
+the E1001**; plain, it reports only the E1001, as the CHANGELOG says.
+Nothing wrong is accepted (exit 2 either way). It matters here because
+every boreutils build denies warnings: had a helper moved out of a
+`mut` parameter, this repo would have been told to drop the `mut`.
+Logs: `plant/w464/0.2.18-deny.log`, `plant/w464/0.2.18-plain.log`.
+
+### 3b scored: the difftest
+
+| tree | answer | sorted verdict list (2,114 lines) sha256 | log |
+|---|---|---|---|
+| base `74069bd` @0.2.17 | `difftest: 2094 passed, 0 failed, 20 skipped` | `b97c0e91b8d20373…` | `base-difftest.log` |
+| pin `337f230` @0.2.18 | `difftest: 2094 passed, 0 failed, 20 skipped` | `b97c0e91b8d20373…` | `pin-difftest.log` |
+| head `c75bdd1` @0.2.18 | `difftest: 2094 passed, 0 failed, 20 skipped` | `b97c0e91b8d20373…` | `head-difftest.log` |
+
+The verdict list is every `ok` / `FAIL` / `SKIP` line, sorted
+(`base-verdicts.txt`, `pin-verdicts.txt`, `head-verdicts.txt`);
+`diff base-verdicts.txt pin-verdicts.txt` and `diff pin-verdicts.txt
+head-verdicts.txt` both print nothing, and the full digest,
+`b97c0e91b8d203737eb42c10234517f2ffbcdb7e6d0ba1b70e185b8a3dfc5817`, is
+bu09's at all four of its states too. **The comparison was seen to
+fire**: base's list with its first line dropped (`fire-check.txt`)
+diffs against pin as `0a1 > ok   basename: a backslash operand in the
+diagnostic`, exit 1. Each run asserted the oracle (`GNU coreutils
+9.11`, `LC_ALL=C _POSIX2_VERSION=200112`, the `uniq +1 /dev/null` probe
+OK). The binaries under test are not base's: every one of the 21
+digests differs between base and pin (`rss-bins-base.txt`,
+`rss-bins-pin.txt`).
+
+### 3c scored: peak RSS
+
+`~/lanes/bu10/rss.sh`, raw lines `rss-raw.txt` (`state util KB rc`, 126
+lines, **0 `EMPTY`**; `/usr/bin/time` writes through `-o` and each value
+is refused unless numeric). Three rounds, base and pin interleaved in
+each, 64 MiB of generated text (`in.txt`, 67,108,907 bytes, sha256
+`73c1f166…`, bu09's generator with seed 9, deleted after). `false`
+exits 1 and `yes` 124 (bounded by `timeout 2`, so its `%M` is the
+larger of `timeout` and `yes`) by design; every other run exits 0.
+Load average 1.7 at the start (another owner's work), which the
+interleaving is for.
+
+| utility | workload | base KB | pin KB | pin vs base (median) |
+|---|---|---|---|---|
+| true | `--version` | 2372 2488 2396 | 2508 2500 2440 | +4.3 % (104 KB) |
+| false | `--version` | 2348 2520 2460 | 2368 2372 2428 | −3.6 % (88 KB) |
+| echo | 1,000 operands | 2596 2648 2520 | 2524 2484 2640 | −2.8 % |
+| basename | a path, a suffix | 2440 2444 2480 | 2352 2492 2448 | +0.2 % |
+| dirname | a path | 2416 2432 2416 | 2428 2436 2476 | +0.8 % |
+| yes | 2 s to `/dev/null` | 2404 2372 2356 | 2408 2352 2368 | −0.2 % |
+| cat | file | 2764 2792 2832 | 2828 2828 2740 | +1.3 % |
+| cut | `-f1,3` file | 4076 4008 4108 | 4088 4128 4120 | +1.1 % |
+| head | `-n 100000` file | 2928 2876 2996 | 2960 2948 2960 | +1.1 % |
+| tail | `-n 100000` file | 36168 36148 36084 | 36180 36024 36068 | −0.2 % |
+| nl | file | 12344 12292 13212 | 12388 12332 12332 | −0.1 % |
+| seq | `1000000` | 3532 3568 3544 | 3624 3648 3552 | +2.3 % |
+| uniq | file | 6196 6284 6336 | 6208 6252 6368 | −0.5 % |
+| wc | file | 4256 4376 4256 | 4440 4372 4416 | +3.8 % (160 KB) |
+| tr | `a-z A-Z` < file | 6892 6856 6876 | 6836 6976 6900 | +0.3 % |
+| tac | file | 200516 200672 200668 | 201208 200692 201352 | +0.3 % |
+| paste | file file | 4592 4544 4504 | 4536 4532 4524 | −0.3 % |
+| fold | `-w 40` file | 4456 4536 4440 | 4564 4520 4552 | +2.2 % |
+| expand | file | 3668 3648 3776 | 3784 3736 3764 | +2.6 % |
+| unexpand | `-a` file | 3344 3328 3248 | 3336 3348 3236 | +0.2 % |
+| sort | `-S 10M -T` file | 43716 44052 43824 | 43476 43404 43700 | −0.8 % |
+
+**Every utility is inside max(5 %, 2 MB). 3c held.** The largest
+relative move, `true`'s +4.3 %, is 104 KB on a 2.4 MB process, inside
+its own spread across rounds (2372–2488 at base).
+
+### Predictions, scored
+
+| prediction | result |
+|---|---|
+| 3a: std `14f0ab2` and all 21 utilities build at 0.2.18 with zero diagnostics | **held** (21 × `rc=0 errors=0 warnings=0`; the count seen to fire on both witnesses) |
+| 3a: `wolf test` 1 passed, `wolf fmt --check` clean | **held** at pin and head |
+| 3b: verdict list identical, 2094/0/20 | **held** (base = pin = head, digest `b97c0e91…`) |
+| 3c: peak RSS within band | **held** (21 of 21) |
+| (not predicted) the diagnostic under `--deny-warnings` | a finding: #464's shape reports W1002, not E1001 (wolf-lang#469) |
+
+### CI
+
+A note cannot cite the run of the commit that carries it, so the CI
+evidence at the head sha — run id, all three legs — is in the PR's
+body, read with `gh run view`.
 
 ## 5. Done-when
 
