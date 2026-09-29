@@ -48,6 +48,26 @@
 #     `List[T]()` and pushes, because lupin 0.1.36 refused list
 #     literals, so the literal's element type is unreachable here.
 #
+# ## The bump to 0.2.18 / 0.1.41 (bu10, 2026-09-28)
+#
+# One release on each half, a point release, taken from the release
+# archives by digest as above; the per-member table is in
+# `notes/bu10-the-pair-at-0.2.18.md`, and `_wolf` again hashes
+# 2d1e48018333e3dd70473b34dfc78723f91f71d44a3d95287b68ce85fbbc2221 in
+# all three wolf archives.
+#
+# What a downstream has to read at this bump:
+#
+#   * Two programs 0.2.17 compiled are refused (E1001), and both were
+#     reading a moved value on every machine. #464: a function that
+#     moves out of a `mut` parameter and returns without storing a
+#     value back. #460: a read of a moved element that an index store
+#     elsewhere in the container appeared to revive. No expression in
+#     `src/` moves anything by name (no `move`, no `take`), and every
+#     read-out of a `mut` parameter here is an `int` or a `bool`.
+#   * The checked machine stores index first, then value (#452): no
+#     native binary, and so no differential case, can see it.
+#
 # ## The bump to 0.2.17 / 0.1.40 (bu09, 2026-09-26)
 #
 # One release on each half, taken from the release archives by digest
@@ -80,26 +100,26 @@
 # TAG names, which is the thing this file pins.
 
 [wolf]
-version = "0.2.17"
+version = "0.2.18"
 repo = "wolffe-lang/wolf-lang"
-rev = "02afce84f05c7841856a10671b6d7924f79193cc"
-version_line = "wolf 0.2.17 (wolfgang, pin 02afce8)"
-aarch64-apple-darwin = "525c91431bf91ed0db5caa5b19819513b16168ca0811ba75e4a28f5bac7ebc53"
-x86_64-unknown-linux-gnu = "a95d0f0f8fe384fdb70047bb893c857573cc62dd10b2967ab7788fc9a8ce24ce"
-aarch64-unknown-linux-gnu = "d3d2262352fc1d0bd343428c518c3ead69d7cb8bcd2c728d090096c220991420"
+rev = "ec56a08f04ff318ea659fd58683f7ae4f22dc7a5"
+version_line = "wolf 0.2.18 (wolfgang, pin ec56a08)"
+aarch64-apple-darwin = "b8f360456490826726301df3f25ef7d2610ab262e5938702add0baa0920ec3f9"
+x86_64-unknown-linux-gnu = "da027bf9da4c5a9dfa42c4ac6c7da3072ffce84922916650f024af83701e6bd4"
+aarch64-unknown-linux-gnu = "fe6adec8711a037783cf51757d558bf963b063f92c9125e6a93f015009e4ea16"
 
 [lupin]
-# The reference interpreter wolf 0.2.17 declares as its pairing:
-# `wolf --version` line 2 reads "paired with lupin 0.1.40 (reference
+# The reference interpreter wolf 0.2.18 declares as its pairing:
+# `wolf --version` line 2 reads "paired with lupin 0.1.41 (reference
 # interpreter), pin 93a5fe5". The pin lupin conforms to is wolf v0.2.16;
 # the `rev` below is the commit the 0.1.40 TAG names.
-version = "0.1.40"
+version = "0.1.41"
 repo = "wolffe-lang/wolf-interp"
-rev = "54f85e694d4c03e5cd40bef461f85ca0ac373332"
-version_line = "lupin 0.1.40 (wolf-interp, reference interpreter at pin 93a5fe5)"
-aarch64-apple-darwin = "197f19573bb19a8e21f06431451279959784c70a7195d9d98244dcd4b721c034"
-x86_64-unknown-linux-gnu = "509929e67b7ae97463973d6bb7c61b9f93dc47a523957055def816c56fb23384"
-aarch64-unknown-linux-gnu = "c6a9b30f53cbff0883cf5afb1b09d87ebc9dabd7ec5a531ccb9b18e1064c2996"
+rev = "0cfc0cfc89af5fd2aeb71d46c86742745b902869"
+version_line = "lupin 0.1.41 (wolf-interp, reference interpreter at pin 93a5fe5)"
+aarch64-apple-darwin = "2b8c14b00a80e50ac0b8d619f9cb66b386eaffc75b779d1b9ccd225ba5c1fe84"
+x86_64-unknown-linux-gnu = "18848901a5202162c9d0c3001a62fa3ac57276d8c0fce9c2d4f43d8d50b4e8d4"
+aarch64-unknown-linux-gnu = "58028bc9db0ccf837f627e6bde7418d715a69bc87eaa6b8c69b2f39c242f4561"
 
 [std]
 # wolf-std ships no release archive, so the tree is pinned by commit:
@@ -137,5 +157,8 @@ aarch64-unknown-linux-gnu = "c6a9b30f53cbff0883cf5afb1b09d87ebc9dabd7ec5a531ccb9
 # `std/map/map.lu` (B117), which no utility reaches: boreutils imports
 # `std.env` and `std.time` only. 14f0ab2 is wolf-std trunk and the tree
 # lobo's wave-48 pin lane (ws42) was given.
+#
+# KEPT AT THE 0.2.18 BUMP: wolf-std trunk is still 14f0ab2, so there
+# was one candidate (bu10 re-derived it against 0.2.18 first, B151).
 repo = "wolffe-lang/wolf-std"
 rev = "14f0ab2c6a64e86240113e21c4da9f746380eb29"
