@@ -55,7 +55,10 @@ API publishes for the asset. Windows is out of scope and not pinned.
 | lupin-0.1.41-x86_64-unknown-linux-gnu.tar.gz | `18848901a5202162c9d0c3001a62fa3ac57276d8c0fce9c2d4f43d8d50b4e8d4` |
 | lupin-0.1.41-aarch64-unknown-linux-gnu.tar.gz | `58028bc9db0ccf837f627e6bde7418d715a69bc87eaa6b8c69b2f39c242f4561` |
 
-Members by name (`~/lanes/bu10/members/*.members`):
+Members by name, as printed at hash time (the per-archive lists,
+`~/lanes/bu10/members/*.members`, lived inside the extracted trees and
+went with them when the lane pruned kasumi after §4 was written; the
+archive digests, `archives.sha256`, are kept and re-derive every row):
 
 | member | darwin-arm64 | linux-x64 | linux-arm64 |
 |---|---|---|---|
