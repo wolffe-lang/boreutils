@@ -48,6 +48,42 @@
 #     `List[T]()` and pushes, because lupin 0.1.36 refused list
 #     literals, so the literal's element type is unreachable here.
 #
+# ## The bump to 0.2.20 / 0.1.43 (bu13, 2026-10-02)
+#
+# One release on each half, taken from the release archives by digest
+# as above; the per-member table is in
+# `notes/bu13-the-pair-at-0.2.20.md`, and `_wolf` again hashes
+# 2d1e48018333e3dd70473b34dfc78723f91f71d44a3d95287b68ce85fbbc2221 in
+# all three wolf archives.
+#
+# What a downstream has to read at this bump:
+#
+#   * Arguments are two-phase (the maintainer's ruling #17,
+#     `[mem.tier0.excl.4]`): a later argument may READ a place an
+#     earlier `mut` argument claims, and may not write, move, re-claim
+#     or lend it (E1002), for a `mut` receiver too. The six sites here
+#     that read after a `mut` argument (`head.lu` 2, `paste.lu` 1,
+#     `tail.lu` 3, all `bore.ring_drop(mut r, bore.ring_len(r))` or
+#     `ensure(mut f, f.len + n, keeper)`) were legal at 0.2.19 and stay
+#     legal; no later argument in `src/` writes what it claims.
+#   * Seven silent wrong answers of 0.2.19 are now refused or fixed:
+#     the struct field shorthand moves (#486), a `mut` receiver or
+#     claimed place written in its own arguments (#487, #476), a
+#     view-set receiver's write-back (#494), a moded fn used as a value
+#     (#484), a nested fn's modes (#466), and `else` under a
+#     propagating `?` on the checked machine (#492). `src/` has no
+#     field shorthand, no nested fn with a moded parameter, no fn read
+#     as a value and no view-set receiver; bu13's per-utility count
+#     found no diagnostic.
+#   * One RUNTIME file moved (#483): `os_signal_listen` unblocks the
+#     signals a program arms under an inherited blocked mask. No
+#     utility arms a signal (SIGPIPE is left alone, wolf-lang#423), so
+#     the path is never entered here; every binary still differs,
+#     since `libwolf_rt.a` does.
+#   * EG3: two `mut` claims through an offset or a loop index
+#     (`add2(mut xs[i], mut xs[i + 1])`) now compile. No site here
+#     waited on it.
+#
 # ## The bump to 0.2.19 / 0.1.42 (bu11, 2026-09-30)
 #
 # One release on each half, taken from the release archives by digest
@@ -126,27 +162,27 @@
 # TAG names, which is the thing this file pins.
 
 [wolf]
-version = "0.2.19"
+version = "0.2.20"
 repo = "wolffe-lang/wolf-lang"
-rev = "c2401f05f37794a078d2acf62f837dad98e5950d"
-version_line = "wolf 0.2.19 (wolfgang, pin c2401f0)"
-aarch64-apple-darwin = "8e9a9653ec320b513c8f6c05c4969ea2f84dc2160718e8a2b62a0c234c2233b6"
-x86_64-unknown-linux-gnu = "9f3873d80118681a583a7bc00ead8d00186d447d2584aea75bc65a81f8238c8e"
-aarch64-unknown-linux-gnu = "dcb418a959a3034ac17ff3a9a82ccb7dabd72fd70f437d7011496a7e91e83b78"
+rev = "cdde128a30999652c9d70189664226b766a206f0"
+version_line = "wolf 0.2.20 (wolfgang, pin cdde128)"
+aarch64-apple-darwin = "c8a3f1a3785628ff055dc61a7ca5e48e212a431dca4bc05fe0e21cc2a46d6315"
+x86_64-unknown-linux-gnu = "24855d5efae9515ac092f1db11613187838f018f017dc20416f70905fb816ce9"
+aarch64-unknown-linux-gnu = "30f9fad962d9a4a84076549527800e226fd4078d179d68430ed3d1a75559a730"
 
 [lupin]
-# The reference interpreter wolf 0.2.19 declares as its pairing:
-# `wolf --version` line 2 reads "paired with lupin 0.1.42 (reference
-# interpreter), pin ec56a08". The pin lupin conforms to is wolf v0.2.18
-# (one release behind; 0.1.41's was two); the `rev` below is the commit
-# the 0.1.42 TAG names.
-version = "0.1.42"
+# The reference interpreter wolf 0.2.20 declares as its pairing:
+# `wolf --version` line 2 reads "paired with lupin 0.1.43 (reference
+# interpreter), pin c2401f0". The pin lupin conforms to is wolf v0.2.19
+# (one release behind, as 0.1.42's was); the `rev` below is the commit
+# the 0.1.43 TAG names.
+version = "0.1.43"
 repo = "wolffe-lang/wolf-interp"
-rev = "8e2516dc47bf808512388cc687e070981d331d98"
-version_line = "lupin 0.1.42 (wolf-interp, reference interpreter at pin ec56a08)"
-aarch64-apple-darwin = "756d6498dc424c54f638974db9e561c91251ac1592531ee258942f5e7ec3da0a"
-x86_64-unknown-linux-gnu = "9856335aacbb26d22bd3fde867f28238c6ffde98e5d9fc15ecdedf4103998ab6"
-aarch64-unknown-linux-gnu = "0cb937ec29a8ea7957f98b3f7c3cbe29f72d8b2def461b23ca55fc9a6370416e"
+rev = "6d6cde553ba980527dcbebd4dbe81d63f898d658"
+version_line = "lupin 0.1.43 (wolf-interp, reference interpreter at pin c2401f0)"
+aarch64-apple-darwin = "24d3e8f1650402c901fa13a1409b5096ce628964e2793b2c0f298a30b8a61190"
+x86_64-unknown-linux-gnu = "e957c8def153f507520a1f7f98f7f391cd43e731ee73c25c6a7bdef4d3090d48"
+aarch64-unknown-linux-gnu = "e0620310294706dc32dbb900be445a5f08a8b50fd18c16e4a9fe509b2beb2aa7"
 
 [std]
 # wolf-std ships no release archive, so the tree is pinned by commit:
@@ -189,5 +225,7 @@ aarch64-unknown-linux-gnu = "0cb937ec29a8ea7957f98b3f7c3cbe29f72d8b2def461b23ca5
 # was one candidate (bu10 re-derived it against 0.2.18 first, B151).
 # KEPT AT THE 0.2.19 BUMP for the same reason: wolf-std trunk is still
 # 14f0ab2 (bu11 re-derived it against 0.2.19 first).
+# KEPT AT THE 0.2.20 BUMP for the same reason: wolf-std trunk is still
+# 14f0ab2, 0 commits ahead (bu13 re-derived it against 0.2.20 first).
 repo = "wolffe-lang/wolf-std"
 rev = "14f0ab2c6a64e86240113e21c4da9f746380eb29"
