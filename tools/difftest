@@ -58,6 +58,27 @@ Case file (TOML, one file per utility, any number of [[case]] tables):
                                  #   comparison is stderr and exit only,
                                  #   and naming "stdout" in `compare` is
                                  #   a malformed case.
+  scratch = { "a" = "old\n" }   # optional: run in a SCRATCH directory
+  scratch_dirs = ["d"]           #   (bu14). Naming any of these four
+  scratch_links = { "l" = "d" }  #   keys gives the case a fresh, empty
+  scratch_modes = { "a" = 0o444 }#   directory, populated from them:
+  cwd = "d"                      #   files with their bytes, directories,
+                                 #   symbolic links (name = target) and
+                                 #   modes. Each side runs in it (or in
+                                 #   `cwd` under it) ONE AFTER THE OTHER,
+                                 #   at the SAME path, which is emptied
+                                 #   and repopulated between them, so a
+                                 #   path either side prints compares
+                                 #   equal. `{scratch}` in `args` and in
+                                 #   `env` values is that path. What the
+                                 #   run leaves behind — every name,
+                                 #   its kind, a file's bytes, a link's
+                                 #   target — is a fourth field, `files`,
+                                 #   compared by default. It is how a
+                                 #   file a utility WRITES is seen at all
+                                 #   (`tee FILE`), and the only way a
+                                 #   case can stand in a directory whose
+                                 #   path it knows (`pwd -L`).
   skip = "reason"                # optional: reported, not run
   timeout = 10                   # optional, seconds
   gnu_min = "9.11"               # optional: run only when the GNU oracle
@@ -111,15 +132,20 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import tomllib
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CASES = os.path.join(ROOT, "tests", "cases")
 FIXTURES = os.path.join(ROOT, "tests", "fixtures")
 ALL = ("stdout", "stderr", "exit")
+FIELDS = ALL + ("files",)
 KEYS = {"name", "args", "stdin", "stdin_file", "stdin_repeat", "env",
         "compare", "stdout_bytes", "stdout_closed", "stdout_file", "skip",
-        "timeout", "gnu_util", "gnu_min", "gnu_max"}
+        "timeout", "gnu_util", "gnu_min", "gnu_max", "scratch",
+        "scratch_dirs", "scratch_links", "scratch_modes", "cwd"}
+# Naming any of these gives a case a scratch directory and a `files` field.
+SCRATCH = ("scratch", "scratch_dirs", "scratch_links", "scratch_modes", "cwd")
 # What a case compares when descriptor 1 is closed: there is no stdout.
 CLOSED = ("stderr", "exit")
 
@@ -250,10 +276,70 @@ def feed(proc, data):
         pass
 
 
-def run(exe, argv0, case, base_env):
+def has_scratch(case):
+    return any(k in case for k in SCRATCH)
+
+
+def populate(case, top):
+    """Empty `top` and lay the case's scratch tree out in it."""
+    if os.path.lexists(top):
+        shutil.rmtree(top)
+    os.mkdir(top)
+    for d in case.get("scratch_dirs", []):
+        os.makedirs(os.path.join(top, d), exist_ok=True)
+    for name, text in case.get("scratch", {}).items():
+        path = os.path.join(top, name)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "wb") as fh:
+            fh.write(text.encode())
+    for name, target in case.get("scratch_links", {}).items():
+        os.symlink(target, os.path.join(top, name))
+    for name, mode in case.get("scratch_modes", {}).items():
+        os.chmod(os.path.join(top, name), mode)
+
+
+def snapshot(top):
+    """What a run left in the scratch tree, as a sorted, comparable list:
+    every name under `top` with its kind, a file's bytes and a link's
+    target. Never followed through a link, so a link out of the tree
+    is its target text and nothing else."""
+    seen = []
+    for root, dirs, files in os.walk(top):
+        for d in sorted(dirs):
+            path = os.path.join(root, d)
+            rel = os.path.relpath(path, top)
+            if os.path.islink(path):
+                seen.append((rel, "link", os.readlink(path).encode()))
+            else:
+                seen.append((rel, "dir", b""))
+        for f in sorted(files):
+            path = os.path.join(root, f)
+            rel = os.path.relpath(path, top)
+            if os.path.islink(path):
+                seen.append((rel, "link", os.readlink(path).encode()))
+            elif os.path.isfile(path):
+                try:
+                    with open(path, "rb") as fh:
+                        seen.append((rel, "file", fh.read()))
+                except OSError as e:
+                    seen.append((rel, "unreadable", str(e.errno).encode()))
+            else:
+                seen.append((rel, "other", b""))
+    return sorted(seen)
+
+
+def substitute(value, top):
+    return value if top is None else value.replace("{scratch}", top)
+
+
+def run(exe, argv0, case, base_env, top=None):
     env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin")}
     env.update(base_env)
-    env.update(case.get("env", {}))
+    env.update({k: substitute(v, top) for k, v in case.get("env", {}).items()})
+    cwd = ROOT
+    if top is not None:
+        populate(case, top)
+        cwd = os.path.join(top, case.get("cwd", "."))
     stdin = subprocess.DEVNULL
     data = None
     if "stdin" in case:
@@ -272,7 +358,8 @@ def run(exe, argv0, case, base_env):
     else:
         stdout = subprocess.PIPE
     proc = subprocess.Popen(
-        [argv0] + case.get("args", []), executable=exe, env=env,
+        [argv0] + [substitute(a, top) for a in case.get("args", [])],
+        executable=exe, env=env,
         stdin=stdin, stdout=stdout, stderr=subprocess.PIPE,
         # `prog >&-`: the child reaches main with descriptor 1 closed.
         # Nothing but a fork hook can produce that, because Popen's
@@ -280,8 +367,9 @@ def run(exe, argv0, case, base_env):
         preexec_fn=(lambda: os.close(1)) if closed else None,
         # Every case runs from the repository root, so a case naming a
         # file operand writes it as tests/fixtures/NAME and means the
-        # same thing however difftest itself was invoked.
-        cwd=ROOT,
+        # same thing however difftest itself was invoked — unless it
+        # names a scratch directory, which it then runs in.
+        cwd=cwd,
         # the child gets the default SIGPIPE disposition, as a shell gives
         restore_signals=True)
     try:
@@ -314,8 +402,11 @@ def run(exe, argv0, case, base_env):
             stdin.close()
         if hasattr(stdout, "close"):
             stdout.close()
-    return {"stdout": out, "stderr": normalize(err, argv0),
-            "exit": status(proc.returncode)}
+    result = {"stdout": out, "stderr": normalize(err, argv0),
+              "exit": status(proc.returncode)}
+    if top is not None:
+        result["files"] = snapshot(top)
+    return result
 
 
 def normalize(err, argv0):
@@ -329,6 +420,8 @@ def show(side, result, fields):
     lines = []
     for f in fields:
         v = result[f]
+        if f == "files":
+            v = [(rel, kind, data[:80]) for rel, kind, data in v]
         if isinstance(v, bytes) and len(v) > 400:
             v = v[:400] + b"...(%d bytes)" % len(result[f])
         lines.append(f"    {side} {f}: {v!r}")
@@ -370,8 +463,11 @@ def load(path):
                 die(f"{path}: case {c['name']!r} closes standard output "
                     f"and still compares it")
         for f in c.get("compare", ALL):
-            if f not in ALL:
+            if f not in FIELDS:
                 die(f"{path}: case {c['name']!r} compares unknown {f!r}")
+            if f == "files" and not has_scratch(c):
+                die(f"{path}: case {c['name']!r} compares files and has "
+                    f"no scratch directory")
     return cases
 
 
@@ -474,8 +570,20 @@ def main(argv):
             fields = case.get("compare",
                               ALL if sink is None and not case.get("stdout_closed")
                               else CLOSED)
-            b = run(bore, util, case, base_env)
-            g = run(gnu, prefix + oracle, case, base_env)
+            top = None
+            if has_scratch(case):
+                if "compare" not in case:
+                    fields = tuple(fields) + ("files",)
+                # One path for both sides, emptied between them, so a
+                # path either one prints is the same path.
+                holder = tempfile.mkdtemp(prefix="bore-scratch.")
+                top = os.path.join(holder, "s")
+            try:
+                b = run(bore, util, case, base_env, top)
+                g = run(gnu, prefix + oracle, case, base_env, top)
+            finally:
+                if top is not None:
+                    shutil.rmtree(holder, ignore_errors=True)
             ok = (b is not None and g is not None
                   and all(b[f] == g[f] for f in fields))
             if ok:
