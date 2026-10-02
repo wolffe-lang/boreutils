@@ -151,7 +151,8 @@ Every utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus, except where a case says otherwise and is
 skipped with its reason. The corpus holds **2,674 cases**; a run on
 kasumi (linux x86-64) at this pin answers **2,642 passed, 0 failed, 32
-skipped**, and CI's macOS leg MACOS_TODO: the MACOS_MORE more are every
+skipped**, and CI's macOS leg **2,618 passed, 0 failed, 56 skipped**
+(run 37060771131, at `bd11397`): the twenty-four more are every
 `/dev/full` case, one or two per utility, because macOS has no
 `/dev/full`. (The previous edition of this sentence, before bu14's six
 utilities, said 2,114 cases, 2,094 and 20 on kasumi, and 2,077 and 37
@@ -174,7 +175,9 @@ not of the oracle, which is 9.11 everywhere the gauntlet runs. The
 ninth was found by the `field` leg on the first run it ever made: with
 descriptor 1 closed, 9.11 stops at the first write that fails and 9.4
 keeps walking, so `wc FILE nope >&-` names the missing file on 9.4 and
-not on 9.11.
+not on 9.11. Sixteen more name 9.11 for the same reason, all bu14's:
+9.4 has no `%N$` in `printf` at all, takes an empty number without a
+word, and refuses an `nproc --ignore` past 2^64.
 
 **The transform set adds eight more skips, all the same shape, and none
 of them a coreutils version difference.** They are places where the two
@@ -688,8 +691,11 @@ thing is a filed issue rather than a quiet difference:
   rounds down and GNU up (wolf-lang#537; the whole `nproc` file under
   `CPUQuota=150%` is 55 passed and 23 failed, under 200% 78 of 78).
 
-kasumi (linux x86-64, 16 cpus) at load 1.2–1.4, release tier, GNU
-coreutils 9.11. The start-up rows are `hyperfine -N` over 300 runs, so
+kasumi (linux x86-64, 16 cpus) at load 1.2–1.4, release tier built by
+wolf 0.2.20 with the host's clang 22.1.8, GNU coreutils 9.11-2, all
+taken between 16:20 and 16:30 EDT on 2026-10-02 — an hour before a
+system upgrade moved kasumi to clang 23.1.1 and GNU coreutils 9.12, so
+both sides of every row are on the same side of it. The start-up rows are `hyperfine -N` over 300 runs, so
 the ratio is real at a fraction of a millisecond; `true` (249 µs
 against 177 µs, 0.71x) is the floor every wolf binary here pays. The
 `printf` rows are 10,000 arguments built by the shell; `tee` is 256 MiB
