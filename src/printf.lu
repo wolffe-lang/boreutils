@@ -1501,6 +1501,20 @@ fn bn_div_round(num: List[int], den: List[int]) -> Rounded {
     if p >= 0 {
         return bn_shr_round(num, p)
     }
+    if den.len == 1 {
+        // A one-limb divisor — 5^k for k <= 10, which is every decimal
+        // argument with ten or fewer digits after its point — divides in
+        // one pass instead of bit by bit.
+        let d = bn_divmod_small(num, den[0])
+        if d.r == 0 {
+            return Rounded { q: d.q, inexact: false }
+        }
+        let twice = 2 * d.r
+        if twice > den[0] || twice == den[0] && bn_bit(d.q, 0) == 1 {
+            return Rounded { q: bn_add_small(d.q, 1), inexact: true }
+        }
+        return Rounded { q: d.q, inexact: true }
+    }
     let d = bn_divmod(num, den)
     if d.r.len == 0 {
         return Rounded { q: d.q, inexact: false }
