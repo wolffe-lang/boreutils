@@ -7,7 +7,8 @@
 //! prints the bit pattern as a SIGNED number (`-1`) and the native tier
 //! cannot divide one ("wrapping division (no idiv.wrap op)"), so these
 //! render it from two 32-bit halves, which ordinary `int` arithmetic can
-//! divide without overflowing.
+//! divide without overflowing. Both gaps, and lupin printing the same
+//! value unsigned, are wolf-lang#538.
 
 /// `x` in decimal, as an unsigned number.
 pub fn u64_text(x: wrapping[u64]) -> str {
