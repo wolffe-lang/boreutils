@@ -1,0 +1,57 @@
+//! bore.u64 — 64-bit unsigned numbers as text.
+//!
+//! GNU prints `unsigned long` and `uintmax_t` values whole: `nproc`
+//! saturates an `OMP_NUM_THREADS` past 2^64 - 1 and prints
+//! 18446744073709551615, and `printf '%u' -1` prints the same. wolf's
+//! `wrapping[u64]` holds those values, but at 0.2.20 its interpolation
+//! prints the bit pattern as a SIGNED number (`-1`) and the native tier
+//! cannot divide one ("wrapping division (no idiv.wrap op)"), so these
+//! render it from two 32-bit halves, which ordinary `int` arithmetic can
+//! divide without overflowing.
+
+/// `x` in decimal, as an unsigned number.
+pub fn u64_text(x: wrapping[u64]) -> str {
+    var hi = (x >> 32) as int
+    var lo = (x & 4294967295) as int
+    if hi == 0 {
+        return "{lo}"
+    }
+    var digits = List[byte]()
+    while hi > 0 || lo > 0 {
+        let cur = hi % 10 * 4294967296 + lo
+        hi = hi / 10
+        lo = cur / 10
+        (mut digits).push((48 + cur % 10) as byte)
+    }
+    var out = List[byte]()
+    var i = digits.len - 1
+    while i >= 0 {
+        (mut out).push(digits[i])
+        i -= 1
+    }
+    str_from_utf8(out) else "?"
+}
+
+/// `x` in base 8 or 16 (`bits` is 3 or 4), lower- or upper-case hex
+/// digits, no prefix and no leading zeros (`0` for zero).
+pub fn u64_radix(x: wrapping[u64], bits: int, upper: bool) -> str {
+    let digits = if upper then "0123456789ABCDEF" else "0123456789abcdef"
+    let mask = (1 << bits) - 1
+    var v = x
+    var rev = List[byte]()
+    loop {
+        let d = (v & mask as wrapping[u64]) as int
+        (mut rev).push(digits.bytes()[d])
+        v = v >> bits as wrapping[u64]
+        if v == 0 {
+            break
+        }
+    }
+    var out = List[byte]()
+    var i = rev.len - 1
+    while i >= 0 {
+        (mut out).push(rev[i])
+        i -= 1
+    }
+    str_from_utf8(out) else "?"
+}
