@@ -1,0 +1,163 @@
+//! member: false
+//!
+//! pwd — print the name of the working directory.
+//!
+//! References consulted: POSIX.1-2024 `pwd`; GNU coreutils 9.11
+//! `pwd --help`, the info manual's `pwd invocation` node, and black-box
+//! runs of the GNU binary (`/usr/bin/pwd`, never the shell's builtin)
+//! on linux x86-64 and macOS arm64 (Homebrew `gpwd`), under `LC_ALL=C`.
+//! Never GNU source.
+//!
+//! GNU's rules, each measured against 9.11:
+//!
+//! - `-P` (the default) prints the PHYSICAL directory, every symbolic
+//!   link resolved. `-L` prints `$PWD` instead when `$PWD` is absolute,
+//!   has no `.` or `..` component, and names the working directory;
+//!   otherwise it falls back to `-P`. `$PWD` is printed exactly as it
+//!   is written: a trailing slash and a doubled slash survive
+//!   (`/tmp/l/` and `//tmp/l`).
+//! - With `POSIXLY_CORRECT` set the default is `-L`. Between `-L` and
+//!   `-P` the last one given wins.
+//! - Operands are not an error: `pwd: ignoring non-option arguments`,
+//!   and the directory is still printed, status 0.
+//!
+//! **`-L` cannot ask whether `$PWD` names the working directory.** GNU
+//! compares the device and inode numbers of `$PWD` and `.`; wolf 0.2.20
+//! has neither (`fs_fstat` answers `[kind, size, modified_ms]`, and
+//! nothing answers an identity), so this program accepts `$PWD` when it
+//! is a directory whose `[kind, size, modified_ms]` AND whose listing
+//! equal the working directory's. That is right whenever `$PWD` is the
+//! working directory or a link to it, and right whenever it names a
+//! different directory that differs in any of those — but a second
+//! directory with the same entries and the same modification time to
+//! the millisecond (a `cp -a` copy, a bind mount) is taken for the
+//! working directory where GNU would print the physical name. Filed
+//! upstream as the missing file identity (wolf-lang, `[os.fs]`), with
+//! that witness.
+
+use bore
+
+fn main() -> int {
+    let p = bore.parse(options(), env_args(), bore.permute())
+    var out = bore.stdout()
+    var logical = !bore.permute()
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i]
+        if k == "help" {
+            bore.put(mut out, help()) else |_| {}
+            return bore.finish(mut out, "pwd", 0)
+        }
+        if k == "version" {
+            bore.put(mut out, bore.version_text("pwd")) else |_| {}
+            return bore.finish(mut out, "pwd", 0)
+        }
+        if k == "logical" {
+            logical = true
+        }
+        if k == "physical" {
+            logical = false
+        }
+        i += 1
+    }
+    if !bore.ok(p) {
+        return bore.usage_error("pwd", p.error)
+    }
+    if p.operands.len > 0 {
+        bore.warn("pwd", "ignoring non-option arguments")
+    }
+    let here = os_cwd() else |_| {
+        bore.warn("pwd", "cannot read the working directory: {bore.io_error()}")
+        return 1
+    }
+    var name = here
+    if logical {
+        let given = env_get("PWD") else ""
+        if usable(given) && same_directory(given, here) {
+            name = given
+        }
+    }
+    bore.put(mut out, "{name}\n") else |_| {}
+    bore.finish(mut out, "pwd", 0)
+}
+
+fn options() -> List[bore.Opt] {
+    var s = List[bore.Opt]()
+    (mut s).push(bore.flag("L", "logical"))
+    (mut s).push(bore.flag("P", "physical"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    s
+}
+
+/// Whether `$PWD`'s spelling may be printed at all: absolute, with no
+/// `.` or `..` component.
+fn usable(pwd: str) -> bool {
+    if !pwd.starts_with("/") {
+        return false
+    }
+    for part in pwd.split("/") {
+        if part == "." || part == ".." {
+            return false
+        }
+    }
+    true
+}
+
+/// Whether `a` and `b` name one directory, as far as wolf can tell:
+/// both directories, the same `[kind, size, modified_ms]`, and the same
+/// listing. See the header for what this cannot tell apart.
+fn same_directory(a: str, b: str) -> bool {
+    let sa = stat_of(a)
+    let sb = stat_of(b)
+    if sa.len != 3 || sb.len != 3 || sa[0] != 1 {
+        return false
+    }
+    if sa[0] != sb[0] || sa[1] != sb[1] || sa[2] != sb[2] {
+        return false
+    }
+    let la = fs_read_dir(a) else |_| {
+        return false
+    }
+    let lb = fs_read_dir(b) else |_| {
+        return false
+    }
+    if la.len != lb.len {
+        return false
+    }
+    var k = 0
+    while k < la.len {
+        if la[k] != lb[k] {
+            return false
+        }
+        k += 1
+    }
+    true
+}
+
+/// `[kind, size, modified_ms]` of the path, or an empty list.
+fn stat_of(path: str) -> List[int] {
+    let fd = fs_open(path) else |_| {
+        return List[int]()
+    }
+    let st = fs_fstat(fd) else |_| List[int]()
+    fs_close(fd) else |_| {}
+    st
+}
+
+fn help() -> str {
+    """
+    Usage: pwd [OPTION]...
+    Print the absolute name of the working directory.
+
+      -L, --logical   print $PWD when it names the working directory,
+                      symbolic links and all
+      -P, --physical  print the directory with every link resolved
+          --help      print this help and exit
+          --version   print the version and exit
+
+    -P is the default, and -L is when POSIXLY_CORRECT is set.
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}

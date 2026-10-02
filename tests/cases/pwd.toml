@@ -1,0 +1,322 @@
+# pwd — GNU coreutils 9.11, black-box (`/usr/bin/pwd`, never a shell's
+# builtin), on linux x86-64 and macOS arm64. Most cases stand in a
+# SCRATCH tree (tools/difftest, bu14): a directory `d` holding `sub`, a
+# link `l` to it, a link `s` to `d/sub`, and a directory `other`. Both
+# programs run in the same tree at the same path one after the other,
+# so `{scratch}` in $PWD names the same place for each. The help and
+# version TEXT is ours, so those compare the exit only.
+
+[[case]]
+name = "the repository root, physical"
+
+[[case]]
+name = "-L with no $PWD falls back to physical"
+args = ["-L"]
+
+[[case]]
+name = "the default is physical"
+scratch_dirs = ["d/sub", "other"]
+scratch_links = { l = "d", s = "d/sub" }
+cwd = "d"
+
+[[case]]
+name = "-P"
+args = ["-P"]
+env = { PWD = "{scratch}/l" }
+scratch_dirs = ["d/sub", "other"]
+scratch_links = { l = "d", s = "d/sub" }
+cwd = "d"
+
+[[case]]
+name = "the default ignores $PWD"
+env = { PWD = "{scratch}/l" }
+scratch_dirs = ["d/sub", "other"]
+scratch_links = { l = "d", s = "d/sub" }
+cwd = "d"
+
+[[case]]
+name = "-L prints $PWD through a link"
+args = ["-L"]
+env = { PWD = "{scratch}/l" }
+scratch_dirs = ["d/sub", "other"]
+scratch_links = { l = "d", s = "d/sub" }
+cwd = "d"
+
+[[case]]
+name = "--logical"
+args = ["--logical"]
+env = { PWD = "{scratch}/l" }
+scratch_dirs = ["d/sub", "other"]
+scratch_links = { l = "d", s = "d/sub" }
+cwd = "d"
+
+[[case]]
+name = "--log abbreviated"
+args = ["--log"]
+env = { PWD = "{scratch}/l" }
+scratch_dirs = ["d/sub", "other"]
+scratch_links = { l = "d", s = "d/sub" }
+cwd = "d"
+
+[[case]]
+name = "--physical"
+args = ["--physical"]
+env = { PWD = "{scratch}/l" }
+scratch_dirs = ["d/sub", "other"]
+scratch_links = { l = "d", s = "d/sub" }
+cwd = "d"
+
+[[case]]
+name = "--ph abbreviated"
+args = ["--ph"]
+env = { PWD = "{scratch}/l" }
+scratch_dirs = ["d/sub", "other"]
+scratch_links = { l = "d", s = "d/sub" }
+cwd = "d"
+
+[[case]]
+name = "-L with $PWD the physical name"
+args = ["-L"]
+env = { PWD = "{scratch}/d" }
+scratch_dirs = ["d/sub", "other"]
+scratch_links = { l = "d", s = "d/sub" }
+cwd = "d"
+
+[[case]]
+name = "-L keeps a trailing slash"
+args = ["-L"]
+env = { PWD = "{scratch}/l/" }
+scratch_dirs = ["d/sub", "other"]
+scratch_links = { l = "d", s = "d/sub" }
+cwd = "d"
+
+[[case]]
+name = "-L keeps a doubled slash"
+args = ["-L"]
+env = { PWD = "{scratch}//l" }
+scratch_dirs = ["d/sub", "other"]
+scratch_links = { l = "d", s = "d/sub" }
+cwd = "d"
+
+[[case]]
+name = "-L refuses a . component"
+args = ["-L"]
+env = { PWD = "{scratch}/./l" }
+scratch_dirs = ["d/sub", "other"]
+scratch_links = { l = "d", s = "d/sub" }
+cwd = "d"
+
+[[case]]
+name = "-L refuses a trailing /."
+args = ["-L"]
+env = { PWD = "{scratch}/l/." }
+scratch_dirs = ["d/sub", "other"]
+scratch_links = { l = "d", s = "d/sub" }
+cwd = "d"
+
+[[case]]
+name = "-L refuses a .. component"
+args = ["-L"]
+env = { PWD = "{scratch}/l/sub/.." }
+scratch_dirs = ["d/sub", "other"]
+scratch_links = { l = "d", s = "d/sub" }
+cwd = "d"
+
+[[case]]
+name = "-L refuses a trailing .."
+args = ["-L"]
+env = { PWD = "{scratch}/d/sub/.." }
+scratch_dirs = ["d/sub", "other"]
+scratch_links = { l = "d", s = "d/sub" }
+cwd = "d"
+
+[[case]]
+name = "-L refuses a relative $PWD"
+args = ["-L"]
+env = { PWD = "l" }
+scratch_dirs = ["d/sub", "other"]
+scratch_links = { l = "d", s = "d/sub" }
+cwd = "d"
+
+[[case]]
+name = "-L refuses an empty $PWD"
+args = ["-L"]
+env = { PWD = "" }
+scratch_dirs = ["d/sub", "other"]
+scratch_links = { l = "d", s = "d/sub" }
+cwd = "d"
+
+[[case]]
+name = "-L refuses a different directory"
+args = ["-L"]
+env = { PWD = "{scratch}/other" }
+scratch_dirs = ["d/sub", "other"]
+scratch_links = { l = "d", s = "d/sub" }
+cwd = "d"
+
+[[case]]
+name = "-L refuses the parent"
+args = ["-L"]
+env = { PWD = "{scratch}" }
+scratch_dirs = ["d/sub", "other"]
+scratch_links = { l = "d", s = "d/sub" }
+cwd = "d"
+
+[[case]]
+name = "-L refuses the root"
+args = ["-L"]
+env = { PWD = "/" }
+scratch_dirs = ["d/sub", "other"]
+scratch_links = { l = "d", s = "d/sub" }
+cwd = "d"
+
+[[case]]
+name = "-L refuses a path that does not exist"
+args = ["-L"]
+env = { PWD = "{scratch}/nope" }
+scratch_dirs = ["d/sub", "other"]
+scratch_links = { l = "d", s = "d/sub" }
+cwd = "d"
+
+[[case]]
+name = "-L refuses a link to somewhere else"
+args = ["-L"]
+env = { PWD = "{scratch}/s" }
+scratch_dirs = ["d/sub", "other"]
+scratch_links = { l = "d", s = "d/sub" }
+cwd = "d"
+
+[[case]]
+name = "-L in a subdirectory, through a link"
+args = ["-L"]
+env = { PWD = "{scratch}/s" }
+scratch_dirs = ["d/sub", "other"]
+scratch_links = { l = "d", s = "d/sub" }
+cwd = "d/sub"
+
+[[case]]
+name = "-L in a subdirectory, through a link and a path"
+args = ["-L"]
+env = { PWD = "{scratch}/l/sub" }
+scratch_dirs = ["d/sub", "other"]
+scratch_links = { l = "d", s = "d/sub" }
+cwd = "d/sub"
+
+[[case]]
+name = "-P in a subdirectory reached through links"
+args = ["-P"]
+env = { PWD = "{scratch}/l/sub" }
+scratch_dirs = ["d/sub", "other"]
+scratch_links = { l = "d", s = "d/sub" }
+cwd = "d/sub"
+
+[[case]]
+name = "-LP: the last wins"
+args = ["-LP"]
+env = { PWD = "{scratch}/l" }
+scratch_dirs = ["d/sub", "other"]
+scratch_links = { l = "d", s = "d/sub" }
+cwd = "d"
+
+[[case]]
+name = "-PL: the last wins"
+args = ["-PL"]
+env = { PWD = "{scratch}/l" }
+scratch_dirs = ["d/sub", "other"]
+scratch_links = { l = "d", s = "d/sub" }
+cwd = "d"
+
+[[case]]
+name = "-L -P -L"
+args = ["-L", "-P", "-L"]
+env = { PWD = "{scratch}/l" }
+scratch_dirs = ["d/sub", "other"]
+scratch_links = { l = "d", s = "d/sub" }
+cwd = "d"
+
+[[case]]
+name = "POSIXLY_CORRECT makes -L the default"
+env = { PWD = "{scratch}/l", POSIXLY_CORRECT = "1" }
+scratch_dirs = ["d/sub", "other"]
+scratch_links = { l = "d", s = "d/sub" }
+cwd = "d"
+
+[[case]]
+name = "POSIXLY_CORRECT and -P"
+args = ["-P"]
+env = { PWD = "{scratch}/l", POSIXLY_CORRECT = "1" }
+scratch_dirs = ["d/sub", "other"]
+scratch_links = { l = "d", s = "d/sub" }
+cwd = "d"
+
+[[case]]
+name = "POSIXLY_CORRECT with an unusable $PWD"
+env = { PWD = "{scratch}/./l", POSIXLY_CORRECT = "1" }
+scratch_dirs = ["d/sub", "other"]
+scratch_links = { l = "d", s = "d/sub" }
+cwd = "d"
+
+[[case]]
+name = "an operand is ignored, with a warning"
+args = ["x"]
+
+[[case]]
+name = "two operands"
+args = ["x", "y"]
+
+[[case]]
+name = "an operand after --"
+args = ["--", "-L"]
+
+[[case]]
+name = "an operand before an option"
+args = ["x", "-L"]
+env = { PWD = "{scratch}/l" }
+scratch_dirs = ["d/sub", "other"]
+scratch_links = { l = "d", s = "d/sub" }
+cwd = "d"
+
+[[case]]
+name = "an unknown option"
+args = ["-x"]
+
+[[case]]
+name = "an unknown long option"
+args = ["--bogus"]
+
+[[case]]
+name = "--logical takes no argument"
+args = ["--logical=x"]
+
+[[case]]
+name = "help"
+args = ["--help"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "version"
+args = ["--version"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "standard output closed is a write error"
+stdout_closed = true
+
+# A write error on a LIVE descriptor (linux only; a SKIP where there is
+# no /dev/full): GNU appends strerror(ENOSPC), which wolf cannot say
+# (wolf-lang#407), so the exit status is the comparison.
+[[case]]
+name = "a write error on a live descriptor"
+stdout_file = "/dev/full"
+compare = ["exit"]
+
+# The one shape this program cannot decide (see src/pwd.lu): $PWD naming
+# a DIFFERENT directory with the same entries and the same modification
+# time to the millisecond, which GNU tells apart by inode and wolf 0.2.20
+# cannot. A scratch tree cannot set a modification time, so the case is
+# written down rather than run; the witness (a `cp -a` copy) is in
+# notes/bu14-the-small-surface-set.md.
+[[case]]
+name = "-L refuses a twin directory with the same listing and time"
+args = ["-L"]
+skip = "no file identity in wolf 0.2.20: fs_fstat answers [kind, size, mtime] and nothing answers a device and inode, so a cp -a twin of the working directory is indistinguishable from it (filed upstream)"
