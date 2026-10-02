@@ -1,0 +1,268 @@
+//! member: false
+//!
+//! nproc — print how many processing units this process may use.
+//!
+//! References consulted: GNU coreutils 9.11 `nproc --help`, the info
+//! manual's `nproc invocation` node, and black-box runs of the GNU
+//! binary on linux x86-64 (Arch, 16 cpus, under `taskset` and under a
+//! systemd cgroup quota) and macOS arm64 (Homebrew `gnproc`, 18 cpus),
+//! under `LC_ALL=C`; the OpenMP specification's `OMP_NUM_THREADS` and
+//! `OMP_THREAD_LIMIT`. (nproc is not in POSIX.) Never GNU source.
+//!
+//! GNU's rules, each measured against 9.11 on both hosts:
+//!
+//! - The count is the cpus this process may be SCHEDULED on, which on
+//!   linux honours an affinity mask (`taskset -c 0-2 nproc` is 3) and a
+//!   cgroup v2 cpu quota. wolf's `os_cpus` is that number.
+//! - `OMP_NUM_THREADS`, when it parses, REPLACES the count — even past
+//!   the number of cpus (`OMP_NUM_THREADS=40` prints 40 on 16) — and
+//!   `OMP_THREAD_LIMIT`, when it parses, caps the result. The grammar
+//!   is the same for both: optional leading white space, decimal
+//!   digits with no sign, optional trailing white space, then either
+//!   the end or a comma, after which anything goes (`4,2` is 4). Zero
+//!   and every other spelling — `+4`, `4.5`, `0x4`, `4 2`, `-4` —
+//!   leave the count alone. A value past 2^64 - 1 saturates there, and
+//!   is printed.
+//! - `--ignore=N` takes N away, never going below 1. N is decimal with
+//!   optional leading white space and an optional `+`; a `-` (even
+//!   `-0`), a hex prefix, an exponent or trailing text is
+//!   `invalid number: 'N'`, status 1, with no `Try` line. A huge N is
+//!   simply larger than the count. The last `--ignore` wins.
+//! - `--all` is the INSTALLED count and disregards the OpenMP variables
+//!   and the quota — but not `--ignore`.
+//! - An operand is `extra operand 'X'`, status 1.
+//!
+//! **Where this differs from GNU, and why.** Under a FRACTIONAL cgroup
+//! cpu quota GNU rounds up and `os_cpus` rounds down: with
+//! `systemd-run --user --scope -p CPUQuota=150%` GNU prints 2 and this
+//! program 1, at 250% 3 against 2. No differential case can set a
+//! quota; the witness is in `notes/bu14-the-small-surface-set.md`, and
+//! the gap is filed upstream (wolf-lang, `[os.cpus]`). An affinity
+//! mask agrees on both sides.
+//!
+//! **The installed count** has no wolf builtin. On linux it is the
+//! number of `cpuN` entries the kernel publishes under
+//! `/sys/devices/system/cpu`; where that directory does not exist (macOS)
+//! it is `os_cpus`, which there is `hw.ncpu` and has no affinity to
+//! narrow it.
+
+use bore
+
+fn main() -> int {
+    let p = bore.parse(options(), env_args(), bore.permute())
+    var out = bore.stdout()
+    var all = false
+    var ignore: wrapping[u64] = 0
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i]
+        if k == "help" {
+            bore.put(mut out, help()) else |_| {}
+            return bore.finish(mut out, "nproc", 0)
+        }
+        if k == "version" {
+            bore.put(mut out, bore.version_text("nproc")) else |_| {}
+            return bore.finish(mut out, "nproc", 0)
+        }
+        if k == "all" {
+            all = true
+        }
+        if k == "ignore" {
+            let n = ignore_count(p.values[i]) else |_| {
+                bore.warn("nproc", "invalid number: {bore.quote(p.values[i])}")
+                return 1
+            }
+            ignore = n
+        }
+        i += 1
+    }
+    if !bore.ok(p) {
+        return bore.usage_error("nproc", p.error)
+    }
+    if p.operands.len > 0 {
+        return bore.usage_error("nproc", "extra operand {bore.quote(p.operands[0])}")
+    }
+    var n: wrapping[u64] = 1
+    if all {
+        n = installed() as wrapping[u64]
+    } else {
+        n = available()
+    }
+    if ignore >= n {
+        n = 1
+    } else {
+        n = n - ignore
+    }
+    bore.put(mut out, "{bore.u64_text(n)}\n") else |_| {}
+    bore.finish(mut out, "nproc", 0)
+}
+
+fn options() -> List[bore.Opt] {
+    var s = List[bore.Opt]()
+    (mut s).push(bore.flag("", "all"))
+    (mut s).push(bore.takes("", "ignore"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    s
+}
+
+/// What this process may use: the schedulable count, replaced by
+/// `OMP_NUM_THREADS` and capped by `OMP_THREAD_LIMIT` where they parse.
+fn available() -> wrapping[u64] {
+    var n: wrapping[u64] = schedulable() as wrapping[u64]
+    let want = omp(env_get("OMP_NUM_THREADS") else "")
+    if want > 0 {
+        n = want
+    }
+    let limit = omp(env_get("OMP_THREAD_LIMIT") else "")
+    if limit > 0 && limit < n {
+        n = limit
+    }
+    n
+}
+
+/// `os_cpus`, or 1 on a host that cannot say (GNU's floor too: the
+/// answer is never 0).
+fn schedulable() -> int {
+    let n = os_cpus() else 1
+    if n < 1 {
+        return 1
+    }
+    n
+}
+
+/// The installed count: `cpuN` entries under `/sys/devices/system/cpu`,
+/// or `os_cpus` where there is no such directory.
+fn installed() -> int {
+    let names = fs_read_dir("/sys/devices/system/cpu") else |_| {
+        return schedulable()
+    }
+    var n = 0
+    for name in names {
+        if is_cpu_entry(name) {
+            n += 1
+        }
+    }
+    if n == 0 {
+        return schedulable()
+    }
+    n
+}
+
+/// Whether `name` is `cpu` followed by one or more decimal digits.
+fn is_cpu_entry(name: str) -> bool {
+    if name.len < 4 || !name.starts_with("cpu") {
+        return false
+    }
+    for b in name[3..].bytes() {
+        let c = b as int
+        if c < 48 || c > 57 {
+            return false
+        }
+    }
+    true
+}
+
+/// An OpenMP count: 0 when `v` does not parse (or is zero), which
+/// leaves the count alone.
+fn omp(v: str) -> wrapping[u64] {
+    let b = v.bytes()
+    var i = 0
+    while i < b.len && is_space(b[i] as int) {
+        i += 1
+    }
+    let start = i
+    var n: wrapping[u64] = 0
+    var saturated = false
+    while i < b.len && b[i] as int >= 48 && b[i] as int <= 57 {
+        let d = (b[i] as int - 48) as wrapping[u64]
+        if !saturated {
+            if n > umax_tenth() || n == umax_tenth() && d > 5 {
+                saturated = true
+            } else {
+                n = n * 10 + d
+            }
+        }
+        i += 1
+    }
+    if i == start {
+        return 0
+    }
+    while i < b.len && is_space(b[i] as int) {
+        i += 1
+    }
+    if i < b.len && b[i] as int != 44 {
+        return 0
+    }
+    if saturated {
+        return umax()
+    }
+    n
+}
+
+/// `--ignore`'s argument: decimal, optional leading white space and an
+/// optional `+`, nothing after the digits. Saturates rather than fails.
+fn ignore_count(v: str) -> wrapping[u64] ! {invalid} {
+    let b = v.bytes()
+    var i = 0
+    while i < b.len && is_space(b[i] as int) {
+        i += 1
+    }
+    if i < b.len && b[i] as int == 43 {
+        i += 1
+    }
+    let start = i
+    var n: wrapping[u64] = 0
+    var saturated = false
+    while i < b.len && b[i] as int >= 48 && b[i] as int <= 57 {
+        let d = (b[i] as int - 48) as wrapping[u64]
+        if !saturated {
+            if n > umax_tenth() || n == umax_tenth() && d > 5 {
+                saturated = true
+            } else {
+                n = n * 10 + d
+            }
+        }
+        i += 1
+    }
+    if i == start || i != b.len {
+        return invalid
+    }
+    if saturated {
+        return umax()
+    }
+    n
+}
+
+/// (2^64 - 1) / 10, written out: wolf 0.2.20 cannot divide a
+/// `wrapping[u64]` on the native tier ("no idiv.wrap op").
+fn umax_tenth() -> wrapping[u64] {
+    1844674407370955161
+}
+
+/// 2^64 - 1, where a count saturates.
+fn umax() -> wrapping[u64] {
+    18446744073709551615
+}
+
+/// C's `isspace` in the C locale.
+fn is_space(c: int) -> bool {
+    c == 32 || c >= 9 && c <= 13
+}
+
+fn help() -> str {
+    """
+    Usage: nproc [OPTION]...
+    Print how many processing units this process may use: the cpus it
+    may be scheduled on, or OMP_NUM_THREADS where that is set, capped by
+    OMP_THREAD_LIMIT where that is set.
+
+          --all       print the number of cpus installed instead, and
+                      disregard the OpenMP variables
+          --ignore=N  take N away, never going below 1
+          --help      print this help and exit
+          --version   print the version and exit
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}

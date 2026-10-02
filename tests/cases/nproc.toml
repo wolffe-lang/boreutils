@@ -1,0 +1,331 @@
+# nproc — GNU coreutils 9.11, black-box, on linux x86-64 and macOS
+# arm64. Every case runs both programs on the SAME host in the same
+# process environment, so the count itself is whatever that host has;
+# what is compared is what each program makes of it. The affinity mask
+# and the cgroup quota cannot be set from a case: the evidence for
+# those is `taskset` and `systemd-run` runs of this whole file, recorded
+# in notes/bu14-the-small-surface-set.md. The help and version TEXT is
+# ours, so those compare the exit only.
+
+[[case]]
+name = "the schedulable count"
+
+[[case]]
+name = "--all, the installed count"
+args = ["--all"]
+
+[[case]]
+name = "--all abbreviated"
+args = ["--a"]
+
+[[case]]
+name = "--ignore"
+args = ["--ignore=3"]
+
+[[case]]
+name = "--ignore as a separate word"
+args = ["--ignore", "3"]
+
+[[case]]
+name = "--ignore abbreviated"
+args = ["--ign=2"]
+
+[[case]]
+name = "--ignore with a plus"
+args = ["--ignore=+3"]
+
+[[case]]
+name = "--ignore with a leading zero"
+args = ["--ignore=03"]
+
+[[case]]
+name = "--ignore with a leading blank"
+args = ["--ignore= 3"]
+
+[[case]]
+name = "--ignore=0"
+args = ["--ignore=0"]
+
+[[case]]
+name = "--ignore more than there are"
+args = ["--ignore=100000"]
+
+[[case]]
+name = "--ignore near 2^63"
+args = ["--ignore=9223372036854775807"]
+
+[[case]]
+name = "--ignore past 2^64"
+args = ["--ignore=18446744073709551616"]
+
+[[case]]
+name = "the last --ignore wins"
+args = ["--ignore=3", "--ignore=1"]
+
+[[case]]
+name = "--all and --ignore"
+args = ["--all", "--ignore=1"]
+
+[[case]]
+name = "--ignore=-1 is an invalid number"
+args = ["--ignore=-1"]
+
+[[case]]
+name = "--ignore=-0 is an invalid number"
+args = ["--ignore=-0"]
+
+[[case]]
+name = "--ignore=x is an invalid number"
+args = ["--ignore=x"]
+
+[[case]]
+name = "--ignore= is an invalid number"
+args = ["--ignore="]
+
+[[case]]
+name = "--ignore=0x3 is an invalid number"
+args = ["--ignore=0x3"]
+
+[[case]]
+name = "--ignore=3  is an invalid number"
+args = ["--ignore=3 "]
+
+[[case]]
+name = "--ignore=1e2 is an invalid number"
+args = ["--ignore=1e2"]
+
+[[case]]
+name = "--ignore=3x is an invalid number"
+args = ["--ignore=3x"]
+
+[[case]]
+name = "--ignore with no argument"
+args = ["--ignore"]
+
+[[case]]
+name = "--all with an argument"
+args = ["--all=x"]
+
+[[case]]
+name = "-a is not an option"
+args = ["-a"]
+
+[[case]]
+name = "an unknown long option"
+args = ["--bogus"]
+
+[[case]]
+name = "an operand"
+args = ["x"]
+
+[[case]]
+name = "two operands"
+args = ["x", "y"]
+
+[[case]]
+name = "an operand after --"
+args = ["--", "x"]
+
+[[case]]
+name = "OMP_NUM_THREADS='4' replaces the count"
+env = { OMP_NUM_THREADS = "4" }
+
+[[case]]
+name = "OMP_NUM_THREADS='1' replaces the count"
+env = { OMP_NUM_THREADS = "1" }
+
+[[case]]
+name = "OMP_NUM_THREADS='40' replaces the count"
+env = { OMP_NUM_THREADS = "40" }
+
+[[case]]
+name = "OMP_NUM_THREADS='04' replaces the count"
+env = { OMP_NUM_THREADS = "04" }
+
+[[case]]
+name = "OMP_NUM_THREADS='4,' replaces the count"
+env = { OMP_NUM_THREADS = "4," }
+
+[[case]]
+name = "OMP_NUM_THREADS='4,2' replaces the count"
+env = { OMP_NUM_THREADS = "4,2" }
+
+[[case]]
+name = "OMP_NUM_THREADS='4,0' replaces the count"
+env = { OMP_NUM_THREADS = "4,0" }
+
+[[case]]
+name = "OMP_NUM_THREADS='\\t3\\t' replaces the count"
+env = { OMP_NUM_THREADS = "\t3\t" }
+
+[[case]]
+name = "OMP_NUM_THREADS='3\\n' replaces the count"
+env = { OMP_NUM_THREADS = "3\n" }
+
+[[case]]
+name = "OMP_NUM_THREADS=' 2 ' replaces the count"
+env = { OMP_NUM_THREADS = " 2 " }
+
+[[case]]
+name = "OMP_NUM_THREADS='99999999999999999999' replaces the count"
+env = { OMP_NUM_THREADS = "99999999999999999999" }
+
+[[case]]
+name = "OMP_NUM_THREADS='18446744073709551615' replaces the count"
+env = { OMP_NUM_THREADS = "18446744073709551615" }
+
+[[case]]
+name = "OMP_NUM_THREADS='18446744073709551616' replaces the count"
+env = { OMP_NUM_THREADS = "18446744073709551616" }
+
+[[case]]
+name = "OMP_NUM_THREADS='4294967296' replaces the count"
+env = { OMP_NUM_THREADS = "4294967296" }
+
+[[case]]
+name = "OMP_NUM_THREADS='+4' is ignored"
+env = { OMP_NUM_THREADS = "+4" }
+
+[[case]]
+name = "OMP_NUM_THREADS='4.5' is ignored"
+env = { OMP_NUM_THREADS = "4.5" }
+
+[[case]]
+name = "OMP_NUM_THREADS='4x' is ignored"
+env = { OMP_NUM_THREADS = "4x" }
+
+[[case]]
+name = "OMP_NUM_THREADS='0x4' is ignored"
+env = { OMP_NUM_THREADS = "0x4" }
+
+[[case]]
+name = "OMP_NUM_THREADS='4 2' is ignored"
+env = { OMP_NUM_THREADS = "4 2" }
+
+[[case]]
+name = "OMP_NUM_THREADS=',4' is ignored"
+env = { OMP_NUM_THREADS = ",4" }
+
+[[case]]
+name = "OMP_NUM_THREADS='-4' is ignored"
+env = { OMP_NUM_THREADS = "-4" }
+
+[[case]]
+name = "OMP_NUM_THREADS='0' is ignored"
+env = { OMP_NUM_THREADS = "0" }
+
+[[case]]
+name = "OMP_NUM_THREADS='' is ignored"
+env = { OMP_NUM_THREADS = "" }
+
+[[case]]
+name = "OMP_NUM_THREADS='  ' is ignored"
+env = { OMP_NUM_THREADS = "  " }
+
+[[case]]
+name = "OMP_NUM_THREADS='1e1' is ignored"
+env = { OMP_NUM_THREADS = "1e1" }
+
+[[case]]
+name = "OMP_THREAD_LIMIT='1' caps the count"
+env = { OMP_THREAD_LIMIT = "1" }
+
+[[case]]
+name = "OMP_THREAD_LIMIT='3' caps the count"
+env = { OMP_THREAD_LIMIT = "3" }
+
+[[case]]
+name = "OMP_THREAD_LIMIT='2,1' caps the count"
+env = { OMP_THREAD_LIMIT = "2,1" }
+
+[[case]]
+name = "OMP_THREAD_LIMIT=' 2 ' caps the count"
+env = { OMP_THREAD_LIMIT = " 2 " }
+
+[[case]]
+name = "OMP_THREAD_LIMIT='99999999999999999999' caps the count"
+env = { OMP_THREAD_LIMIT = "99999999999999999999" }
+
+[[case]]
+name = "OMP_THREAD_LIMIT='+3' is ignored"
+env = { OMP_THREAD_LIMIT = "+3" }
+
+[[case]]
+name = "OMP_THREAD_LIMIT='3.5' is ignored"
+env = { OMP_THREAD_LIMIT = "3.5" }
+
+[[case]]
+name = "OMP_THREAD_LIMIT='0x2' is ignored"
+env = { OMP_THREAD_LIMIT = "0x2" }
+
+[[case]]
+name = "OMP_THREAD_LIMIT='-1' is ignored"
+env = { OMP_THREAD_LIMIT = "-1" }
+
+[[case]]
+name = "OMP_THREAD_LIMIT='0' is ignored"
+env = { OMP_THREAD_LIMIT = "0" }
+
+[[case]]
+name = "OMP_THREAD_LIMIT='' is ignored"
+env = { OMP_THREAD_LIMIT = "" }
+
+[[case]]
+name = "both variables, the limit lower"
+env = { OMP_NUM_THREADS = "40", OMP_THREAD_LIMIT = "20" }
+
+[[case]]
+name = "both variables, the limit higher"
+env = { OMP_NUM_THREADS = "4", OMP_THREAD_LIMIT = "20" }
+
+[[case]]
+name = "OMP_NUM_THREADS and --ignore"
+args = ["--ignore=2"]
+env = { OMP_NUM_THREADS = "8" }
+
+[[case]]
+name = "a saturated OMP_NUM_THREADS and --ignore"
+args = ["--ignore=2"]
+env = { OMP_NUM_THREADS = "99999999999999999999" }
+
+[[case]]
+name = "--all disregards OMP_NUM_THREADS"
+args = ["--all"]
+env = { OMP_NUM_THREADS = "2" }
+
+[[case]]
+name = "--all disregards OMP_THREAD_LIMIT"
+args = ["--all"]
+env = { OMP_THREAD_LIMIT = "1" }
+
+[[case]]
+name = "options permute"
+args = ["--all", "--ignore", "1"]
+
+[[case]]
+name = "help"
+args = ["--help"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "help after an operand"
+args = ["x", "--help"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "version"
+args = ["--version"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "standard output closed is a write error"
+args = []
+stdout_closed = true
+
+# A write error on a LIVE descriptor (linux only; a SKIP where there is
+# no /dev/full): GNU appends strerror(ENOSPC), which wolf cannot say
+# (wolf-lang#407), so the exit status is the comparison.
+[[case]]
+name = "a write error on a live descriptor"
+stdout_file = "/dev/full"
+compare = ["exit"]
