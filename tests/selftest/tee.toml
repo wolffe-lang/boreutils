@@ -1,0 +1,21 @@
+# Planted differences in the `files` field (bu14), for
+# tools/difftest-selftest. Each runs boreutils `tee` against the WRONG
+# GNU utility in a scratch directory and compares ONLY what the run
+# leaves behind, so the harness passes this file only by failing both
+# cases — the first on a file one side creates and the other does not,
+# the second on a file both sides leave but with different bytes.
+
+[[case]]
+name = "a file one side writes"
+args = ["a"]
+gnu_util = "true"
+scratch = {}
+compare = ["files"]
+
+[[case]]
+name = "a file whose bytes differ"
+args = ["a"]
+stdin = "new\n"
+gnu_util = "cat"
+scratch = { "a" = "old\n" }
+compare = ["files"]

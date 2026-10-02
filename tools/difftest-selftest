@@ -4,7 +4,7 @@
 # A gate nobody has watched fail is not a gate. This runs difftest over
 # tests/selftest/, whose cases are deliberately wrong about GNU (they
 # run the WRONG GNU utility against ours), and passes only when difftest
-# reports a failure and exits 1.
+# exits 1 and every planted case is a FAIL line of its own.
 set -eu
 BORE_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$BORE_ROOT"
@@ -21,5 +21,17 @@ if ! echo "$out" | grep -q '^FAIL '; then
     echo "$out"
     exit 1
 fi
+# Every planted case must fail BY NAME: one FAIL line is not enough once
+# there is more than one plant, because the others could be passing.
+# The `files` plants (bu14) are the gate on the scratch directory.
+for planted in "true: true is not false" \
+               "tee: a file one side writes" \
+               "tee: a file whose bytes differ"; do
+    if ! echo "$out" | grep -qF "FAIL $planted"; then
+        echo "difftest-selftest: REFUSED — the plant '$planted' did not fail:"
+        echo "$out"
+        exit 1
+    fi
+done
 echo "$out" | grep -E '^(FAIL|difftest:)'
-echo "difftest-selftest: the harness saw the planted difference"
+echo "difftest-selftest: the harness saw every planted difference"
