@@ -1,0 +1,18 @@
+# tee — the throughput bench. Run it at --scale 0.25, where the
+# generated `big` input is 256 MiB, the size every other bulk table in
+# the README is taken at.
+
+[[bench]]
+name = "to /dev/null, no file"
+command = "{prog} < {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "to a file and /dev/null"
+command = "{prog} {input}.out < {input} > /dev/null"
+input = "big"
+
+[[bench]]
+name = "to two files and /dev/null"
+command = "{prog} {input}.out {input}.out2 < {input} > /dev/null"
+input = "big"

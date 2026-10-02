@@ -1,0 +1,16 @@
+# sleep — start-up, and how long a short sleep really takes. GNU sleeps
+# with nanosecond resolution and this program with millisecond
+# resolution, rounding up (src/sleep.lu), so the second row is the one
+# that would show a difference if there were one.
+
+[[bench]]
+name = "start-up, sleep 0"
+command = "{prog} 0"
+
+[[bench]]
+name = "sleep 0.1"
+command = "{prog} 0.1"
+
+[[bench]]
+name = "sleep 0.0105, between two milliseconds"
+command = "{prog} 0.0105"

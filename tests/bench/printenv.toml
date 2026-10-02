@@ -1,0 +1,9 @@
+# printenv — start-up: one lookup, or the whole (small) environment.
+
+[[bench]]
+name = "one variable"
+command = "{prog} PATH"
+
+[[bench]]
+name = "the whole environment"
+command = "{prog} > /dev/null"

@@ -1,0 +1,32 @@
+# printf — start-up, then ten thousand arguments through one
+# conversion. The arguments are built by the shell hyperfine runs the
+# command in (`$(seq …)`), so that cost is inside both sides' time.
+# `{bytes:N}` scales the count with --scale; run it at --scale 1.
+
+[[bench]]
+name = "start-up, a plain format"
+command = "{prog} x > /dev/null"
+
+[[bench]]
+name = "%d over 10,000 integers"
+command = "{prog} '%d\\n' $(seq {bytes:10000}) > /dev/null"
+
+[[bench]]
+name = "%x over 10,000 integers"
+command = "{prog} '%x\\n' $(seq {bytes:10000}) > /dev/null"
+
+[[bench]]
+name = "%s over 10,000 words"
+command = "{prog} '%s\\n' $(seq -f w%g {bytes:10000}) > /dev/null"
+
+[[bench]]
+name = "%.6f over 10,000 decimals"
+command = "{prog} '%.6f\\n' $(seq 0.37 1.13 {bytes:11300}) > /dev/null"
+
+[[bench]]
+name = "%g over 10,000 decimals"
+command = "{prog} '%g\\n' $(seq 0.37 1.13 {bytes:11300}) > /dev/null"
+
+[[bench]]
+name = "%e over 10,000 decimals"
+command = "{prog} '%e\\n' $(seq 0.37 1.13 {bytes:11300}) > /dev/null"

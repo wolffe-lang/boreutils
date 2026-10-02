@@ -1,0 +1,12 @@
+# pwd — start-up: one getcwd and one line. `-L` with no usable $PWD
+# falls back to the physical name on both sides; with one it is a stat
+# of each directory for GNU and two stats and two listings here
+# (src/pwd.lu), which the second row prices.
+
+[[bench]]
+name = "the physical directory"
+command = "{prog}"
+
+[[bench]]
+name = "-L through $PWD"
+command = "{prog} -L"
