@@ -54,8 +54,11 @@ args = ["--ignore=100000"]
 name = "--ignore near 2^63"
 args = ["--ignore=9223372036854775807"]
 
+# GNU 9.4 refuses an --ignore past 2^64 - 1 (`Value too large for
+# defined data type`); 9.11 takes it as larger than the count.
 [[case]]
 name = "--ignore past 2^64"
+gnu_min = "9.11"
 args = ["--ignore=18446744073709551616"]
 
 [[case]]
