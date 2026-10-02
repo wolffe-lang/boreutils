@@ -37,8 +37,7 @@
 //! `systemd-run --user --scope -p CPUQuota=150%` GNU prints 2 and this
 //! program 1, at 250% 3 against 2. No differential case can set a
 //! quota; the witness is in `notes/bu14-the-small-surface-set.md`, and
-//! the gap is filed upstream (wolf-lang, `[os.cpus]`). An affinity
-//! mask agrees on both sides.
+//! the gap is wolf-lang#537. An affinity mask agrees on both sides.
 //!
 //! **The installed count** has no wolf builtin. On linux it is the
 //! number of `cpuN` entries the kernel publishes under
