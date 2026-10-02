@@ -435,8 +435,11 @@ args = ["%d\n", "7 "]
 name = "trailing letters"
 args = ["%d\n", "12abc"]
 
+# GNU 9.4 takes an EMPTY numeric argument as 0 without a word; 9.11
+# says `'': expected a numeric value`.
 [[case]]
 name = "nothing numeric"
+gnu_min = "9.11"
 args = ["%d %d %d\n", "", "x", "-"]
 
 [[case]]
@@ -613,38 +616,48 @@ args = ["%*d|\n", "3", "1"]
 name = "a literal width past an int"
 args = ["%2147483648d\n", "1"]
 
-# Indexed arguments.
+# Indexed arguments. GNU 9.4 (ubuntu-latest's own, the `field` leg's)
+# has no `%N$` at all and refuses each of these as an invalid
+# conversion, so they name 9.11 as the GNU they describe.
 
 [[case]]
 name = "%1$ twice"
+gnu_min = "9.11"
 args = ["%1$s %1$s %2$s\n", "a", "b"]
 
 [[case]]
 name = "indexed and sequential count separately"
+gnu_min = "9.11"
 args = ["%2$s %s\n", "a", "b", "c"]
 
 [[case]]
 name = "the highest index is what a pass consumed"
+gnu_min = "9.11"
 args = ["%1$s %s %s\n", "a", "b", "c", "d"]
 
 [[case]]
 name = "a sequential then an indexed reference"
+gnu_min = "9.11"
 args = ["%s %2$s\n", "a", "b", "c", "d"]
 
 [[case]]
 name = "%s then %1$"
+gnu_min = "9.11"
 args = ["%s %1$s\n", "a", "b"]
 
 [[case]]
 name = "an index past the arguments"
+gnu_min = "9.11"
 args = ["%3$s\n", "a"]
 
 [[case]]
 name = "a huge index"
+gnu_min = "9.11"
 args = ["%99999999999$s\n", "a"]
 
 [[case]]
 name = "%5$ with one argument"
+gnu_min = "9.11"
 args = ["%5$s|\n", "a"]
 
 [[case]]
@@ -653,26 +666,32 @@ args = ["%0$s\n", "a"]
 
 [[case]]
 name = "an index and no conversion"
+gnu_min = "9.11"
 args = ["%1$\n", "a"]
 
 [[case]]
 name = "two indexes"
+gnu_min = "9.11"
 args = ["%1$1$s\n", "a"]
 
 [[case]]
 name = "a width from an indexed argument"
+gnu_min = "9.11"
 args = ["%1$*2$d|\n", "5", "3"]
 
 [[case]]
 name = "an indexed width beside a sequential value"
+gnu_min = "9.11"
 args = ["%1$d %*2$d|\n", "5", "3"]
 
 [[case]]
 name = "a width from argument 1 for the first value"
+gnu_min = "9.11"
 args = ["%*1$d|\n", "5"]
 
 [[case]]
 name = "a precision from an indexed argument"
+gnu_min = "9.11"
 args = ["%.*2$d|\n", "5", "3"]
 
 # Conversion specifications GNU refuses (fatal, status 1).
