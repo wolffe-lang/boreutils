@@ -1,0 +1,411 @@
+//! member: false
+//!
+//! sleep — pause for the sum of the given intervals.
+//!
+//! References consulted: POSIX.1-2024 `sleep`; GNU coreutils 9.11
+//! `sleep --help`, the info manual's `sleep invocation` node, and
+//! black-box runs of the GNU binary on linux x86-64 (Arch) and macOS
+//! arm64 (Homebrew `gsleep`), under `LC_ALL=C`; C's `strtod` grammar
+//! (C17 7.22.1.3) for what a NUMBER is. Never GNU source.
+//!
+//! GNU's rules, each measured against 9.11 on both hosts:
+//!
+//! - An operand is a `strtod` number — leading white space, a sign,
+//!   decimal digits with an optional point and exponent, a `0x` hex
+//!   float with an optional `p` exponent, or `inf`/`infinity` in any
+//!   case — followed by at most ONE of `s`, `m`, `h`, `d`, lower case
+//!   only. Anything left over, a NaN, an upper-case unit, a comma and
+//!   a negative value are `invalid time interval 'X'`. `-0` is not
+//!   negative. In a hex number `d` is a digit, so `0x1d` is 29
+//!   seconds and a day needs a `p` exponent first (`0x1p0d`).
+//! - Every invalid operand is reported, in order, and ONE `Try` line
+//!   follows them all; the status is 1 and nothing is slept.
+//! - Options permute (`sleep 0 --help` is help) unless
+//!   `POSIXLY_CORRECT` is set, when the first operand ends them. A word
+//!   like `-1` is therefore an OPTION, `invalid option -- '1'`, and a
+//!   negative interval can only be written after `--`.
+//! - No operand is `missing operand`, status 1 — but `sleep --`, which
+//!   has no operand either, sleeps for nothing and exits 0. That is
+//!   GNU's answer and it is kept.
+//! - The intervals are summed; an infinite or overflowing sum sleeps
+//!   until the process is killed.
+//!
+//! **The resolution is a millisecond, not a nanosecond.** wolf 0.2.20
+//! sleeps through `time_sleep_ms(int)`, so the sum is rounded UP to the
+//! next whole millisecond: `sleep 1e-9` sleeps 1 ms where GNU sleeps
+//! one nanosecond. Never shorter than asked, and no differential case
+//! can see the difference; the bench measures it.
+
+use bore
+
+fn main() -> int {
+    let p = bore.parse(options(), env_args(), bore.permute())
+    var out = bore.stdout()
+    var i = 0
+    while i < p.keys.len {
+        if p.keys[i] == "help" {
+            bore.put(mut out, help()) else |_| {}
+            return bore.finish(mut out, "sleep", 0)
+        }
+        if p.keys[i] == "version" {
+            bore.put(mut out, bore.version_text("sleep")) else |_| {}
+            return bore.finish(mut out, "sleep", 0)
+        }
+        i += 1
+    }
+    if !bore.ok(p) {
+        return bore.usage_error("sleep", p.error)
+    }
+    if p.operands.len == 0 {
+        if env_args().len > 0 {
+            // `sleep --`: GNU sleeps for nothing and succeeds.
+            return 0
+        }
+        return bore.usage_error("sleep", "missing operand")
+    }
+    var total: f64 = 0.0
+    var bad = false
+    for a in p.operands {
+        let secs = interval(a) else |_| {
+            bore.warn("sleep", "invalid time interval {bore.quote(a)}")
+            bad = true
+            continue
+        }
+        total = total + secs
+    }
+    if bad {
+        eprint("Try 'sleep --help' for more information.")
+        return 1
+    }
+    pause(total)
+    0
+}
+
+fn options() -> List[bore.Opt] {
+    var s = List[bore.Opt]()
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    s
+}
+
+/// The stand-in for an infinite interval: any sum at or past it sleeps
+/// until the process is killed. A finite `f64` on purpose, so no sum of
+/// a few of them can overflow, and no infinity or NaN is ever computed.
+fn forever() -> f64 {
+    1.0e300
+}
+
+/// Sleep `secs` seconds, rounded up to a whole millisecond. A sum past
+/// what an `int` of milliseconds holds — about 292 million years — is
+/// forever, and so is `inf`.
+fn pause(secs: f64) {
+    let ms = secs * 1000.0
+    if ms <= 0.0 {
+        return
+    }
+    if ms > 9000000000000000000.0 {
+        loop {
+            time_sleep_ms(1000000000)
+        }
+    }
+    var whole = ms as int
+    if whole as f64 < ms {
+        whole += 1
+    }
+    time_sleep_ms(whole)
+}
+
+/// The seconds operand `a` names, or `invalid`.
+fn interval(a: str) -> f64 ! {invalid} {
+    let b = a.bytes()
+    var i = 0
+    while i < b.len && is_space(b[i] as int) {
+        i += 1
+    }
+    var neg = false
+    if i < b.len && (b[i] as int == 43 || b[i] as int == 45) {
+        neg = b[i] as int == 45
+        i += 1
+    }
+    var value: f64 = 0.0
+    let inf = word_at(b, i)
+    if inf > 0 {
+        i += inf
+        value = forever()
+    } else if is_hex_start(b, i) {
+        let h = hex_number(b, i + 2)
+        if h.end < 0 {
+            return invalid
+        }
+        value = h.value
+        i = h.end
+    } else {
+        let d = dec_number(b, i)
+        if d.end < 0 {
+            return invalid
+        }
+        value = d.value
+        i = d.end
+    }
+    var scale: f64 = 1.0
+    if i < b.len {
+        let u = b[i] as int
+        if u == 115 {
+            scale = 1.0
+        } else if u == 109 {
+            scale = 60.0
+        } else if u == 104 {
+            scale = 3600.0
+        } else if u == 100 {
+            scale = 86400.0
+        } else {
+            return invalid
+        }
+        i += 1
+    }
+    if i != b.len {
+        return invalid
+    }
+    if neg && value > 0.0 {
+        return invalid
+    }
+    value * scale
+}
+
+/// C's `isspace` in the C locale: space and `\t` through `\r`.
+fn is_space(c: int) -> bool {
+    c == 32 || c >= 9 && c <= 13
+}
+
+/// The length of `infinity` or `inf` at `b[i]`, in any case, or 0.
+/// `nan` is not here on purpose: a NaN is never a time interval.
+fn word_at(b: List[byte], i: int) -> int {
+    if matches(b, i, "infinity") {
+        return 8
+    }
+    if matches(b, i, "inf") {
+        return 3
+    }
+    0
+}
+
+fn matches(b: List[byte], i: int, w: str) -> bool {
+    let wb = w.bytes()
+    if i + wb.len > b.len {
+        return false
+    }
+    var k = 0
+    while k < wb.len {
+        var c = b[i + k] as int
+        if c >= 65 && c <= 90 {
+            c += 32
+        }
+        if c != wb[k] as int {
+            return false
+        }
+        k += 1
+    }
+    true
+}
+
+/// Whether `0x` or `0X` followed by a hex digit or a point and a hex
+/// digit starts at `b[i]`. Without one, `strtod` reads only the `0`.
+fn is_hex_start(b: List[byte], i: int) -> bool {
+    if i + 2 >= b.len || b[i] as int != 48 {
+        return false
+    }
+    let x = b[i + 1] as int
+    if x != 120 && x != 88 {
+        return false
+    }
+    if hex_digit(b[i + 2] as int) >= 0 {
+        return true
+    }
+    b[i + 2] as int == 46 && i + 3 < b.len && hex_digit(b[i + 3] as int) >= 0
+}
+
+/// A number and where it ends; `end` is -1 when nothing was read.
+struct Num {
+    value: f64,
+    end: int,
+}
+
+fn dec_digit(c: int) -> int {
+    if c >= 48 && c <= 57 {
+        return c - 48
+    }
+    -1
+}
+
+fn hex_digit(c: int) -> int {
+    if c >= 48 && c <= 57 {
+        return c - 48
+    }
+    if c >= 97 && c <= 102 {
+        return c - 87
+    }
+    if c >= 65 && c <= 70 {
+        return c - 55
+    }
+    -1
+}
+
+/// A decimal `strtod` number at `b[i]`: digits, an optional point and
+/// digits (at least one digit in all), and an optional exponent that is
+/// taken only when a digit follows its sign.
+fn dec_number(b: List[byte], start: int) -> Num {
+    var i = start
+    var value: f64 = 0.0
+    var digits = 0
+    var exp10 = 0
+    while i < b.len && dec_digit(b[i] as int) >= 0 {
+        value = value * 10.0 + dec_digit(b[i] as int) as f64
+        digits += 1
+        i += 1
+    }
+    if i < b.len && b[i] as int == 46 {
+        i += 1
+        while i < b.len && dec_digit(b[i] as int) >= 0 {
+            value = value * 10.0 + dec_digit(b[i] as int) as f64
+            exp10 -= 1
+            digits += 1
+            i += 1
+        }
+    }
+    if digits == 0 {
+        return Num { value: 0.0, end: -1 }
+    }
+    let e = exponent(b, i, 101, 69)
+    if e.end > i {
+        exp10 = clamp_add(exp10, e.exp)
+        i = e.end
+    }
+    Num { value: ten_to(value, exp10), end: i }
+}
+
+/// A hex float at `b[i]`, after its `0x`: hex digits, an optional point
+/// and hex digits, and an optional `p` binary exponent.
+fn hex_number(b: List[byte], start: int) -> Num {
+    var i = start
+    var value: f64 = 0.0
+    var exp2 = 0
+    var digits = 0
+    while i < b.len && hex_digit(b[i] as int) >= 0 {
+        value = value * 16.0 + hex_digit(b[i] as int) as f64
+        digits += 1
+        i += 1
+    }
+    if i < b.len && b[i] as int == 46 {
+        i += 1
+        while i < b.len && hex_digit(b[i] as int) >= 0 {
+            value = value * 16.0 + hex_digit(b[i] as int) as f64
+            exp2 -= 4
+            digits += 1
+            i += 1
+        }
+    }
+    if digits == 0 {
+        return Num { value: 0.0, end: -1 }
+    }
+    let e = exponent(b, i, 112, 80)
+    if e.end > i {
+        exp2 = clamp_add(exp2, e.exp)
+        i = e.end
+    }
+    var v = value
+    while exp2 > 0 && v < 1.0e300 {
+        v = v * 2.0
+        exp2 -= 1
+    }
+    if exp2 > 0 && v > 0.0 {
+        v = forever()
+    }
+    while exp2 < 0 && v > 0.0 {
+        v = v / 2.0
+        exp2 += 1
+    }
+    Num { value: v, end: i }
+}
+
+/// An exponent part: the marker (`lower` or `upper`), a sign, and at
+/// least one decimal digit. `end` is `i` itself when there is none.
+struct Exp {
+    exp: int,
+    end: int,
+}
+
+fn exponent(b: List[byte], i: int, lower: int, upper: int) -> Exp {
+    if i >= b.len || b[i] as int != lower && b[i] as int != upper {
+        return Exp { exp: 0, end: i }
+    }
+    var j = i + 1
+    var neg = false
+    if j < b.len && (b[j] as int == 43 || b[j] as int == 45) {
+        neg = b[j] as int == 45
+        j += 1
+    }
+    if j >= b.len || dec_digit(b[j] as int) < 0 {
+        return Exp { exp: 0, end: i }
+    }
+    var e = 0
+    while j < b.len && dec_digit(b[j] as int) >= 0 {
+        if e < 100000000 {
+            e = e * 10 + dec_digit(b[j] as int)
+        }
+        j += 1
+    }
+    if neg {
+        e = -e
+    }
+    Exp { exp: e, end: j }
+}
+
+fn clamp_add(a: int, b: int) -> int {
+    let s = a + b
+    if s > 100000000 {
+        return 100000000
+    }
+    if s < -100000000 {
+        return -100000000
+    }
+    s
+}
+
+/// `v` times ten to the `e`, stopping early once the answer is zero or
+/// past any sleep a process could finish.
+fn ten_to(v: f64, e: int) -> f64 {
+    var r = v
+    var k = e
+    while k > 0 && r > 0.0 && r < forever() {
+        r = r * 10.0
+        k -= 1
+    }
+    if k > 0 && r > 0.0 {
+        return forever()
+    }
+    while k < 0 && r > 0.0 {
+        r = r / 10.0
+        k += 1
+    }
+    r
+}
+
+fn help() -> str {
+    """
+    Usage: sleep NUMBER[SUFFIX]...
+      or:  sleep OPTION
+    Wait for NUMBER seconds, or for the sum of every NUMBER given.
+    NUMBER may be a whole or a fractional number, in decimal or in C's
+    hexadecimal float form, or 'inf'. SUFFIX is one of:
+
+      s   seconds (the default)
+      m   minutes
+      h   hours
+      d   days
+
+          --help     print this help and exit
+          --version  print the version and exit
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}

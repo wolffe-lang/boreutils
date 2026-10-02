@@ -1,0 +1,264 @@
+# sleep — GNU coreutils 9.11, black-box, on linux x86-64 and macOS
+# arm64. Every interval here is a hundredth of a second or less: the
+# harness compares what the two programs SAY, and a case that slept for
+# real would only make the suite slow. How long each one sleeps is the
+# bench's job (tests/bench/sleep.toml). The help and version TEXT is
+# ours, so those compare the exit only.
+
+[[case]]
+name = "zero"
+args = ["0"]
+
+[[case]]
+name = "a hundredth of a second"
+args = ["0.01"]
+
+[[case]]
+name = "a leading point"
+args = [".01"]
+
+[[case]]
+name = "an exponent"
+args = ["1e-2"]
+
+[[case]]
+name = "an upper-case exponent"
+args = ["1E-3"]
+
+[[case]]
+name = "a hex float"
+args = ["0x1p-6"]
+
+[[case]]
+name = "a hex fraction"
+args = ["0x.04"]
+
+[[case]]
+name = "a hex integer, small"
+args = ["0x0"]
+
+[[case]]
+name = "the s suffix"
+args = ["0.01s"]
+
+[[case]]
+name = "the m suffix"
+args = ["0.0001m"]
+
+[[case]]
+name = "the h and d suffixes, summed"
+args = ["1e-6h", "1e-7d"]
+
+[[case]]
+name = "a hex number with a binary exponent and a day"
+args = ["0x1p-20d"]
+
+[[case]]
+name = "a nanosecond"
+args = ["1e-9"]
+
+[[case]]
+name = "an interval smaller than any clock"
+args = ["0.0000000001s"]
+
+[[case]]
+name = "an underflowing exponent"
+args = ["1e-1000"]
+
+[[case]]
+name = "several operands"
+args = ["0", "0", "0"]
+
+[[case]]
+name = "a plus sign"
+args = ["+.001"]
+
+[[case]]
+name = "leading blanks"
+args = [" 0"]
+
+[[case]]
+name = "a leading tab"
+args = ["\t0"]
+
+[[case]]
+name = "negative zero after --"
+args = ["--", "-0"]
+
+[[case]]
+name = "negative zero with a fraction"
+args = ["--", "-0.0"]
+
+[[case]]
+name = "a zero exponent"
+args = ["0e0"]
+
+[[case]]
+name = "end of options and no operand"
+args = ["--"]
+
+[[case]]
+name = "a word"
+args = ["x"]
+
+[[case]]
+name = "an empty operand"
+args = [""]
+
+[[case]]
+name = "trailing blanks"
+args = ["0 "]
+
+[[case]]
+name = "trailing letters"
+args = ["1x"]
+
+[[case]]
+name = "two suffixes"
+args = ["0.01ss"]
+
+[[case]]
+name = "an upper-case suffix"
+args = ["0.001S"]
+
+[[case]]
+name = "minutes in upper case"
+args = ["0.001M"]
+
+[[case]]
+name = "a NaN"
+args = ["nan"]
+
+[[case]]
+name = "a NaN with a payload"
+args = ["nan(1)"]
+
+[[case]]
+name = "an exponent with no digits"
+args = ["0e"]
+
+[[case]]
+name = "a suffix then a digit"
+args = ["1d0"]
+
+[[case]]
+name = "inf with a trailing sign"
+args = ["inf-"]
+
+[[case]]
+name = "a comma for a point"
+args = ["0,5"]
+
+[[case]]
+name = "0x with no digits"
+args = ["0x"]
+
+[[case]]
+name = "a point and a suffix only"
+args = [".s"]
+
+[[case]]
+name = "a suffix alone"
+args = ["s"]
+
+[[case]]
+name = "a negative interval after --"
+args = ["--", "-1"]
+
+[[case]]
+name = "negative infinity after --"
+args = ["--", "-inf"]
+
+[[case]]
+name = "a lone dash"
+args = ["-"]
+
+[[case]]
+name = "-- as an operand"
+args = ["--", "--"]
+
+[[case]]
+name = "every invalid operand is named before one Try line"
+args = ["0", "x", "y"]
+
+[[case]]
+name = "a valid operand between two invalid ones"
+args = ["x", "0.01", "y"]
+
+[[case]]
+name = "a non-ASCII operand is quoted with octal escapes"
+args = ["é"]
+
+[[case]]
+name = "no operand"
+args = []
+
+[[case]]
+name = "-1 is an option"
+args = ["-1"]
+
+[[case]]
+name = "-0 is an option"
+args = ["-0"]
+
+[[case]]
+name = "-inf is an option cluster"
+args = ["-inf"]
+
+[[case]]
+name = "an unknown long option"
+args = ["--x"]
+
+[[case]]
+name = "an unknown short option"
+args = ["-x"]
+
+[[case]]
+name = "options permute: an operand before --help"
+args = ["0", "--help"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "POSIXLY_CORRECT stops options at the first operand"
+args = ["0", "--help"]
+env = { POSIXLY_CORRECT = "1" }
+
+[[case]]
+name = "help, with an operand after it"
+args = ["--help", "x"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "help abbreviated"
+args = ["--h"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "version"
+args = ["--version"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "version abbreviated, after an operand"
+args = ["0", "--vers"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "nothing written, so a closed standard output is no error"
+args = ["0"]
+stdout_closed = true
+
+[[case]]
+name = "help with standard output closed is a write error"
+args = ["--help"]
+stdout_closed = true
+
+# A write error on a LIVE descriptor (linux only; a SKIP where there is
+# no /dev/full). The exit status is the comparison: GNU appends
+# `strerror(ENOSPC)`, and wolf has no errno text behind an `io` row
+# (wolf-lang#407).
+[[case]]
+name = "help into a full disk is a write error"
+args = ["--help"]
+stdout_file = "/dev/full"
+compare = ["exit"]
