@@ -1,0 +1,127 @@
+//! member: false
+//!
+//! printenv — print the environment, or the values of named variables.
+//!
+//! References consulted: GNU coreutils 9.11 `printenv --help`, the info
+//! manual's `printenv invocation` node, and black-box runs of the GNU
+//! binary on linux x86-64 and macOS arm64 (Homebrew `gprintenv`), under
+//! `LC_ALL=C`. (printenv is not in POSIX.) Never GNU source.
+//!
+//! GNU's rules, each measured against 9.11:
+//!
+//! - With no operand, every variable as `NAME=VALUE`; with operands,
+//!   each named variable's VALUE, in operand order, a variable named
+//!   twice printed twice. Each line ends in a newline, or in a NUL
+//!   under `-0`/`--null`.
+//! - A name that is not set — or that holds a `=`, which no variable's
+//!   name can — prints nothing and makes the status 1; the others are
+//!   still printed. An empty value is an empty line and is found.
+//! - Options do NOT permute: the first operand ends them, so
+//!   `printenv PATH -0` looks up a variable named `-0`.
+//! - Status 2 for a usage error AND for a failed write, `--help`
+//!   included: `printenv PATH >&-` is `printenv: write error: Bad file
+//!   descriptor`, status 2 — not the 1 every other utility here uses.
+//!
+//! **The bare listing is sorted, and GNU's is not.** GNU prints the
+//! environment in the order the process received it. wolf 0.2.20 has
+//! one way to list the environment, `env_vars()`, and it answers the
+//! entries SORTED and skips any that are not UTF-8 (`wolf_rt::os`: "K=V
+//! lines, SORTED (determinism over environ order)"). So `printenv` with
+//! no operand prints the same lines as GNU in a different order whenever
+//! the environment was not already sorted, and leaves out a non-UTF-8
+//! entry. Filed upstream (wolf-lang, `env_vars`); the listing cases are
+//! skips that say so. A NAMED variable is looked up with `env_get` and
+//! is exact.
+
+use bore
+
+fn main() -> int {
+    let p = bore.parse(options(), env_args(), false)
+    var out = bore.stdout()
+    var zero = false
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i]
+        if k == "help" {
+            bore.put(mut out, help()) else |_| {}
+            return done(mut out, 0)
+        }
+        if k == "version" {
+            bore.put(mut out, bore.version_text("printenv")) else |_| {}
+            return done(mut out, 0)
+        }
+        if k == "null" {
+            zero = true
+        }
+        i += 1
+    }
+    if !bore.ok(p) {
+        bore.usage_error("printenv", p.error)
+        return 2
+    }
+    if p.operands.len == 0 {
+        for kv in env_vars() {
+            bore.put(mut out, kv) else |_| {}
+            line_end(mut out, zero)
+        }
+        return done(mut out, 0)
+    }
+    var status = 0
+    for name in p.operands {
+        if name.contains("=") {
+            status = 1
+            continue
+        }
+        let value = env_get(name) else |_| {
+            status = 1
+            continue
+        }
+        bore.put(mut out, value) else |_| {}
+        line_end(mut out, zero)
+    }
+    done(mut out, status)
+}
+
+fn options() -> List[bore.Opt] {
+    var s = List[bore.Opt]()
+    (mut s).push(bore.flag("0", "null"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    s
+}
+
+/// A newline, or a NUL under `-0`. A failed write is reported once, by
+/// `done`, at the end.
+fn line_end(mut out: bore.Out, zero: bool) {
+    if zero {
+        bore.put_byte(mut out, 0 as byte) else |_| {}
+    } else {
+        bore.put(mut out, "\n") else |_| {}
+    }
+}
+
+/// `bore.finish`, with printenv's status for a failed write: 2.
+fn done(mut out: bore.Out, status: int) -> int {
+    bore.flush(mut out) else |_| {
+        bore.write_error(out, "printenv", "write error")
+        return 2
+    }
+    status
+}
+
+fn help() -> str {
+    """
+    Usage: printenv [OPTION] [VARIABLE]...
+    Print the value of each VARIABLE, or every NAME=VALUE pair in the
+    environment when no VARIABLE is named.
+
+      -0, --null     end each line with NUL, not newline
+          --help     print this help and exit
+          --version  print the version and exit
+
+    The status is 1 when a VARIABLE is not set, and 2 for a usage error
+    or a failed write.
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}

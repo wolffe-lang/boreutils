@@ -1,0 +1,179 @@
+# printenv — GNU coreutils 9.11, black-box, on linux x86-64 and macOS
+# arm64. tools/difftest builds every case's environment from scratch
+# (PATH, then [oracle.env], then the case's own), so what a case can
+# see is exactly what it names. The help and version TEXT is ours, so
+# those compare the exit only.
+
+[[case]]
+name = "one variable"
+args = ["PATH"]
+
+[[case]]
+name = "the oracle's own variable"
+args = ["LC_ALL"]
+
+[[case]]
+name = "a variable the case sets"
+args = ["GREETING"]
+env = { GREETING = "hello world" }
+
+[[case]]
+name = "an empty value is found"
+args = ["E"]
+env = { E = "" }
+
+[[case]]
+name = "a value holding ="
+args = ["A"]
+env = { A = "B=C" }
+
+[[case]]
+name = "a value holding a newline"
+args = ["A"]
+env = { A = "one\ntwo" }
+
+[[case]]
+name = "a value holding non-ASCII text"
+args = ["A"]
+env = { A = "é ü" }
+
+[[case]]
+name = "a name with a space"
+args = ["A B"]
+env = { "A B" = "1" }
+
+[[case]]
+name = "an unset variable is status 1"
+args = ["NOPE"]
+
+[[case]]
+name = "set and unset, in order"
+args = ["PATH", "NOPE", "LC_ALL"]
+
+[[case]]
+name = "a variable named twice"
+args = ["PATH", "PATH"]
+
+[[case]]
+name = "a name holding = is never found"
+args = ["A=B"]
+env = { A = "B" }
+
+[[case]]
+name = "a name holding = and nothing else"
+args = ["="]
+
+[[case]]
+name = "an empty name"
+args = [""]
+
+[[case]]
+name = "-0 ends each value with NUL"
+args = ["-0", "PATH", "LC_ALL"]
+
+[[case]]
+name = "--null"
+args = ["--null", "PATH"]
+
+[[case]]
+name = "--nu abbreviated"
+args = ["--nu", "PATH"]
+
+[[case]]
+name = "-0 with an unset variable"
+args = ["-0", "NOPE", "PATH"]
+
+[[case]]
+name = "options stop at the first operand"
+args = ["PATH", "-0"]
+
+[[case]]
+name = "--help after an operand is a variable name"
+args = ["PATH", "--help"]
+
+[[case]]
+name = "an unknown option after an operand is a variable name"
+args = ["PATH", "--bogus"]
+
+[[case]]
+name = "-- then a name that looks like an option"
+args = ["--", "-0"]
+
+[[case]]
+name = "POSIXLY_CORRECT changes nothing here"
+args = ["PATH", "-0"]
+env = { POSIXLY_CORRECT = "1" }
+
+[[case]]
+name = "an unknown option is status 2"
+args = ["-x"]
+
+[[case]]
+name = "an unknown long option is status 2"
+args = ["--bogus"]
+
+[[case]]
+name = "--null takes no argument"
+args = ["--null=x"]
+
+[[case]]
+name = "help"
+args = ["--help"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "help abbreviated"
+args = ["--he"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "version"
+args = ["--version"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "a write error is status 2"
+args = ["PATH"]
+stdout_closed = true
+
+[[case]]
+name = "a write error from help is status 2"
+args = ["--help"]
+stdout_closed = true
+
+[[case]]
+name = "nothing written and a variable unset is status 1, not a write error"
+args = ["NOPE"]
+stdout_closed = true
+
+# A write error on a LIVE descriptor (linux only; a SKIP where there is
+# no /dev/full): GNU appends strerror(ENOSPC), which wolf cannot say
+# (wolf-lang#407), so the exit status is the comparison.
+[[case]]
+name = "a write error on a live descriptor is status 2"
+args = ["PATH"]
+stdout_file = "/dev/full"
+compare = ["exit"]
+
+# The bare listing: GNU prints environ in the order the process was
+# given it, and wolf can only list it sorted. Each is written down and
+# skipped, with the reason.
+
+[[case]]
+name = "every variable"
+skip = "wolf 0.2.20 lists the environment only through env_vars(), which answers it SORTED; GNU prints the order the process received, and the harness hands every case PATH before LC_ALL (filed upstream)"
+
+[[case]]
+name = "every variable, NUL-terminated"
+args = ["-0"]
+skip = "wolf 0.2.20 lists the environment only through env_vars(), which answers it SORTED; GNU prints the order the process received, and the harness hands every case PATH before LC_ALL (filed upstream)"
+
+[[case]]
+name = "every variable, with one the case adds"
+env = { ZED = "1" }
+skip = "wolf 0.2.20 lists the environment only through env_vars(), which answers it SORTED; GNU prints the order the process received, and the harness hands every case PATH before LC_ALL (filed upstream)"
+
+[[case]]
+name = "the listing after --"
+args = ["--"]
+skip = "wolf 0.2.20 lists the environment only through env_vars(), which answers it SORTED; GNU prints the order the process received, and the harness hands every case PATH before LC_ALL (filed upstream)"
