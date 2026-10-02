@@ -1,0 +1,299 @@
+//! member: false
+//!
+//! tee — copy standard input to standard output and to every FILE.
+//!
+//! References consulted: POSIX.1-2024 `tee`; GNU coreutils 9.11
+//! `tee --help`, the info manual's `tee invocation` node, and black-box
+//! runs of the GNU binary on linux x86-64 and macOS arm64 (Homebrew
+//! `gtee`), under `LC_ALL=C`; uutils/coreutils (MIT) as a design
+//! reference for the shape of the copy loop. Never GNU source.
+//!
+//! GNU's rules, each measured against 9.11:
+//!
+//! - Every FILE is opened before a byte is read: created, and
+//!   truncated unless `-a`/`--append`. `-` is a file NAMED `-` (it was
+//!   standard output before 8.23). Naming one file twice opens it
+//!   twice; without `-a` the two truncating handles leave one copy, with
+//!   `-a` two.
+//! - Each chunk read goes to standard output first, then to the files
+//!   in operand order.
+//! - A FILE that cannot be opened is `tee: NAME: reason`; the rest are
+//!   still written and the status is 1. A failed write is the same,
+//!   with `'standard output'` (quoted, because it has a space) for
+//!   descriptor 1, and that output is dropped from then on.
+//! - `--output-error=exit` (or `exit-nopipe`) stops at the FIRST
+//!   failure instead, opening or writing, status 1: `tee
+//!   --output-error=exit nope/x a` never creates `a`. `warn`,
+//!   `warn-nopipe` and no mode at all diagnose and carry on.
+//!   `--output-error` with no word, and `-p`, mean `warn-nopipe`; the
+//!   last of them wins; the word is matched as GNU's argmatch matches
+//!   (`warn-` is `warn-nopipe`, `e` is ambiguous).
+//! - Options permute unless `POSIXLY_CORRECT` is set.
+//!
+//! **What this program cannot do, and does not pretend to.**
+//!
+//! - **`-i`/`--ignore-interrupts` is refused by name**, status 1:
+//!   ignoring SIGINT needs a signal disposition wolf 0.2.20 does not
+//!   have — `[os.signal.set]` names RELOAD, TERMINATE, QUIT and UPGRADE
+//!   and nothing else (wolf-lang#423, where `tee`'s need is recorded).
+//!   Accepting the flag and being killed by the first Ctrl-C anyway
+//!   would be a silent difference; refusing it is a loud one.
+//! - **Every PIPE branch of `-p` and `--output-error` is GNU's and not
+//!   ours.** Those modes exist to survive a reader that went away: GNU
+//!   ignores SIGPIPE, sees EPIPE, and either drops that output (`warn`,
+//!   the `-nopipe` modes) or exits 1 with `'standard output': Broken
+//!   pipe` (`exit`). wolf can neither ignore nor observe SIGPIPE
+//!   (wolf-lang#423), so here the first write to a broken pipe kills the
+//!   process with status 141 in every mode, which is GNU's DEFAULT
+//!   behaviour and only that. The non-pipe half of every mode — a full
+//!   disk, a closed descriptor, a file that cannot be opened — is
+//!   implemented and has cases; the pipe half is skipped cases that say
+//!   why.
+//! - A failure's reason is `strerror(errno)` in GNU and wolf has no
+//!   errno text behind an `io` row (wolf-lang#407): a full disk is
+//!   `Input/output error` here against `No space left on device`. A
+//!   directory is told apart by asking, so `Is a directory` matches.
+
+use bore
+
+fn main() -> int {
+    let p = bore.parse(options(), env_args(), bore.permute())
+    var out = bore.stdout()
+    var append = false
+    var interrupts = false
+    var stop_on_error = false
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i]
+        if k == "help" {
+            bore.put(mut out, help()) else |_| {}
+            return bore.finish(mut out, "tee", 0)
+        }
+        if k == "version" {
+            bore.put(mut out, bore.version_text("tee")) else |_| {}
+            return bore.finish(mut out, "tee", 0)
+        }
+        if k == "append" {
+            append = true
+        }
+        if k == "ignore-interrupts" {
+            interrupts = true
+        }
+        if k == "p" {
+            stop_on_error = false
+        }
+        if k == "output-error" {
+            if p.given[i] {
+                let m = bore.argmatch(p.values[i], modes(), meanings())
+                if m < 0 {
+                    return bore.argmatch_error(
+                        "tee",
+                        p.values[i],
+                        "output-error",
+                        modes(),
+                        meanings(),
+                        m == -2,
+                    )
+                }
+                stop_on_error = m >= 2
+            } else {
+                stop_on_error = false
+            }
+        }
+        i += 1
+    }
+    if !bore.ok(p) {
+        return bore.usage_error("tee", p.error)
+    }
+    if interrupts {
+        bore.warn(
+            "tee",
+            "-i (--ignore-interrupts) is not supported: wolf 0.2.20 cannot ignore SIGINT (wolf-lang#423)",
+        )
+        return 1
+    }
+    var status = 0
+    var fds = List[int]()
+    var names = List[str]()
+    for name in p.operands {
+        let fd = open_output(name, append) else |e| {
+            let why = match e {
+                not_found => bore.no_such_file(),
+                denied => bore.permission_denied(),
+                is_dir => bore.directory_reason(),
+                io => bore.io_error(),
+            }
+            bore.input_error("tee", name, why)
+            if stop_on_error {
+                return 1
+            }
+            status = 1
+            continue
+        }
+        (mut fds).push(fd)
+        (mut names).push(name)
+    }
+    let src = bore.open_input("-") else |_| {
+        bore.warn("tee", "standard input: {bore.io_error()}")
+        return 1
+    }
+    let copied = pump(out, src, fds, names, stop_on_error)
+    for fd in fds {
+        fs_close(fd) else |_| {}
+    }
+    if copied != 0 {
+        return 1
+    }
+    status
+}
+
+fn options() -> List[bore.Opt] {
+    var s = List[bore.Opt]()
+    (mut s).push(bore.flag("a", "append"))
+    (mut s).push(bore.flag("i", "ignore-interrupts"))
+    (mut s).push(bore.flag("p", ""))
+    (mut s).push(bore.optional("", "output-error"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    s
+}
+
+/// `--output-error`'s words, in GNU's order, and what each means: 0
+/// warn, 1 warn-nopipe, 2 exit, 3 exit-nopipe. Only "stop or carry on"
+/// is reachable here (see the header), so the four collapse to two
+/// after matching — but the matching itself is over all four words.
+fn modes() -> List[str] {
+    var m = List[str]()
+    (mut m).push("warn")
+    (mut m).push("warn-nopipe")
+    (mut m).push("exit")
+    (mut m).push("exit-nopipe")
+    m
+}
+
+fn meanings() -> List[int] {
+    var m = List[int]()
+    (mut m).push(0)
+    (mut m).push(1)
+    (mut m).push(2)
+    (mut m).push(3)
+    m
+}
+
+/// Why an output could not be opened.
+error OutFailed = {not_found, denied, is_dir, io}
+
+/// Open `name` for writing: created, then truncated or appended to.
+fn open_output(name: str, append: bool) -> int ! OutFailed {
+    let mode = if append then 2 else 1
+    let fd = fs_open_mode(name, mode) else |e| match e {
+        not_found => { return not_found },
+        denied => {
+            if fs_is_dir(name) {
+                return is_dir
+            }
+            return denied
+        },
+        exists => { return io },
+        invalid => { return io },
+        io => {
+            if fs_is_dir(name) {
+                return is_dir
+            }
+            return io
+        },
+    }
+    fd
+}
+
+/// The bytes asked of the host per read: `cat`'s measured knee.
+fn read_size() -> int {
+    262144
+}
+
+/// Copy standard input to standard output and every open file, until
+/// the end of the input. Answers 0 when every write succeeded, 1 when
+/// one failed (already reported), and stops at the first failure when
+/// `stop_on_error`.
+///
+/// One `region` per chunk, as in `cat`: `fs_read_chunk` allocates the
+/// list it answers and the ambient region never frees one
+/// (wolf-lang#416). The chunk is region-local, so standard output takes
+/// it through `write_direct` (the writer by READ) and the files through
+/// `fs_write_chunk` directly.
+fn pump(out: bore.Out, src: bore.In, fds: List[int], names: List[str], stop_on_error: bool) -> int {
+    var failed = 0
+    var to_stdout = true
+    var alive = List[bool]()
+    while alive.len < fds.len {
+        (mut alive).push(true)
+    }
+    var stop = false
+    while !stop {
+        region pass {
+            let chunk = bore.read_chunk(src, read_size()) else |e| match e {
+                eof => {
+                    stop = true
+                    List[byte]()
+                },
+                io => {
+                    stop = true
+                    bore.warn("tee", "read error: {bore.io_error()}")
+                    failed = 1
+                    List[byte]()
+                },
+            }
+            if chunk.len == 0 {
+                stop = true
+            } else {
+                if to_stdout {
+                    bore.write_direct(out, chunk) else |_| {
+                        bore.write_error(out, "tee", "'standard output'")
+                        failed = 1
+                        to_stdout = false
+                        if stop_on_error {
+                            stop = true
+                        }
+                    }
+                }
+                var k = 0
+                while !(stop && stop_on_error) && k < fds.len {
+                    if alive[k] {
+                        fs_write_chunk(fds[k], chunk) else |_| {
+                            bore.input_error("tee", names[k], bore.io_error())
+                            failed = 1
+                            alive[k] = false
+                            if stop_on_error {
+                                stop = true
+                            }
+                        }
+                    }
+                    k += 1
+                }
+            }
+        }
+    }
+    failed
+}
+
+fn help() -> str {
+    """
+    Usage: tee [OPTION]... [FILE]...
+    Copy standard input to standard output and to each FILE.
+
+      -a, --append               append to each FILE instead of
+                                 truncating it
+      -i, --ignore-interrupts    (refused: wolf cannot ignore SIGINT)
+      -p                         the same as --output-error=warn-nopipe
+          --output-error[=MODE]  what a failed write does; MODE is warn,
+                                 warn-nopipe (the default for the
+                                 option), exit or exit-nopipe
+          --help                 print this help and exit
+          --version              print the version and exit
+
+    Without --output-error a failed write to a FILE is reported and the
+    others are still written. A FILE named - is a file of that name.
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}

@@ -1,0 +1,454 @@
+# tee — GNU coreutils 9.11, black-box, on linux x86-64 and macOS arm64.
+# Every case that writes a FILE runs in a SCRATCH directory
+# (tools/difftest, bu14), so what each program leaves behind is compared
+# byte for byte as the `files` field beside stdout, stderr and the exit
+# status. The help and version TEXT is ours, so those compare the exit
+# only.
+
+[[case]]
+name = "standard input to standard output"
+args = []
+stdin = "hello\nworld\n"
+
+[[case]]
+name = "no standard input at all"
+args = []
+
+[[case]]
+name = "binary bytes"
+args = []
+stdin_file = "binary.bin"
+
+[[case]]
+name = "a file"
+args = ["a"]
+stdin = "hello\nworld\n"
+scratch = {  }
+
+[[case]]
+name = "two files"
+args = ["a", "b"]
+stdin = "hello\nworld\n"
+scratch = {  }
+
+[[case]]
+name = "an existing file is truncated"
+args = ["a"]
+stdin = "new\n"
+scratch = { "a" = "old line\nmore\n" }
+
+[[case]]
+name = "-a appends"
+args = ["-a", "a"]
+stdin = "new\n"
+scratch = { "a" = "old\n" }
+
+[[case]]
+name = "--append"
+args = ["--append", "a"]
+stdin = "new\n"
+scratch = { "a" = "old\n" }
+
+[[case]]
+name = "--app abbreviated"
+args = ["--app", "a"]
+stdin = "new\n"
+scratch = { "a" = "old\n" }
+
+[[case]]
+name = "-a creates a missing file"
+args = ["-a", "a"]
+stdin = "new\n"
+scratch = {  }
+
+[[case]]
+name = "-a on one file and not another: -a is global"
+args = ["a", "-a", "b"]
+stdin = "new\n"
+scratch = { "a" = "old\n", "b" = "old\n" }
+
+[[case]]
+name = "a FILE named -"
+args = ["-"]
+stdin = "hello\nworld\n"
+scratch = {  }
+
+[[case]]
+name = "-- then a FILE named -a"
+args = ["--", "-a"]
+stdin = "hello\nworld\n"
+scratch = {  }
+
+[[case]]
+name = "one file named twice, truncating"
+args = ["a", "a"]
+stdin = "hello\nworld\n"
+scratch = { "a" = "old\n" }
+
+[[case]]
+name = "one file named twice, appending"
+args = ["-a", "a", "a"]
+stdin = "hello\nworld\n"
+scratch = { "a" = "old\n" }
+
+[[case]]
+name = "empty input creates the files empty"
+args = ["a", "b"]
+stdin = ""
+scratch = { "b" = "old\n" }
+
+[[case]]
+name = "empty input with -a leaves a file alone"
+args = ["-a", "a"]
+stdin = ""
+scratch = { "a" = "old\n" }
+
+[[case]]
+name = "no newline at the end"
+args = ["a"]
+stdin = "no newline"
+scratch = {  }
+
+[[case]]
+name = "a megabyte through, to two files"
+args = ["a", "b"]
+stdin = "0123456789abcdef\n"
+stdin_repeat = 65536
+scratch = {}
+
+[[case]]
+name = "binary bytes to a file"
+args = ["a"]
+stdin_file = "bin.dat"
+scratch = {}
+
+[[case]]
+name = "options permute"
+args = ["a", "-a"]
+stdin = "new\n"
+scratch = { "a" = "old\n" }
+
+[[case]]
+name = "POSIXLY_CORRECT: -a after a file is a file"
+args = ["a", "-a"]
+stdin = "new\n"
+env = { POSIXLY_CORRECT = "1" }
+scratch = { "a" = "old\n" }
+
+[[case]]
+name = "a file in a directory that does not exist"
+args = ["nodir/x", "a"]
+stdin = "hello\nworld\n"
+scratch = {  }
+
+[[case]]
+name = "two files that cannot be opened"
+args = ["nodir/x", "nodir/y", "a"]
+stdin = "hello\nworld\n"
+scratch = {  }
+
+[[case]]
+name = "an empty file name"
+args = ["", "a"]
+stdin = "hello\nworld\n"
+scratch = {  }
+
+[[case]]
+name = "a directory"
+args = ["d", "a"]
+stdin = "hello\nworld\n"
+scratch_dirs = ["d"]
+
+[[case]]
+name = "a directory with -a"
+args = ["-a", "d"]
+stdin = "hello\nworld\n"
+scratch_dirs = ["d"]
+
+[[case]]
+name = "a file that may not be written"
+args = ["ro", "a"]
+stdin = "hello\nworld\n"
+scratch = { ro = "keep\n" }
+scratch_modes = { ro = 0o444 }
+
+[[case]]
+name = "--output-error=exit stops at a file that cannot be opened"
+args = ["--output-error=exit", "nodir/x", "a"]
+stdin = "hello\nworld\n"
+scratch = {  }
+
+[[case]]
+name = "--output-error=exit stops at a directory"
+args = ["--output-error=exit", "d", "a"]
+stdin = "hello\nworld\n"
+scratch_dirs = ["d"]
+
+[[case]]
+name = "--output-error=exit-nopipe stops at a file that cannot be opened"
+args = ["--output-error=exit-nopipe", "a", "nodir/x", "b"]
+stdin = "hello\nworld\n"
+scratch = {  }
+
+[[case]]
+name = "--output-error=warn carries on past a file that cannot be opened"
+args = ["--output-error=warn", "nodir/x", "a"]
+stdin = "hello\nworld\n"
+scratch = {  }
+
+[[case]]
+name = "--output-error=warn-nopipe carries on"
+args = ["--output-error=warn-nopipe", "nodir/x", "a"]
+stdin = "hello\nworld\n"
+scratch = {  }
+
+[[case]]
+name = "--output-error with no word is warn-nopipe"
+args = ["--output-error", "nodir/x", "a"]
+stdin = "hello\nworld\n"
+scratch = {  }
+
+[[case]]
+name = "-p is warn-nopipe"
+args = ["-p", "nodir/x", "a"]
+stdin = "hello\nworld\n"
+scratch = {  }
+
+[[case]]
+name = "-p then exit: the last wins"
+args = ["-p", "--output-error=exit", "nodir/x", "a"]
+stdin = "hello\nworld\n"
+scratch = {  }
+
+[[case]]
+name = "exit then -p: the last wins"
+args = ["--output-error=exit", "-p", "nodir/x", "a"]
+stdin = "hello\nworld\n"
+scratch = {  }
+
+[[case]]
+name = "a mode word abbreviated"
+args = ["--output-error=ex", "nodir/x", "a"]
+stdin = "hello\nworld\n"
+scratch = {  }
+
+[[case]]
+name = "warn- is warn-nopipe"
+args = ["--output-error=warn-", "nodir/x", "a"]
+stdin = "hello\nworld\n"
+scratch = {  }
+
+[[case]]
+name = "an ambiguous mode word"
+args = ["--output-error=e", "a"]
+stdin = "hello\nworld\n"
+scratch = {  }
+
+[[case]]
+name = "an empty mode word is ambiguous"
+args = ["--output-error=", "a"]
+stdin = "hello\nworld\n"
+scratch = {  }
+
+[[case]]
+name = "an invalid mode word"
+args = ["--output-error=bogus", "a"]
+stdin = "hello\nworld\n"
+scratch = {  }
+
+[[case]]
+name = "-ap clustered"
+args = ["-ap", "a"]
+stdin = "new\n"
+scratch = { "a" = "old\n" }
+
+[[case]]
+name = "standard output closed: diagnosed, the files still written"
+args = ["a"]
+stdin = "hello\nworld\n"
+scratch = {  }
+stdout_closed = true
+
+[[case]]
+name = "standard output closed, nothing to write"
+args = ["a"]
+stdin = ""
+scratch = {  }
+stdout_closed = true
+
+[[case]]
+name = "standard output closed under --output-error=exit"
+args = ["--output-error=exit", "a", "b"]
+stdin = "hello\nworld\n"
+scratch = {  }
+stdout_closed = true
+
+[[case]]
+name = "standard output closed under -p"
+args = ["-p", "a"]
+stdin = "hello\nworld\n"
+scratch = {  }
+stdout_closed = true
+
+[[case]]
+name = "standard output closed and no file"
+args = []
+stdin = "hello\nworld\n"
+stdout_closed = true
+
+[[case]]
+name = "help"
+args = ["--help"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "version"
+args = ["--version"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "help with standard output closed"
+args = ["--help"]
+stdout_closed = true
+
+[[case]]
+name = "an unknown option"
+args = ["-x"]
+stdin = "hello\nworld\n"
+
+[[case]]
+name = "an unknown long option"
+args = ["--bogus"]
+stdin = "hello\nworld\n"
+
+[[case]]
+name = "--append takes no argument"
+args = ["--append=x"]
+stdin = "hello\nworld\n"
+
+# A write error on a LIVE descriptor. /dev/full accepts the open and
+# refuses the write with ENOSPC; GNU appends strerror(ENOSPC) and wolf
+# has no errno text behind an `io` row (wolf-lang#407), so stderr is
+# not compared — stdout, the exit status and the files are. Where there
+# is no /dev/full (macOS) the open is refused on both sides instead, and
+# the case still compares the same way.
+[[case]]
+name = "/dev/full as a FILE: diagnosed, the others still written"
+args = ["/dev/full", "a"]
+stdin = "hello\nworld\n"
+scratch = {}
+compare = ["stdout", "exit", "files"]
+
+[[case]]
+name = "/dev/full twice"
+args = ["/dev/full", "/dev/full"]
+stdin = "hello\nworld\n"
+compare = ["stdout", "exit"]
+
+[[case]]
+name = "/dev/full under --output-error=exit stops before the next file"
+args = ["--output-error=exit", "/dev/full", "a"]
+stdin = "hello\nworld\n"
+scratch = {}
+compare = ["stdout", "exit", "files"]
+
+[[case]]
+name = "/dev/full under --output-error=warn"
+args = ["--output-error=warn", "/dev/full", "a"]
+stdin = "hello\nworld\n"
+scratch = {}
+compare = ["stdout", "exit", "files"]
+
+[[case]]
+name = "standard output into a full disk: the files still written"
+args = ["a"]
+stdin = "hello\nworld\n"
+stdout_file = "/dev/full"
+scratch = {}
+compare = ["exit", "files"]
+
+[[case]]
+name = "standard output into a full disk under --output-error=exit"
+args = ["--output-error=exit", "a"]
+stdin = "hello\nworld\n"
+stdout_file = "/dev/full"
+scratch = {}
+compare = ["exit", "files"]
+
+# A reader that goes away. The input is /dev/zero (an absolute
+# `stdin_file` is taken as it is), which never ends, so the only way out
+# is the signal; a repeated `stdin` cannot be used here, because the
+# harness writes all of it before it reads a byte back, and tee blocked
+# on a full output pipe never takes it. With no --output-error and no
+# -p, GNU's
+# default is to die of SIGPIPE at the first write to the broken pipe,
+# status 141, and so does this program, because that is the only thing
+# a wolf program can do (wolf-lang#423). A file written alongside is cut
+# off wherever the signal lands, so only the status is compared.
+[[case]]
+name = "a reader that goes away: SIGPIPE, as GNU's default"
+stdin_file = "/dev/zero"
+stdout_bytes = 16
+
+[[case]]
+name = "a reader that goes away, with a file"
+args = ["a"]
+stdin_file = "/dev/zero"
+stdout_bytes = 16
+scratch = {}
+compare = ["exit"]
+
+# What GNU does and this program cannot (see src/tee.lu): every branch
+# that needs SIGPIPE IGNORED, and -i, which needs SIGINT ignored. wolf
+# 0.2.20's signal set is RELOAD, TERMINATE, QUIT and UPGRADE
+# (wolf-lang#423), so each of these would die of the signal instead.
+# (Should one ever be un-skipped: GNU under -p keeps reading /dev/zero
+# into the file for as long as the case's timeout allows.)
+[[case]]
+name = "-p: a reader that goes away is dropped, status 0"
+args = ["-p"]
+stdin_file = "/dev/zero"
+stdout_bytes = 16
+skip = "needs SIGPIPE ignored and EPIPE seen; wolf 0.2.20 can do neither, so this dies of SIGPIPE (141) where GNU exits 0 (wolf-lang#423)"
+
+[[case]]
+name = "-p: the file is still written to the end"
+args = ["-p", "a"]
+stdin_file = "/dev/zero"
+stdout_bytes = 16
+scratch = {}
+skip = "needs SIGPIPE ignored and EPIPE seen (wolf-lang#423)"
+
+[[case]]
+name = "--output-error=warn: Broken pipe is diagnosed, status 1"
+args = ["--output-error=warn"]
+stdin_file = "/dev/zero"
+stdout_bytes = 16
+skip = "needs SIGPIPE ignored and EPIPE seen (wolf-lang#423)"
+
+[[case]]
+name = "--output-error=exit: Broken pipe is diagnosed, status 1"
+args = ["--output-error=exit"]
+stdin_file = "/dev/zero"
+stdout_bytes = 16
+skip = "needs SIGPIPE ignored and EPIPE seen (wolf-lang#423)"
+
+[[case]]
+name = "--output-error=exit-nopipe: a broken pipe is not an error"
+args = ["--output-error=exit-nopipe"]
+stdin_file = "/dev/zero"
+stdout_bytes = 16
+skip = "needs SIGPIPE ignored and EPIPE seen (wolf-lang#423)"
+
+[[case]]
+name = "-i ignores interrupts"
+args = ["-i", "a"]
+stdin = "hello\n"
+scratch = {}
+skip = "refused by name: ignoring SIGINT needs a signal disposition wolf 0.2.20 does not have (wolf-lang#423)"
+
+[[case]]
+name = "--ignore-interrupts"
+args = ["--ignore-interrupts"]
+stdin = "hello\n"
+skip = "refused by name: ignoring SIGINT needs a signal disposition wolf 0.2.20 does not have (wolf-lang#423)"
