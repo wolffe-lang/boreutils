@@ -178,8 +178,185 @@ count outside the band.
 
 ## 4. Evidence index
 
-(Written after the measurements.)
+All measurement on kasumi (CachyOS, x86-64, 16 cores, load 1.2–1.4
+while benches ran), logs under `~/lanes/bu14/`. Three trees: **base** =
+trunk `7c3e2da`; **head** = this worktree synced by rsync while
+working; **final** = a fresh clone of origin at `bd11397` (the last
+commit that moves code or cases), built by `tools/fetch-toolchain`
+(`sha256 24855d5e… OK`) and `tools/build`. GNU is Arch's coreutils
+9.11-2 on kasumi and Homebrew's 9.11 on this Mac (black-box only).
+
+### 3a scored: the set — held
+
+Six shipped (`7ef104d` sleep, `c578759` nproc, `de23e04` pwd, `e1bff37`
+printenv, `83d8dcd` tee, `9e2c19e` printf); `env` dropped. Filed
+upstream, each with its witness (`~/lanes/bu14/wit/*/main.lu`,
+`witness.txt`, `witness-wrap.txt`; `ev/pwd-twin.txt`,
+`ev/printenv-listing.txt`, `ev/nproc-quota-*.log`):
+
+| issue | what | witness |
+|---|---|---|
+| wolf-lang#534 | no exec, no unset/clear, no child cwd; `os_spawn` null-wires stdin; `os_wait` loses the signal number — `env` | `echo hello \| spawn` → `cat exited 0`; GNU `env cat` → `hello` |
+| wolf-lang#535 | `env_vars()` sorted, non-UTF-8 skipped — `printenv`'s listing | `env -i B=1 A=2`: wolf `A=2 B=1`, GNU `B=1 A=2` |
+| wolf-lang#536 | no file identity — `pwd -L` | a `cp -a` twin, inodes 6154267/6154269, same size and mtime: boreutils prints the twin, GNU the physical name |
+| wolf-lang#537 | `os_cpus` floors a fractional quota | `CPUQuota=150%`: 1 vs GNU 2; `250%`: 2 vs 3; `taskset -c 0-2`: 3 and 3 |
+| wolf-lang#538 | `wrapping[u64]` interpolates signed on wolfgang, unsigned on lupin; division refused natively, traps on checked, works on lupin | native and `conform-run --json --checked` print `-1 -9223372036854775808`, lupin `18446744073709551615 9223372036854775808` |
+
+and two comments: wolf-lang#423 (comment 5960914159: `tee -p`,
+`--output-error` and `-i`) and wolf-lang#536 (comment 5961000205: `cat f
+>> f` grows without end here and refuses in GNU, found while writing the
+readiness table). #538 was not predicted: it surfaced in `nproc`.
+
+### 3b scored: the harness extension — held
+
+`tools/difftest` (`08eff09`) gives a case a scratch directory and a
+`files` field; `tests/selftest/tee.toml` plants two differences
+(`0f28f34`), and `tools/difftest-selftest` now requires every plant to
+fail BY NAME. **Seen red**, `ev/selftest-planted.txt`: with `snapshot()`
+planted to return nothing, the selftest REFUSES (`the plant 'tee: a file
+one side writes' did not fail`, rc 1) — and the real `tee` cases still
+pass 62/0/7 under that plant, which is why the plants exist. Unpatched
+(`ev/selftest-unpatched.txt`): `0 passed, 3 failed`, `saw every planted
+difference`, rc 0. The final tree's selftest, evidence and field-verdict
+gates exit 0 (`ev/final/selftest.log`, `evidence.log`,
+`field-selftest.log`).
+
+### 3c scored: the existing corpus — held on kasumi
+
+`ev/final/verdicts.txt` (2,674 lines, sha256 `8d354b9bb34f34a1…`); its
+2,114 lines for the 21 existing utilities, `verdicts-existing.txt`, hash
+`b97c0e91b8d203737eb42c10234517f2ffbcdb7e6d0ba1b70e185b8a3dfc5817`,
+**base's digest to the byte** (`diff` empty, `diff_rc=0`). CI's legs at
+`bd11397`, run 37060771131, against the same legs of bu13's head run
+36964596357, the existing utilities' 2,114 verdict lines of each leg's
+differential step extracted and sorted the same way
+(`legverdicts.sh`, kept in the PR body): **ubuntu identical**
+(sha256 `fde3f0d14a9399f6…` both), **field identical** (`7146d3ea…`
+both, the same 15 FAIL lines), **macOS identical** (`9bb2cd72f8a2af50…`
+both). **3c held.**
+
+### 3d scored: cases
+
+`ev/final/difftest.log`: **`difftest: 2642 passed, 0 failed, 32
+skipped`**, oracle asserted (9.11, `LC_ALL=C _POSIX2_VERSION=200112`,
+the `uniq +1` probe OK); `BUILD_EXIT=0`, `wolf test: 1 passed`, fmt
+clean (`ev/final/build.log`).
+
+| utility | predicted cases | cases | predicted skips | skips |
+|---|---|---:|---|---:|
+| `sleep` | 25–40 | **61** (miss) | 0 | 0 |
+| `nproc` | 20–35 | **78** (miss) | 0 | 0 |
+| `pwd` | 20–35 | **45** (miss) | 0–2 | 1 |
+| `printenv` | 20–35 | **37** (miss) | 3–6 | 4 |
+| `tee` | 40–70 | 69 | 4–8 | 7 |
+| `printf` | 200–320 | 270 | 2–8 | **0** (miss: glibc's `I` flag was implemented, digits dropped, rather than skipped) |
+| **total** | 330–500 | **560** (miss) | 10–30 | 12 |
+
+Four per-utility counts and the total missed high: each of the small
+utilities has more edge than its size suggested (`nproc`'s OpenMP
+grammar alone is 37 cases). 16 cases name `gnu_min = "9.11"` (`49c9459`,
+`bd11397`): ubuntu's 9.4 on the `field` leg has no `%N$`, takes an
+empty number silently and refuses an `--ignore` past 2^64.
+
+**Beyond the cases**, `printf` was compared with GNU on kasumi over
+random arguments (`ev/fuzz/`, `fuzz-results-final.txt`, against the
+final tree's binary `4979a998…`): **2,300 integer and floating
+conversions (seed 1414) and 2,500 floating ones (seed 2026), 0
+mismatches**; the 416 hand probes differ only in `--help`/`--version`
+text.
+
+### 3e scored: floats per host — held
+
+Run 37060771131 at `bd11397`: the ubuntu gauntlet (x87 emulated) and the
+macOS gauntlet (IEEE double emulated) both pass all 270 `printf` cases,
+the `%a`, `%e`, `%f` and `%g` edge cases among them whose right answer
+differs between the two hosts — `%.20f 0.1`, `1e309`, the x87
+and double subnormals and maxima, `%a` in both libraries' layouts,
+`-nan`, and `Numerical result out of range` against `Result too
+large`. ubuntu: `difftest: 2642 passed, 0 failed, 32 skipped`; macOS
+(`GNU coreutils 9.11 (prefix 'g') on Darwin arm64`): **`2618 passed, 0
+failed, 56 skipped`**, the 24 more being every `/dev/full` case.
+
+### 3f scored: speed
+
+`ev/bench/startup-*.json` (`hyperfine -N --warmup 20 --runs 300`),
+`ratios.txt`; `printf.md` (first), `printf-after.md`, `tee.md`
+(`tools/bench --scale 0.25 --runs 5`), `startup.md`; `host*.txt` loads.
+
+| bench | band | measured | |
+|---|---|---|---|
+| start-ups: `sleep 0`, `nproc`, `pwd`, `printenv PATH`, `printf x` | 0.8–1.2x | 0.88x, 0.80x, 0.80x, **0.78x**, **0.77x** | two of five below; `true` itself is 0.71x, the floor |
+| `sleep 0.1` | 0.97–1.03x | 1.00x | held |
+| `printf '%d\n'` × 10,000 | 0.3–0.9x | 0.68x | held |
+| `printf '%.6f\n'` × 10,000 | 0.05–0.4x | **0.04x** first; 0.27x after `937f287` | missed as committed |
+| `printf '%s\n'` × 10,000 | 0.5–1.2x | 0.86x | held |
+| `tee FILE`, 256 MiB | 0.4–0.9x | **1.27x** | missed, the good way |
+| `tee` no file, 256 MiB | 0.15–0.6x | **0.70x** | missed, the good way |
+
+Three of seven rows held; I expected two to four to miss and four did.
+The floating miss was a design cost found by measuring: every argument
+was divided by 5^k bit by bit, and dividing by a one-limb divisor in one
+pass took `%.6f` from 218 ms to 29.8 ms (`937f287`); both fuzz runs were
+re-taken on the faster binary. Peak RSS of `tee FILE` over 256 MiB:
+2.7–2.9 MB against GNU's 2.2 MB (`ev/bench/tee-rss.txt`).
+
+### 3g scored: the readiness table
+
+| verdict | predicted | counted |
+|---|---|---:|
+| drop-in | 9–13 | **15** (miss) |
+| drop-in for scripts that avoid X | 12–17 | 12 |
+| not yet | 0–2 | 1 (`env`) |
+
+The miss is the text tools: `tr`, `uniq`, `paste`, `fold`, `expand`
+and `unexpand` cover every GNU option with no skip of their own. One
+existing verdict moved the other way while the table was being written:
+`cat f >> f` refuses in GNU and grows `f` without end here (measured,
+reported on wolf-lang#536), so `cat` is not drop-in. Option coverage was
+computed from GNU's own `--help` against the case files, then corrected
+by hand where a mechanical count lies: `sort -g/-R/-V` appear only in
+cases GNU refuses too, and cut's `-M` is a range in GNU's help text, not
+an option.
+
+### CI
+
+| run | head | ubuntu | macOS | field (9.4, advisory) |
+|---|---|---|---|---|
+| 37058558543 | `0f28f34` (four utilities, the harness) | `2372 passed, 0 failed, 32 skipped`; plants FAIL by name | cancelled in the queue (superseded) | — |
+| 37059873503 | `9e2c19e` (+ printf) | `2642 passed, 0 failed, 32 skipped` | cancelled in the queue (superseded) | `2585 passed, 31 failed, 58 skipped`: the 16 new 9.4 differences, then bounded with `gnu_min` |
+| **37060771131** | **`bd11397`** (every code and case change) | **success**, `2642 / 0 / 32` | **success**, `2618 / 0 / 56` | `2585 passed, 15 failed, 74 skipped`, bu13's same 15 |
+
+The macOS legs queued for an hour behind the org's other macOS jobs;
+the two superseded runs were cancelled by this lane to free the slot.
+The run at the final head sha (README and notes only after `bd11397`)
+is in the PR body: a note cannot cite the run of the commit that
+carries it.
+
+**The kasumi upgrade.** At 17:34 EDT on 2026-10-02 kasumi upgraded clang
+22.1.8 → 23.1.1 and **GNU coreutils 9.11 → 9.12** (`/var/log/pacman.log`).
+Every kasumi measurement above was taken between 15:39 and 16:44 EDT,
+with clang 22.1.8 and GNU 9.11-2, so no row straddles it. From now on a
+kasumi difftest must stage the oracle with `tools/fetch-oracle`; the
+host's own GNU is no longer the oracle of record, and `tools/difftest`
+will say so and refuse.
 
 ## 5. Done-when
 
-(Written after the measurements.)
+- [x] branch `bu14` on origin; this note's §1–§3 its first commit
+      (`c3baf54`)
+- [x] six utilities, each with code and cases in one commit (`7ef104d`,
+      `c578759`, `de23e04`, `e1bff37`, `83d8dcd`, `9e2c19e`); `env`
+      dropped and filed (wolf-lang#534)
+- [x] the harness's scratch directory (`08eff09`) and its plants
+      (`0f28f34`), the gate seen red on a planted blind snapshot
+- [x] benched on kasumi (`d71e062`, `ev/bench/`); README sections,
+      status rows and the readiness table (`ce00291`)
+- [x] existing verdicts identical to base on kasumi (`b97c0e91…`)
+- [x] upstream: wolf-lang#534, #535, #536, #537, #538 filed; #423 and
+      #536 commented
+- [x] CI green on all three legs at `bd11397`, the last code commit
+      (run 37060771131); the run at the final head sha in the PR body
+- [ ] PR #18 open, unmerged, five sections in its body
+- [ ] kasumi trees pruned (`base`, `head`, `final` target dirs); logs and
+      `ev/` kept; no orphan pids
+- [ ] worktree gone (after the PR body is final)
