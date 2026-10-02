@@ -1,0 +1,1137 @@
+# printf — GNU coreutils 9.11, black-box (`/usr/bin/printf`, never a
+# shell's builtin), on linux x86-64 and macOS arm64. The floating
+# conversions print the HOST's `long double` — x87 on linux, IEEE double
+# on macOS — so a case like `%.20f 0.1` has a different right answer on
+# each CI leg, and src/printf.lu emulates whichever one it runs on.
+# The help and version TEXT is ours, so those compare the exit only.
+
+# Operands, reuse and missing arguments.
+
+[[case]]
+name = "no operand"
+args = []
+
+[[case]]
+name = "a plain format"
+args = ["hello\n"]
+
+[[case]]
+name = "an empty format"
+args = [""]
+
+[[case]]
+name = "the format is reused"
+args = ["%s\n", "a", "b", "c"]
+
+[[case]]
+name = "two conversions, reused, the last pass short"
+args = ["%s %s\n", "a", "b", "c"]
+
+[[case]]
+name = "a missing string is empty"
+args = ["%s|%s\n", "a"]
+
+[[case]]
+name = "missing values of every kind"
+args = ["[%q][%b][%s][%d][%f][%c]\n"]
+
+[[case]]
+name = "a missing %c is a NUL byte"
+args = ["%c|%c\n"]
+
+[[case]]
+name = "excess arguments are ignored with a warning"
+args = ["x\n", "extra"]
+
+[[case]]
+name = "excess arguments after %%"
+args = ["%%d\n", "1"]
+
+[[case]]
+name = "an empty format with an argument"
+args = ["", "a"]
+
+[[case]]
+name = "-- is skipped once"
+args = ["--", "%s\n", "x"]
+
+[[case]]
+name = "-- alone is a missing operand"
+args = ["--"]
+
+[[case]]
+name = "-- then --help is a format"
+args = ["--", "--help"]
+
+[[case]]
+name = "a lone - is a format"
+args = ["-"]
+
+[[case]]
+name = "-x is a format"
+args = ["-x"]
+
+[[case]]
+name = "-n is a format, and its argument is excess"
+args = ["-n", "x"]
+
+[[case]]
+name = "--help with an argument is a format"
+args = ["--help", "x"]
+
+[[case]]
+name = "--version with an argument is a format"
+args = ["--version", "x"]
+
+[[case]]
+name = "--he is a format, not help"
+args = ["--he"]
+
+[[case]]
+name = "a format with no conversion and no argument"
+args = ["%%%s%%\n", "x"]
+
+[[case]]
+name = "reuse stops when a pass consumes nothing"
+args = ["%s\\n%s\n", "a"]
+
+# Escapes in the format.
+
+[[case]]
+name = "the one-letter escapes"
+args = ["\\a\\b\\e\\f\\n\\r\\t\\v\\\\\\\"|"]
+
+[[case]]
+name = "unknown escapes are written as they are"
+args = ["\\'\\?\\q\\z|"]
+
+[[case]]
+name = "octal, one to three digits"
+args = ["\\1|\\12|\\101|\\1012|"]
+
+[[case]]
+name = "octal with a leading zero counts it"
+args = ["\\0123"]
+
+[[case]]
+name = "octal past 255 drops the ninth bit"
+args = ["\\400|\\777"]
+
+[[case]]
+name = "octal stops at 8"
+args = ["\\08"]
+
+[[case]]
+name = "a NUL"
+args = ["a\\0b"]
+
+[[case]]
+name = "hex, one and two digits"
+args = ["\\x41|\\x4|\\x4142"]
+
+[[case]]
+name = "hex with no digit is fatal"
+args = ["a\\xg\n"]
+
+[[case]]
+name = "hex at the end with no digit"
+args = ["\\x"]
+
+[[case]]
+name = "\\c stops all output"
+args = ["a\\cb"]
+
+[[case]]
+name = "\\c stops the reuse too"
+args = ["%s\\c\n", "a", "b"]
+
+[[case]]
+name = "\\c alone"
+args = ["\\c"]
+
+[[case]]
+name = "a trailing backslash"
+args = ["a\\"]
+
+[[case]]
+name = "a lone backslash"
+args = ["\\"]
+
+[[case]]
+name = "\\u for ASCII"
+args = ["\\u0041\\u0024\\u0060\\u0040\\u0023|"]
+
+[[case]]
+name = "\\u for a NUL and DEL"
+args = ["\\u0000\\u007f|"]
+
+[[case]]
+name = "\\u past ASCII in the C locale"
+args = ["\\u00e9|\\u009F|\\u00A0|\\uE000|"]
+
+[[case]]
+name = "\\U in the C locale"
+args = ["\\U0001F600|\\U00000041|\\U0010FFFF|\\U00110000|\\UFFFFFFFF|"]
+
+[[case]]
+name = "\\u with too few digits is fatal"
+args = ["\\u00e"]
+
+[[case]]
+name = "\\U with too few digits is fatal"
+args = ["\\U0001F6"]
+
+[[case]]
+name = "a high surrogate is fatal"
+args = ["\\uD800"]
+
+[[case]]
+name = "a low surrogate is fatal"
+args = ["\\udfff"]
+
+[[case]]
+name = "a surrogate through \\U is fatal"
+args = ["\\U0000d800"]
+
+[[case]]
+name = "output before a fatal escape is written"
+args = ["ab\\u12"]
+
+[[case]]
+name = "\\u under UTF-8"
+args = ["\\u00e9|\\U0001F600|\\u0041|\\U00110000\n"]
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "\\u under LANG only"
+args = ["\\u00e9\n"]
+env = { LC_ALL = "", LANG = "C.UTF-8" }
+
+[[case]]
+name = "\\u under LC_CTYPE"
+args = ["\\u00e9\n"]
+env = { LC_ALL = "", LC_CTYPE = "C.UTF-8" }
+
+# %b: the argument's escapes, octal as \0NNN.
+
+[[case]]
+name = "%b interprets escapes"
+args = ["%b\n", "a\\nb\\tc"]
+
+[[case]]
+name = "%b octal forms"
+args = ["%b", "\\1\\12\\0\\01\\012\\0123\\01234\\400\\0400\\8"]
+
+[[case]]
+name = "%b \\0 alone"
+args = ["%b", "\\0"]
+
+[[case]]
+name = "%b \\0 then four digits"
+args = ["%b", "\\00041"]
+
+[[case]]
+name = "%b quotes and unknowns"
+args = ["%b", "\\\"\\'\\?\\q\\e\\a"]
+
+[[case]]
+name = "%b \\c stops everything"
+args = ["%b-%s\n", "a\\cb", "x", "y", "z"]
+
+[[case]]
+name = "%b \\c in the middle of a reuse"
+args = ["%s %b %s\n", "a", "b\\c", "c", "d"]
+
+[[case]]
+name = "%b \\c alone"
+args = ["%b|%b\n", "\\c", "x"]
+
+[[case]]
+name = "%b hex"
+args = ["%b|", "\\x4", "\\x41g", "\\xG"]
+
+[[case]]
+name = "%b hex with no digit is fatal"
+args = ["%b\n", "\\x41\\x", "z"]
+
+[[case]]
+name = "%b \\u"
+args = ["%b\n", "\\u00e9\\u0041"]
+
+[[case]]
+name = "%b \\u too short is fatal"
+args = ["%b %b\n", "\\u0041\\u00", "z"]
+
+[[case]]
+name = "%b a surrogate is fatal"
+args = ["%b", "\\U0000D800"]
+
+[[case]]
+name = "%b a trailing backslash"
+args = ["%b", "a\\"]
+
+[[case]]
+name = "%b under UTF-8"
+args = ["%b\n", "\\u00e9"]
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "%b takes no width"
+args = ["[%5b]", "a"]
+
+[[case]]
+name = "%b takes no precision"
+args = ["[%.3b]", "abcdef"]
+
+[[case]]
+name = "%b takes no flag"
+args = ["[%-b]", "a"]
+
+# %q: shell-escape quoting.
+
+[[case]]
+name = "%q of ordinary words"
+args = ["%q|%q|%q\n", "abc", "-x", "x~"]
+
+[[case]]
+name = "%q of an empty argument"
+args = ["%q\n", ""]
+
+[[case]]
+name = "%q of spaces and specials"
+args = ["%q|%q|%q|%q|%q\n", "a b", "$x", "!", "a=b", "{a}"]
+
+[[case]]
+name = "%q of quotes"
+args = ["%q|%q|%q|%q\n", "a'b", "a\"b", "a'b\"c", "'"]
+
+[[case]]
+name = "%q of a backslash"
+args = ["%q\n", "a\\b"]
+
+[[case]]
+name = "%q of a leading # and ~"
+args = ["%q|%q|%q|%q\n", "#a", "a#", "~x", "x~"]
+
+[[case]]
+name = "%q of control bytes"
+args = ["%q|%q|%q\n", "a\tb", "a\nb", "\u0001"]
+
+[[case]]
+name = "%q of DEL and non-ASCII under C"
+args = ["%q|%q|%q\n", "\u007f", "xy", "é"]
+
+[[case]]
+name = "%q of printable and control mixed"
+args = ["%q\n", "a b\u0001"]
+
+[[case]]
+name = "%q under UTF-8 keeps a printable character"
+args = ["%q|%q|%q\n", "é", "é x", "é\tx"]
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "%q takes no width"
+args = ["[%10q]", "a b"]
+
+[[case]]
+name = "%q takes no precision"
+args = ["[%.2q]", "a b"]
+
+# %c and %s.
+
+[[case]]
+name = "%c takes the first byte"
+args = ["%c%c%c\n", "abc", "", "x"]
+
+[[case]]
+name = "%c of a multibyte character is its first byte"
+args = ["%c\n", "é"]
+
+[[case]]
+name = "%c with a width"
+args = ["%5c|%-3c|\n", "a", "b"]
+
+[[case]]
+name = "%c of nothing with a width"
+args = ["%5c|\n", ""]
+
+[[case]]
+name = "%c takes no precision"
+args = ["[%.2c]", "a"]
+
+[[case]]
+name = "%c takes no 0"
+args = ["[%0c]", "a"]
+
+[[case]]
+name = "%c takes no #"
+args = ["[%#c]", "a"]
+
+[[case]]
+name = "%c accepts + and space"
+args = ["[%+c][% c]", "a", "b"]
+
+[[case]]
+name = "%s width and precision"
+args = ["%5s|%-5s|%.2s|%5.1s|\n", "abc", "abc", "abc", "abc"]
+
+[[case]]
+name = "%s precision cuts bytes, not characters"
+args = ["%.3s|%.1s\n", "éé", "é"]
+
+[[case]]
+name = "%s takes no 0"
+args = ["[%0s]", "a"]
+
+[[case]]
+name = "%s takes no #"
+args = ["[%#s]", "a"]
+
+[[case]]
+name = "%s accepts + and space"
+args = ["[%+s][% s]", "a", "b"]
+
+[[case]]
+name = "%s empty precision"
+args = ["%.s|\n", "abc"]
+
+[[case]]
+name = "%s of --"
+args = ["%s\n", "--"]
+
+[[case]]
+name = "%s under UTF-8 still counts bytes"
+args = ["%c|%.1s|%5s|\n", "é", "é", "é"]
+env = { LC_ALL = "C.UTF-8" }
+
+# Integers: what an argument means.
+
+[[case]]
+name = "decimal, signs and blanks"
+args = ["%d %d %d %d %d\n", "12", "-3", "+4", "  -5", " 7"]
+
+[[case]]
+name = "hex and octal"
+args = ["%d %d %d %d\n", "0x1f", "0X1F", "-0x10", "010"]
+
+[[case]]
+name = "0x with no digit"
+args = ["%d\n", "0x"]
+
+[[case]]
+name = "08 is octal 0 and a remainder"
+args = ["%d\n", "08"]
+
+[[case]]
+name = "an exponent is a remainder"
+args = ["%d\n", "1e3"]
+
+[[case]]
+name = "a trailing blank is a remainder"
+args = ["%d\n", "7 "]
+
+[[case]]
+name = "trailing letters"
+args = ["%d\n", "12abc"]
+
+[[case]]
+name = "nothing numeric"
+args = ["%d %d %d\n", "", "x", "-"]
+
+[[case]]
+name = "a sign and a space"
+args = ["%d %d %d\n", "- 5", "--5", "+-5"]
+
+[[case]]
+name = "a lone plus"
+args = ["%d\n", "+"]
+
+[[case]]
+name = "character constants"
+args = ["%d %d %d\n", "'a", "\"b", "'ab"]
+
+[[case]]
+name = "a lone quote"
+args = ["%d\n", "'"]
+
+[[case]]
+name = "a character constant under POSIXLY_CORRECT"
+args = ["%d %d\n", "'ab", "1x"]
+env = { POSIXLY_CORRECT = "1" }
+
+[[case]]
+name = "a non-ASCII character constant under C"
+args = ["%d\n", "'é"]
+
+[[case]]
+name = "a non-ASCII character constant under UTF-8"
+args = ["%d\n", "'é"]
+env = { LC_ALL = "C.UTF-8" }
+
+[[case]]
+name = "the 64-bit limits"
+args = ["%d %d\n", "9223372036854775807", "-9223372036854775808"]
+
+[[case]]
+name = "past the 64-bit limits"
+args = ["%d %d %d\n", "9223372036854775808", "-9223372036854775809", "99999999999999999999"]
+
+[[case]]
+name = "hex past the signed limit"
+args = ["%d\n", "0x8000000000000000"]
+
+[[case]]
+name = "octal at and past the limits"
+args = ["%i %i\n", "0777777777777777777777", "01777777777777777777777"]
+
+[[case]]
+name = "unsigned of -1"
+args = ["%u %o %x %X\n", "-1", "-1", "-1", "-1"]
+
+[[case]]
+name = "unsigned limits"
+args = ["%u %u\n", "18446744073709551615", "18446744073709551616"]
+
+[[case]]
+name = "unsigned of negatives"
+args = ["%u %u %u\n", "-18446744073709551615", "-18446744073709551616", "-0"]
+
+[[case]]
+name = "hex of a negative past the signed limit"
+args = ["%x\n", "-9223372036854775809"]
+
+[[case]]
+name = "octal at and past 2^64"
+args = ["%o %o\n", "01777777777777777777777", "02000000000000000000000"]
+
+[[case]]
+name = "hex of character constants"
+args = ["%x %X\n", "'a", "\"é"]
+
+[[case]]
+name = "unsigned of the signed limit"
+args = ["%x %X %o %u\n", "9223372036854775807", "9223372036854775808", "9223372036854775808", "9223372036854775808"]
+
+[[case]]
+name = "a width argument that is not a number"
+args = ["%*d|\n", "x", "1"]
+
+[[case]]
+name = "a 0b prefix"
+args = ["%d\n", "0b101"]
+# glibc 2.38+ reads 0b as binary and macOS as 0 with a remainder;
+# src/printf.lu follows the host.
+
+# Integers: formatting.
+
+[[case]]
+name = "every integer conversion"
+args = ["%d %i %o %u %x %X\n", "10", "10", "10", "10", "255", "255"]
+
+[[case]]
+name = "width, left and zero"
+args = ["%5d|%-5d|%05d|\n", "2", "3", "4"]
+
+[[case]]
+name = "signs"
+args = ["%+d|% d|%+d|% d|%+d\n", "5", "6", "-5", "-6", "0"]
+
+[[case]]
+name = "precision"
+args = ["%.3d|%5.3d|%.3d|%+.3d|%-6.3d\n", "7", "8", "-5", "5", "-5"]
+
+[[case]]
+name = "precision 0 of 0 is nothing"
+args = ["[%.0d][%.d][%5.0d]\n", "0", "0", "0"]
+
+[[case]]
+name = "0 is ignored beside a precision"
+args = ["%06.3d|%-08d|%0-8d\n", "5", "1", "2"]
+
+[[case]]
+name = "space and 0"
+args = ["% 06d|%+ d|% +d\n", "5", "3", "4"]
+
+[[case]]
+name = "# on octal and hex"
+args = ["%#o|%#x|%#X|%#5x|%#o|%#x\n", "8", "255", "255", "0", "0", "0"]
+
+[[case]]
+name = "# on octal with a precision"
+args = ["%#.3o|%.3x\n", "8", "10"]
+
+[[case]]
+name = "# of zero with precision 0"
+args = ["[%#.0o][%#.0x]\n", "0", "0"]
+
+[[case]]
+name = "+ and space are ignored for unsigned"
+args = ["[%+u][% x][%+o]\n", "5", "5", "5"]
+
+[[case]]
+name = "the ' flag is accepted and does nothing in C"
+args = ["%'d|%'u|%'i\n", "1234567", "1234567", "1234567"]
+
+[[case]]
+name = "length modifiers are skipped"
+args = ["%ld %lld %hd %hhd %jd %zd %td\n", "1", "2", "3", "4", "5", "6", "7"]
+
+[[case]]
+name = "h does not truncate"
+args = ["%hhd %hhu %hu\n", "300", "300", "70000"]
+
+[[case]]
+name = "q is a conversion, not a modifier"
+args = ["%qd\n", "9"]
+
+[[case]]
+name = "a width from an argument"
+args = ["%*d|%-*d|\n", "5", "1", "5", "2"]
+
+[[case]]
+name = "a negative width argument left-justifies"
+args = ["%*d|\n", "-5", "1"]
+
+[[case]]
+name = "a precision from an argument"
+args = ["%.*d|\n", "3", "5"]
+
+[[case]]
+name = "a negative precision argument is none"
+args = ["%.*d|\n", "-3", "5"]
+
+[[case]]
+name = "a width argument past an int is fatal"
+args = ["%*d\n", "2147483648", "1"]
+
+[[case]]
+name = "a width argument that fits"
+args = ["%*d|\n", "3", "1"]
+
+[[case]]
+name = "a literal width past an int"
+args = ["%2147483648d\n", "1"]
+
+# Indexed arguments.
+
+[[case]]
+name = "%1$ twice"
+args = ["%1$s %1$s %2$s\n", "a", "b"]
+
+[[case]]
+name = "indexed and sequential count separately"
+args = ["%2$s %s\n", "a", "b", "c"]
+
+[[case]]
+name = "the highest index is what a pass consumed"
+args = ["%1$s %s %s\n", "a", "b", "c", "d"]
+
+[[case]]
+name = "a sequential then an indexed reference"
+args = ["%s %2$s\n", "a", "b", "c", "d"]
+
+[[case]]
+name = "%s then %1$"
+args = ["%s %1$s\n", "a", "b"]
+
+[[case]]
+name = "an index past the arguments"
+args = ["%3$s\n", "a"]
+
+[[case]]
+name = "a huge index"
+args = ["%99999999999$s\n", "a"]
+
+[[case]]
+name = "%5$ with one argument"
+args = ["%5$s|\n", "a"]
+
+[[case]]
+name = "index 0 is invalid"
+args = ["%0$s\n", "a"]
+
+[[case]]
+name = "an index and no conversion"
+args = ["%1$\n", "a"]
+
+[[case]]
+name = "two indexes"
+args = ["%1$1$s\n", "a"]
+
+[[case]]
+name = "a width from an indexed argument"
+args = ["%1$*2$d|\n", "5", "3"]
+
+[[case]]
+name = "an indexed width beside a sequential value"
+args = ["%1$d %*2$d|\n", "5", "3"]
+
+[[case]]
+name = "a width from argument 1 for the first value"
+args = ["%*1$d|\n", "5"]
+
+[[case]]
+name = "a precision from an indexed argument"
+args = ["%.*2$d|\n", "5", "3"]
+
+# Conversion specifications GNU refuses (fatal, status 1).
+
+[[case]]
+name = "%y"
+args = ["%y\n", "1"]
+
+[[case]]
+name = "a lone % at the end"
+args = ["abc%"]
+
+[[case]]
+name = "% then a newline"
+args = ["%\n"]
+
+[[case]]
+name = "%5%"
+args = ["%%|%5%|\n"]
+
+[[case]]
+name = "%n"
+args = ["%n\n", "1"]
+
+[[case]]
+name = "%p"
+args = ["%p\n", "1"]
+
+[[case]]
+name = "%C"
+args = ["%C\n", "a"]
+
+[[case]]
+name = "%S"
+args = ["%S\n", "a"]
+
+[[case]]
+name = "%Q"
+args = ["%Q\n", "a b"]
+
+[[case]]
+name = "%("
+args = ["%(%Y)T\n", "0"]
+
+[[case]]
+name = "# on %d"
+args = ["[%#d]", "5"]
+
+[[case]]
+name = "# on %i"
+args = ["[%#i]", "5"]
+
+[[case]]
+name = "# on %u"
+args = ["[%#u]", "5"]
+
+[[case]]
+name = "' on %o"
+args = ["[%'o]", "5"]
+
+[[case]]
+name = "' on %x"
+args = ["[%'x]", "5"]
+
+[[case]]
+name = "' on %X"
+args = ["[%'X]", "5"]
+
+[[case]]
+name = "' on %e"
+args = ["[%'e]", "5"]
+
+[[case]]
+name = "' on %E"
+args = ["[%'E]", "5"]
+
+[[case]]
+name = "' on %a"
+args = ["[%'a]", "5"]
+
+[[case]]
+name = "' on %A"
+args = ["[%'A]", "5"]
+
+[[case]]
+name = "every flag on %s"
+args = ["%-+ #0s|\n", "a"]
+
+[[case]]
+name = "output before a refused specification is written"
+args = ["%s %y\n", "a", "b"]
+
+# The I flag: glibc's, refused by Apple's libc. On linux it is a
+# no-op for d i u and drops the digits of f F g G; elsewhere invalid.
+
+[[case]]
+name = "I on integers"
+args = ["%Id|%Ii|%Iu|%I5d|%-I5d|\n", "3", "4", "5", "6", "7"]
+
+[[case]]
+name = "I on o x X"
+args = ["[%Io]", "5"]
+
+[[case]]
+name = "I on floating conversions"
+args = ["%If %If %Ig %IF %IG %If\n", "-1.5", "123.25", "5e10", "inf", "1e-5", "nan"]
+
+[[case]]
+name = "I on %e"
+args = ["[%Ie]", "5"]
+
+[[case]]
+name = "I on %c"
+args = ["[%Ic]", "a"]
+
+# Floating values: what an argument means (strtold).
+
+[[case]]
+name = "decimal forms"
+args = ["%f %f %f %f %f\n", "1.5", ".5", "1.e3", "  2.5", "+1.5"]
+
+[[case]]
+name = "hex forms"
+args = ["%f %f %f\n", "0x1p3", "0x1.8p1", "0x.8"]
+
+[[case]]
+name = "0x with no digit, as a floating value"
+args = ["%f\n", "0x"]
+
+[[case]]
+name = "an exponent with no digit is a remainder"
+args = ["%f %f\n", "1e", "1e+"]
+
+[[case]]
+name = "a hex exponent with no digit"
+args = ["%f\n", "0x1p"]
+
+[[case]]
+name = "a comma is a remainder"
+args = ["%f\n", "1,5"]
+
+[[case]]
+name = "nothing numeric, as a floating value"
+args = ["%f %f %f\n", "abc", ".", "-."]
+
+[[case]]
+name = "infinities and NaNs"
+args = ["%f %f %f %f %f %f\n", "inf", "-inf", "INFINITY", "+inf", "nan", "nan(123)"]
+
+[[case]]
+name = "a negative NaN"
+args = ["%f %e\n", "-nan", "-nan(1)"]
+
+[[case]]
+name = "remainders after inf and nan"
+args = ["%f %f %f %f\n", "infx", "nanx", "nan(", "nan(abc)x"]
+
+[[case]]
+name = "character constants as floating values"
+args = ["%f %f\n", "'a", "\"b"]
+
+[[case]]
+name = "leading blanks of every kind"
+args = ["%f %e %g\n", "  +1.5", "\t-2", "\n3"]
+
+[[case]]
+name = "negative zero"
+args = ["%f %e %g %a\n", "-0", "-0", "-0", "-0"]
+
+[[case]]
+name = "overflow is out of range"
+args = ["%e %f\n", "1e5000", "-1e5000"]
+
+[[case]]
+name = "underflow is out of range"
+args = ["%e\n", "1e-5000"]
+
+[[case]]
+name = "range beats a remainder"
+args = ["%f\n", "1e+5000x"]
+
+[[case]]
+name = "the long double maximum and one past it"
+args = ["%e %e\n", "1.18973149535723176502e+4932", "1.18973149535723176509e+4932"]
+
+[[case]]
+name = "the double maximum and one past it"
+args = ["%e %e\n", "1.7976931348623157e308", "1.7976931348623159e308"]
+
+[[case]]
+name = "1e309, finite in x87 and not in double"
+args = ["%f\n", "1e309"]
+
+[[case]]
+name = "1e4932"
+args = ["%e\n", "1e4932"]
+
+[[case]]
+name = "the smallest x87 normal and below"
+args = ["%e %e\n", "0x1p-16382", "0x1p-16383"]
+
+[[case]]
+name = "the smallest x87 subnormal, exactly"
+args = ["%e %a\n", "0x1p-16445", "0x1p-16445"]
+
+[[case]]
+name = "below the smallest x87 subnormal"
+args = ["%e %e\n", "0x1p-16446", "0x1p-16494"]
+
+[[case]]
+name = "an inexact x87 subnormal"
+args = ["%.25e\n", "3.6451995318824746025e-4951"]
+
+[[case]]
+name = "x87 subnormal tail"
+args = ["%f %f\n", "1e-4951", "2e-4951"]
+
+[[case]]
+name = "the smallest double normal and below"
+args = ["%e %a %a\n", "0x1p-1022", "0x1p-1022", "0x1p-1023"]
+
+[[case]]
+name = "double subnormals"
+args = ["%a %a\n", "0x1p-1074", "0x1p-1060"]
+
+[[case]]
+name = "an inexact double subnormal"
+args = ["%f %f\n", "1e-310", "0x1p-1074"]
+
+[[case]]
+name = "hex past the x87 maximum"
+args = ["%e %g\n", "0x1.fffffffffffffffep16383", "0x1.ffffffffffffffffp16383"]
+
+[[case]]
+name = "1e4000"
+args = ["%f\n", "1e4000"]
+
+[[case]]
+name = "a long decimal argument"
+args = ["%.30f\n", "0.123456789012345678901234567890123456789"]
+
+[[case]]
+name = "many leading zeros"
+args = ["%e\n", "0.0000000000000000000000000000000000000000012345"]
+
+# %f %e %g: rounding the exact binary value, half to even.
+
+[[case]]
+name = "%f %e %g %E %G %F of 1.5"
+args = ["%f|%e|%g|%E|%G|%F\n", "1.5", "1.5", "1.5", "1.5", "1.5", "1.5"]
+
+[[case]]
+name = "ties and near-ties at one decimal"
+args = ["%.1f %.1f %.1f %.1f\n", "0.05", "0.15", "0.25", "0.35"]
+
+[[case]]
+name = "ties at no decimals"
+args = ["%.0f %.0f %.0f %.0f %.0f\n", "0.5", "1.5", "2.5", "3.5", "-0.5"]
+
+[[case]]
+name = "2.675 and friends"
+args = ["%.2f %.2f %.3f\n", "2.675", "1.005", "1.0005"]
+
+[[case]]
+name = "0.1 to twenty places"
+args = ["%.20f\n", "0.1"]
+
+[[case]]
+name = "0.1 to thirty places"
+args = ["%.30f\n", "0.1"]
+
+[[case]]
+name = "1e-30 to forty places"
+args = ["%.40f\n", "1e-30"]
+
+[[case]]
+name = "past the mantissa"
+args = ["%.20f %.25f %.25f\n", "0x1.0000000000000001p0", "0x1.00000000000000008p0", "0x1.00000000000000018p0"]
+
+[[case]]
+name = "%e ordinary values"
+args = ["%e %e %e %e\n", "0", "123456789", "0.000123456", "9.9999995"]
+
+[[case]]
+name = "%e precision 0 and #"
+args = ["%.0e %.0e %#.0e %.10e\n", "5", "15", "5", "1"]
+
+[[case]]
+name = "%e rounding up a digit"
+args = ["%.3e %.3e %.0e %.0e\n", "9.9995", "9.9985", "0.5", "1.5"]
+
+[[case]]
+name = "%e three-digit exponents"
+args = ["%e %E\n", "1e100", "1e-100"]
+
+[[case]]
+name = "%g switches between f and e"
+args = ["%g %g %g %g %g %g %g %g\n", "100000", "1000000", "1e-4", "1e-5", "0.0001234", "123456789", "0", "-0"]
+
+[[case]]
+name = "%g at the boundaries"
+args = ["%g %g %g %g\n", "0.0001", "0.00001", "999999.5", "9999995"]
+
+[[case]]
+name = "%g precision"
+args = ["%.0g %.1g %.2g %#.3g %#g %g\n", "123", "123", "0.0123", "1", "100000", "1e15"]
+
+[[case]]
+name = "%g significant digits of 0.1"
+args = ["%.15g %.17g %.21g\n", "0.1", "0.1", "0.1"]
+
+[[case]]
+name = "%g with #"
+args = ["%#g %#g %#.3g\n", "0", "1e-5", "0.0001"]
+
+[[case]]
+name = "%g more"
+args = ["%g %g %g\n", "0.00001234", "123456.5", "1234567"]
+
+[[case]]
+name = "%G %E %F"
+args = ["%G %E %F\n", "1e-10", "1e-10", "inf"]
+
+[[case]]
+name = "%.3g %.10g"
+args = ["%.3g %.10g %g\n", "100", "1e10", "1e-5"]
+
+[[case]]
+name = "# keeps the point"
+args = ["%#.0f|%#.0e|%#x|%#o\n", "3", "3", "10", "10"]
+
+# %f %e %g: flags and width.
+
+[[case]]
+name = "width and precision"
+args = ["%10.4f|%-10.2e|%+.3g|%#g|%#.0f\n", "3.14159", "31415.9", "2", "1", "3"]
+
+[[case]]
+name = "zero padding after the sign"
+args = ["%08.3f|%-8.3f|%+08.2f|% 8.2f\n", "3.14159", "3.14159", "-3.14159", "3.14159"]
+
+[[case]]
+name = "%e padding"
+args = ["%10.3e|%-12.4E|%+e|% e|%012.3e\n", "12345", "0.000123", "1", "1", "-12345"]
+
+[[case]]
+name = "%.0f padding"
+args = ["%5.0f|%-5.0f|%05.0f|%+.0f\n", "2.5", "3.5", "-2.5", "0.4"]
+
+[[case]]
+name = "infinities are padded with spaces, never zeros"
+args = ["%08f|%010f|%-10f|%010e|\n", "-inf", "nan", "inf", "-inf"]
+
+[[case]]
+name = "signs on infinities and NaNs"
+args = ["%+f %+f % f %+e %+g %+a\n", "inf", "nan", "-inf", "-nan", "inf", "inf"]
+
+[[case]]
+name = "upper-case infinities and NaNs"
+args = ["%F %E %G %A\n", "-inf", "nan", "-nan", "inf"]
+
+[[case]]
+name = "floating flags accepted"
+args = ["[%-f][%+f][% f][%#f][%0f][%'f]\n", "5", "5", "5", "5", "5", "5"]
+
+[[case]]
+name = "%e flags accepted"
+args = ["[%-e][%+e][% e][%#e][%0e]\n", "5", "5", "5", "5", "5"]
+
+[[case]]
+name = "%g flags accepted"
+args = ["[%-g][%+g][% g][%#g][%0g][%'g]\n", "5", "5", "5", "5", "5", "5"]
+
+[[case]]
+name = "precision from an argument"
+args = ["%.*f|\n", "2", "3.14159"]
+
+# %a: each library's own layout (x87 `0x8p-3`, Apple's `0x1p+0`).
+
+[[case]]
+name = "%a %A of 1"
+args = ["%a %A\n", "1", "1"]
+
+[[case]]
+name = "%a of 0.1"
+args = ["%a\n", "0.1"]
+
+[[case]]
+name = "%a of small integers"
+args = ["%a %a %a %a\n", "0.5", "3", "255", "1e10"]
+
+[[case]]
+name = "%a of zeros and infinity"
+args = ["%a %a %a\n", "0", "-0", "inf"]
+
+[[case]]
+name = "%a with a precision"
+args = ["%.3a %.0a %.1a %.15a %.16a\n", "0.1", "0.1", "0.1", "0.1", "0.1"]
+
+[[case]]
+name = "%a precision 0, ties"
+args = ["%.0a %.0a %.0a\n", "1.5", "2.5", "0x1.8p0"]
+
+[[case]]
+name = "%a rounding carries into the leading digit"
+args = ["%.0a %.0a %.1a %.0a %.2a\n", "1.99", "0x1.f8p0", "0x1.ff8p0", "0xf.8p0", "0x1.fffp0"]
+
+[[case]]
+name = "%a precision and width"
+args = ["%5.1a|%.20a\n", "1", "1"]
+
+[[case]]
+name = "%a padding"
+args = ["%10a|%-12a|%012a|%+a|% a\n", "1", "1", "1", "1", "1"]
+
+[[case]]
+name = "%a with #"
+args = ["%#a %#a %#.0a\n", "1", "2", "1"]
+
+[[case]]
+name = "%a of 5 with every flag"
+args = ["[%-a][%+a][% a][%#a][%0a][%.2a]\n", "5", "5", "5", "5", "5", "5"]
+
+[[case]]
+name = "%a past double's mantissa"
+args = ["%a %A %a\n", "0x1.123456789abcdef0p0", "0x1.123456789abcdef8p0", "0x1.123456789abcdefcp0"]
+
+# Writing.
+
+[[case]]
+name = "help"
+args = ["--help"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "version"
+args = ["--version"]
+compare = ["exit", "stderr"]
+
+[[case]]
+name = "standard output closed is a write error"
+args = ["x\n"]
+stdout_closed = true
+
+[[case]]
+name = "nothing written with standard output closed"
+args = [""]
+stdout_closed = true
+
+[[case]]
+name = "help with standard output closed"
+args = ["--help"]
+stdout_closed = true
+
+# A write error on a LIVE descriptor (linux only; a SKIP where there is
+# no /dev/full): GNU appends strerror(ENOSPC), which wolf cannot say
+# (wolf-lang#407), so the exit status is the comparison.
+[[case]]
+name = "a write error on a live descriptor"
+args = ["%s\n", "x"]
+stdout_file = "/dev/full"
+compare = ["exit"]

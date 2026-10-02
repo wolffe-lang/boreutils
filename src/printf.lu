@@ -1,0 +1,2450 @@
+//! member: false
+//!
+//! printf — format and print data.
+//!
+//! References consulted: POSIX.1-2024 `printf` (XCU) and the `fprintf`
+//! conversion syntax (XSH); C17 7.21.6.1 and 7.22.1.3 (`fprintf`,
+//! `strtod`); GNU coreutils 9.11 `printf --help`, the info manual's
+//! `printf invocation` node, and black-box runs of the GNU binary
+//! (`/usr/bin/printf`, never a shell's builtin) on linux x86-64 (Arch,
+//! glibc) and macOS arm64 (Homebrew `gprintf`), under `LC_ALL=C` and
+//! `LC_ALL=C.UTF-8`. Never GNU source, and no C library source either.
+//!
+//! GNU's rules, each measured against 9.11:
+//!
+//! - The only options are a lone `--help` or `--version`; anything else
+//!   is the FORMAT (`printf -x` prints `-x`), after one leading `--`.
+//!   No operand at all is `missing operand`.
+//! - The FORMAT is reused until every ARGUMENT is consumed; a pass that
+//!   consumes none ends it, and if the first pass consumed none while
+//!   arguments remain, `warning: ignoring excess arguments, starting
+//!   with 'X'`. A missing argument is an empty string, a zero, or (for
+//!   `%c`) a NUL byte.
+//! - `%N$` takes argument N; `*` and `*N$` take a width or precision
+//!   from an argument. Sequential and indexed references count
+//!   separately, and the highest one used is what the pass consumed.
+//! - Escapes: `\" \\ \a \b \c \e \f \n \r \t \v`, `\NNN` (one to three
+//!   octal digits, the ninth bit dropped), `\xHH` (one or two; none is
+//!   fatal), `\uHHHH` and `\UHHHHHHHH` (exactly; a surrogate is fatal).
+//!   `\c` ends all output. Any other `\X` is written as it is. A code
+//!   point at or past U+0080 is UTF-8 under a UTF-8 locale and is
+//!   written back as `é`-style text under `LC_ALL=C`.
+//! - `%b` interprets the same escapes in its argument, except that an
+//!   octal escape is `\0NNN` or `\NNN` with a non-zero first digit;
+//!   `%q` quotes for the shell exactly as `ls --quoting=shell-escape`
+//!   does (`bore.quote_name`'s rules, made UTF-8-aware here). Neither
+//!   takes a flag, a width or a precision.
+//! - Numeric arguments are C constants: `'c` and `"c` are the code of
+//!   the next character (a warning names anything after it, unless
+//!   `POSIXLY_CORRECT`); integers are `strtoimax`/`strtoumax` in base 0
+//!   (`0x`, a leading `0` for octal, and on linux glibc's `0b`);
+//!   floating values are `strtold`. Nothing parsed is `expected a
+//!   numeric value`, a remainder is `value not completely converted`, and
+//!   out of range is the C library's `strerror(ERANGE)` — `Numerical
+//!   result out of range` (glibc) or `Result too large` (macOS); each
+//!   makes the status 1 and the conversion goes on with the value that
+//!   was parsed, clamped.
+//! - Each conversion accepts only the flags GNU accepts for it (`%#d`,
+//!   `%'x`, `%0s`, `%.2c` and `%5b` are `invalid conversion
+//!   specification`, which is fatal); length modifiers `hlLjzt` are
+//!   skipped; on linux the glibc `I` flag is accepted where glibc takes
+//!   it, and on macOS it is invalid.
+//!
+//! **The floating conversions are exact, per host.** GNU converts an
+//! argument with `strtold` and prints it with the C library, so what
+//! `%f`, `%e`, `%g` and `%a` print depends on the host's `long double`:
+//! the x87 80-bit format on linux x86-64 (a 64-bit mantissa, which is
+//! why `printf %.20f 0.1` is `0.10000000000000000000` there), IEEE
+//! binary128 on linux aarch64, and IEEE double on macOS arm64
+//! (`0.10000000000000000555`). This program never touches a hardware
+//! float: it parses the argument into an exact rational, rounds it to
+//! the host's format (nearest, ties to even, subnormals and overflow
+//! included), and prints that binary value exactly in big integers,
+//! rounding the printed digits half to even as glibc and Apple's libc
+//! do. `%a` follows each library's own layout (`0x8p-3` for 1 under
+//! x87, `0x1p+0` under Apple's).
+
+use bore
+
+// ------------------------------------------------------------------ host
+
+/// What the host's C library makes of a floating value, and how it
+/// words the parts that differ.
+struct Host {
+    linux: bool,
+    /// Mantissa bits of `long double`, the leading bit included.
+    mant: int,
+    /// The exponent of the smallest subnormal's one bit.
+    emin_lsb: int,
+    /// The exponent of the smallest normal value.
+    emin_norm: int,
+    /// The largest exponent: every finite value is below 2^(emax+1).
+    emax: int,
+    /// `%a` as glibc lays out the x87 format (a 4-bit leading digit).
+    x87: bool,
+    erange: str,
+    utf8: bool,
+    posix: bool,
+}
+
+fn host() -> Host {
+    let linux = fs_is_dir("/proc/self/fd")
+    let utf8 = locale_is_utf8()
+    let posix = !bore.permute()
+    if !linux {
+        return Host {
+            linux: false,
+            mant: 53,
+            emin_lsb: -1074,
+            emin_norm: -1022,
+            emax: 1023,
+            x87: false,
+            erange: "Result too large",
+            utf8: utf8,
+            posix: posix,
+        }
+    }
+    let arch = fs_read_text("/proc/sys/kernel/arch") else "x86_64"
+    if arch.trim() == "aarch64" {
+        return Host {
+            linux: true,
+            mant: 113,
+            emin_lsb: -16494,
+            emin_norm: -16382,
+            emax: 16383,
+            x87: false,
+            erange: "Numerical result out of range",
+            utf8: utf8,
+            posix: posix,
+        }
+    }
+    Host {
+        linux: true,
+        mant: 64,
+        emin_lsb: -16445,
+        emin_norm: -16382,
+        emax: 16383,
+        x87: true,
+        erange: "Numerical result out of range",
+        utf8: utf8,
+        posix: posix,
+    }
+}
+
+/// Whether the character set from the environment is UTF-8, on GNU's
+/// precedence: LC_ALL, then LC_CTYPE, then LANG, the first that is set.
+/// A copy of `fold`'s (itself `cut`'s and `wc`'s); see the note there.
+fn locale_is_utf8() -> bool {
+    var v = env_get("LC_ALL") else ""
+    if v.len == 0 {
+        v = env_get("LC_CTYPE") else ""
+    }
+    if v.len == 0 {
+        v = env_get("LANG") else ""
+    }
+    let dot = v.rfind(".") else -1
+    var codeset = v
+    if dot >= 0 {
+        codeset = v[dot + 1..]
+    }
+    let l = codeset.lower()
+    l == "utf-8" || l == "utf8"
+}
+
+// ------------------------------------------------------------------- main
+
+/// What has happened so far: the status to exit with, whether `\c`
+/// stopped all output, whether a fatal error did, and whether a
+/// conversion asked the C library for more than an `int` of width or
+/// precision — which glibc refuses (EOVERFLOW), so GNU prints nothing
+/// for it, carries on, and ends on `printf: write error`, status 1.
+struct St {
+    status: int,
+    stop: bool,
+    fatal: bool,
+    overflow: bool,
+}
+
+fn main() -> int {
+    let args = env_args()
+    var out = bore.stdout()
+    if args.len == 1 && args[0] == "--help" {
+        bore.put(mut out, help()) else |_| {}
+        return bore.finish(mut out, "printf", 0)
+    }
+    if args.len == 1 && args[0] == "--version" {
+        bore.put(mut out, bore.version_text("printf")) else |_| {}
+        return bore.finish(mut out, "printf", 0)
+    }
+    var first = 0
+    if args.len > 0 && args[0] == "--" {
+        first = 1
+    }
+    if args.len <= first {
+        return bore.usage_error("printf", "missing operand")
+    }
+    let h = host()
+    let fb = args[first].bytes()
+    var rest = List[str]()
+    var k = first + 1
+    while k < args.len {
+        (mut rest).push(args[k])
+        k += 1
+    }
+    var st = St { status: 0, stop: false, fatal: false, overflow: false }
+    var base = 0
+    var pass = 0
+    loop {
+        let used = run_format(mut out, fb, rest, base, h, mut st)
+        if st.stop || st.fatal {
+            break
+        }
+        if pass == 0 && used == 0 && rest.len > 0 {
+            bore.warn(
+                "printf",
+                "warning: ignoring excess arguments, starting with {bore.quote(rest[0])}",
+            )
+        }
+        pass += 1
+        base += used
+        if used == 0 || base >= rest.len {
+            break
+        }
+    }
+    if st.fatal {
+        return bore.finish(mut out, "printf", 1)
+    }
+    if st.overflow {
+        bore.flush(mut out) else |_| {
+            bore.write_error(out, "printf", "write error")
+            return 1
+        }
+        bore.warn("printf", "write error")
+        return 1
+    }
+    bore.finish(mut out, "printf", st.status)
+}
+
+// ----------------------------------------------------------------- output
+
+fn emit(mut out: bore.Out, b: int) {
+    bore.put_byte(mut out, b as byte) else |_| {}
+}
+
+fn emit_bytes(mut out: bore.Out, bs: List[byte]) {
+    for b in bs {
+        bore.put_byte(mut out, b) else |_| {}
+    }
+}
+
+fn emit_str(mut out: bore.Out, s: str) {
+    bore.put(mut out, s) else |_| {}
+}
+
+fn push_str(mut buf: List[byte], s: str) {
+    for b in s.bytes() {
+        (mut buf).push(b)
+    }
+}
+
+/// Write `bytes` to standard error as they are, which `eprint` cannot
+/// do for bytes that are not UTF-8 (a character constant's remainder,
+/// cut after its first byte under `LC_ALL=C`). Descriptor 2 is reached
+/// as `bore` reaches descriptor 1, by reopening its device.
+fn eprint_bytes(bytes: List[byte]) {
+    let fd = fs_open_mode("/dev/stderr", 2) else |_| {
+        eprint_raw(str_from_utf8(bytes) else "?")
+        return
+    }
+    fs_write_chunk(fd, bytes) else |_| {}
+    fs_close(fd) else |_| {}
+}
+
+/// Report a fatal error: GNU stops at once, status 1.
+fn fatal(mut st: St, msg: str) {
+    bore.warn("printf", msg)
+    st.fatal = true
+}
+
+// ----------------------------------------------------------------- format
+
+/// One conversion specification, as written.
+struct Spec {
+    minus: bool,
+    plus: bool,
+    space: bool,
+    alt: bool,
+    zero: bool,
+    group: bool,
+    idigits: bool,
+    width: int,
+    prec: int,
+    conv: int,
+}
+
+/// Run the FORMAT once over the arguments from `base` on. Answers how
+/// many arguments the pass consumed: the highest one it referred to.
+fn run_format(
+    mut out: bore.Out,
+    fb: List[byte],
+    args: List[str],
+    base: int,
+    h: Host,
+    mut st: St,
+) -> int {
+    var i = 0
+    var seq = 0
+    var used = 0
+    while i < fb.len && !st.stop && !st.fatal {
+        let c = fb[i] as int
+        if c == 92 {
+            i = escape(mut out, fb, i, false, h, mut st)
+            continue
+        }
+        if c != 37 {
+            emit(mut out, c)
+            i += 1
+            continue
+        }
+        let start = i
+        i += 1
+        if i < fb.len && fb[i] as int == 37 {
+            emit(mut out, 37)
+            i += 1
+            continue
+        }
+        var sp = Spec {
+            minus: false,
+            plus: false,
+            space: false,
+            alt: false,
+            zero: false,
+            group: false,
+            idigits: false,
+            width: 0,
+            prec: -1,
+            conv: 0,
+        }
+        // An argument index, `N$`, N from 1.
+        var argi = -1
+        let n1 = digits_at(fb, i)
+        if n1.len > 0 && fb[i] as int != 48 && i + n1.len < fb.len && fb[i + n1.len] as int == 36 {
+            argi = n1.value
+            i += n1.len + 1
+        }
+        // Flags.
+        var flags = true
+        while flags && i < fb.len {
+            let f = fb[i] as int
+            if f == 45 {
+                sp.minus = true
+            } else if f == 43 {
+                sp.plus = true
+            } else if f == 32 {
+                sp.space = true
+            } else if f == 35 {
+                sp.alt = true
+            } else if f == 48 {
+                sp.zero = true
+            } else if f == 39 {
+                sp.group = true
+            } else if f == 73 && h.linux {
+                sp.idigits = true
+            } else {
+                flags = false
+            }
+            if flags {
+                i += 1
+            }
+        }
+        // Width.
+        var star_w = false
+        var star_wi = -1
+        if i < fb.len && fb[i] as int == 42 {
+            star_w = true
+            i += 1
+            let n = digits_at(fb, i)
+            if n.len > 0 && i + n.len < fb.len && fb[i + n.len] as int == 36 && n.value > 0 {
+                star_wi = n.value
+                i += n.len + 1
+            }
+        } else {
+            let n = digits_at(fb, i)
+            sp.width = n.value
+            i += n.len
+        }
+        // Precision.
+        var star_p = false
+        var star_pi = -1
+        if i < fb.len && fb[i] as int == 46 {
+            i += 1
+            if i < fb.len && fb[i] as int == 42 {
+                star_p = true
+                i += 1
+                let n = digits_at(fb, i)
+                if n.len > 0 && i + n.len < fb.len && fb[i + n.len] as int == 36 && n.value > 0 {
+                    star_pi = n.value
+                    i += n.len + 1
+                }
+            } else {
+                let n = digits_at(fb, i)
+                sp.prec = n.value
+                i += n.len
+            }
+        }
+        // Length modifiers, which change nothing here.
+        while i < fb.len && is_length(fb[i] as int) {
+            i += 1
+        }
+        if i >= fb.len {
+            fatal(mut st, "{spec_text(fb, start, fb.len)}: invalid conversion specification")
+            break
+        }
+        sp.conv = fb[i] as int
+        i += 1
+        if !valid(sp, star_w, star_p) {
+            fatal(mut st, "{spec_text(fb, start, i)}: invalid conversion specification")
+            break
+        }
+        // The width and the precision arguments, then the value's.
+        if star_w {
+            var wi = star_wi - 1
+            if star_wi < 0 {
+                wi = seq
+                seq += 1
+            }
+            if wi + 1 > used {
+                used = wi + 1
+            }
+            let w = star_value(args, base + wi, h, mut st)
+            if !w.ok {
+                fatal(mut st, "invalid field width: {bore.quote(args[base + wi])}")
+                break
+            }
+            if w.value < 0 {
+                sp.minus = true
+                sp.width = 0 - w.value
+            } else {
+                sp.width = w.value
+            }
+        }
+        if star_p {
+            var pi = star_pi - 1
+            if star_pi < 0 {
+                pi = seq
+                seq += 1
+            }
+            if pi + 1 > used {
+                used = pi + 1
+            }
+            let p = star_value(args, base + pi, h, mut st)
+            if !p.ok {
+                fatal(mut st, "invalid precision: {bore.quote(args[base + pi])}")
+                break
+            }
+            if p.value < 0 {
+                sp.prec = -1
+            } else {
+                sp.prec = p.value
+            }
+        }
+        var vi = argi - 1
+        if argi < 0 {
+            vi = seq
+            seq += 1
+        }
+        if vi + 1 > used {
+            used = vi + 1
+        }
+        let have = base + vi < args.len
+        var arg = ""
+        if have {
+            arg = args[base + vi]
+        }
+        if sp.width > 2147483647 || sp.prec > 2147483647 {
+            st.overflow = true
+            continue
+        }
+        convert(mut out, sp, arg, have, h, mut st)
+    }
+    used
+}
+
+/// The text of a specification, `%` through `end`, for a diagnostic.
+fn spec_text(fb: List[byte], start: int, end: int) -> str {
+    var b = List[byte]()
+    var k = start
+    while k < end {
+        (mut b).push(fb[k])
+        k += 1
+    }
+    str_from_utf8(b) else "%"
+}
+
+fn is_length(c: int) -> bool {
+    c == 104 || c == 108 || c == 76 || c == 106 || c == 122 || c == 116
+}
+
+/// A run of decimal digits and its value, saturating at a value no
+/// width or precision can reach.
+struct Digits {
+    value: int,
+    len: int,
+}
+
+fn digits_at(b: List[byte], start: int) -> Digits {
+    var i = start
+    var v: int = 0
+    while i < b.len && b[i] as int >= 48 && b[i] as int <= 57 {
+        if v < 100000000000 {
+            v = v * 10 + (b[i] as int - 48)
+        }
+        i += 1
+    }
+    Digits { value: v, len: i - start }
+}
+
+/// Whether GNU accepts `sp` — its flags, width and precision — for its
+/// conversion, measured flag by flag against 9.11 on both hosts.
+fn valid(sp: Spec, star_w: bool, star_p: bool) -> bool {
+    let c = sp.conv
+    let has_w = star_w || sp.width > 0
+    let has_p = star_p || sp.prec >= 0
+    let any_flag = sp.minus || sp.plus || sp.space || sp.alt || sp.zero || sp.group || sp.idigits
+    if c == 100 || c == 105 || c == 117 {
+        // d i u: no `#`.
+        return !sp.alt
+    }
+    if c == 111 || c == 120 || c == 88 {
+        // o x X: no `'`, no `I`.
+        return !sp.group && !sp.idigits
+    }
+    if c == 102 || c == 70 || c == 103 || c == 71 {
+        return true
+    }
+    if c == 101 || c == 69 || c == 97 || c == 65 {
+        // e E a A: no `'`, no `I`.
+        return !sp.group && !sp.idigits
+    }
+    if c == 99 {
+        // c: `-`, `+`, ` ` and a width.
+        return !sp.alt && !sp.zero && !sp.group && !sp.idigits && !has_p
+    }
+    if c == 115 {
+        return !sp.alt && !sp.zero && !sp.group && !sp.idigits
+    }
+    if c == 98 || c == 113 {
+        return !any_flag && !has_w && !has_p
+    }
+    false
+}
+
+/// A width or precision taken from an argument: its value, and whether
+/// it fits an `int` (GNU's bound; past it the error is fatal).
+struct Star {
+    value: int,
+    ok: bool,
+}
+
+fn star_value(args: List[str], k: int, h: Host, mut st: St) -> Star {
+    if k >= args.len {
+        return Star { value: 0, ok: true }
+    }
+    let v = int_arg(args[k], true, h, mut st)
+    var n = v.mag
+    if v.neg {
+        if n > 2147483648 {
+            return Star { value: 0, ok: false }
+        }
+        return Star { value: 0 - n as int, ok: true }
+    }
+    if n > 2147483647 {
+        return Star { value: 0, ok: false }
+    }
+    Star { value: n as int, ok: true }
+}
+
+// ---------------------------------------------------------------- escapes
+
+/// Interpret the escape at `b[i]` (a backslash), writing what it means.
+/// `in_b` is `%b`'s dialect, which differs only in its octal form.
+/// Answers the index after the escape.
+fn escape(mut out: bore.Out, b: List[byte], i: int, in_b: bool, h: Host, mut st: St) -> int {
+    if i + 1 >= b.len {
+        emit(mut out, 92)
+        return i + 1
+    }
+    let c = b[i + 1] as int
+    if c == 34 || c == 92 {
+        emit(mut out, c)
+        return i + 2
+    }
+    let simple = simple_escape(c)
+    if simple >= 0 {
+        emit(mut out, simple)
+        return i + 2
+    }
+    if c == 99 {
+        st.stop = true
+        return i + 2
+    }
+    if in_b && c == 48 {
+        let o = octal_at(b, i + 2, 3)
+        emit(mut out, o.value % 256)
+        return i + 2 + o.len
+    }
+    if c >= 48 && c <= 55 && (!in_b || c != 48) {
+        let o = octal_at(b, i + 1, 3)
+        emit(mut out, o.value % 256)
+        return i + 1 + o.len
+    }
+    if c == 120 {
+        let x = hex_at(b, i + 2, 2)
+        if x.len == 0 {
+            fatal(mut st, "missing hexadecimal number in escape")
+            return b.len
+        }
+        emit(mut out, x.value)
+        return i + 2 + x.len
+    }
+    if c == 117 || c == 85 {
+        let want = if c == 117 then 4 else 8
+        let x = hex_at(b, i + 2, want)
+        if x.len < want {
+            fatal(mut st, "missing hexadecimal number in escape")
+            return b.len
+        }
+        universal(mut out, x.value, c == 117, h, mut st)
+        return i + 2 + want
+    }
+    emit(mut out, 92)
+    emit(mut out, c)
+    i + 2
+}
+
+/// The byte a one-letter escape stands for, or -1.
+fn simple_escape(c: int) -> int {
+    if c == 97 {
+        return 7
+    }
+    if c == 98 {
+        return 8
+    }
+    if c == 101 {
+        return 27
+    }
+    if c == 102 {
+        return 12
+    }
+    if c == 110 {
+        return 10
+    }
+    if c == 114 {
+        return 13
+    }
+    if c == 116 {
+        return 9
+    }
+    if c == 118 {
+        return 11
+    }
+    -1
+}
+
+/// Up to `most` octal digits at `b[i]`.
+fn octal_at(b: List[byte], start: int, most: int) -> Digits {
+    var i = start
+    var v = 0
+    while i < b.len && i - start < most && b[i] as int >= 48 && b[i] as int <= 55 {
+        v = v * 8 + (b[i] as int - 48)
+        i += 1
+    }
+    Digits { value: v, len: i - start }
+}
+
+/// Up to `most` hex digits at `b[i]`.
+fn hex_at(b: List[byte], start: int, most: int) -> Digits {
+    var i = start
+    var v: int = 0
+    while i < b.len && i - start < most && hex_digit(b[i] as int) >= 0 {
+        v = v * 16 + hex_digit(b[i] as int)
+        i += 1
+    }
+    Digits { value: v, len: i - start }
+}
+
+fn hex_digit(c: int) -> int {
+    if c >= 48 && c <= 57 {
+        return c - 48
+    }
+    if c >= 97 && c <= 102 {
+        return c - 87
+    }
+    if c >= 65 && c <= 70 {
+        return c - 55
+    }
+    -1
+}
+
+/// Write the code point a `\u` or `\U` escape names.
+fn universal(mut out: bore.Out, cp: int, short: bool, h: Host, mut st: St) {
+    if cp >= 55296 && cp <= 57343 {
+        let digits = if short then pad_hex(cp, 4, false) else pad_hex(cp, 8, false)
+        let mark = if short then "u" else "U"
+        fatal(mut st, "invalid universal character name \\{mark}{digits}")
+        return
+    }
+    if cp < 128 {
+        emit(mut out, cp)
+        return
+    }
+    if h.utf8 && cp <= 1114111 {
+        emit_bytes(mut out, utf8_bytes(cp))
+        return
+    }
+    if cp <= 65535 {
+        emit_str(mut out, "\\u{pad_hex(cp, 4, true)}")
+    } else {
+        emit_str(mut out, "\\U{pad_hex(cp, 8, true)}")
+    }
+}
+
+/// `n` in hex, at least `width` digits.
+fn pad_hex(n: int, width: int, upper: bool) -> str {
+    let digits = if upper then "0123456789ABCDEF" else "0123456789abcdef"
+    let d = digits.bytes()
+    var rev = List[byte]()
+    var v = n
+    while v > 0 || rev.len < width {
+        (mut rev).push(d[v % 16])
+        v = v / 16
+    }
+    var out = List[byte]()
+    var k = rev.len - 1
+    while k >= 0 {
+        (mut out).push(rev[k])
+        k -= 1
+    }
+    str_from_utf8(out) else "?"
+}
+
+/// The UTF-8 encoding of `cp`.
+fn utf8_bytes(cp: int) -> List[byte] {
+    var b = List[byte]()
+    if cp < 128 {
+        (mut b).push(cp as byte)
+    } else if cp < 2048 {
+        (mut b).push((192 + cp / 64) as byte)
+        (mut b).push((128 + cp % 64) as byte)
+    } else if cp < 65536 {
+        (mut b).push((224 + cp / 4096) as byte)
+        (mut b).push((128 + cp / 64 % 64) as byte)
+        (mut b).push((128 + cp % 64) as byte)
+    } else {
+        (mut b).push((240 + cp / 262144) as byte)
+        (mut b).push((128 + cp / 4096 % 64) as byte)
+        (mut b).push((128 + cp / 64 % 64) as byte)
+        (mut b).push((128 + cp % 64) as byte)
+    }
+    b
+}
+
+/// The UTF-8 character at `b[i]`: its code point and length, or a
+/// length of 0 where the bytes are not a valid character.
+struct Char {
+    cp: int,
+    len: int,
+}
+
+fn utf8_at(b: List[byte], i: int) -> Char {
+    if i >= b.len {
+        return Char { cp: 0, len: 0 }
+    }
+    let c = b[i] as int
+    if c < 128 {
+        return Char { cp: c, len: 1 }
+    }
+    var need = 0
+    var cp = 0
+    if c >= 194 && c <= 223 {
+        need = 1
+        cp = c - 192
+    } else if c >= 224 && c <= 239 {
+        need = 2
+        cp = c - 224
+    } else if c >= 240 && c <= 244 {
+        need = 3
+        cp = c - 240
+    } else {
+        return Char { cp: 0, len: 0 }
+    }
+    if i + need >= b.len {
+        return Char { cp: 0, len: 0 }
+    }
+    var k = 1
+    while k <= need {
+        let d = b[i + k] as int
+        if d < 128 || d > 191 {
+            return Char { cp: 0, len: 0 }
+        }
+        cp = cp * 64 + (d - 128)
+        k += 1
+    }
+    if need == 2 && (cp < 2048 || cp >= 55296 && cp <= 57343) {
+        return Char { cp: 0, len: 0 }
+    }
+    if need == 3 && (cp < 65536 || cp > 1114111) {
+        return Char { cp: 0, len: 0 }
+    }
+    Char { cp: cp, len: need + 1 }
+}
+
+// ------------------------------------------------------------ conversions
+
+fn convert(mut out: bore.Out, sp: Spec, arg: str, have: bool, h: Host, mut st: St) {
+    let c = sp.conv
+    if c == 115 {
+        conv_s(mut out, sp, arg)
+    } else if c == 99 {
+        conv_c(mut out, sp, arg)
+    } else if c == 98 {
+        let b = arg.bytes()
+        var i = 0
+        while i < b.len && !st.stop && !st.fatal {
+            if b[i] as int == 92 {
+                i = escape(mut out, b, i, true, h, mut st)
+            } else {
+                emit(mut out, b[i] as int)
+                i += 1
+            }
+        }
+    } else if c == 113 {
+        if have {
+            emit_bytes(mut out, shell_quote(arg, h.utf8))
+        }
+    } else if c == 100 || c == 105 || c == 111 || c == 117 || c == 120 || c == 88 {
+        conv_int(mut out, sp, arg, have, h, mut st)
+    } else {
+        conv_float(mut out, sp, arg, have, h, mut st)
+    }
+}
+
+/// Pad `body` to the width: spaces on the left, or on the right under
+/// `-`.
+fn pad_out(mut out: bore.Out, sp: Spec, body: List[byte]) {
+    var fill = sp.width - body.len
+    if !sp.minus {
+        while fill > 0 {
+            emit(mut out, 32)
+            fill -= 1
+        }
+    }
+    emit_bytes(mut out, body)
+    if sp.minus {
+        while fill > 0 {
+            emit(mut out, 32)
+            fill -= 1
+        }
+    }
+}
+
+fn conv_s(mut out: bore.Out, sp: Spec, arg: str) {
+    var body = List[byte]()
+    for b in arg.bytes() {
+        if sp.prec >= 0 && body.len >= sp.prec {
+            break
+        }
+        (mut body).push(b)
+    }
+    pad_out(mut out, sp, body)
+}
+
+fn conv_c(mut out: bore.Out, sp: Spec, arg: str) {
+    var body = List[byte]()
+    let b = arg.bytes()
+    if b.len > 0 {
+        (mut body).push(b[0])
+    } else {
+        (mut body).push(0 as byte)
+    }
+    pad_out(mut out, sp, body)
+}
+
+/// Put sign, prefix and digits together, padded as C pads them: zeros
+/// between the prefix and the digits under `0` (when `zero_ok`),
+/// spaces otherwise.
+fn assemble(
+    mut out: bore.Out,
+    sp: Spec,
+    sign: str,
+    prefix: str,
+    digits: List[byte],
+    zero_ok: bool,
+) {
+    var body = List[byte]()
+    push_str(mut body, sign)
+    push_str(mut body, prefix)
+    let len = body.len + digits.len
+    if sp.zero && !sp.minus && zero_ok && sp.width > len {
+        var fill = sp.width - len
+        while fill > 0 {
+            (mut body).push(48 as byte)
+            fill -= 1
+        }
+    }
+    for d in digits {
+        (mut body).push(d)
+    }
+    pad_out(mut out, sp, body)
+}
+
+// --------------------------------------------------------------- integers
+
+/// An integer argument: its sign and its magnitude as 64 bits.
+struct IntVal {
+    neg: bool,
+    mag: wrapping[u64],
+}
+
+fn conv_int(mut out: bore.Out, sp: Spec, arg: str, have: bool, h: Host, mut st: St) {
+    let c = sp.conv
+    let signed = c == 100 || c == 105
+    var v = IntVal { neg: false, mag: 0 }
+    if have {
+        v = int_arg(arg, signed, h, mut st)
+    }
+    var digits = List[byte]()
+    var text = ""
+    if c == 111 {
+        text = bore.u64_radix(v.mag, 3, false)
+    } else if c == 120 {
+        text = bore.u64_radix(v.mag, 4, false)
+    } else if c == 88 {
+        text = bore.u64_radix(v.mag, 4, true)
+    } else {
+        text = bore.u64_text(v.mag)
+    }
+    let zero = v.mag == 0
+    if sp.prec == 0 && zero {
+        text = ""
+    }
+    var lead = 0
+    if sp.prec > text.len {
+        lead = sp.prec - text.len
+    }
+    if c == 111 && sp.alt && lead == 0 && !text.starts_with("0") {
+        lead = 1
+    }
+    while lead > 0 {
+        (mut digits).push(48 as byte)
+        lead -= 1
+    }
+    push_str(mut digits, text)
+    var sign = ""
+    if signed {
+        if v.neg {
+            sign = "-"
+        } else if sp.plus {
+            sign = "+"
+        } else if sp.space {
+            sign = " "
+        }
+    }
+    var prefix = ""
+    if sp.alt && !zero && c == 120 {
+        prefix = "0x"
+    }
+    if sp.alt && !zero && c == 88 {
+        prefix = "0X"
+    }
+    assemble(mut out, sp, sign, prefix, digits, sp.prec < 0)
+}
+
+/// Report a numeric argument's problem in GNU's words.
+fn numeric_error(mut st: St, arg: str, why: str) {
+    bore.warn("printf", "{bore.quote(arg)}: {why}")
+    st.status = 1
+}
+
+/// A character constant (`'c` or `"c`): the character's code, and a
+/// warning for anything after it unless POSIXLY_CORRECT. Answers -1
+/// when `arg` is not one.
+fn char_constant(arg: str, h: Host, mut st: St) -> int {
+    let b = arg.bytes()
+    if b.len == 0 || b[0] as int != 39 && b[0] as int != 34 {
+        return -1
+    }
+    if b.len == 1 {
+        numeric_error(mut st, arg, "expected a numeric value")
+        return 0
+    }
+    var code = b[1] as int
+    var len = 1
+    if h.utf8 {
+        let ch = utf8_at(b, 1)
+        if ch.len > 0 {
+            code = ch.cp
+            len = ch.len
+        }
+    }
+    if 1 + len < b.len && !h.posix {
+        var rest = List[byte]()
+        push_str(mut rest, "printf: warning: ")
+        var k = 1 + len
+        while k < b.len {
+            (mut rest).push(b[k])
+            k += 1
+        }
+        push_str(mut rest, ": character(s) following character constant have been ignored\n")
+        eprint_bytes(rest)
+    }
+    code
+}
+
+/// `strtoimax`/`strtoumax` in base 0, with GNU's diagnostics. A signed
+/// value is clamped to 64-bit two's complement; an unsigned one wraps
+/// a negative magnitude as C does.
+fn int_arg(arg: str, signed: bool, h: Host, mut st: St) -> IntVal {
+    let cc = char_constant(arg, h, mut st)
+    if cc >= 0 {
+        return IntVal { neg: false, mag: cc as wrapping[u64] }
+    }
+    let b = arg.bytes()
+    var i = 0
+    while i < b.len && is_space(b[i] as int) {
+        i += 1
+    }
+    var neg = false
+    if i < b.len && (b[i] as int == 43 || b[i] as int == 45) {
+        neg = b[i] as int == 45
+        i += 1
+    }
+    var radix = 10
+    var start = i
+    if i < b.len && b[i] as int == 48 {
+        radix = 8
+        if i + 2 < b.len {
+            let x = b[i + 1] as int
+            let y = b[i + 2] as int
+            if (x == 120 || x == 88) && hex_digit(y) >= 0 {
+                radix = 16
+                i += 2
+                start = i
+            } else if h.linux && (x == 98 || x == 66) && (y == 48 || y == 49) {
+                radix = 2
+                i += 2
+                start = i
+            }
+        }
+    }
+    var mag: wrapping[u64] = 0
+    var over = false
+    while i < b.len {
+        let d = digit_in(b[i] as int, radix)
+        if d < 0 {
+            break
+        }
+        if !over {
+            if mag > limit_of(radix) || radix == 10 && mag == limit_of(10) && d > 5 {
+                over = true
+            } else {
+                mag = mag * radix as wrapping[u64] + d as wrapping[u64]
+            }
+        }
+        i += 1
+    }
+    if i == start {
+        numeric_error(mut st, arg, "expected a numeric value")
+        return IntVal { neg: false, mag: 0 }
+    }
+    let trailing = i < b.len
+    if signed {
+        let top: wrapping[u64] = 9223372036854775807
+        if over || !neg && mag > top || neg && mag > top + 1 {
+            numeric_error(mut st, arg, h.erange)
+            if neg {
+                return IntVal { neg: true, mag: top + 1 }
+            }
+            return IntVal { neg: false, mag: top }
+        }
+        if trailing {
+            numeric_error(mut st, arg, "value not completely converted")
+        }
+        return IntVal { neg: neg && mag != 0, mag: mag }
+    }
+    if over {
+        numeric_error(mut st, arg, h.erange)
+        return IntVal { neg: false, mag: 18446744073709551615 }
+    }
+    if trailing {
+        numeric_error(mut st, arg, "value not completely converted")
+    }
+    if neg {
+        let zero: wrapping[u64] = 0
+        return IntVal { neg: false, mag: zero - mag }
+    }
+    IntVal { neg: false, mag: mag }
+}
+
+/// The largest magnitude that one more digit in `radix` cannot
+/// overflow (for 10, the last digit must also be at most 5).
+fn limit_of(radix: int) -> wrapping[u64] {
+    if radix == 16 {
+        return 1152921504606846975
+    }
+    if radix == 8 {
+        return 2305843009213693951
+    }
+    if radix == 2 {
+        return 9223372036854775807
+    }
+    1844674407370955161
+}
+
+fn digit_in(c: int, radix: int) -> int {
+    let d = hex_digit(c)
+    if d < 0 || d >= radix {
+        return -1
+    }
+    d
+}
+
+/// C's `isspace` in the C locale.
+fn is_space(c: int) -> bool {
+    c == 32 || c >= 9 && c <= 13
+}
+
+// -------------------------------------------------------- big naturals
+
+// A natural number as little-endian limbs of 24 bits, with no zero
+// limb on top; zero is the empty list. 24 bits so that a limb times a
+// limb, plus a carry, stays far inside an `int`.
+
+fn limb() -> int {
+    16777216
+}
+
+fn mask() -> int {
+    16777215
+}
+
+/// `a` without zero limbs on top.
+fn bn_norm(a: List[int]) -> List[int] {
+    var n = a.len
+    while n > 0 && a[n - 1] == 0 {
+        n -= 1
+    }
+    var r = List[int]()
+    var i = 0
+    while i < n {
+        (mut r).push(a[i])
+        i += 1
+    }
+    r
+}
+
+fn bn_of(n: int) -> List[int] {
+    var a = List[int]()
+    var v = n
+    while v > 0 {
+        (mut a).push(v % limb())
+        v = v / limb()
+    }
+    a
+}
+
+fn bn_bitlen(a: List[int]) -> int {
+    if a.len == 0 {
+        return 0
+    }
+    var top = a[a.len - 1]
+    var bits = 0
+    while top > 0 {
+        bits += 1
+        top = top / 2
+    }
+    bits + 24 * (a.len - 1)
+}
+
+fn bn_cmp(a: List[int], b: List[int]) -> int {
+    if a.len != b.len {
+        return if a.len < b.len then -1 else 1
+    }
+    var i = a.len - 1
+    while i >= 0 {
+        if a[i] != b[i] {
+            return if a[i] < b[i] then -1 else 1
+        }
+        i -= 1
+    }
+    0
+}
+
+fn bn_add(a: List[int], b: List[int]) -> List[int] {
+    var r = List[int]()
+    var carry = 0
+    var i = 0
+    while i < a.len || i < b.len || carry > 0 {
+        var s = carry
+        if i < a.len {
+            s += a[i]
+        }
+        if i < b.len {
+            s += b[i]
+        }
+        (mut r).push(s % limb())
+        carry = s / limb()
+        i += 1
+    }
+    r
+}
+
+/// `a - b`, for `a >= b`.
+fn bn_sub(a: List[int], b: List[int]) -> List[int] {
+    var r = List[int]()
+    var owe = 0
+    var i = 0
+    while i < a.len {
+        var s = a[i] - owe
+        if i < b.len {
+            s -= b[i]
+        }
+        if s < 0 {
+            s += limb()
+            owe = 1
+        } else {
+            owe = 0
+        }
+        (mut r).push(s)
+        i += 1
+    }
+    bn_norm(r)
+}
+
+/// `a * k` for `0 <= k <= 2^31`.
+fn bn_mul_small(a: List[int], k: int) -> List[int] {
+    var r = List[int]()
+    if k == 0 {
+        return r
+    }
+    var carry: int = 0
+    for x in a {
+        let p = x * k + carry
+        (mut r).push(p % limb())
+        carry = p / limb()
+    }
+    while carry > 0 {
+        (mut r).push(carry % limb())
+        carry = carry / limb()
+    }
+    r
+}
+
+fn bn_add_small(a: List[int], k: int) -> List[int] {
+    bn_add(a, bn_of(k))
+}
+
+fn bn_mul(a: List[int], b: List[int]) -> List[int] {
+    if a.len == 0 || b.len == 0 {
+        return List[int]()
+    }
+    var r = List[int]()
+    var n = 0
+    while n < a.len + b.len {
+        (mut r).push(0)
+        n += 1
+    }
+    var i = 0
+    while i < a.len {
+        var carry: int = 0
+        var j = 0
+        while j < b.len {
+            let cur = r[i + j] + a[i] * b[j] + carry
+            r[i + j] = cur % limb()
+            carry = cur / limb()
+            j += 1
+        }
+        var k = i + b.len
+        while carry > 0 {
+            let cur = r[k] + carry
+            r[k] = cur % limb()
+            carry = cur / limb()
+            k += 1
+        }
+        i += 1
+    }
+    bn_norm(r)
+}
+
+fn bn_shl(a: List[int], s: int) -> List[int] {
+    if a.len == 0 {
+        return List[int]()
+    }
+    var r = List[int]()
+    var w = s / 24
+    let bits = s % 24
+    while w > 0 {
+        (mut r).push(0)
+        w -= 1
+    }
+    var mult = 1
+    var k = 0
+    while k < bits {
+        mult = mult * 2
+        k += 1
+    }
+    var carry = 0
+    for x in a {
+        let p = x * mult + carry
+        (mut r).push(p % limb())
+        carry = p / limb()
+    }
+    if carry > 0 {
+        (mut r).push(carry)
+    }
+    r
+}
+
+fn bn_shr(a: List[int], s: int) -> List[int] {
+    let w = s / 24
+    let bits = s % 24
+    var div = 1
+    var k = 0
+    while k < bits {
+        div = div * 2
+        k += 1
+    }
+    var r = List[int]()
+    var i = w
+    while i < a.len {
+        var v = a[i] / div
+        if i + 1 < a.len {
+            v += a[i + 1] % div * (limb() / div)
+        }
+        (mut r).push(v)
+        i += 1
+    }
+    bn_norm(r)
+}
+
+/// Bit `i` of `a`.
+fn bn_bit(a: List[int], i: int) -> int {
+    let w = i / 24
+    if w >= a.len {
+        return 0
+    }
+    var v = a[w]
+    var k = i % 24
+    while k > 0 {
+        v = v / 2
+        k -= 1
+    }
+    v % 2
+}
+
+/// Whether any of the low `s` bits of `a` is set.
+fn bn_low_nonzero(a: List[int], s: int) -> bool {
+    let w = s / 24
+    var i = 0
+    while i < w && i < a.len {
+        if a[i] != 0 {
+            return true
+        }
+        i += 1
+    }
+    if w < a.len {
+        var div = 1
+        var k = 0
+        while k < s % 24 {
+            div = div * 2
+            k += 1
+        }
+        if a[w] % div != 0 {
+            return true
+        }
+    }
+    false
+}
+
+struct DivSmall {
+    q: List[int],
+    r: int,
+}
+
+/// `a / k` and `a % k`, for `0 < k <= 2^24`.
+fn bn_divmod_small(a: List[int], k: int) -> DivSmall {
+    var q = List[int]()
+    var n = 0
+    while n < a.len {
+        (mut q).push(0)
+        n += 1
+    }
+    var r: int = 0
+    var i = a.len - 1
+    while i >= 0 {
+        let cur = r * limb() + a[i]
+        q[i] = cur / k
+        r = cur % k
+        i -= 1
+    }
+    DivSmall { q: bn_norm(q), r: r }
+}
+
+struct DivBig {
+    q: List[int],
+    r: List[int],
+}
+
+/// `a / b` and `a % b` by binary long division; the callers keep the
+/// quotient to a few hundred bits at most.
+fn bn_divmod(a: List[int], b: List[int]) -> DivBig {
+    if bn_cmp(a, b) < 0 {
+        return DivBig { q: List[int](), r: copy a }
+    }
+    let shift = bn_bitlen(a) - bn_bitlen(b)
+    var r = copy a
+    var q = List[int]()
+    var d = bn_shl(b, shift)
+    var i = shift
+    while i >= 0 {
+        if bn_cmp(r, d) >= 0 {
+            r = bn_sub(r, d)
+            q = bn_add(q, bn_shl(bn_of(1), i))
+        }
+        d = bn_shr(d, 1)
+        i -= 1
+    }
+    DivBig { q: q, r: r }
+}
+
+/// `base ^ n`, for a small base.
+fn bn_pow(base: int, n: int) -> List[int] {
+    var r = bn_of(1)
+    var step = 1
+    var chunk = 0
+    while chunk < 10 && step * base <= 16777216 {
+        step = step * base
+        chunk += 1
+    }
+    var left = n
+    while left >= chunk && chunk > 0 {
+        r = bn_mul_small(r, step)
+        left -= chunk
+    }
+    while left > 0 {
+        r = bn_mul_small(r, base)
+        left -= 1
+    }
+    r
+}
+
+/// `a` in decimal.
+fn bn_dec(a: List[int]) -> List[byte] {
+    var out = List[byte]()
+    if a.len == 0 {
+        (mut out).push(48 as byte)
+        return out
+    }
+    var groups = List[int]()
+    var v = copy a
+    while v.len > 0 {
+        let d = bn_divmod_small(v, 1000000)
+        (mut groups).push(d.r)
+        v = d.q
+    }
+    var g = groups.len - 1
+    var first = true
+    while g >= 0 {
+        let text = "{groups[g]}"
+        if !first {
+            var pad = 6 - text.len
+            while pad > 0 {
+                (mut out).push(48 as byte)
+                pad -= 1
+            }
+        }
+        push_str(mut out, text)
+        first = false
+        g -= 1
+    }
+    out
+}
+
+/// A natural from decimal digit values, most significant first.
+fn bn_from_digits(ds: List[int]) -> List[int] {
+    var r = List[int]()
+    var i = 0
+    while i < ds.len {
+        var chunk = 0
+        var mult = 1
+        var k = 0
+        while k < 6 && i < ds.len {
+            chunk = chunk * 10 + ds[i]
+            mult = mult * 10
+            i += 1
+            k += 1
+        }
+        r = bn_add_small(bn_mul_small(r, mult), chunk)
+    }
+    r
+}
+
+/// `num / den`, rounded to nearest with ties to even, and whether
+/// anything was rounded away.
+struct Rounded {
+    q: List[int],
+    inexact: bool,
+}
+
+fn bn_div_round(num: List[int], den: List[int]) -> Rounded {
+    let p = pow2_index(den)
+    if p >= 0 {
+        return bn_shr_round(num, p)
+    }
+    let d = bn_divmod(num, den)
+    if d.r.len == 0 {
+        return Rounded { q: d.q, inexact: false }
+    }
+    let c = bn_cmp(bn_shl(d.r, 1), den)
+    if c > 0 || c == 0 && bn_bit(d.q, 0) == 1 {
+        return Rounded { q: bn_add_small(d.q, 1), inexact: true }
+    }
+    Rounded { q: d.q, inexact: true }
+}
+
+/// `num / 2^s`, rounded half to even.
+fn bn_shr_round(num: List[int], s: int) -> Rounded {
+    if s <= 0 {
+        return Rounded { q: bn_shl(num, 0 - s), inexact: false }
+    }
+    let q = bn_shr(num, s)
+    let half = bn_bit(num, s - 1) == 1
+    let sticky = bn_low_nonzero(num, s - 1)
+    if half && (sticky || bn_bit(q, 0) == 1) {
+        return Rounded { q: bn_add_small(q, 1), inexact: true }
+    }
+    Rounded { q: q, inexact: half || sticky }
+}
+
+/// `k` when `a` is exactly 2^k, else -1.
+fn pow2_index(a: List[int]) -> int {
+    if a.len == 0 {
+        return -1
+    }
+    var i = 0
+    while i < a.len - 1 {
+        if a[i] != 0 {
+            return -1
+        }
+        i += 1
+    }
+    var top = a[a.len - 1]
+    var k = 0
+    while top % 2 == 0 {
+        top = top / 2
+        k += 1
+    }
+    if top != 1 {
+        return -1
+    }
+    k + 24 * (a.len - 1)
+}
+
+// ------------------------------------------------------------ floating
+
+/// A value in the host's `long double`: finite (`m * 2^e`, `m` at most
+/// `mant` bits), infinite or NaN, with a sign either way.
+struct Flt {
+    kind: int,
+    neg: bool,
+    m: List[int],
+    e: int,
+}
+
+/// What `strtold` read: the kind, the sign, and an exact finite value,
+/// `m * 10^e` (decimal) or `m * 2^e` (hex), with `ndig` significant
+/// decimal digits; `end` is where it stopped, `start` where the number
+/// itself began (after blanks and a sign).
+struct Lex {
+    kind: int,
+    neg: bool,
+    m: List[int],
+    e: int,
+    hex: bool,
+    ndig: int,
+    start: int,
+    end: int,
+}
+
+fn lex_float(b: List[byte]) -> Lex {
+    var i = 0
+    while i < b.len && is_space(b[i] as int) {
+        i += 1
+    }
+    var neg = false
+    if i < b.len && (b[i] as int == 43 || b[i] as int == 45) {
+        neg = b[i] as int == 45
+        i += 1
+    }
+    let start = i
+    var lx = Lex {
+        kind: 0,
+        neg: neg,
+        m: List[int](),
+        e: 0,
+        hex: false,
+        ndig: 0,
+        start: start,
+        end: start,
+    }
+    if word_at(b, i, "infinity") {
+        lx.kind = 1
+        lx.end = i + 8
+        return lx
+    }
+    if word_at(b, i, "inf") {
+        lx.kind = 1
+        lx.end = i + 3
+        return lx
+    }
+    if word_at(b, i, "nan") {
+        lx.kind = 2
+        lx.end = i + 3
+        var j = i + 3
+        if j < b.len && b[j] as int == 40 {
+            j += 1
+            while j < b.len && is_nchar(b[j] as int) {
+                j += 1
+            }
+            if j < b.len && b[j] as int == 41 {
+                lx.end = j + 1
+            }
+        }
+        return lx
+    }
+    if i + 1 < b.len && b[i] as int == 48 && (b[i + 1] as int == 120 || b[i + 1] as int == 88) {
+        if lex_hex(b, i + 2, mut lx) {
+            return lx
+        }
+    }
+    lex_dec(b, i, mut lx)
+    lx
+}
+
+fn is_nchar(c: int) -> bool {
+    c >= 48 && c <= 57 || c >= 65 && c <= 90 || c >= 97 && c <= 122 || c == 95
+}
+
+/// Whether `w` (lower case) is at `b[i]`, in any case.
+fn word_at(b: List[byte], i: int, w: str) -> bool {
+    let wb = w.bytes()
+    if i + wb.len > b.len {
+        return false
+    }
+    var k = 0
+    while k < wb.len {
+        var c = b[i + k] as int
+        if c >= 65 && c <= 90 {
+            c += 32
+        }
+        if c != wb[k] as int {
+            return false
+        }
+        k += 1
+    }
+    true
+}
+
+/// A decimal number at `b[i]`; with no digit at all, nothing is read.
+fn lex_dec(b: List[byte], start: int, mut lx: Lex) {
+    var i = start
+    var ds = List[int]()
+    var frac = 0
+    var seen = false
+    while i < b.len && b[i] as int >= 48 && b[i] as int <= 57 {
+        seen = true
+        if ds.len > 0 || b[i] as int != 48 {
+            (mut ds).push(b[i] as int - 48)
+        }
+        i += 1
+    }
+    if i < b.len && b[i] as int == 46 {
+        var j = i + 1
+        var fseen = false
+        while j < b.len && b[j] as int >= 48 && b[j] as int <= 57 {
+            fseen = true
+            if ds.len > 0 || b[j] as int != 48 {
+                (mut ds).push(b[j] as int - 48)
+            }
+            frac += 1
+            j += 1
+        }
+        if seen || fseen {
+            seen = true
+            i = j
+        }
+    }
+    if !seen {
+        return
+    }
+    var e = exp_part(b, i, 101, 69)
+    if e.len > 0 {
+        i += e.len
+    }
+    lx.m = bn_from_digits(ds)
+    lx.ndig = ds.len
+    lx.e = clamp(e.value - frac)
+    lx.end = i
+}
+
+/// A hex float after its `0x` at `b[i]`; answers false (reading
+/// nothing) when no hex digit follows, so `0x` is a `0` and an `x`.
+fn lex_hex(b: List[byte], start: int, mut lx: Lex) -> bool {
+    var i = start
+    var m = List[int]()
+    var e = 0
+    var seen = false
+    var leading = true
+    while i < b.len && hex_digit(b[i] as int) >= 0 {
+        seen = true
+        let d = hex_digit(b[i] as int)
+        if !(leading && d == 0) {
+            leading = false
+            m = bn_add_small(bn_mul_small(m, 16), d)
+        }
+        i += 1
+    }
+    if i < b.len && b[i] as int == 46 {
+        var j = i + 1
+        var fseen = false
+        while j < b.len && hex_digit(b[j] as int) >= 0 {
+            fseen = true
+            let d = hex_digit(b[j] as int)
+            if !(leading && d == 0) {
+                leading = false
+                m = bn_add_small(bn_mul_small(m, 16), d)
+            }
+            e -= 4
+            j += 1
+        }
+        if seen || fseen {
+            seen = true
+            i = j
+        }
+    }
+    if !seen {
+        return false
+    }
+    let p = exp_part(b, i, 112, 80)
+    if p.len > 0 {
+        i += p.len
+    }
+    lx.m = m
+    lx.e = clamp(e + p.value)
+    lx.hex = true
+    lx.end = i
+    true
+}
+
+/// An exponent: the marker, an optional sign, at least one digit. A
+/// length of 0 when there is none, so `1e` is a `1` and an `e`.
+struct ExpPart {
+    value: int,
+    len: int,
+}
+
+fn exp_part(b: List[byte], i: int, lower: int, upper: int) -> ExpPart {
+    if i >= b.len || b[i] as int != lower && b[i] as int != upper {
+        return ExpPart { value: 0, len: 0 }
+    }
+    var j = i + 1
+    var neg = false
+    if j < b.len && (b[j] as int == 43 || b[j] as int == 45) {
+        neg = b[j] as int == 45
+        j += 1
+    }
+    if j >= b.len || b[j] as int < 48 || b[j] as int > 57 {
+        return ExpPart { value: 0, len: 0 }
+    }
+    var v: int = 0
+    while j < b.len && b[j] as int >= 48 && b[j] as int <= 57 {
+        if v < 1000000000 {
+            v = v * 10 + (b[j] as int - 48)
+        }
+        j += 1
+    }
+    if neg {
+        v = 0 - v
+    }
+    ExpPart { value: v, len: j - i }
+}
+
+fn clamp(v: int) -> int {
+    if v > 1000000000 {
+        return 1000000000
+    }
+    if v < -1000000000 {
+        return -1000000000
+    }
+    v
+}
+
+/// The value `lx` names, rounded to the host's `long double`, and
+/// whether `strtold` would set ERANGE: an overflow, or a result that is
+/// subnormal (or zero) and inexact.
+struct Conv {
+    v: Flt,
+    erange: bool,
+}
+
+fn to_host(lx: Lex, h: Host) -> Conv {
+    if lx.kind != 0 {
+        return Conv { v: Flt { kind: lx.kind, neg: lx.neg, m: List[int](), e: 0 }, erange: false }
+    }
+    let zero = Flt { kind: 0, neg: lx.neg, m: List[int](), e: 0 }
+    let inf = Flt { kind: 1, neg: lx.neg, m: List[int](), e: 0 }
+    if lx.m.len == 0 {
+        return Conv { v: zero, erange: false }
+    }
+    // Far outside the range: no need to compute anything.
+    var lg = 0
+    if lx.hex {
+        lg = bn_bitlen(lx.m) - 1 + lx.e
+        if lg > h.emax + 1 {
+            return Conv { v: inf, erange: true }
+        }
+        if lg < h.emin_lsb - 2 {
+            return Conv { v: zero, erange: true }
+        }
+    } else {
+        let top10 = lx.ndig + lx.e
+        if top10 - 1 > h.emax * 30103 / 100000 + 2 {
+            return Conv { v: inf, erange: true }
+        }
+        if top10 < floor_div(h.emin_lsb * 30103, 100000) - 2 {
+            return Conv { v: zero, erange: true }
+        }
+        lg = bn_bitlen(lx.m) - 1 + floor_div(lx.e * 332192809, 100000000)
+    }
+    var p5 = List[int]()
+    if !lx.hex {
+        if lx.e >= 0 {
+            p5 = bn_pow(5, lx.e)
+        } else {
+            p5 = bn_pow(5, 0 - lx.e)
+        }
+    }
+    var e2 = lg - (h.mant - 1)
+    if e2 < h.emin_lsb {
+        e2 = h.emin_lsb
+    }
+    var r = scaled(lx, p5, e2)
+    var tries = 0
+    while tries < 12 {
+        let bl = bn_bitlen(r.q)
+        if bl > h.mant {
+            e2 += bl - h.mant
+        } else if bl < h.mant && e2 > h.emin_lsb {
+            var ne = e2 - (h.mant - bl)
+            if ne < h.emin_lsb {
+                ne = h.emin_lsb
+            }
+            e2 = ne
+        } else {
+            break
+        }
+        r = scaled(lx, p5, e2)
+        tries += 1
+    }
+    if r.q.len == 0 {
+        return Conv { v: zero, erange: true }
+    }
+    let bl = bn_bitlen(r.q)
+    if bl - 1 + e2 > h.emax {
+        return Conv { v: inf, erange: true }
+    }
+    let v = Flt { kind: 0, neg: lx.neg, m: r.q, e: e2 }
+    Conv { v: v, erange: r.inexact && bl < h.mant }
+}
+
+fn floor_div(a: int, b: int) -> int {
+    let q = a / b
+    if a % b != 0 && (a < 0) != (b < 0) {
+        return q - 1
+    }
+    q
+}
+
+/// The lexed value divided by 2^e2, rounded half to even. `p5` is
+/// 5^|e| for a decimal value.
+fn scaled(lx: Lex, p5: List[int], e2: int) -> Rounded {
+    var num = copy lx.m
+    var den = bn_of(1)
+    if !lx.hex {
+        if lx.e >= 0 {
+            num = bn_mul(num, p5)
+        } else {
+            den = copy p5
+        }
+    }
+    let s = lx.e - e2
+    if s >= 0 {
+        num = bn_shl(num, s)
+    } else {
+        den = bn_shl(den, 0 - s)
+    }
+    bn_div_round(num, den)
+}
+
+/// A floating argument, with GNU's diagnostics.
+fn float_arg(arg: str, h: Host, mut st: St) -> Flt {
+    let cc = char_constant(arg, h, mut st)
+    if cc >= 0 {
+        return Flt { kind: 0, neg: false, m: bn_of(cc), e: 0 }
+    }
+    let b = arg.bytes()
+    let lx = lex_float(b)
+    if lx.end == lx.start {
+        numeric_error(mut st, arg, "expected a numeric value")
+        return Flt { kind: 0, neg: false, m: List[int](), e: 0 }
+    }
+    let c = to_host(lx, h)
+    if c.erange {
+        numeric_error(mut st, arg, h.erange)
+    } else if lx.end < b.len {
+        numeric_error(mut st, arg, "value not completely converted")
+    }
+    c.v
+}
+
+fn conv_float(mut out: bore.Out, sp: Spec, arg: str, have: bool, h: Host, mut st: St) {
+    var v = Flt { kind: 0, neg: false, m: List[int](), e: 0 }
+    if have {
+        v = float_arg(arg, h, mut st)
+    }
+    let c = sp.conv
+    let upper = c == 70 || c == 69 || c == 71 || c == 65
+    var sign = ""
+    let show_sign = v.kind != 2 || h.linux
+    if v.neg && show_sign {
+        sign = "-"
+    } else if sp.plus && show_sign {
+        sign = "+"
+    } else if sp.space && show_sign {
+        sign = " "
+    }
+    if v.kind != 0 {
+        var body = List[byte]()
+        var word = if v.kind == 1 then "inf" else "nan"
+        if upper {
+            word = word.upper()
+        }
+        push_str(mut body, word)
+        assemble(mut out, sp, sign, "", body, false)
+        return
+    }
+    var digits = List[byte]()
+    var prefix = ""
+    if c == 102 || c == 70 {
+        let p = if sp.prec < 0 then 6 else sp.prec
+        digits = fmt_f(v, p, sp.alt)
+    } else if c == 101 || c == 69 {
+        let p = if sp.prec < 0 then 6 else sp.prec
+        digits = fmt_e(v, p, sp.alt, upper)
+    } else if c == 103 || c == 71 {
+        digits = fmt_g(v, sp.prec, sp.alt, upper)
+    } else {
+        prefix = if upper then "0X" else "0x"
+        digits = fmt_a(v, sp.prec, sp.alt, upper, h)
+    }
+    if sp.idigits && (c == 102 || c == 70 || c == 103 || c == 71) {
+        // glibc's `I` flag under the C locale: the digits are mapped to
+        // the locale's own and come out as nothing at all.
+        var kept = List[byte]()
+        for d in digits {
+            if d as int < 48 || d as int > 57 {
+                (mut kept).push(d)
+            }
+        }
+        digits = kept
+    }
+    assemble(mut out, sp, sign, prefix, digits, true)
+}
+
+/// `%f`: the value rounded to `p` decimals, half to even on the exact
+/// binary value.
+fn fmt_f(v: Flt, p: int, alt: bool) -> List[byte] {
+    var num = bn_mul(v.m, bn_pow(10, p))
+    var x = List[int]()
+    if v.e >= 0 {
+        x = bn_shl(num, v.e)
+    } else {
+        x = bn_shr_round(num, 0 - v.e).q
+    }
+    let ds = bn_dec(x)
+    var all = List[byte]()
+    var pad = p + 1 - ds.len
+    while pad > 0 {
+        (mut all).push(48 as byte)
+        pad -= 1
+    }
+    for d in ds {
+        (mut all).push(d)
+    }
+    var r = List[byte]()
+    let cut = all.len - p
+    var i = 0
+    while i < cut {
+        (mut r).push(all[i])
+        i += 1
+    }
+    if p > 0 || alt {
+        (mut r).push(46 as byte)
+    }
+    while i < all.len {
+        (mut r).push(all[i])
+        i += 1
+    }
+    r
+}
+
+/// The `p + 1` significant digits of `v` rounded half to even, and its
+/// decimal exponent after the rounding.
+struct Sci {
+    ds: List[byte],
+    x10: int,
+}
+
+fn sci(v: Flt, p: int) -> Sci {
+    if v.m.len == 0 {
+        var z = List[byte]()
+        var k = 0
+        while k <= p {
+            (mut z).push(48 as byte)
+            k += 1
+        }
+        return Sci { ds: z, x10: 0 }
+    }
+    let lo = bn_pow(10, p)
+    let hi = bn_pow(10, p + 1)
+    var x10 = floor_div((bn_bitlen(v.m) - 1 + v.e) * 30102999566, 100000000000)
+    var d = scaled_dec(v, p - x10)
+    var tries = 0
+    while tries < 8 {
+        if bn_cmp(d, hi) >= 0 {
+            x10 += 1
+        } else if bn_cmp(d, lo) < 0 {
+            x10 -= 1
+        } else {
+            break
+        }
+        d = scaled_dec(v, p - x10)
+        tries += 1
+    }
+    Sci { ds: bn_dec(d), x10: x10 }
+}
+
+/// `v * 10^k`, rounded half to even.
+fn scaled_dec(v: Flt, k: int) -> List[int] {
+    var num = copy v.m
+    var den = bn_of(1)
+    if k >= 0 {
+        num = bn_mul(num, bn_pow(10, k))
+    } else {
+        den = bn_pow(10, 0 - k)
+    }
+    if v.e >= 0 {
+        num = bn_shl(num, v.e)
+    } else {
+        den = bn_shl(den, 0 - v.e)
+    }
+    bn_div_round(num, den).q
+}
+
+fn exp_text(x10: int, upper: bool) -> str {
+    let e = if upper then "E" else "e"
+    var n = x10
+    var sign = "+"
+    if n < 0 {
+        sign = "-"
+        n = 0 - n
+    }
+    if n < 10 {
+        return "{e}{sign}0{n}"
+    }
+    "{e}{sign}{n}"
+}
+
+fn fmt_e(v: Flt, p: int, alt: bool, upper: bool) -> List[byte] {
+    let s = sci(v, p)
+    var r = List[byte]()
+    (mut r).push(s.ds[0])
+    if p > 0 || alt {
+        (mut r).push(46 as byte)
+    }
+    var i = 1
+    while i < s.ds.len {
+        (mut r).push(s.ds[i])
+        i += 1
+    }
+    push_str(mut r, exp_text(s.x10, upper))
+    r
+}
+
+fn fmt_g(v: Flt, prec: int, alt: bool, upper: bool) -> List[byte] {
+    var p = prec
+    if p < 0 {
+        p = 6
+    }
+    if p == 0 {
+        p = 1
+    }
+    var x10 = 0
+    if v.m.len > 0 {
+        x10 = sci(v, p - 1).x10
+    }
+    var r = List[byte]()
+    var tail = List[byte]()
+    if x10 < p && x10 >= -4 {
+        r = fmt_f(v, p - 1 - x10, alt)
+    } else {
+        let s = sci(v, p - 1)
+        (mut r).push(s.ds[0])
+        if p - 1 > 0 || alt {
+            (mut r).push(46 as byte)
+        }
+        var i = 1
+        while i < s.ds.len {
+            (mut r).push(s.ds[i])
+            i += 1
+        }
+        push_str(mut tail, exp_text(s.x10, upper))
+    }
+    if !alt {
+        var has_point = false
+        for d in r {
+            if d as int == 46 {
+                has_point = true
+            }
+        }
+        if has_point {
+            var n = r.len
+            while n > 0 && r[n - 1] as int == 48 {
+                n -= 1
+            }
+            if n > 0 && r[n - 1] as int == 46 {
+                n -= 1
+            }
+            var cut = List[byte]()
+            var i = 0
+            while i < n {
+                (mut cut).push(r[i])
+                i += 1
+            }
+            r = cut
+        }
+    }
+    for d in tail {
+        (mut r).push(d)
+    }
+    r
+}
+
+/// `%a`, in the host library's own layout: glibc's x87 form puts the
+/// top four mantissa bits before the point (`0x8p-3` for 1); Apple's,
+/// and glibc's for binary128, put a single 1 (`0x1p+0`), and print a
+/// subnormal as `0x0.…p` of the smallest normal exponent.
+fn fmt_a(v: Flt, prec: int, alt: bool, upper: bool, h: Host) -> List[byte] {
+    var lead = 0
+    var frac = List[int]()
+    var fbits = 0
+    var exp = 0
+    if v.m.len == 0 {
+        lead = 0
+        fbits = 0
+        exp = 0
+    } else if h.x87 {
+        fbits = 60
+        let t = bn_shr(v.m, 60)
+        if t.len > 0 {
+            lead = t[0]
+        }
+        frac = low_bits(v.m, 60)
+        exp = v.e + 60
+    } else {
+        fbits = h.mant - 1
+        if bn_bitlen(v.m) == h.mant {
+            lead = 1
+            frac = low_bits(v.m, fbits)
+            exp = v.e + fbits
+        } else {
+            lead = 0
+            frac = copy v.m
+            exp = h.emin_norm
+        }
+    }
+    let nibbles = fbits / 4
+    var keep = nibbles
+    if prec >= 0 && prec < nibbles {
+        keep = prec
+        // Round lead.frac to `keep` hex digits, half to even.
+        let whole = bn_add(bn_shl(bn_of(lead), fbits), frac)
+        let r = bn_shr_round(whole, 4 * (nibbles - keep)).q
+        lead = 0
+        let top = bn_shr(r, 4 * keep)
+        if top.len > 0 {
+            lead = top[0]
+        }
+        frac = low_bits(r, 4 * keep)
+        fbits = 4 * keep
+        if h.x87 && lead == 16 {
+            lead = 1
+            exp += 4
+        }
+    }
+    var hex = List[byte]()
+    let digits = if upper then "0123456789ABCDEF" else "0123456789abcdef"
+    let db = digits.bytes()
+    var k = keep - 1
+    while k >= 0 {
+        let d = bn_shr(frac, 4 * k)
+        var nib = 0
+        if d.len > 0 {
+            nib = d[0] % 16
+        }
+        (mut hex).push(db[nib])
+        k -= 1
+    }
+    var n = hex.len
+    if prec < 0 {
+        while n > 0 && hex[n - 1] as int == 48 {
+            n -= 1
+        }
+    } else {
+        while hex.len < prec {
+            (mut hex).push(48 as byte)
+        }
+        n = hex.len
+    }
+    var r = List[byte]()
+    (mut r).push(db[lead])
+    if n > 0 || alt {
+        (mut r).push(46 as byte)
+    }
+    var i = 0
+    while i < n {
+        (mut r).push(hex[i])
+        i += 1
+    }
+    let pm = if upper then "P" else "p"
+    let es = if exp < 0 then "-" else "+"
+    let ea = if exp < 0 then 0 - exp else exp
+    push_str(mut r, "{pm}{es}{ea}")
+    r
+}
+
+/// The low `s` bits of `a`.
+fn low_bits(a: List[int], s: int) -> List[int] {
+    bn_sub(a, bn_shl(bn_shr(a, s), s))
+}
+
+// ---------------------------------------------------------------- quoting
+
+/// `%q`: `s` quoted for the shell in `ls --quoting=shell-escape`'s
+/// style — `bore.quote_name`'s rules, with a UTF-8 locale's printable
+/// characters (U+00A0 and up, valid UTF-8) left as they are.
+fn shell_quote(s: str, utf8: bool) -> List[byte] {
+    if !utf8 {
+        var r = List[byte]()
+        push_str(mut r, bore.quote_name(s))
+        return r
+    }
+    let b = s.bytes()
+    var r = List[byte]()
+    if b.len == 0 {
+        push_str(mut r, "''")
+        return r
+    }
+    // Units: a printable run is copied; anything else is escaped.
+    var nonprint = false
+    var needs = false
+    var has_quote = false
+    var no_dquote = false
+    var i = 0
+    while i < b.len {
+        let ch = utf8_at(b, i)
+        let n = b[i] as int
+        if ch.len > 1 && ch.cp >= 160 {
+            i += ch.len
+            continue
+        }
+        if n < 32 || n >= 127 {
+            nonprint = true
+        }
+        if quote_needs(n, i == 0) {
+            needs = true
+        }
+        if n == 39 {
+            has_quote = true
+        }
+        if quote_breaks_dquote(n) {
+            no_dquote = true
+        }
+        i += 1
+    }
+    if !nonprint && !needs {
+        push_str(mut r, s)
+        return r
+    }
+    if !nonprint && has_quote && !no_dquote {
+        push_str(mut r, "\"{s}\"")
+        return r
+    }
+    if !nonprint {
+        push_str(mut r, "'")
+        for c in b {
+            if c as int == 39 {
+                push_str(mut r, "'\\''")
+            } else {
+                (mut r).push(c)
+            }
+        }
+        push_str(mut r, "'")
+        return r
+    }
+    push_str(mut r, "'")
+    var escaping = false
+    var k = 0
+    while k < b.len {
+        let ch = utf8_at(b, k)
+        let n = b[k] as int
+        let printable = n >= 32 && n < 127 || ch.len > 1 && ch.cp >= 160
+        if printable {
+            if escaping {
+                push_str(mut r, "''")
+                escaping = false
+            }
+            var w = 1
+            if ch.len > 1 {
+                w = ch.len
+            }
+            if n == 39 {
+                push_str(mut r, "'\\''")
+            } else {
+                var j = 0
+                while j < w {
+                    (mut r).push(b[k + j])
+                    j += 1
+                }
+            }
+            k += w
+        } else {
+            if !escaping {
+                push_str(mut r, "'$'")
+                escaping = true
+            }
+            push_str(mut r, octal_escape(n))
+            k += 1
+        }
+    }
+    push_str(mut r, "'")
+    r
+}
+
+fn quote_needs(n: int, first: bool) -> bool {
+    if first && (n == 35 || n == 126) {
+        return true
+    }
+    n == 32 ||
+        n == 33 ||
+        n == 34 ||
+        n == 36 ||
+        n == 38 ||
+        n == 39 ||
+        n == 40 ||
+        n == 41 ||
+        n == 42 ||
+        n == 58 ||
+        n == 59 ||
+        n == 60 ||
+        n == 61 ||
+        n == 62 ||
+        n == 63 ||
+        n == 91 ||
+        n == 92 ||
+        n == 94 ||
+        n == 96 ||
+        n == 124
+}
+
+fn quote_breaks_dquote(n: int) -> bool {
+    n == 33 ||
+        n == 34 ||
+        n == 35 ||
+        n == 36 ||
+        n == 38 ||
+        n == 40 ||
+        n == 41 ||
+        n == 42 ||
+        n == 59 ||
+        n == 60 ||
+        n == 61 ||
+        n == 62 ||
+        n == 63 ||
+        n == 91 ||
+        n == 92 ||
+        n == 94 ||
+        n == 96 ||
+        n == 123 ||
+        n == 124 ||
+        n == 125 ||
+        n == 126
+}
+
+/// The `$'…'` escape for the byte `n`.
+fn octal_escape(n: int) -> str {
+    if n == 7 {
+        return "\\a"
+    }
+    if n == 8 {
+        return "\\b"
+    }
+    if n == 9 {
+        return "\\t"
+    }
+    if n == 10 {
+        return "\\n"
+    }
+    if n == 11 {
+        return "\\v"
+    }
+    if n == 12 {
+        return "\\f"
+    }
+    if n == 13 {
+        return "\\r"
+    }
+    "\\{n / 64}{n / 8 % 8}{n % 8}"
+}
+
+fn help() -> str {
+    """
+    Usage: printf FORMAT [ARGUMENT]...
+      or:  printf OPTION
+    Write the ARGUMENTs under the control of FORMAT, as C's printf does,
+    reusing FORMAT until every ARGUMENT is used.
+
+          --help     print this help and exit
+          --version  print the version and exit
+
+    FORMAT's escapes: \\" \\\\ \\a \\b \\c (stop) \\e \\f \\n \\r \\t \\v,
+    \\NNN (octal), \\xHH, \\uHHHH and \\UHHHHHHHH.
+
+    Its conversions: %d %i %o %u %x %X, %f %F %e %E %g %G %a %A, %c %s,
+    %b (the ARGUMENT with escapes; octal as \\0NNN) and %q (quoted for
+    the shell), with C's flags, width and precision, %N$ to name an
+    ARGUMENT, and * to take a width or precision from one.
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}
