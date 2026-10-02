@@ -29,8 +29,8 @@
 //! lines, SORTED (determinism over environ order)"). So `printenv` with
 //! no operand prints the same lines as GNU in a different order whenever
 //! the environment was not already sorted, and leaves out a non-UTF-8
-//! entry. Filed upstream (wolf-lang, `env_vars`); the listing cases are
-//! skips that say so. A NAMED variable is looked up with `env_get` and
+//! entry. Filed upstream as wolf-lang#535; the listing cases are skips
+//! that say so. A NAMED variable is looked up with `env_get` and
 //! is exact.
 
 use bore

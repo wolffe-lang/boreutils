@@ -161,19 +161,19 @@ compare = ["exit"]
 
 [[case]]
 name = "every variable"
-skip = "wolf 0.2.20 lists the environment only through env_vars(), which answers it SORTED; GNU prints the order the process received, and the harness hands every case PATH before LC_ALL (filed upstream)"
+skip = "wolf 0.2.20 lists the environment only through env_vars(), which answers it SORTED; GNU prints the order the process received, and the harness hands every case PATH before LC_ALL (wolf-lang#535)"
 
 [[case]]
 name = "every variable, NUL-terminated"
 args = ["-0"]
-skip = "wolf 0.2.20 lists the environment only through env_vars(), which answers it SORTED; GNU prints the order the process received, and the harness hands every case PATH before LC_ALL (filed upstream)"
+skip = "wolf 0.2.20 lists the environment only through env_vars(), which answers it SORTED; GNU prints the order the process received, and the harness hands every case PATH before LC_ALL (wolf-lang#535)"
 
 [[case]]
 name = "every variable, with one the case adds"
 env = { ZED = "1" }
-skip = "wolf 0.2.20 lists the environment only through env_vars(), which answers it SORTED; GNU prints the order the process received, and the harness hands every case PATH before LC_ALL (filed upstream)"
+skip = "wolf 0.2.20 lists the environment only through env_vars(), which answers it SORTED; GNU prints the order the process received, and the harness hands every case PATH before LC_ALL (wolf-lang#535)"
 
 [[case]]
 name = "the listing after --"
 args = ["--"]
-skip = "wolf 0.2.20 lists the environment only through env_vars(), which answers it SORTED; GNU prints the order the process received, and the harness hands every case PATH before LC_ALL (filed upstream)"
+skip = "wolf 0.2.20 lists the environment only through env_vars(), which answers it SORTED; GNU prints the order the process received, and the harness hands every case PATH before LC_ALL (wolf-lang#535)"
