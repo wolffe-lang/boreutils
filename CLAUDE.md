@@ -114,3 +114,14 @@ against GNU. The short form for a new utility:
   call (wolf-lang#408): use `bore.Out`.
 - No permissions (wolf-lang#346), no pids (wolf-lang#141), no `isatty`,
   no `strerror` text behind a row (wolf-lang#407).
+- No exec, no environment unset or clear, and a spawned child's stdin is
+  the null device (wolf-lang#534); `env_vars()` lists the environment
+  only sorted (wolf-lang#535); no file identity, so two names or
+  descriptors for one file cannot be recognised (wolf-lang#536).
+- `wrapping[u64]` interpolates its top-bit values as signed and cannot
+  be divided on the native tier (wolf-lang#538): use `bore.u64_text`
+  and `bore.u64_radix`.
+- A case that must see a FILE a utility writes, or stand in a directory
+  whose path it knows, uses `tools/difftest`'s scratch directory
+  (`scratch`, `scratch_dirs`, `scratch_links`, `scratch_modes`, `cwd`,
+  `{scratch}`); its `files` field is gated by `tests/selftest/tee.toml`.
