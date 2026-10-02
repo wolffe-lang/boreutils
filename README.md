@@ -148,14 +148,16 @@ derives no boreutils code from GPL source.
 ## Status
 
 Every utility below is byte-for-byte identical to GNU coreutils 9.11 on
-its differential corpus. The corpus holds **2,114 cases**; a run on
-kasumi (linux x86-64) at this pin answers **2,094 passed, 0 failed, 20
-skipped**, and CI's macOS leg **2,077 passed, 0 failed, 37 skipped**
-(run 36044150121): the seventeen more are every `/dev/full` case, one
-or two per utility, because macOS has no `/dev/full` (the two skip lists
-diffed, nothing else differs). (The previous edition of this sentence said 1,753 and 19 for
-the 1,772-case corpus, and "five more" on macOS; kasumi answered 1,752
-and 20 at that commit, `eac2a32`, and macOS 37 at this lane's first
+its differential corpus, except where a case says otherwise and is
+skipped with its reason. The corpus holds **2,674 cases**; a run on
+kasumi (linux x86-64) at this pin answers **2,642 passed, 0 failed, 32
+skipped**, and CI's macOS leg MACOS_TODO: the MACOS_MORE more are every
+`/dev/full` case, one or two per utility, because macOS has no
+`/dev/full`. (The previous edition of this sentence, before bu14's six
+utilities, said 2,114 cases, 2,094 and 20 on kasumi, and 2,077 and 37
+on macOS, run 36044150121; before that it said 1,753 and 19 for the
+1,772-case corpus, and "five more" on macOS; kasumi answered 1,752
+and 20 at that commit, `eac2a32`, and macOS 37 at that lane's first
 green, run 36029854007.) The corpus
 and the run are stated separately on purpose: an earlier edition of this
 paragraph called the passing count the case count, which quietly
@@ -193,6 +195,14 @@ that are numbers OUT OF RANGE, where GNU appends the C library's
 shape as `nl -w 0` — and two `tac -r` expressions, `\(…\)` and `\|`,
 that are outside the regular-expression subset that utility states in
 its header.
+
+**The small-surface set adds twelve skips, and not one of them is a C
+library's.** Each is a wolf 0.2.20 gap, filed with a witness and named
+in the case file: `printenv`'s four bare listings (wolf lists the
+environment only sorted, wolf-lang#535), `pwd -L` beside a `cp -a` twin
+of the working directory (no file identity, wolf-lang#536), and `tee`'s
+seven — five broken-pipe branches of `-p` and `--output-error`, and
+`-i` twice, all of which need a signal ignored (wolf-lang#423).
 
 "vs GNU" is wall-clock from `tools/bench`, GNU's time divided by ours,
 so above 1.00 is faster than GNU. It is a measurement on a stated host,
@@ -641,6 +651,84 @@ at the default budget peaked at 1,060 MB and at `-S 10M` grew to 61 MB.
 fail with `cannot create temporary file in '…'` — a differential case,
 which a sort that never spilled could not pass.
 
+The small-surface set — `tee`, `printf`, `printenv`, `pwd`, `sleep`
+and `nproc` — is bu14's, and the wave asked for `env` beside them. **`env`
+is not here**, because its job is to run COMMAND in a modified
+environment and wolf 0.2.20 has no way to do that: no exec, no unset or
+clear, no child working directory, a spawned child's standard input
+wired to the null device, and a signal death that loses its number
+(wolf-lang#534, with the witness). Its print-only half would be
+`printenv` with a sorted listing, which is not the utility.
+
+The six each have a header that says what they cannot do, and each such
+thing is a filed issue rather than a quiet difference:
+
+- **`tee`** refuses `-i` by name (SIGINT cannot be ignored), and every
+  broken-pipe branch of `-p` and `--output-error` dies of SIGPIPE where
+  GNU carries on (wolf-lang#423). The non-pipe half of those modes — a
+  full disk, a closed descriptor, a file that cannot be opened — is
+  implemented and has cases, and the cases see the FILES it writes:
+  `tools/difftest` gained a scratch directory per case for this, gated
+  by two planted differences that must fail by name.
+- **`printf`** has every conversion GNU 9.11 has, `%N$` and `*`
+  included, and its floating conversions are exact against the HOST's
+  `long double`: x87 on linux x86-64 (`printf %.20f 0.1` is
+  `0.10000000000000000000`), IEEE double on macOS
+  (`0.10000000000000000555`), rounded and printed in big integers. Two
+  random runs of 2,300 and 2,500 floating and integer conversions
+  against GNU on kasumi found no difference.
+- **`printenv`** prints a named variable exactly and the bare listing
+  sorted (wolf-lang#535).
+- **`pwd`** is physical by default as GNU's is; `-L` decides whether
+  `$PWD` names the working directory from its type, size, time and
+  listing, because there is no inode to compare (wolf-lang#536).
+- **`sleep`** sleeps in whole milliseconds, rounding up.
+- **`nproc`** counts what `os_cpus` counts, which agrees with GNU under
+  an affinity mask and differs under a FRACTIONAL cgroup quota, where it
+  rounds down and GNU up (wolf-lang#537; the whole `nproc` file under
+  `CPUQuota=150%` is 55 passed and 23 failed, under 200% 78 of 78).
+
+kasumi (linux x86-64, 16 cpus) at load 1.2–1.4, release tier, GNU
+coreutils 9.11. The start-up rows are `hyperfine -N` over 300 runs, so
+the ratio is real at a fraction of a millisecond; `true` (249 µs
+against 177 µs, 0.71x) is the floor every wolf binary here pays. The
+`printf` rows are 10,000 arguments built by the shell; `tee` is 256 MiB
+of text.
+
+| bench | boreutils | GNU | vs GNU |
+|---|---:|---:|---:|
+| `sleep 0`, start-up | 258 µs | 227 µs | 0.88x |
+| `nproc`, start-up | 290 µs | 231 µs | 0.80x |
+| `pwd`, start-up | 261 µs | 209 µs | 0.80x |
+| `printenv PATH`, start-up | 261 µs | 204 µs | 0.78x |
+| `printf x`, start-up | 270 µs | 208 µs | 0.77x |
+| `sleep 0.1` | 100.5 ms | 100.6 ms | 1.00x |
+| `sleep 0.0105`, between two milliseconds | 11.4 ms | 10.9 ms | 0.95x |
+| `printf '%d\n'`, 10,000 integers | 6.0 ms | 4.1 ms | 0.68x |
+| `printf '%x\n'`, 10,000 integers | 6.5 ms | 4.0 ms | 0.61x |
+| `printf '%s\n'`, 10,000 words | 5.7 ms | 4.9 ms | 0.86x |
+| `printf '%.6f\n'`, 10,000 decimals | 29.8 ms | 8.1 ms | 0.27x |
+| `printf '%g\n'`, 10,000 decimals | 41.1 ms | 7.9 ms | 0.19x |
+| `printf '%e\n'`, 10,000 decimals | 34.8 ms | 7.8 ms | 0.22x |
+| `tee`, no file, to `/dev/null` | 32.5 ms | 22.6 ms | 0.70x |
+| `tee FILE` | 124 ms | 158 ms | **1.27x** |
+| `tee FILE FILE2` | 265 ms | 305 ms | **1.15x** |
+
+**`printf`'s floating rows cost a big-integer conversion each way, and
+were 0.03x before one change.** The first measurement read 0.04x, 0.03x
+and 0.04x (218 ms, 227 ms and 220 ms): every argument was divided by a
+power of five bit by bit. Dividing by a one-limb divisor in one pass —
+every decimal with ten or fewer digits after its point — took them to
+0.19x–0.27x, with both random runs re-taken on the faster binary and
+still clean. glibc converts in hardware and prints with its own exact
+printer; this program has no hardware float in the loop at all, which
+is why it can match two different `long double`s.
+
+**`tee` to a file is AHEAD of GNU**, and only there: GNU's copy into a
+file swung by ±29 ms across five runs where ours held ±4 ms. Peak RSS
+over 256 MiB is 2.9 MB against GNU's 2.2 MB, one `region` per 256 KiB
+chunk.
+
 | utility | status | vs GNU |
 |---|---|---|
 | `true` | done | start-up only |
@@ -664,3 +752,119 @@ which a sort that never spilled could not pass.
 | `expand` | done | **1.01x to 8.47x** (linux) |
 | `unexpand` | done | **1.00x to 9.23x** (linux) |
 | `sort` | done: `-bdfhiMnr`, `-k`, `-t`, `-u`, `-s`, `-c`/`-C`, `-m`, `-o`, `-z`, the external merge; not `-g`, `-V`, `-R`, `--debug`, `--files0-from`, `--compress-program` | 0.10x to 0.45x (linux) |
+| `tee` | done; `-i` refused, and `-p`/`--output-error` without their broken-pipe branches (wolf-lang#423) | 0.70x to **1.27x** (linux) |
+| `printf` | done: every conversion, `%b`, `%q`, `%N$`, `*`; floats exact in the host's `long double` | 0.19x to 0.86x; start-up 0.77x (linux) |
+| `printenv` | done; the bare listing sorted (wolf-lang#535) | start-up 0.78x (linux) |
+| `pwd` | done; `-L` without an inode (wolf-lang#536) | start-up 0.80x (linux) |
+| `sleep` | done, to the millisecond | start-up 0.88x; `sleep 0.1` 1.00x (linux) |
+| `nproc` | done; a fractional cgroup quota rounds down (wolf-lang#537) | start-up 0.80x (linux) |
+| `env` | not shipped: no exec (wolf-lang#534) | — |
+
+## Drop-in readiness
+
+Can a script call the boreutils program where it called GNU's? This
+table answers it per utility, from the evidence and from nothing else.
+
+- **GNU options** are the entries GNU 9.11's own `--help` lists (a short
+  and long spelling of one option are one entry), counted as covered
+  when a passing differential case exercises the option and this
+  program does not refuse it. An option that appears only in a case
+  where GNU refuses it too — `sort -ng` — is not counted as covered.
+- **Cases** are kasumi's, at this commit: passed / skipped, none failed.
+  CI's macOS leg runs the same cases and skips the `/dev/full` ones as
+  well.
+- **vs GNU** is the band of the rows in the tables above, kasumi only,
+  GNU's time over ours. A start-up row is `hyperfine -N` over 300 runs.
+- **The verdict is mechanical.** *Drop-in* when every option is covered
+  and every skip is one of the two hosts' C libraries or devices
+  disagreeing with each other. *Drop-in for scripts that avoid X* when an
+  option is missing or refused, or a skip is this program's own. *Not
+  yet* when the utility's central job does not hold. Slowness never
+  lowers a verdict; it is the third column.
+
+| utility | GNU options | cases | vs GNU (kasumi) | verdict |
+|---|---:|---:|---|---|
+| `true` | 2 / 2 | 13 / 0 | start-up 0.71x | drop-in |
+| `false` | 2 / 2 | 11 / 0 | start-up 0.72x | drop-in |
+| `echo` | 5 / 5 | 45 / 0 | start-up 0.80x | drop-in |
+| `basename` | 5 / 5 | 48 / 0 | start-up 0.80x | drop-in |
+| `dirname` | 3 / 3 | 27 / 0 | start-up 0.80x | drop-in |
+| `yes` | 2 / 2 | 18 / 0 | 0.63x | drop-in |
+| `cat` | 12 / 12 | 116 / 0 | 0.16x to 0.97x | drop-in for scripts that never make an input its own output: `cat f >> f` and `cat < f >> f` refuse in GNU (`input file is output file`, status 1) and grow `f` without end here, because nothing in wolf can tell that two descriptors name one file (wolf-lang#424, #536); no case can reach it |
+| `wc` | 10 / 10 | 143 / 4 | 0.01x to 0.88x | drop-in for scripts that do not read the REASON in an ENOTDIR or ELOOP diagnostic (wolf-lang#407); the other two skips are the hosts' `wcwidth` |
+| `head` | 7 / 7 | 121 / 0 | 0.04x to 0.86x | drop-in |
+| `tail` | 12 / 14 | 129 / 2 | 0.002x (a file) to 1.00x (a pipe) | drop-in for scripts that avoid 9.11's `--debug` (refused) and `--max-unchanged-stats` (accepted, no case); the skips are follows that never end, and a file is read whole (wolf-lang#426) |
+| `cut` | 10 / 13 | 124 / 0 | 0.27x to 0.63x | drop-in for scripts that avoid 9.11's `-F`, `-w` and the short `-O` (`--output-delimiter` works) |
+| `tr` | 6 / 6 | 146 / 0 | 0.34x to 3.72x | drop-in |
+| `uniq` | 13 / 13 | 124 / 1 | 0.45x to 1.01x | drop-in; the skip is the hosts' `/dev/stdout` |
+| `seq` | 5 / 5 | 122 / 6 | 0.07x to 1.96x | drop-in for scripts that avoid `-f %a`; where GNU's `long double` loops or misrounds, `seq` is exact instead |
+| `nl` | 13 / 13 | 104 / 2 | 0.51x to 1.20x | drop-in for scripts that avoid a BRE interval, group or back reference in `-b`, `-h` or `-f p…` |
+| `tac` | 5 / 5 | 99 / 3 | 0.18x to 2.79x | drop-in for scripts that avoid `-r` with a group or an alternation |
+| `paste` | 5 / 5 | 94 / 0 | 0.35x to 0.57x | drop-in |
+| `fold` | 6 / 6 | 100 / 2 | 1.07x to 5.15x | drop-in; the skips are the hosts' `strerror(ERANGE)` |
+| `expand` | 5 / 5 | 88 / 0 | 1.01x to 8.47x | drop-in |
+| `unexpand` | 6 / 6 | 98 / 0 | 1.00x to 9.23x | drop-in |
+| `sort` | 24 / 31 | 324 / 0 | 0.10x to 0.45x | drop-in for scripts that avoid `-g`, `-V`, `-R`, `--random-source`, `--debug`, `--files0-from` and `--compress-program`, each refused by name |
+| `tee` | 5 / 6 | 62 / 7 | 0.70x to 1.27x | drop-in for scripts that avoid `-i` (refused) and do not need `-p` or `--output-error` to survive a reader that leaves early (wolf-lang#423) |
+| `printf` | 2 / 2, and all 19 conversions | 270 / 0 | 0.19x to 0.86x | drop-in |
+| `printenv` | 3 / 3 | 33 / 4 | start-up 0.78x | drop-in for scripts that name their variables; the bare listing is sorted (wolf-lang#535) |
+| `pwd` | 4 / 4 | 44 / 1 | start-up 0.80x | drop-in for scripts that avoid `-L` with a `$PWD` naming a same-time twin of the working directory (wolf-lang#536) |
+| `sleep` | 2 / 2 | 61 / 0 | start-up 0.88x, `sleep 0.1` 1.00x | drop-in |
+| `nproc` | 4 / 4 | 78 / 0 | start-up 0.80x | drop-in outside a fractional cgroup cpu quota (wolf-lang#537) |
+| `env` | 0 / 14 | not shipped | — | not yet: no exec (wolf-lang#534) |
+
+**15 drop-in, 12 drop-in for scripts that avoid a named thing, 1 not
+yet.** The same evidence read across: no shipped utility fails a case,
+and every skip that is this program's own names the wolf issue behind
+it.
+
+**How much of GNU coreutils this is.** GNU coreutils 9.11 documents
+**103 utilities** (its info manual's `invocation` nodes, the four SHA-2
+sums counted as one and `[` as `test`; Arch's build installs 102
+binaries and leaves out `arch`, `chcon`, `runcon`, `hostname`, `kill`
+and `uptime`). boreutils ships **27 of them, 26%**, and `env` is the
+28th row above. Effort is not what blocks most of the other 76: wolf
+0.2.20 has no surface for them, and each gap boreutils has met is filed
+upstream with its witness. The OS surface lane is cutting the first
+ones now (wave 53's s199: wolf-lang#426 and #424).
+
+- **#346**, no permission surface: `chmod`, `install -m`, `mkdir -m`,
+  `mkfifo`/`mknod -m`, `mktemp`'s private file, `cp -p`.
+- **#405**, no byte surface for descriptors 0 and 1: every utility here
+  reopens `/dev/stdin` and `/dev/stdout`, which on linux loses the
+  shared offset and refuses a socket, and which is why windows is out
+  of scope; `dd` and anything that must share its caller's offset.
+- **#407**, no errno behind an `io` row: every failure past
+  not-found, denied and is-a-directory says `Input/output error`, so
+  `rm`, `cp`, `mv`, `ln`, `mkdir` and `rmdir` would give the wrong
+  reason on most of their failures.
+- **#411**, no bulk byte scan: the throughput of `wc -l` and every line
+  or byte search (a speed gap, not a correctness one).
+- **#416**, a streaming read allocates and the ambient region never
+  frees: worked around here with one `region` per chunk.
+- **#417**, no `splice`, `copy_file_range` or `sendfile`: `cat` and a
+  future `cp` copy through user space (`cat` is 0.16x on linux).
+- **#423**, no signal disposition but four meanings: `tee -p`/`-i`
+  here; `timeout`, `kill`, `nohup` and `env --ignore-signal` beyond.
+- **#424**, `fs_fstat` cannot see descriptors 0, 1 and 2: `cat`'s
+  input-is-output refusal (with #536), `wc -c` and `tail` on a
+  redirected regular file.
+- **#426**, no seek, tell or positional read: `tail` and `tac` on a
+  regular file read it whole (`tail -n 10` is 111 ms against 0.2 ms);
+  `dd skip=`/`seek=`, `truncate`, `shred`.
+- **#534**, no exec and no inherited stdin for a child: `env`, `nice`,
+  `nohup`, `timeout`, `chroot`, `stdbuf`.
+- **#535**, the environment listed only sorted: `printenv` and `env`.
+- **#536**, no file identity: `cp`/`mv`/`ln`'s same-file refusals,
+  `du`'s hard links, `ls -i`, `stat`, `pwd -L`.
+- **#537**, `os_cpus` rounds a fractional quota down: `nproc`.
+- **#538**, `wrapping[u64]` prints signed and cannot be divided
+  natively: worked around in `src/bore/u64.lu`.
+
+Beyond those, the host builtin table at 0.2.20 has no call that creates
+or reads a link (`ln`, `link`, `readlink`, `realpath`), changes a mode,
+an owner or a time (`chmod`, `chown`, `chgrp`, `touch`), names a user
+or a group (`id`, `whoami`, `groups`, `logname`, `users`, `who`,
+`pinky`), formats calendar time (`date`, `ls -l`), or asks about a
+terminal (`tty`, `stty`). Those are not filed yet; each will be, with
+its witness, by the lane whose utility meets it first (B6, the census).
