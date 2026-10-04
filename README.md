@@ -63,7 +63,7 @@ GNU coreutils is the oracle and must be installed: natively on linux,
 record** below.
 
 **Windows is out of scope.** The only byte-exact route to standard
-input and output in wolf 0.2.20 is reopening `/dev/stdin` and
+input and output in wolf 0.2.22 is reopening `/dev/stdin` and
 `/dev/stdout` (wolf-lang#405), which windows does not have. CI runs on
 linux and macOS.
 
@@ -85,7 +85,7 @@ and measured black-box against GNU:
   works around it.
 
 Two things GNU says that boreutils cannot yet say. The reason text
-after a failed write is `strerror(errno)`, and wolf 0.2.20 carries no
+after a failed write is `strerror(errno)`, and wolf 0.2.22 carries no
 errno text behind an `io` row (wolf-lang#407), so a full disk is
 `write error: Input/output error` here against GNU's `write error: No
 space left on device`; the status is the same and the differential case
@@ -200,7 +200,7 @@ that are outside the regular-expression subset that utility states in
 its header.
 
 **The small-surface set adds twelve skips, and not one of them is a C
-library's.** Each is a wolf 0.2.20 gap, filed with a witness and named
+library's.** Each is a wolf 0.2.22 gap, filed with a witness and named
 in the case file: `printenv`'s four bare listings (wolf lists the
 environment only sorted, wolf-lang#535), `pwd -L` beside a `cp -a` twin
 of the working directory (no file identity, wolf-lang#536), and `tee`'s
@@ -234,7 +234,7 @@ and kasumi idle.
 | `wc -l` | 174 ms vs GNU 160 ms (0.92x) | 128 ms vs GNU 22 ms (0.17x) |
 | `wc -L` | 719 ms vs GNU 613 ms (0.85x) | 834 ms vs GNU 464 ms (0.56x) |
 | `wc -c`, a file | 5.7 ms vs GNU 7.0 ms (1.23x) | 0.2 ms vs GNU 0.2 ms (tie) |
-| `wc -c`, through `<` | 74 ms vs GNU 7 ms (0.10x) | 36 ms vs GNU 0.5 ms (0.01x) |
+| `wc -c`, through `<` | 74 ms vs GNU 7 ms (0.10x) | 36 ms vs GNU 0.5 ms (0.01x); **0.43 ms vs GNU 0.39 ms** since bu15 (wolf 0.2.22, linux) |
 
 `wc` is the first utility whose flags had to be benched separately,
 because each takes a different path, and the first whose locale had to
@@ -248,9 +248,15 @@ Where GNU reaches for SIMD it wins by a lot: `wc --debug -l` reports
 `using avx512 hardware support` on kasumi, and no bulk byte scan is
 expressible in pure wolf today (wolf-lang#411, filed with every
 alternative measured). `-c` on a file operand is an `fstat` on both
-sides, so it measures start-up; through a redirect GNU still `fstat`s
-and we must read, because `wc -c` owes size minus the current offset and
-wolf has no seek or tell (wolf-lang#405).
+sides, so it measures start-up. Through a redirect GNU `fstat`s and
+asks the offset, because `wc -c` owes size minus the current offset;
+before wolf 0.2.22 we could ask neither and read the whole input
+(34 ms on 256 MiB). Since bu15 we ask both, and the row is start-up
+too: 0.43 ms against 0.39 ms, hyperfine 50 runs, kasumi at load 5–7.
+The size is believed only when two positional reads confirm it, so a
+sysfs or `/proc` file, whose size lies, is read and counted as GNU
+counts it (trunk said 4096 and 0 for two of them, where GNU said 23
+and 144).
 
 **Read the macOS column with its load.** nomad-1 was at load 13.9 with
 other lanes on it, and contention flatters every ratio there, because
@@ -282,7 +288,7 @@ file is 16 MiB of nought-to-seven-letter lines.
 So `cat` starts up level with GNU on both hosts and loses on bulk
 copying, by 1.6x on macOS and by 6x on linux. GNU moves the bytes
 without a round trip through user space where the host allows it, and
-wolf 0.2.20 exposes neither `splice` nor `copy_file_range`, so every
+wolf 0.2.22 exposes neither `splice` nor `copy_file_range`, so every
 byte we copy is read into a list and written back out.
 
 Memory is level, and flat in the size of the input either way: copying
@@ -294,13 +300,38 @@ chunk — without it the same copy peaked at 340 MB and `cat -n` at
 
 `head`, `tail` and `cut` have a table of their own, because they are
 the first utilities where reading the whole file is a defect rather than
-a style choice. Release tier, GNU coreutils 9.11, 5 runs, 256 MiB of
-generated text, kasumi at load 1.4. **These numbers are linux only**:
-wave 45 forbids builds on nomad-1, so macOS is CI's job on this branch
-and not a column here.
+a style choice. **These numbers are linux only**: wave 45 forbids
+builds on nomad-1, so macOS is CI's job and not a column here.
+
+**`tail` and `head` read from the end since wolf 0.2.22** (bu15,
+boreutils#19). Until then wolf had no seek, no tell and no positional
+read (wolf-lang#426), so `tail -n 10` of a regular file read all of it
+and `head -n -K` held a window over everything. 0.2.22 has all three,
+and descriptor 0 answers them (`[os.fs.std]`), so a regular file —
+named, or standard input that is one — is read from where the answer
+starts, as GNU reads it. What each program does with each kind of
+input:
+
+| | a regular file | standard input that is a regular file | a pipe |
+|---|---|---|---|
+| `tail -n K` | walk back 8 KiB at a time from the end to the last K lines, then a positional copy | the same, counted from descriptor 0's offset; the offset is left at the end | read forward through the window |
+| `tail -c K` | a positional copy of the last K bytes | the same, from the offset | read forward through the window |
+| `tail -c +K` | a seek past K - 1 bytes, then a copy | the same, from the offset | read and discard K - 1 bytes |
+| `tail -n +K` | read forward from the start (lines must be counted) | read forward from the offset | read forward |
+| `head -c -K` | copy the first end - K bytes | the same, from the offset; the offset is left past the output | the window |
+| `head -n -K` | walk back K lines from the end, then copy what precedes them | the same, from the offset | the window |
+| `head -n K`, `-c K` | read forward and stop (as before) | the same; the offset is put back just past the output, as GNU puts it | read forward and stop |
+| `wc -c` | the size, no read | the size minus the offset, no read; the offset is left at the end | read |
+
+A file whose `fstat` size cannot be trusted is read forward like a pipe:
+a sysfs attribute reports 4096 bytes whatever it holds, and a `/proc`
+file reports 0, and GNU reads both. `bore.verified_end` believes a size
+only when the byte before it exists and nothing exists at it, which is
+two positional reads.
 
 **The `head` question, answered with a syscall count and not an
-adjective.** `head -n 1` of a 268,435,456-byte file:
+adjective.** `head -n 1` and `tail -n 10` of a 268,435,456-byte file,
+`strace` of the read-family calls on the file's descriptor:
 
 | | read calls | bytes read | max RSS |
 |---|---:|---:|---:|
@@ -308,54 +339,74 @@ adjective.** `head -n 1` of a 268,435,456-byte file:
 | `head -n 1`, GNU | 4 | 12,214 | 2.3 MB |
 | `head -c 1`, boreutils | 4 | 3,073 | 2.5 MB |
 | `head -c 1`, GNU | 4 | 4,023 | 2.3 MB |
-| `tail -n 10`, boreutils | 1,028 | **268,438,528** | 2.9 MB |
-| `tail -n 10`, GNU | 5 | 12,214 | 2.3 MB |
+| `tail -n 10`, boreutils at 0.2.20 | 1,025 | **268,435,456** | 2.9 MB |
+| `tail -n 10`, boreutils (bu15) | 4 | 9,134 | — |
+| `tail -n 10`, GNU | 2 | 8,192 | 2.3 MB |
+| `tail -c 10`, boreutils (bu15) | 3 | 11 | — |
+| `tail -c 10`, GNU | 1 | 10 | — |
+| `wc -c`, boreutils (bu15) | 2 | 1 | — |
+| `wc -c`, GNU | 2 | 16 | — |
 
-boreutils `head -n 1` reads one 256 KiB chunk and stops — 0.1% of the
-file, and the rest of each figure is the dynamic linker. `tail -n 10`
-reads **all of it**, and that row is the whole point of the `tail`
-section below.
+(The `head` rows and the RSS column are bu03's, whose counts include the
+dynamic linker. The `tail` and `wc` rows are bu15's, `strace -y` on the
+input file's descriptor only: boreutils' extra calls are the two
+positional reads that verify the end before trusting it, and its
+`tail -n 10` copies the last 941 bytes with one more read where GNU
+writes them from the block it already holds.)
 
-| head | kasumi (linux x86-64) |
-|---|---|
-| `-n 1` of 256 MiB | 0.4 ms vs GNU 0.2 ms |
-| `-c 1` of the same | 0.3 ms vs GNU 0.2 ms |
-| `-n 10`, the default | 0.4 ms vs GNU 0.2 ms |
-| `-n 1` through a pipe | 0.7 ms vs GNU 0.4 ms |
-| `-n 100000` of short lines | 1.4 ms vs GNU 1.2 ms (0.86x) |
-| `-c 100000000`, a bulk copy | 3.8 ms vs GNU 2.9 ms (0.75x) |
-| `-c -1024` on a file, which an `fstat` turns into a copy | 32.8 ms vs GNU 26.5 ms (0.81x) |
-| `-c -1024` through a pipe, where the window is the only way | 243 ms vs GNU 32 ms (0.13x) |
-| `-n -1`, a window over everything | 295 ms vs GNU 26 ms (0.09x) |
-| `-n -1` of short lines | 47 ms vs GNU 2.1 ms (0.04x) |
+Release tier, GNU coreutils 9.11, kasumi (linux x86-64, 16 cpus),
+256 MiB of generated text (16 MiB of short lines where a row says so),
+**hyperfine 20 runs, kasumi at load 5 to 9** with other lanes running
+(the load at each table's start and end is in bu15's notes). The
+"before" column is trunk `010f3144` built by wolf 0.2.20, the last
+release without the seek.
 
-The first four rows are start-up on both sides and hyperfine will not
-divide numbers that small, which is the right answer: neither
-implementation reads the file. The `-c -K` and `-n -K` rows are where
-`head` has to hold a window, and they are the repository's clearest
-price for having no bulk copy in the language: the bytes leaving the
-window are pushed into a list one at a time where GNU `memcpy`s them. A
-`chunk[0..k]` slice was tried in their place and is **2.2x slower**
-(656 ms against 297 ms), because a list slice allocates and copies a
-whole fresh list.
+| head | before (wolf 0.2.20) | after (bu15, wolf 0.2.22) |
+|---|---|---|
+| `-n 1` of 256 MiB | 0.4 ms vs GNU 0.1 ms | 0.4 ms vs GNU 0.3 ms |
+| `-c 1` of the same | 0.3 ms vs GNU 0.3 ms | 0.3 ms vs GNU 0.2 ms |
+| `-n 10`, the default | 0.4 ms vs GNU 0.2 ms | 0.5 ms vs GNU 0.2 ms |
+| `-n 1` through a pipe | 0.6 ms vs GNU 0.4 ms | 0.8 ms vs GNU 0.6 ms |
+| `-n 100000` of short lines | 1.4 ms vs GNU 1.2 ms (0.81x) | 1.5 ms vs GNU 1.3 ms (0.90x) |
+| `-c 100000000`, a bulk copy | 3.9 ms vs GNU 3.0 ms (0.77x) | 3.9 ms vs GNU 2.9 ms (0.76x) |
+| `-c -1024` of a file | 35.0 ms vs GNU 27.7 ms (0.79x) | 33.7 ms vs GNU 28.2 ms (0.84x) |
+| `-c -1024` of standard input that is a file | 248 ms vs GNU 26.9 ms (0.11x) | **37.6 ms** vs GNU 30.3 ms (0.81x) |
+| `-n -1` of a file | 299 ms vs GNU 26.9 ms (0.09x) | **37.3 ms** vs GNU 29.4 ms (0.79x) |
+| `-n -1` of standard input that is a file | 296 ms vs GNU 27.8 ms (0.09x) | **36.5 ms** vs GNU 28.7 ms (0.79x) |
+| `-n -1` of short lines | 47.4 ms vs GNU 1.9 ms (0.04x) | **3.0 ms** vs GNU 2.1 ms (0.71x) |
+| `-c -1024` through a pipe, the window | 254 ms vs GNU 33.5 ms (0.13x) | 250 ms vs GNU 34.8 ms (0.14x) |
+| `-n -1` through a pipe, the window | 306 ms vs GNU 83.5 ms (0.27x) | 315 ms vs GNU 83.2 ms (0.26x) |
 
-| tail | kasumi (linux x86-64) |
-|---|---|
-| `-n 10` of a file, where GNU seeks | 111 ms vs GNU 0.2 ms |
-| `-c 10` of a file | 27 ms vs GNU 0.2 ms |
-| `-n 10` through a pipe, where neither side may seek | 114 ms vs GNU 68 ms (0.60x) |
-| `-c 10` through a pipe | 28.9 ms vs GNU 28.8 ms (**1.00x**) |
-| `-n 10` of short lines through a pipe | 35 ms vs GNU 20 ms (0.56x) |
-| `-n +1`, the whole file | 33.6 ms vs GNU 26.7 ms (0.80x) |
-| `-c +100000000`, a skip and a copy | 32.7 ms vs GNU 23.9 ms (0.73x) |
-| `-n 100000` of short lines | 118 ms vs GNU 0.9 ms |
+| tail | before (wolf 0.2.20) | after (bu15, wolf 0.2.22) |
+|---|---|---|
+| `-n 10` of a file | 114 ms vs GNU 0.21 ms | **0.31 ms** vs GNU 0.21 ms |
+| `-c 10` of a file | 29.1 ms vs GNU 0.21 ms | **0.30 ms** vs GNU 0.21 ms |
+| `-n 10` of standard input that is a file | 111 ms vs GNU 0.33 ms | **0.39 ms** vs GNU 0.33 ms |
+| `-n 100000` of short lines | 124 ms vs GNU 0.8 ms | **1.5 ms** vs GNU 0.7 ms (0.45x) |
+| `-n 10` through a pipe, neither side may seek | 116 ms vs GNU 74.8 ms (0.64x) | 102 ms, the same binary path as before (A/B below) |
+| `-c 10` through a pipe | 32.0 ms vs GNU 31.6 ms (0.99x) | 39.3 ms vs GNU 34.5 ms (0.88x) |
+| `-n 10` of short lines through a pipe | 35.3 ms vs GNU 20.3 ms (0.57x) | 38.1 ms vs GNU 21.9 ms (0.57x) |
+| `-n +1`, the whole file | 36.2 ms vs GNU 29.6 ms (0.82x) | 45.4 ms vs GNU 37.1 ms (0.82x) |
+| `-c +100000000`, a seek and a copy | 36.3 ms vs GNU 25.5 ms (0.70x) | 41.0 ms vs GNU 34.4 ms (0.84x) |
 
-**`tail` on a regular file is O(size) here and O(1) for GNU, and no
-amount of tuning closes that.** GNU seeks to the end and reads a few
-kilobytes; wolf 0.2.20 has no seek, no tell and no positional read
-(wolf-lang#426, filed by this lane), so boreutils reads the file
-forward. On a PIPE, where GNU cannot seek either, the comparison is
-fair and boreutils is level with it: 1.00x on `-c` and 0.60x on `-n`.
+The sub-millisecond `tail` rows are hyperfine at **50 runs** with
+`-N` (no shell), because the bench tool's tenth-of-a-millisecond
+rounding cannot tell 0.21 from 0.31; the rest are `tools/bench` at 20.
+**`tail -n 10` of a file is 366x faster than it was and 1.5x GNU's
+time**, the remaining 0.1 ms being wolf's start-up, not the read: both
+sides now read about 8 KiB of a 256 MiB file.
+
+**The pipe rows did not move, and the A/B says so rather than the
+tables.** Between the two tables the load moved, and so did GNU's own
+numbers (the `-n +1` copy is 29.6 ms and 37.1 ms for the SAME GNU
+binary). Run back to back, three rounds of 10, the pin without the seek
+and bu15 read 102.6/104.1/102.2 ms against 102.4/104.0/101.8 ms for
+`tail -n 10` through a pipe. `head -n -1` through a pipe first read 8%
+SLOWER (299 ms against 327 ms): threading a `mut sent: int` parameter
+through the window loop to know where to leave the offset cost that, in
+a loop that never needs it. The window now places the offset once, from
+the reader's offset less what the window holds, and the A/B reads
+303.4 ms against 303.3 ms.
 
 | cut | kasumi (linux x86-64) |
 |---|---|
@@ -383,9 +434,10 @@ are in the git history rather than only in this table.
 **Memory is flat in the size of the input for all three**, at one
 `region` per chunk plus a window: 2.8 MB for `head -n 1`, 2.9 MB for
 `tail -n 10` and 3.1 MB for `cut -b1-10` on 256 MiB, against GNU's
-2.3–2.5 MB. `tail`'s window is the last K lines and `head -n -K`'s is
-the same, so a `tail -n 100000` costs what those hundred thousand lines
-weigh and nothing more.
+2.3–2.5 MB (bu03's measurement). `tail`'s window is the last K lines
+and `head -n -K`'s is the same, so through a pipe a `tail -n 100000`
+costs what those hundred thousand lines weigh and nothing more; on a
+regular file there is no window at all.
 
 The transform set — `tr`, `uniq`, `seq` and `nl` — has a table of its
 own, and it is the first one taken on ONE host. Wave 45 forbids builds
@@ -534,14 +586,15 @@ were wrong.**
 | `unexpand -a` under UTF-8 | 1190 ms | 3561 ms | **2.99x** |
 | `unexpand` on binary noise | 173 ms | 1594 ms | **9.23x** |
 
-**`tac` is the one that loses, and the reason is `tail`'s reason.** GNU
-seeks to the end of a regular file and walks backwards through it; wolf
-0.2.20 has no seek, no tell and no positional read (wolf-lang#426), so
-`tac` reads the whole input forward before it can answer anything. That
-is 0.18x, and through a pipe — where GNU cannot seek either — it is
-*still* 0.18x, because GNU buffers a pipe to `$TMPDIR` and reads it back
-with the same seek. There is no arrangement of this program that closes
-that gap today.
+**`tac` is the one that loses, and the reason was `tail`'s reason.** GNU
+seeks to the end of a regular file and walks backwards through it; until
+wolf 0.2.22 there was no seek, no tell and no positional read
+(wolf-lang#426), so `tac` reads the whole input forward before it can
+answer anything. That is 0.18x, and through a pipe — where GNU cannot
+seek either — it is *still* 0.18x, because GNU buffers a pipe to
+`$TMPDIR` and reads it back with the same seek. 0.2.22 has the calls and
+`tail` and `head` use them (bu15); `tac` has not been rewritten onto them
+yet, and its numbers here are the forward reader's.
 
 **`tac -r` is the other side of the same coin.** GNU's regular-expression
 path gives up the seek and runs `re_search` backwards over the buffer,
@@ -580,7 +633,7 @@ and use `bore.Sink`, one buffer filled in place and written whole.
 **`tac` is the exception and always will be**: it holds the whole input,
 so 256 MiB peaks at **515 MB**, twice the input, against GNU's 1.8 MB.
 The factor of two is not the design, it is `List` having no capacity
-surface at 0.2.20 (wolf-std F-0011): a list built by pushing doubles,
+surface at 0.2.22 (wolf-std F-0011): a list built by pushing doubles,
 and each doubling abandons the previous buffer. Sizing it up front from
 `fs_fstat` does not help — filling it is itself a run of pushes — and
 that was measured rather than assumed.
@@ -657,7 +710,7 @@ which a sort that never spilled could not pass.
 The small-surface set — `tee`, `printf`, `printenv`, `pwd`, `sleep`
 and `nproc` — is bu14's, and the wave asked for `env` beside them. **`env`
 is not here**, because its job is to run COMMAND in a modified
-environment and wolf 0.2.20 has no way to do that: no exec, no unset or
+environment and wolf 0.2.22 has no way to do that: no exec, no unset or
 clear, no child working directory, a spawned child's standard input
 wired to the null device, and a signal death that loses its number
 (wolf-lang#534, with the witness). Its print-only half would be
@@ -744,9 +797,9 @@ chunk.
 | `dirname` | done | start-up only |
 | `yes` | done | 2.74x (macOS), 0.63x (linux) |
 | `cat` | done | start-up 1.18x (macOS), 0.97x (linux); bulk copy 0.64x, 0.16x |
-| `wc` | done | `-w` 1.27x, `-l` 0.92x (macOS, load 13.9); 0.88x, 0.17x (linux) |
-| `head` | done | `-n 1` start-up on both sides; `-n -K` 0.09x (linux) |
-| `tail` | done, `-f` and `--follow[=WORD]` included | pipe `-c` 1.00x, `-n` 0.60x; a file 111 ms against GNU's 0.2 ms, and the reason is wolf-lang#426 |
+| `wc` | done | `-w` 1.27x, `-l` 0.92x (macOS, load 13.9); 0.88x, 0.17x (linux); `-c < f` start-up on both sides since bu15 |
+| `head` | done | `-n 1` start-up on both sides; `-n -K` of a file 0.79x since bu15 (was 0.09x), 0.26x through a pipe (linux) |
+| `tail` | done, `-f` and `--follow[=WORD]` included | a file 0.31 ms against GNU's 0.21 ms since bu15 (was 114 ms); pipe `-c` 0.88x to 0.99x, `-n` 0.57x to 0.64x (linux) |
 | `cut` | done, without 9.11's `-w`, `-F` and `-O` | 0.27x to 0.63x (linux) |
 | `tr` | done | 0.34x translating, **3.72x** translating and squeezing (linux) |
 | `uniq` | done | 0.46x to **1.01x** (linux) |
@@ -778,7 +831,7 @@ table answers it per utility, from the evidence and from nothing else.
   where GNU refuses it too — `sort -ng` — is not counted as covered.
 - **Cases** are kasumi's, at this commit: passed / skipped, none failed.
   CI's macOS leg runs the same cases and skips the `/dev/full` ones as
-  well.
+  well, and the `/proc` and `/sys` ones (`requires`, bu15).
 - **vs GNU** is the band of the rows in the tables above, kasumi only,
   GNU's time over ours. A start-up row is `hyperfine -N` over 300 runs.
 - **The verdict is mechanical.** *Drop-in* when every option is covered
@@ -796,10 +849,10 @@ table answers it per utility, from the evidence and from nothing else.
 | `basename` | 5 / 5 | 48 / 0 | start-up 0.80x | drop-in |
 | `dirname` | 3 / 3 | 27 / 0 | start-up 0.80x | drop-in |
 | `yes` | 2 / 2 | 18 / 0 | 0.63x | drop-in |
-| `cat` | 12 / 12 | 116 / 0 | 0.16x to 0.97x | drop-in for scripts that never make an input its own output: `cat f >> f` and `cat < f >> f` refuse in GNU (`input file is output file`, status 1) and grow `f` without end here, because nothing in wolf can tell that two descriptors name one file (wolf-lang#424, #536); no case can reach it |
-| `wc` | 10 / 10 | 143 / 4 | 0.01x to 0.88x | drop-in for scripts that do not read the REASON in an ENOTDIR or ELOOP diagnostic (wolf-lang#407); the other two skips are the hosts' `wcwidth` |
-| `head` | 7 / 7 | 121 / 0 | 0.04x to 0.86x | drop-in |
-| `tail` | 12 / 14 | 129 / 2 | 0.002x (a file) to 1.00x (a pipe) | drop-in for scripts that avoid 9.11's `--debug` (refused) and `--max-unchanged-stats` (accepted, no case); the skips are follows that never end, and a file is read whole (wolf-lang#426) |
+| `cat` | 12 / 12 | 119 / 0 | 0.16x to 0.97x | drop-in for scripts that never make an input its own output: `cat f >> f` and `cat < f >> f` refuse in GNU (`input file is output file`, status 1) and grow `f` without end here, because nothing in wolf can tell that two descriptors name one file (wolf-lang#424, #536); no case can reach it |
+| `wc` | 10 / 10 | 156 / 4 | 0.04x to 0.99x | drop-in for scripts that do not read the REASON in an ENOTDIR or ELOOP diagnostic (wolf-lang#407); the other two skips are the hosts' `wcwidth` |
+| `head` | 7 / 7 | 159 / 0 | 0.14x to 0.90x | drop-in |
+| `tail` | 12 / 14 | 182 / 2 | 0.45x to 0.99x; a file at start-up (0.31 ms against 0.21 ms) | drop-in for scripts that avoid 9.11's `--debug` (refused) and `--max-unchanged-stats` (accepted, no case); the skips are follows that never end |
 | `cut` | 10 / 13 | 124 / 0 | 0.27x to 0.63x | drop-in for scripts that avoid 9.11's `-F`, `-w` and the short `-O` (`--output-delimiter` works) |
 | `tr` | 6 / 6 | 146 / 0 | 0.34x to 3.72x | drop-in |
 | `uniq` | 13 / 13 | 124 / 1 | 0.45x to 1.01x | drop-in; the skip is the hosts' `/dev/stdout` |
@@ -830,9 +883,11 @@ sums counted as one and `[` as `test`; Arch's build installs 102
 binaries and leaves out `arch`, `chcon`, `runcon`, `hostname`, `kill`
 and `uptime`). boreutils ships **27 of them, 26%**, and `env` is the
 28th row above. Effort is not what blocks most of the other 76: wolf
-0.2.20 has no surface for them, and each gap boreutils has met is filed
-upstream with its witness. The OS surface lane is cutting the first
-ones now (wave 53's s199: wolf-lang#426 and #424).
+0.2.22 has no surface for them, and each gap boreutils has met is filed
+upstream with its witness. The OS surface lane's first cut, s199's
+wolf-lang#426 and #424 (seek, tell, the positional read, and the
+standard descriptors), shipped in 0.2.22, and `tail`, `head` and `wc`
+use it (bu15).
 
 - **#346**, no permission surface: `chmod`, `install -m`, `mkdir -m`,
   `mkfifo`/`mknod -m`, `mktemp`'s private file, `cp -p`.
@@ -852,12 +907,14 @@ ones now (wave 53's s199: wolf-lang#426 and #424).
   future `cp` copy through user space (`cat` is 0.16x on linux).
 - **#423**, no signal disposition but four meanings: `tee -p`/`-i`
   here; `timeout`, `kill`, `nohup` and `env --ignore-signal` beyond.
-- **#424**, `fs_fstat` cannot see descriptors 0, 1 and 2: `cat`'s
-  input-is-output refusal (with #536), `wc -c` and `tail` on a
-  redirected regular file.
-- **#426**, no seek, tell or positional read: `tail` and `tac` on a
-  regular file read it whole (`tail -n 10` is 111 ms against 0.2 ms);
-  `dd skip=`/`seek=`, `truncate`, `shred`.
+- **#424** (closed, wolf 0.2.22): `fs_fstat`, `fs_seek`, `fs_tell` and
+  `fs_read_at` see descriptors 0, 1 and 2; `wc -c` and `tail` on a
+  redirected regular file use them (bu15). `cat`'s input-is-output
+  refusal still waits on #536.
+- **#426** (wolf 0.2.22): seek, tell and the positional read exist;
+  `tail`, `head` and `wc` use them (bu15). `tac` does not yet; `dd
+  skip=`/`seek=` could; `truncate` and `shred` need a truncate call
+  that does not exist.
 - **#534**, no exec and no inherited stdin for a child: `env`, `nice`,
   `nohup`, `timeout`, `chroot`, `stdbuf`.
 - **#535**, the environment listed only sorted: `printenv` and `env`.
@@ -867,7 +924,7 @@ ones now (wave 53's s199: wolf-lang#426 and #424).
 - **#538**, `wrapping[u64]` prints signed and cannot be divided
   natively: worked around in `src/bore/u64.lu`.
 
-Beyond those, the host builtin table at 0.2.20 has no call that creates
+Beyond those, the host builtin table at 0.2.22 has no call that creates
 or reads a link (`ln`, `link`, `readlink`, `realpath`), changes a mode,
 an owner or a time (`chmod`, `chown`, `chgrp`, `touch`), names a user
 or a group (`id`, `whoami`, `groups`, `logname`, `users`, `who`,
