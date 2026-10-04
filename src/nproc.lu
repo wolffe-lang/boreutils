@@ -233,7 +233,7 @@ fn ignore_count(v: str) -> wrapping[u64] ! {invalid} {
     n
 }
 
-/// (2^64 - 1) / 10, written out: wolf 0.2.20 cannot divide a
+/// (2^64 - 1) / 10, written out: wolf 0.2.22 cannot divide a
 /// `wrapping[u64]` on the native tier ("no idiv.wrap op").
 fn umax_tenth() -> wrapping[u64] {
     1844674407370955161
