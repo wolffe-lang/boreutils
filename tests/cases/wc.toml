@@ -776,3 +776,87 @@ name = "a write error on a live descriptor"
 args = ["tests/fixtures/plain.txt"]
 stdout_file = "/dev/full"
 compare = ["exit"]
+
+# ------------------------------------------------------------- the seek
+#
+# bu15: `-c` of any regular file is its end minus its offset, standard
+# input included (wolf 0.2.22's `fs_tell` on descriptor 0), and wc
+# leaves that offset at the end, as GNU does. The end is believed only
+# when two positional reads confirm it, so a sysfs or /proc file is
+# read and counted (bu15 measured trunk saying 4096 and 0 for the two
+# below, where GNU says their lengths).
+
+[[case]]
+name = "seek: c of standard input that is a file"
+args = ["-c"]
+stdin_file = "blocks.txt"
+
+[[case]]
+name = "seek: c of standard input at an offset"
+args = ["-c"]
+stdin_file = "blocks.txt"
+stdin_offset = 1000
+
+[[case]]
+name = "seek: c of standard input at the end"
+args = ["-c"]
+stdin_file = "blocks.txt"
+stdin_offset = 28214
+
+[[case]]
+name = "seek: c of standard input past the end"
+args = ["-c"]
+stdin_file = "blocks.txt"
+stdin_offset = 30000
+
+[[case]]
+name = "seek: m in the C locale is c"
+args = ["-m"]
+stdin_file = "twelve.txt"
+stdin_offset = 7
+
+[[case]]
+name = "seek: l of standard input at an offset"
+args = ["-l"]
+stdin_file = "twelve.txt"
+stdin_offset = 7
+
+[[case]]
+name = "seek: every count at an offset"
+args = []
+stdin_file = "blocks.txt"
+stdin_offset = 20000
+
+[[case]]
+name = "seek: c of a file and standard input at an offset"
+args = ["-c", "tests/fixtures/twelve.txt", "-"]
+stdin_file = "blocks.txt"
+stdin_offset = 10
+
+[[case]]
+name = "seek: c of standard input twice"
+args = ["-c", "-", "-"]
+stdin_file = "twelve.txt"
+stdin_offset = 2
+
+[[case]]
+name = "seek: c of an empty file"
+args = ["-c"]
+stdin_file = "empty.txt"
+stdin_offset = 0
+
+[[case]]
+name = "seek: c of /sys/devices/system/cpu/online, whose size lies"
+args = ["-c", "/sys/devices/system/cpu/online"]
+requires = "/sys/devices/system/cpu/online"
+
+[[case]]
+name = "seek: c of /proc/version, whose size lies"
+args = ["-c", "/proc/version"]
+requires = "/proc/version"
+
+[[case]]
+name = "seek: c of standard input whose size lies"
+args = ["-c"]
+stdin_file = "/proc/version"
+requires = "/proc/version"

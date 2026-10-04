@@ -66,14 +66,13 @@
 //! newer may differ. No other locale behaviour (collation, digits) is
 //! imitated, because nothing in wolf exposes it.
 //!
-//! **`-c` is an fstat, not a read**, for a file operand: `fs_fstat`
-//! answers the size and the handle is ours, so the offset is 0. It is
-//! NOT taken for standard input, even when standard input is a regular
-//! file and GNU does take it there: what `wc -c` must report on a
-//! descriptor is size minus the CURRENT OFFSET, wolf 0.2.14 has no seek
-//! or tell in the fs family, and guessing zero is wrong whenever the
-//! shell already consumed part of the file. Filed on wolf-lang#405 with
-//! the measured cost (1 GiB: GNU 0.005 s, a full read ~0.4 s).
+//! **`-c` is a size, not a read**, for any regular file, standard input
+//! included: what it owes is the end minus the CURRENT OFFSET, and since
+//! wolf 0.2.22 `fs_tell` answers the offset (bu15; bu02 had to read
+//! standard input whole, at ~0.4 s for 1 GiB against GNU's 0.005 s).
+//! The end is `bore.verified_end`'s, so a sysfs attribute that reports
+//! 4096 bytes and holds 23, or a `/proc` file that reports 0, is read
+//! and counted, as GNU counts it.
 //!
 //! **`--debug` is accepted and ignored.** GNU prints which SIMD kernel
 //! its line counter chose; we have none to report (wolf has no way to
@@ -1000,15 +999,26 @@ fn count_one(
             },
         }
     }
-    // `-c`, and `-m` in the C locale, on a regular file THIS program
-    // opened is an fstat rather than a read: the handle is ours, so its
-    // offset is 0. Never for standard input, whose offset may already
-    // have moved and which wolf cannot ask about (wolf-lang#405).
+    // `-c`, and `-m` in the C locale, on a regular file is its end
+    // minus its offset rather than a read: 0 for a file this program
+    // opened, the shell's offset for standard input that is a file
+    // (wolf 0.2.22, `[os.fs.std]`). The end is believed only when
+    // `bore.verified_end` can trust it, which a sysfs or `/proc` file's
+    // is not; those are read, as GNU reads them.
     let bytes_only = !sel.lines && !sel.words && !sel.maxline && !(sel.chars && utf8)
-    if bytes_only && !inp.stdin {
-        let size = regular_size(src)
-        if size >= 0 {
-            bore.close_input(src)
+    if bytes_only {
+        let end = bore.verified_end(src)
+        let start = bore.offset_of(src)
+        if end >= 0 && start >= 0 {
+            var size = end - start
+            if size < 0 {
+                size = 0
+            }
+            // The offset is left at the end, as a read would leave it.
+            if end > start {
+                bore.seek_to(src, end)
+            }
+            done_with(inp, src)
             var c = zero()
             c.bytes = size
             c.chars = size
@@ -1022,15 +1032,11 @@ fn count_one(
         }
     }
     let c = scan(src, sel, utf8) else |_| {
-        if !inp.stdin {
-            bore.close_input(src)
-        }
+        done_with(inp, src)
         bore.input_error("wc", inp.label, bore.io_error())
         return failed
     }
-    if !inp.stdin {
-        bore.close_input(src)
-    }
+    done_with(inp, src)
     if !only {
         emit(mut out, c, sel, width, label) else |_| {
             bore.write_error(out, "wc", "write error")
@@ -1040,23 +1046,15 @@ fn count_one(
     c
 }
 
-/// The size of `src` when it is a regular file, or -1.
-///
-/// `bore.In` carries the descriptor and `bore` has no size accessor, so
-/// the handle's own metadata is read here rather than adding one to the
-/// shared module mid-wave.
-fn regular_size(src: bore.In) -> int {
-    let st = fs_fstat(src.fd) else |_| {
-        var none = List[int]()
-        none
+/// Finish with one input: close a file this program opened, and leave
+/// standard input open (a later `-` reads it again) but with descriptor
+/// 0 moved to where this read stopped (`bore.settle`).
+fn done_with(inp: Input, src: bore.In) {
+    if inp.stdin {
+        bore.settle(src)
+    } else {
+        bore.close_input(src)
     }
-    if st.len < 2 {
-        return -1
-    }
-    if st[0] != 0 {
-        return -1
-    }
-    st[1]
 }
 
 fn help() -> str {
