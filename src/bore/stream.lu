@@ -394,18 +394,3 @@ pub fn copy_range(out: Out, i: In, from: int, to: int) -> int {
     }
     why
 }
-
-/// The size `fstat` reports for `i`, or -1 when it cannot be had.
-///
-/// Only meaningful for a regular file this process opened itself: the
-/// answer is a SIZE, and what a reader owes is size minus the current
-/// offset, which wolf 0.2.14 cannot ask for (wolf-lang#405).
-pub fn stat_size(i: In) -> int {
-    let st = fs_fstat(i.fd) else |_| {
-        return -1
-    }
-    if st[0] != 0 {
-        return -1
-    }
-    st[1]
-}

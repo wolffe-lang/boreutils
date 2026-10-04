@@ -45,14 +45,19 @@
 //!   alone: it still ends with a newline.
 //! - A usage error is status 1, not 2, as bu00 measured for this family.
 //!
-//! **`head -c -K` on a regular file we opened ourselves is an `fstat`,
-//! not a window.** The size is known, so the program streams the first
-//! `size - K` bytes and holds nothing: memory is flat where the window
-//! would have been K bytes wide. It is NOT taken for `-` even when
-//! standard input is a regular file, for bu02's reason — what a reader
-//! owes is size minus the CURRENT OFFSET and wolf 0.2.14 has no tell
-//! (wolf-lang#405). Every other all-but-the-last mode uses the window
-//! in `bore/ring.lu`.
+//! **`head -c -K` and `head -n -K` on a regular file are a copy, not a
+//! window** (bu15, on wolf 0.2.22's seek, tell and positional read). The
+//! end is known, so `-c -K` streams the first `end - K` bytes, and
+//! `-n -K` walks back K lines from the end (`bore.line_cut`, which
+//! `tail -n K` uses too) and streams everything before them: memory is
+//! flat where the window would have been K lines deep, and no byte goes
+//! through the ring. It applies to standard input too when that is a
+//! regular file, counted from its CURRENT OFFSET (`bore.offset_of`),
+//! and to no file whose size cannot be trusted (`bore.verified_end`).
+//! A pipe, and such a file, use the window in `bore/ring.lu`.
+//!
+//! Whatever the mode, standard input that is a file is left at the
+//! offset just past what was written, as GNU leaves it (measured).
 
 use bore
 
@@ -347,28 +352,49 @@ fn one(out: bore.Out, path: str, o: Opts, show: bool, mut first: bool) -> int {
         first = false
     }
     var why = 0
+    var sent = 0
+    // Where reading starts: 0 for a file this program opened, the
+    // shell's offset for standard input that is a file, -1 for a pipe.
+    let start = bore.offset_of(src)
     if o.minus {
-        if o.bytes {
-            // The `fstat` route: a named regular file knows its size,
-            // so all-but-the-last-K is the first size-K bytes and the
-            // window never has to exist.
-            let size = if path == "-" then -1 else bore.stat_size(src)
-            if size >= 0 {
-                var want = size - o.count
-                if want < 0 {
-                    want = 0
-                }
-                why = first_bytes(out, src, want)
+        // A regular file whose end can be trusted turns all-but-the-
+        // last-K into the first `want` bytes, and the window never has
+        // to exist: for `-c` the end says where, for `-n` a walk back
+        // from the end (`bore.line_cut`, `tail -n K`'s own) does. -1
+        // means read forward through the window instead.
+        var want = -1
+        let end = if start >= 0 then bore.verified_end(src) else -1
+        if end >= 0 && o.bytes {
+            want = end - o.count - start
+        } else if end >= 0 {
+            let cut = bore.line_cut(src, start, end, o.count, o.delim)
+            if cut >= 0 {
+                want = cut - start
+            }
+        }
+        if want == -1 {
+            if o.bytes {
+                why = drop_last_bytes(out, src, o.count, mut sent)
             } else {
-                why = drop_last_bytes(out, src, o.count)
+                why = drop_last_lines(out, src, o.count, o.delim, mut sent)
             }
         } else {
-            why = drop_last_lines(out, src, o.count, o.delim)
+            if want < 0 {
+                want = 0
+            }
+            why = first_bytes(out, src, want, mut sent)
         }
     } else if o.bytes {
-        why = first_bytes(out, src, o.count)
+        why = first_bytes(out, src, o.count, mut sent)
     } else {
-        why = first_lines(out, src, o.count, o.delim)
+        why = first_lines(out, src, o.count, o.delim, mut sent)
+    }
+    // GNU leaves a file's offset just past what it wrote, so that
+    // `{ head -n 1; cat; } < f` hands `cat` the rest (measured with a
+    // shared descriptor, bu15), where the forward reads above went a
+    // chunk further. A pipe has no offset and nothing to give back.
+    if start >= 0 {
+        bore.seek_to(src, start + sent)
     }
     bore.close_input(src)
     if why == 1 {
@@ -378,7 +404,7 @@ fn one(out: bore.Out, path: str, o: Opts, show: bool, mut first: bool) -> int {
 }
 
 /// The first `n` bytes, and not one byte more off the host.
-fn first_bytes(out: bore.Out, src: bore.In, n: int) -> int {
+fn first_bytes(out: bore.Out, src: bore.In, n: int, mut sent: int) -> int {
     var left = n
     var why = 0
     var stop = left <= 0
@@ -406,6 +432,7 @@ fn first_bytes(out: bore.Out, src: bore.In, n: int) -> int {
                 if left <= 0 {
                     stop = true
                 }
+                sent += chunk.len
                 bore.write_direct(out, chunk) else |_| {
                     stop = true
                     why = 2
@@ -417,7 +444,7 @@ fn first_bytes(out: bore.Out, src: bore.In, n: int) -> int {
 }
 
 /// Up to and including the `n`-th delimiter, then stop reading.
-fn first_lines(out: bore.Out, src: bore.In, n: int, delim: byte) -> int {
+fn first_lines(out: bore.Out, src: bore.In, n: int, delim: byte, mut sent: int) -> int {
     var left = n
     var why = 0
     var stop = left <= 0
@@ -452,11 +479,13 @@ fn first_lines(out: bore.Out, src: bore.In, n: int, delim: byte) -> int {
                     stop = true
                 }
                 if cut == chunk.len {
+                    sent += chunk.len
                     bore.write_direct(out, chunk) else |_| {
                         stop = true
                         why = 2
                     }
                 } else {
+                    sent += cut
                     bore.write_direct(out, chunk[0..cut]) else |_| {
                         stop = true
                         why = 2
@@ -481,7 +510,7 @@ fn first_lines(out: bore.Out, src: bore.In, n: int, delim: byte) -> int {
 /// pushes per 262,144 bytes for `-c -1024` instead of one per byte, and
 /// it is the difference between 0.04x of GNU and something worth
 /// printing. A first draft pushed every byte; the bench caught it.
-fn drop_last_bytes(out: bore.Out, src: bore.In, n: int) -> int {
+fn drop_last_bytes(out: bore.Out, src: bore.In, n: int, mut sent: int) -> int {
     let keeper = region()
     var r = bore.ring()
     var why = 0
@@ -527,6 +556,7 @@ fn drop_last_bytes(out: bore.Out, src: bore.In, n: int) -> int {
                     }
                 }
                 if buf.len > 0 {
+                    sent += buf.len
                     bore.write_direct(out, buf) else |_| {
                         why = 2
                         stop = true
@@ -549,6 +579,7 @@ fn drop_last_bytes(out: bore.Out, src: bore.In, n: int) -> int {
                     (mut buf).push(bore.ring_at(r, i))
                     i += 1
                 }
+                sent += buf.len
                 bore.write_direct(out, buf) else |_| {
                     why = 2
                     stop = true
@@ -572,7 +603,7 @@ fn drop_last_bytes(out: bore.Out, src: bore.In, n: int) -> int {
 /// outright, for `drop_last_bytes`'s reason and with the same effect:
 /// everything before the last `n` lines of the chunk is written from
 /// the chunk, and only the tail of it is pushed.
-fn drop_last_lines(out: bore.Out, src: bore.In, n: int, delim: byte) -> int {
+fn drop_last_lines(out: bore.Out, src: bore.In, n: int, delim: byte, mut sent: int) -> int {
     let keeper = region()
     var r = bore.ring()
     var delims = 0
@@ -619,6 +650,7 @@ fn drop_last_lines(out: bore.Out, src: bore.In, n: int, delim: byte) -> int {
                     }
                     delims = n
                     if buf.len > 0 {
+                        sent += buf.len
                         bore.write_direct(out, buf) else |_| {
                             why = 2
                             stop = true
@@ -648,6 +680,7 @@ fn drop_last_lines(out: bore.Out, src: bore.In, n: int, delim: byte) -> int {
                     }
                     taken += 1
                 }
+                sent += buf.len
                 bore.write_direct(out, buf) else |_| {
                     why = 2
                     stop = true
@@ -666,6 +699,7 @@ fn drop_last_lines(out: bore.Out, src: bore.In, n: int, delim: byte) -> int {
                 (mut buf).push(bore.ring_at(r, i))
                 i += 1
             }
+            sent += buf.len
             bore.write_direct(out, buf) else |_| {
                 why = 2
             }
