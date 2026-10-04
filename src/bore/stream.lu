@@ -323,7 +323,7 @@ pub fn line_cut(i: In, start: int, end: int, n: int, delim: byte) -> int {
                     k -= 1
                 }
                 last = false
-                while k >= 0 && cut < 0 {
+                while k > 0 && cut < 0 {
                     if got[k] == delim {
                         seen += 1
                         if seen == n {
