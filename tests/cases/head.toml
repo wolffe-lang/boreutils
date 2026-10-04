@@ -750,3 +750,20 @@ requires = "/sys/devices/system/cpu/online"
 name = "seek: -n -1 of /proc/version, whose size lies"
 args = ["-n", "-1", "/proc/version"]
 requires = "/proc/version"
+
+# The window leaves the offset just past what it wrote, too: everything
+# it read less what it still holds (`placed`).
+
+[[case]]
+name = "seek: c -2 of standard input whose size lies, the offset"
+args = ["-c", "-2"]
+stdin_file = "/proc/version"
+stdin_offset = 0
+requires = "/proc/version"
+
+[[case]]
+name = "seek: n -1 of standard input whose size lies, the offset"
+args = ["-n", "-1"]
+stdin_file = "/proc/version"
+stdin_offset = 0
+requires = "/proc/version"
