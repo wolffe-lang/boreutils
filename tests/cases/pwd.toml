@@ -312,11 +312,11 @@ compare = ["exit"]
 
 # The one shape this program cannot decide (see src/pwd.lu): $PWD naming
 # a DIFFERENT directory with the same entries and the same modification
-# time to the millisecond, which GNU tells apart by inode and wolf 0.2.22
+# time to the millisecond, which GNU tells apart by inode and wolf 0.2.23
 # cannot. A scratch tree cannot set a modification time, so the case is
 # written down rather than run; the witness (a `cp -a` copy) is in
 # notes/bu14-the-small-surface-set.md.
 [[case]]
 name = "-L refuses a twin directory with the same listing and time"
 args = ["-L"]
-skip = "no file identity in wolf 0.2.22: fs_fstat answers [kind, size, mtime] and nothing answers a device and inode, so a cp -a twin of the working directory is indistinguishable from it (wolf-lang#536)"
+skip = "no file identity in wolf 0.2.23: fs_fstat answers [kind, size, mtime] and nothing answers a device and inode, so a cp -a twin of the working directory is indistinguishable from it (wolf-lang#536)"

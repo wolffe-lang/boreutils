@@ -30,7 +30,7 @@
 //! - The intervals are summed; an infinite or overflowing sum sleeps
 //!   until the process is killed.
 //!
-//! **The resolution is a millisecond, not a nanosecond.** wolf 0.2.22
+//! **The resolution is a millisecond, not a nanosecond.** wolf 0.2.23
 //! sleeps through `time_sleep_ms(int)`, so the sum is rounded UP to the
 //! next whole millisecond: `sleep 1e-9` sleeps 1 ms where GNU sleeps
 //! one nanosecond. Never shorter than asked, and no differential case

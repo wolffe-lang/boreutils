@@ -22,7 +22,7 @@
 //!   and the directory is still printed, status 0.
 //!
 //! **`-L` cannot ask whether `$PWD` names the working directory.** GNU
-//! compares the device and inode numbers of `$PWD` and `.`; wolf 0.2.22
+//! compares the device and inode numbers of `$PWD` and `.`; wolf 0.2.23
 //! has neither (`fs_fstat` answers `[kind, size, modified_ms]`, and
 //! nothing answers an identity), so this program accepts `$PWD` when it
 //! is a directory whose `[kind, size, modified_ms]` AND whose listing

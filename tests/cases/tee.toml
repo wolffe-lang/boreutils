@@ -400,7 +400,7 @@ compare = ["exit"]
 
 # What GNU does and this program cannot (see src/tee.lu): every branch
 # that needs SIGPIPE IGNORED, and -i, which needs SIGINT ignored. wolf
-# 0.2.22's signal set is RELOAD, TERMINATE, QUIT and UPGRADE
+# 0.2.23's signal set is RELOAD, TERMINATE, QUIT and UPGRADE
 # (wolf-lang#423), so each of these would die of the signal instead.
 # (Should one ever be un-skipped: GNU under -p keeps reading /dev/zero
 # into the file for as long as the case's timeout allows.)
@@ -409,7 +409,7 @@ name = "-p: a reader that goes away is dropped, status 0"
 args = ["-p"]
 stdin_file = "/dev/zero"
 stdout_bytes = 16
-skip = "needs SIGPIPE ignored and EPIPE seen; wolf 0.2.22 can do neither, so this dies of SIGPIPE (141) where GNU exits 0 (wolf-lang#423)"
+skip = "needs SIGPIPE ignored and EPIPE seen; wolf 0.2.23 can do neither, so this dies of SIGPIPE (141) where GNU exits 0 (wolf-lang#423)"
 
 [[case]]
 name = "-p: the file is still written to the end"
@@ -445,10 +445,10 @@ name = "-i ignores interrupts"
 args = ["-i", "a"]
 stdin = "hello\n"
 scratch = {}
-skip = "refused by name: ignoring SIGINT needs a signal disposition wolf 0.2.22 does not have (wolf-lang#423)"
+skip = "refused by name: ignoring SIGINT needs a signal disposition wolf 0.2.23 does not have (wolf-lang#423)"
 
 [[case]]
 name = "--ignore-interrupts"
 args = ["--ignore-interrupts"]
 stdin = "hello\n"
-skip = "refused by name: ignoring SIGINT needs a signal disposition wolf 0.2.22 does not have (wolf-lang#423)"
+skip = "refused by name: ignoring SIGINT needs a signal disposition wolf 0.2.23 does not have (wolf-lang#423)"
