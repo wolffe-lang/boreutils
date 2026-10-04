@@ -277,6 +277,124 @@ pub fn is_regular(i: In) -> bool {
     st[0] == 0
 }
 
+/// How far back `line_cut` reads at a time: GNU's own block, measured
+/// with `strace` (`lseek(3, -8192, SEEK_CUR)`), so the two read about
+/// the same bytes for `tail -n 10`.
+fn back_block() -> int {
+    8192
+}
+
+/// Where the last `n` lines of `i`'s bytes `[start, end)` begin, read
+/// BACKWARDS from `end` with positional reads, or -1 when a read came
+/// back short (the file shrank under us), and the caller reads forward
+/// instead.
+///
+/// A line is delimiter-terminated, and a final run with no delimiter is
+/// a line too, so a delimiter in the LAST byte ends the last line rather
+/// than starting a new one and is not counted. `n` of 0 is `end`, and
+/// a file with no more than `n` lines is `start`. `tail -n K` writes
+/// `[cut, end)` and `head -n -K` writes `[start, cut)`, which is what
+/// makes them each other's complement.
+///
+/// The cursor of `i` does not move (`[os.fs.read_at]`).
+pub fn line_cut(i: In, start: int, end: int, n: int, delim: byte) -> int {
+    if n <= 0 {
+        return end
+    }
+    var hi = end
+    var seen = 0
+    var cut = -1
+    var last = true
+    var short = false
+    while cut < 0 && hi > start && !short {
+        var lo = hi - back_block()
+        if lo < start {
+            lo = start
+        }
+        region back {
+            let got = fs_read_at(i.fd, lo, hi - lo) else |_| {
+                List[byte]()
+            }
+            if got.len != hi - lo {
+                short = true
+            } else {
+                var k = got.len - 1
+                if last && got[k] == delim {
+                    k -= 1
+                }
+                last = false
+                while k >= 0 && cut < 0 {
+                    if got[k] == delim {
+                        seen += 1
+                        if seen == n {
+                            cut = lo + k + 1
+                        }
+                    }
+                    k -= 1
+                }
+            }
+        }
+        hi = lo
+    }
+    if short {
+        return -1
+    }
+    if cut < 0 {
+        return start
+    }
+    cut
+}
+
+/// Write `i`'s bytes `[from, to)` with positional reads. Answers 0, 1
+/// for a failed read, or 2 for a failed write, as every streaming
+/// function in `head` and `tail` does. A file that ends early ends the
+/// copy, as a forward read would. The cursor of `i` does not move.
+pub fn copy_range(out: Out, i: In, from: int, to: int) -> int {
+    var at = from
+    var why = 0
+    var stop = at >= to
+    while !stop {
+        var want = to - at
+        if want > 262144 {
+            want = 262144
+        }
+        region piece {
+            let got = fs_read_at(i.fd, at, want) else |e| match e {
+                eof => {
+                    stop = true
+                    List[byte]()
+                },
+                invalid => {
+                    stop = true
+                    why = 1
+                    List[byte]()
+                },
+                io => {
+                    stop = true
+                    why = 1
+                    List[byte]()
+                },
+                unseekable => {
+                    stop = true
+                    why = 1
+                    List[byte]()
+                },
+            }
+            if got.len > 0 {
+                at += got.len
+                write_direct(out, got) else |_| {
+                    stop = true
+                    why = 2
+                }
+            }
+        }
+        if at >= to {
+            stop = true
+        }
+    }
+    why
+}
+
 /// The size `fstat` reports for `i`, or -1 when it cannot be had.
 ///
 /// Only meaningful for a regular file this process opened itself: the

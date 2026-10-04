@@ -539,35 +539,15 @@ fn one(
         }
         first = false
     }
-    var why = 0
-    if o.plus {
-        // From line or byte K onwards: a skip, then a copy. No window.
-        var skip = o.count - 1
-        if skip < 0 {
-            skip = 0
-        }
-        if o.bytes {
-            why = from_byte(out, src, skip)
-        } else {
-            why = from_line(out, src, skip, o.delim)
-        }
-    } else if o.bytes {
-        // The `fstat` route: a named regular file knows its size, so
-        // the last K bytes are the bytes after the first size-K, and
-        // the window never has to exist. The read still costs O(size):
-        // skipping is reading, because there is no seek.
-        let size = if path == "-" then -1 else bore.stat_size(src)
-        if size >= 0 {
-            var skip = size - o.count
-            if skip < 0 {
-                skip = 0
-            }
-            why = from_byte(out, src, skip)
-        } else {
-            why = last_bytes(out, src, o.count)
-        }
-    } else {
-        why = last_lines(out, src, o.count, o.delim)
+    // The seek path first: a regular file whose end can be trusted is
+    // read from where the answer starts. It answers -1 when it does not
+    // apply, and `forward` is then the pipe's way.
+    var why = -1
+    if o.count > 0 && !o.plus {
+        why = from_end(out, src, o)
+    }
+    if why < 0 {
+        why = forward(out, src, o)
     }
     if why != 0 {
         bore.close_input(src)
@@ -586,6 +566,71 @@ fn one(
     }
     bore.close_input(src)
     0
+}
+
+/// The last K bytes or the last K lines of a regular file whose end is
+/// known, read with positional reads from where they start: K lines are
+/// found by walking back from the end (`bore.line_cut`). Answers -1 when
+/// the end cannot be trusted or the walk came back short, and the
+/// caller reads forward instead; otherwise 0, 1 or 2 as `one` does.
+///
+/// It counts from the handle's OFFSET, not from byte 0, because
+/// standard input may be a file the shell has already read into, and it
+/// leaves the offset at the end, where GNU leaves it (measured with a
+/// shared descriptor, bu15) and where `-f` starts following.
+fn from_end(out: bore.Out, src: bore.In, o: Opts) -> int {
+    let end = bore.verified_end(src)
+    if end < 0 {
+        return -1
+    }
+    let start = bore.offset_of(src)
+    if start < 0 {
+        return -1
+    }
+    var from = end - o.count
+    if from < start {
+        from = start
+    }
+    if !o.bytes {
+        from = bore.line_cut(src, start, end, o.count, o.delim)
+        if from < 0 {
+            return -1
+        }
+    }
+    let why = bore.copy_range(out, src, from, end)
+    if end > start {
+        bore.seek_to(src, end)
+    }
+    why
+}
+
+/// The answer read FORWARD from the handle's cursor: a pipe's only
+/// way, and a regular file's when its end cannot be trusted.
+fn forward(out: bore.Out, src: bore.In, o: Opts) -> int {
+    if o.plus {
+        // From line or byte K onwards: a skip, then a copy. No window.
+        var skip = o.count - 1
+        if skip < 0 {
+            skip = 0
+        }
+        if o.bytes {
+            // Byte K onwards of anything with an offset is a seek past
+            // the first K - 1 and a copy, as GNU does it (`lseek(fd,
+            // K - 1, SEEK_CUR)` under strace): nothing is read twice,
+            // and a file whose size lies is copied to its real end.
+            let start = bore.offset_of(src)
+            if start >= 0 {
+                bore.seek_to(src, start + skip)
+                return from_byte(out, src, 0)
+            }
+            return from_byte(out, src, skip)
+        }
+        return from_line(out, src, skip, o.delim)
+    }
+    if o.bytes {
+        return last_bytes(out, src, o.count)
+    }
+    last_lines(out, src, o.count, o.delim)
 }
 
 /// Everything after the first `skip` bytes.

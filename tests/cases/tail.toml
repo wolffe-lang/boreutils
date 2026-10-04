@@ -639,3 +639,282 @@ name = "a write error on a live descriptor"
 args = ["-n", "1", "tests/fixtures/plain.txt"]
 stdout_file = "/dev/full"
 compare = ["exit"]
+
+# ------------------------------------------------------------- the seek
+#
+# bu15: a regular file whose end can be trusted is read BACKWARDS from
+# that end (wolf 0.2.22's positional read), 8 KiB at a time, as GNU does.
+# `blocks.txt` is 28,214 bytes built so that BOTH bytes beside the last
+# 8 KiB boundary are newlines (end-8193 and end-8192): `-n 311` starts
+# just past the second, `-n 312` just past the first (an empty line),
+# and `-n 313` inside the block before. `longline.txt` ends on a line
+# longer than two blocks. Each shape is run on the file, on standard
+# input that IS the file, and on that standard input with its offset
+# already moved (`stdin_offset`, which also compares where tail LEFT
+# the offset: GNU leaves it at the end).
+
+[[case]]
+name = "seek: n 1 across the block boundary"
+args = ["-n", "1", "tests/fixtures/blocks.txt"]
+
+[[case]]
+name = "seek: n 10 across the block boundary"
+args = ["-n", "10", "tests/fixtures/blocks.txt"]
+
+[[case]]
+name = "seek: n 310 across the block boundary"
+args = ["-n", "310", "tests/fixtures/blocks.txt"]
+
+[[case]]
+name = "seek: n 311 across the block boundary"
+args = ["-n", "311", "tests/fixtures/blocks.txt"]
+
+[[case]]
+name = "seek: n 312 across the block boundary"
+args = ["-n", "312", "tests/fixtures/blocks.txt"]
+
+[[case]]
+name = "seek: n 313 across the block boundary"
+args = ["-n", "313", "tests/fixtures/blocks.txt"]
+
+[[case]]
+name = "seek: n 947 across the block boundary"
+args = ["-n", "947", "tests/fixtures/blocks.txt"]
+
+[[case]]
+name = "seek: n 948 across the block boundary"
+args = ["-n", "948", "tests/fixtures/blocks.txt"]
+
+[[case]]
+name = "seek: n 949 across the block boundary"
+args = ["-n", "949", "tests/fixtures/blocks.txt"]
+
+[[case]]
+name = "seek: n 100000 across the block boundary"
+args = ["-n", "100000", "tests/fixtures/blocks.txt"]
+
+[[case]]
+name = "seek: n 311 of standard input that is a file"
+args = ["-n", "311"]
+stdin_file = "blocks.txt"
+
+[[case]]
+name = "seek: n 311 of standard input at an offset"
+args = ["-n", "311"]
+stdin_file = "blocks.txt"
+stdin_offset = 20000
+
+[[case]]
+name = "seek: n 312 of standard input that is a file"
+args = ["-n", "312"]
+stdin_file = "blocks.txt"
+
+[[case]]
+name = "seek: n 312 of standard input at an offset"
+args = ["-n", "312"]
+stdin_file = "blocks.txt"
+stdin_offset = 20000
+
+[[case]]
+name = "seek: n 313 of standard input that is a file"
+args = ["-n", "313"]
+stdin_file = "blocks.txt"
+
+[[case]]
+name = "seek: n 313 of standard input at an offset"
+args = ["-n", "313"]
+stdin_file = "blocks.txt"
+stdin_offset = 20000
+
+[[case]]
+name = "seek: c 8191 across the block boundary"
+args = ["-c", "8191", "tests/fixtures/blocks.txt"]
+
+[[case]]
+name = "seek: c 8191 of standard input at an offset"
+args = ["-c", "8191"]
+stdin_file = "blocks.txt"
+stdin_offset = 3
+
+[[case]]
+name = "seek: c 8192 across the block boundary"
+args = ["-c", "8192", "tests/fixtures/blocks.txt"]
+
+[[case]]
+name = "seek: c 8192 of standard input at an offset"
+args = ["-c", "8192"]
+stdin_file = "blocks.txt"
+stdin_offset = 3
+
+[[case]]
+name = "seek: c 8193 across the block boundary"
+args = ["-c", "8193", "tests/fixtures/blocks.txt"]
+
+[[case]]
+name = "seek: c 8193 of standard input at an offset"
+args = ["-c", "8193"]
+stdin_file = "blocks.txt"
+stdin_offset = 3
+
+[[case]]
+name = "seek: c 28213 across the block boundary"
+args = ["-c", "28213", "tests/fixtures/blocks.txt"]
+
+[[case]]
+name = "seek: c 28213 of standard input at an offset"
+args = ["-c", "28213"]
+stdin_file = "blocks.txt"
+stdin_offset = 3
+
+[[case]]
+name = "seek: c 28214 across the block boundary"
+args = ["-c", "28214", "tests/fixtures/blocks.txt"]
+
+[[case]]
+name = "seek: c 28214 of standard input at an offset"
+args = ["-c", "28214"]
+stdin_file = "blocks.txt"
+stdin_offset = 3
+
+[[case]]
+name = "seek: c 28215 across the block boundary"
+args = ["-c", "28215", "tests/fixtures/blocks.txt"]
+
+[[case]]
+name = "seek: c 28215 of standard input at an offset"
+args = ["-c", "28215"]
+stdin_file = "blocks.txt"
+stdin_offset = 3
+
+[[case]]
+name = "seek: n 1 ending on a line longer than two blocks"
+args = ["-n", "1", "tests/fixtures/longline.txt"]
+
+[[case]]
+name = "seek: n 2 ending on a line longer than two blocks"
+args = ["-n", "2", "tests/fixtures/longline.txt"]
+
+[[case]]
+name = "seek: n 3 ending on a line longer than two blocks"
+args = ["-n", "3", "tests/fixtures/longline.txt"]
+
+[[case]]
+name = "seek: n 4 ending on a line longer than two blocks"
+args = ["-n", "4", "tests/fixtures/longline.txt"]
+
+[[case]]
+name = "seek: c 17001 of a line longer than two blocks"
+args = ["-c", "17001", "tests/fixtures/longline.txt"]
+
+[[case]]
+name = "seek: n 2 of a file with no final newline"
+args = ["-n", "2", "tests/fixtures/nonl.txt"]
+
+[[case]]
+name = "seek: n 2 of standard input with no final newline"
+args = ["-n", "2"]
+stdin_file = "nonl.txt"
+stdin_offset = 0
+
+[[case]]
+name = "seek: z 2 walks back by NUL"
+args = ["-z", "-n", "2", "tests/fixtures/nulrec.dat"]
+
+[[case]]
+name = "seek: offset past the end writes nothing and stays"
+args = ["-n", "2"]
+stdin_file = "twelve.txt"
+stdin_offset = 100
+
+[[case]]
+name = "seek: n 0 leaves the offset alone"
+args = ["-n", "0"]
+stdin_file = "twelve.txt"
+stdin_offset = 5
+
+[[case]]
+name = "seek: c 0 leaves the offset alone"
+args = ["-c", "0"]
+stdin_file = "twelve.txt"
+stdin_offset = 5
+
+[[case]]
+name = "seek: n 100 from an offset mid-line"
+args = ["-n", "100"]
+stdin_file = "twelve.txt"
+stdin_offset = 3
+
+[[case]]
+name = "seek: plus n reads forward from the offset"
+args = ["-n", "+2"]
+stdin_file = "twelve.txt"
+stdin_offset = 3
+
+[[case]]
+name = "seek: plus c skips from the offset"
+args = ["-c", "+2"]
+stdin_file = "twelve.txt"
+stdin_offset = 3
+
+[[case]]
+name = "seek: plus c past the end moves the offset past it"
+args = ["-c", "+2"]
+stdin_file = "empty.txt"
+stdin_offset = 0
+
+[[case]]
+name = "seek: plus c far past the end"
+args = ["-c", "+100"]
+stdin_file = "twelve.txt"
+stdin_offset = 7
+
+[[case]]
+name = "seek: two files, one long"
+args = ["-n", "3", "tests/fixtures/twelve.txt", "tests/fixtures/blocks.txt"]
+
+[[case]]
+name = "seek: a file and standard input at an offset"
+args = ["-n", "2", "tests/fixtures/twelve.txt", "-"]
+stdin_file = "blocks.txt"
+stdin_offset = 28000
+
+
+# A file whose fstat size is not its length: GNU reads these forward,
+# and so must the seek path (bu15 measured trunk writing 0 bytes of the
+# first for `-c 20` and all 144 of the second). linux only.
+
+[[case]]
+name = "seek: -c 20 of /sys/devices/system/cpu/online, whose size lies"
+args = ["-c", "20", "/sys/devices/system/cpu/online"]
+requires = "/sys/devices/system/cpu/online"
+
+[[case]]
+name = "seek: -c 20 of /proc/version, whose size lies"
+args = ["-c", "20", "/proc/version"]
+requires = "/proc/version"
+
+[[case]]
+name = "seek: -n 1 of /sys/devices/system/cpu/online, whose size lies"
+args = ["-n", "1", "/sys/devices/system/cpu/online"]
+requires = "/sys/devices/system/cpu/online"
+
+[[case]]
+name = "seek: -n 1 of /proc/version, whose size lies"
+args = ["-n", "1", "/proc/version"]
+requires = "/proc/version"
+
+[[case]]
+name = "seek: -c +5 of /sys/devices/system/cpu/online, whose size lies"
+args = ["-c", "+5", "/sys/devices/system/cpu/online"]
+requires = "/sys/devices/system/cpu/online"
+
+[[case]]
+name = "seek: -c +5 of /proc/version, whose size lies"
+args = ["-c", "+5", "/proc/version"]
+requires = "/proc/version"
+
+[[case]]
+name = "seek: c 20 of standard input whose size lies"
+args = ["-c", "20"]
+stdin_file = "/proc/version"
+requires = "/proc/version"
