@@ -1,7 +1,7 @@
 # wc — the per-flag bench. Each flag takes a different path through the
 # program, so they are timed separately rather than as one "wc" number:
 #
-#   -c   an fstat on a file operand, a read on standard input
+#   -c   an fstat (and a tell) on any regular file, standard input too
 #   -l   the tightest byte loop there is
 #   -w   the loop GNU cannot vectorize either
 #   -m   bytes in the C locale (an fstat), a decoder under UTF-8
@@ -23,7 +23,7 @@ command = "LC_ALL=C {prog} -c {input}"
 input = "big"
 
 [[bench]]
-name = "-c through a redirect, C (GNU fstats, we read)"
+name = "-c through a redirect, C (an fstat and a tell on both sides)"
 command = "LC_ALL=C {prog} -c < {input}"
 input = "big"
 
