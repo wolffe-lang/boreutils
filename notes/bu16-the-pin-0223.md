@@ -105,7 +105,21 @@ Every path is under kasumi `~/lanes/bu16/ev/`.
   launched as the pin while the pin tree's checkout had failed; it is a
   second 0.2.22 base run at `075219a` (its own header says so),
   renamed, and it reproduced the base's binaries (`46d74892…` both).
-- CI at head: in the PR.
+- CI at `1826f45`: run 37229323186. Attempt 1: ubuntu green; **macOS
+  red at `build (release)`** (job 111515456616, log `d49a9c59…`):
+  `wolf build: ICE: backend: read …/wolf-llvm-5650-1791142997632476000/wolf.o:
+  No such file or directory`, building `expand`. Attempt 2 was green on
+  the same commit (macOS job 111515949737, 2709 / 0 / 72; ubuntu job
+  111515951101, 2749 / 0 / 32; field job 111515950290, 2692 / 15 / 74;
+  SKIP lines counted in each full log: 72, 32, 74). These match bu15's
+  trunk run 37173509510 leg for leg. Filed as **wolf-lang#583**. Read
+  from v0.2.23's source and not reproduced: the release backend names
+  its scratch directory by pid and wall-clock nanoseconds, but macOS's
+  clock has microsecond granularity (the name ends `000`). Units are
+  finished in parallel in one process, so two units can share the
+  directory, and one deletes the other's object. It is not a boreutils
+  defect and nothing here works around it. A macOS CI red at
+  `build (release)` with this ICE is a re-run. CI at head: in the PR.
 
 ## 5. Done-when
 
