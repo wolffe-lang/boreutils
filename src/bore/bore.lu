@@ -634,9 +634,21 @@ pub error ReadFailed = {eof, io}
 /// `-`.
 ///
 /// Standard input is reached by reopening `/dev/stdin`, because no
-/// builtin at 0.2.14 reads descriptor 0 as bytes (wolf-lang#405). Open
+/// builtin reads descriptor 0 as bytes yet (wolf-lang#405). Open
 /// standard OUTPUT before the first input: with descriptor 1 closed,
 /// the first file opened takes descriptor 1.
+///
+/// **The reopen and the offset.** On linux `/dev/stdin` is
+/// `/proc/self/fd/0`, and opening it makes a FRESH open file description
+/// at offset 0; on macOS it duplicates descriptor 0 and shares its
+/// offset. So when standard input is a regular file the shell has
+/// already read into (`{ read h; tail; } < f`), linux used to read it
+/// from byte 0 and leave descriptor 0 where it was, where GNU reads from
+/// the offset and moves it (measured, bu15). Since wolf 0.2.22 the
+/// offset calls serve descriptor 0 (`[os.fs.std]`), so `open_input`
+/// moves the new handle to descriptor 0's offset and `settle` moves
+/// descriptor 0 to wherever the handle stopped. On macOS both are the
+/// same offset and both moves are no-ops.
 pub struct In {
     fd: int,
     name: str,
@@ -657,7 +669,15 @@ pub fn name_of(i: In) -> str {
 /// still be told apart.
 pub fn open_input(path: str) -> In ! OpenFailed {
     if path == "-" {
-        return In { fd: fs_open("/dev/stdin")?, name: "-" }
+        let fd = fs_open("/dev/stdin")?
+        if stdin_is_file() {
+            let at = fs_tell(0) else 0
+            let mine = fs_tell(fd) else at
+            if mine != at {
+                let _ = fs_seek(fd, at, 0) else 0
+            }
+        }
+        return In { fd: fd, name: "-" }
     }
     let fd = fs_open(path)?
     let st = fs_fstat(fd) else |_| {
@@ -682,9 +702,96 @@ pub fn read_chunk(i: In, n: int) -> List[byte] ! ReadFailed {
 }
 
 /// Close `i`. A close failure is not reportable and is dropped, as GNU
-/// drops it for an input.
+/// drops it for an input. Standard input is `settle`d first.
 pub fn close_input(i: In) {
+    settle(i)
     fs_close(i.fd) else |_| {}
+}
+
+/// Whether descriptor 0 is a regular file, the one kind of standard
+/// input that has an offset worth keeping (`[os.fs.std]`).
+fn stdin_is_file() -> bool {
+    let st = fs_fstat(0) else |_| {
+        return false
+    }
+    st[0] == 0
+}
+
+/// Leave descriptor 0 where this program's handle on standard input
+/// stopped, as GNU leaves it: `{ head -n 1; cat; } < f` hands `cat` the
+/// rest of `f`. Nothing for a named file, a pipe, or a host where the
+/// reopen already shares descriptor 0's offset (macOS).
+pub fn settle(i: In) {
+    if i.name != "-" || i.fd < 0 || !stdin_is_file() {
+        return
+    }
+    let mine = fs_tell(i.fd) else |_| {
+        return
+    }
+    let theirs = fs_tell(0) else |_| {
+        return
+    }
+    if mine != theirs {
+        let _ = fs_seek(0, mine, 0) else 0
+    }
+}
+
+/// Move `i`'s offset to `at`, counted from the start. A pipe has no
+/// offset to move and is left alone.
+pub fn seek_to(i: In, at: int) {
+    let _ = fs_seek(i.fd, at, 0) else 0
+}
+
+/// Where the next read of `i` starts, or -1 when it has no offset (a
+/// pipe, a terminal).
+pub fn offset_of(i: In) -> int {
+    fs_tell(i.fd) else -1
+}
+
+/// The end of `i` when it is a regular file whose size can be TRUSTED,
+/// or -1 when it must be read forward to find out.
+///
+/// `fs_fstat`'s size is not always the length, and GNU does not trust
+/// it either (measured on kasumi, bu15): a sysfs attribute reports 4096
+/// and holds 23 bytes, and a `/proc` file reports 0 and holds 144, and
+/// GNU's `wc -c`, `tail -c` and `head -c -K` still answer 23 and 144
+/// from them. So the size is believed only when the byte before it
+/// exists and nothing exists at it, which costs two positional reads.
+/// A file that has grown since the `fstat` answers its new end; one
+/// that reports 0 or more than it holds answers -1 and is read forward,
+/// which is exactly what a pipe gets.
+pub fn verified_end(i: In) -> int {
+    let st = fs_fstat(i.fd) else |_| {
+        return -1
+    }
+    if st[0] != 0 || st[1] <= 0 {
+        return -1
+    }
+    var end = st[1]
+    var held = false
+    region probe {
+        let last = fs_read_at(i.fd, end - 1, 1) else |_| {
+            List[byte]()
+        }
+        held = last.len == 1
+    }
+    if !held {
+        return -1
+    }
+    var more = true
+    while more {
+        region probe {
+            let past = fs_read_at(i.fd, end, 65536) else |_| {
+                List[byte]()
+            }
+            if past.len == 0 {
+                more = false
+            } else {
+                end += past.len
+            }
+        }
+    }
+    end
 }
 
 /// The first line of `--version`, and the lines after it.

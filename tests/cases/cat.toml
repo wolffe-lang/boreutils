@@ -539,3 +539,29 @@ name = "a write error on a live descriptor, a rendering option"
 args = ["-n", "tests/fixtures/plain.txt"]
 stdout_file = "/dev/full"
 compare = ["exit"]
+
+# ------------------------------------------------- standard input's offset
+#
+# bu15: on linux `-` is reached by reopening /dev/stdin, a fresh open
+# file description at offset 0, so a standard input the shell had read
+# into was read from byte 0 and its offset never moved. GNU reads from
+# the offset and leaves it at the end. `bore.open_input` and
+# `bore.settle` carry the offset across now (wolf 0.2.22, `[os.fs.std]`).
+
+[[case]]
+name = "standard input at an offset"
+args = []
+stdin_file = "twelve.txt"
+stdin_offset = 5
+
+[[case]]
+name = "standard input at an offset, numbered"
+args = ["-n"]
+stdin_file = "twelve.txt"
+stdin_offset = 5
+
+[[case]]
+name = "standard input past the end"
+args = []
+stdin_file = "twelve.txt"
+stdin_offset = 60
