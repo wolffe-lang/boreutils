@@ -48,6 +48,36 @@
 #     `List[T]()` and pushes, because lupin 0.1.36 refused list
 #     literals, so the literal's element type is unreachable here.
 #
+# ## The bump to 0.2.22 / 0.1.45 (bu15, 2026-10-04)
+#
+# Two releases on the wolf half (0.2.21 was never pinned here), two on
+# lupin's, taken from the release archives by digest as above; the
+# per-member table is in `notes/bu15-the-seek.md`, and `_wolf` again
+# hashes 2d1e48018333e3dd70473b34dfc78723f91f71d44a3d95287b68ce85fbbc2221
+# in all three wolf archives. All 27 utilities build under 0.2.22 with
+# --deny-warnings at both std candidates, nothing refused or warned.
+#
+# What a downstream has to read at this bump:
+#
+#   * The reason for it: `fs_seek`, `fs_tell` and `fs_read_at` (s199,
+#     wolf-lang#426), and descriptors 0, 1 and 2 are the standard streams
+#     for `fs_fstat` and those three (#424, `[os.fs.std]`). The first
+#     handle an open answers is now 3, never 0; nothing here assumed a
+#     number. `tail`, `head` and `wc` adopt the calls in later commits.
+#   * An integer cast keeps the value or TRAPS (kw03, ruling #31 K12):
+#     native used to truncate `n as byte` and reinterpret a change of
+#     sign. Every narrowing cast in `src/` is of a value already in
+#     range (a byte read back as an int and pushed back, a digit, an
+#     ASCII code), and the verdict list at this pin is identical.
+#   * A `for` piece cannot outlive its region (s207, #540): no site here
+#     holds a `words()`/`split()` piece past its `region` (it builds, so
+#     the checker agrees).
+#   * The attribute set is closed (kw01, E0817): `src/` carries no
+#     attribute at all.
+#   * Ruling #34 (s208, wolf-lang#559) is NOT in this release: #559 was
+#     still open when 0.2.22 was cut, so `bore.put`, `put_byte` and
+#     `sink_push` keep their 0.2.20 shape.
+#
 # ## The bump to 0.2.20 / 0.1.43 (bu13, 2026-10-02)
 #
 # One release on each half, taken from the release archives by digest
@@ -162,27 +192,26 @@
 # TAG names, which is the thing this file pins.
 
 [wolf]
-version = "0.2.20"
+version = "0.2.22"
 repo = "wolffe-lang/wolf-lang"
-rev = "cdde128a30999652c9d70189664226b766a206f0"
-version_line = "wolf 0.2.20 (wolfgang, pin cdde128)"
-aarch64-apple-darwin = "c8a3f1a3785628ff055dc61a7ca5e48e212a431dca4bc05fe0e21cc2a46d6315"
-x86_64-unknown-linux-gnu = "24855d5efae9515ac092f1db11613187838f018f017dc20416f70905fb816ce9"
-aarch64-unknown-linux-gnu = "30f9fad962d9a4a84076549527800e226fd4078d179d68430ed3d1a75559a730"
+rev = "8e36bc1a0f92bbbbc6861b10d5b2638f76412d6a"
+version_line = "wolf 0.2.22 (wolfgang, pin 8e36bc1)"
+aarch64-apple-darwin = "19606e1e955680f33b9d73ec0666b71a51a05e7d8bd349f3ea46353b2b931e91"
+x86_64-unknown-linux-gnu = "df0f2fea26d9d26de5e577ee5d2cbabeaafe6d93ecfa447cb6be97ae442d8dba"
+aarch64-unknown-linux-gnu = "64e35e43c97a999b3c71f18f7942b6b5ec5d5be6942367a73088e797371c0d32"
 
 [lupin]
-# The reference interpreter wolf 0.2.20 declares as its pairing:
-# `wolf --version` line 2 reads "paired with lupin 0.1.43 (reference
-# interpreter), pin c2401f0". The pin lupin conforms to is wolf v0.2.19
-# (one release behind, as 0.1.42's was); the `rev` below is the commit
-# the 0.1.43 TAG names.
-version = "0.1.43"
+# The reference interpreter wolf 0.2.22 declares as its pairing:
+# `wolf --version` line 2 reads "paired with lupin 0.1.45 (reference
+# interpreter), pin dfcc2f1". The `rev` below is the commit the 0.1.45
+# TAG names.
+version = "0.1.45"
 repo = "wolffe-lang/wolf-interp"
-rev = "6d6cde553ba980527dcbebd4dbe81d63f898d658"
-version_line = "lupin 0.1.43 (wolf-interp, reference interpreter at pin c2401f0)"
-aarch64-apple-darwin = "24d3e8f1650402c901fa13a1409b5096ce628964e2793b2c0f298a30b8a61190"
-x86_64-unknown-linux-gnu = "e957c8def153f507520a1f7f98f7f391cd43e731ee73c25c6a7bdef4d3090d48"
-aarch64-unknown-linux-gnu = "e0620310294706dc32dbb900be445a5f08a8b50fd18c16e4a9fe509b2beb2aa7"
+rev = "9f4e4a175da109bc4dc0acec3e8a4bc54358b941"
+version_line = "lupin 0.1.45 (wolf-interp, reference interpreter at pin dfcc2f1)"
+aarch64-apple-darwin = "08b1de122d73a26609ca1e2cf7a5febf81d57920d459b2a28bbb3ea5bd2261ad"
+x86_64-unknown-linux-gnu = "907cfb1ac473c82a36013064ae3cee7b03d879b44a6ce6ad775e2e26353424c7"
+aarch64-unknown-linux-gnu = "d4bf3432deb81c10fcbed707a4556c63742b95877d3a0a025d9c7c1ada1775f5"
 
 [std]
 # wolf-std ships no release archive, so the tree is pinned by commit:
@@ -227,5 +256,11 @@ aarch64-unknown-linux-gnu = "e0620310294706dc32dbb900be445a5f08a8b50fd18c16e4a9f
 # 14f0ab2 (bu11 re-derived it against 0.2.19 first).
 # KEPT AT THE 0.2.20 BUMP for the same reason: wolf-std trunk is still
 # 14f0ab2, 0 commits ahead (bu13 re-derived it against 0.2.20 first).
+# MOVED AT THE 0.2.22 BUMP to wolf-std trunk 6a0df5e (sc53, std at
+# 0.2.22 / 0.1.45), B151 first: both 14f0ab2 and 6a0df5e build all 27
+# utilities under 0.2.22 with --deny-warnings. 14f0ab2..6a0df5e is 21
+# commits touching one file under `std/`, `std/fs/fs.lu` (the wrappers
+# over s199's calls), which no utility imports: boreutils uses
+# `std.env` and `std.time` only, and calls the builtins directly.
 repo = "wolffe-lang/wolf-std"
-rev = "14f0ab2c6a64e86240113e21c4da9f746380eb29"
+rev = "6a0df5e1bd8545548407bd7c76026f6d8cbf3b26"
