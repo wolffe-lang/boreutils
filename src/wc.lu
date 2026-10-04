@@ -1008,7 +1008,7 @@ fn count_one(
     let bytes_only = !sel.lines && !sel.words && !sel.maxline && !(sel.chars && utf8)
     if bytes_only {
         let end = bore.verified_end(src)
-        let start = bore.offset_of(src)
+        let start = bore.position_of(src)
         if end >= 0 && start >= 0 {
             var size = end - start
             if size < 0 {

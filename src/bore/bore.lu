@@ -744,7 +744,11 @@ pub fn seek_to(i: In, at: int) {
 
 /// Where the next read of `i` starts, or -1 when it has no offset (a
 /// pipe, a terminal).
-pub fn offset_of(i: In) -> int {
+///
+/// Named `offset_of` until wolf 0.2.23, whose prelude gained
+/// `offset_of(T, field)` (kw08): a module fn of that name shadows it,
+/// W0304, which `--deny-warnings` refuses.
+pub fn position_of(i: In) -> int {
     fs_tell(i.fd) else -1
 }
 

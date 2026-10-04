@@ -52,7 +52,7 @@
 //! `tail -n K` uses too) and streams everything before them: memory is
 //! flat where the window would have been K lines deep, and no byte goes
 //! through the ring. It applies to standard input too when that is a
-//! regular file, counted from its CURRENT OFFSET (`bore.offset_of`),
+//! regular file, counted from its CURRENT OFFSET (`bore.position_of`),
 //! and to no file whose size cannot be trusted (`bore.verified_end`).
 //! A pipe, and such a file, use the window in `bore/ring.lu`.
 //!
@@ -355,7 +355,7 @@ fn one(out: bore.Out, path: str, o: Opts, show: bool, mut first: bool) -> int {
     var sent = 0
     // Where reading starts: 0 for a file this program opened, the
     // shell's offset for standard input that is a file, -1 for a pipe.
-    let start = bore.offset_of(src)
+    let start = bore.position_of(src)
     if o.minus {
         // A regular file whose end can be trusted turns all-but-the-
         // last-K into the first `want` bytes, and the window never has
@@ -714,7 +714,7 @@ fn drop_last_lines(out: bore.Out, src: bore.In, n: int, delim: byte) -> int {
 /// window loops instead cost ~8% on `-n -1` through a pipe (299 ms
 /// against 327 ms on 256 MiB, bu15), where nothing needs it.
 fn placed(src: bore.In, r: bore.Ring) {
-    let at = bore.offset_of(src)
+    let at = bore.position_of(src)
     if at >= 0 {
         bore.seek_to(src, at - bore.ring_len(r))
     }

@@ -582,7 +582,7 @@ fn from_end(out: bore.Out, src: bore.In, o: Opts) -> int {
     if end < 0 {
         return -1
     }
-    let start = bore.offset_of(src)
+    let start = bore.position_of(src)
     if start < 0 {
         return -1
     }
@@ -617,7 +617,7 @@ fn forward(out: bore.Out, src: bore.In, o: Opts) -> int {
             // the first K - 1 and a copy, as GNU does it (`lseek(fd,
             // K - 1, SEEK_CUR)` under strace): nothing is read twice,
             // and a file whose size lies is copied to its real end.
-            let start = bore.offset_of(src)
+            let start = bore.position_of(src)
             if start >= 0 {
                 bore.seek_to(src, start + skip)
                 return from_byte(out, src, 0)
