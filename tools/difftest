@@ -29,6 +29,19 @@ Case file (TOML, one file per utility, any number of [[case]] tables):
   args = ["include/stdio.h", ".h"]
   stdin = "inline text"          # optional; or stdin_file = "name"
                                  #   (relative to tests/fixtures/)
+  stdin_offset = 3               # optional, with stdin_file (bu15): move
+                                 #   the file's OFFSET to this byte before
+                                 #   the run, as `{ read h; prog; } < f`
+                                 #   leaves it, and compare a fifth field,
+                                 #   `offset`: where the run LEFT the
+                                 #   offset of the open file description
+                                 #   it shares with the harness. That is
+                                 #   how `{ head -n 1; cat; } < f` is
+                                 #   seen at all. A stdin_file may be an
+                                 #   absolute path (`/proc/version`).
+  requires = "/proc/version"     # optional: a path the case needs; the
+                                 #   case is a SKIP on a host without it
+                                 #   (macOS has no /proc and no /sys)
   stdin_repeat = 32768           # optional: send `stdin` this many times
                                  #   over. A case that has to be LARGER
                                  #   THAN THE PIPE BUFFER — the only way
@@ -139,8 +152,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CASES = os.path.join(ROOT, "tests", "cases")
 FIXTURES = os.path.join(ROOT, "tests", "fixtures")
 ALL = ("stdout", "stderr", "exit")
-FIELDS = ALL + ("files",)
-KEYS = {"name", "args", "stdin", "stdin_file", "stdin_repeat", "env",
+FIELDS = ALL + ("files", "offset")
+KEYS = {"name", "args", "stdin", "stdin_file", "stdin_offset", "requires",
+        "stdin_repeat", "env",
         "compare", "stdout_bytes", "stdout_closed", "stdout_file", "skip",
         "timeout", "gnu_util", "gnu_min", "gnu_max", "scratch",
         "scratch_dirs", "scratch_links", "scratch_modes", "cwd"}
@@ -347,6 +361,8 @@ def run(exe, argv0, case, base_env, top=None):
         data = case["stdin"].encode() * int(case.get("stdin_repeat", 1))
     elif "stdin_file" in case:
         stdin = open(os.path.join(FIXTURES, case["stdin_file"]), "rb")
+        if "stdin_offset" in case:
+            os.lseek(stdin.fileno(), int(case["stdin_offset"]), os.SEEK_SET)
     limit = case.get("stdout_bytes")
     closed = bool(case.get("stdout_closed"))
     sink = case.get("stdout_file")
@@ -397,6 +413,11 @@ def run(exe, argv0, case, base_env, top=None):
         proc.kill()
         proc.wait()
         return None
+    else:
+        # The child is gone, so the offset it shared with this open file
+        # description is where it left it.
+        if "stdin_offset" in case:
+            offset = os.lseek(stdin.fileno(), 0, os.SEEK_CUR)
     finally:
         if hasattr(stdin, "close"):
             stdin.close()
@@ -404,6 +425,8 @@ def run(exe, argv0, case, base_env, top=None):
             stdout.close()
     result = {"stdout": out, "stderr": normalize(err, argv0),
               "exit": status(proc.returncode)}
+    if "stdin_offset" in case:
+        result["offset"] = offset
     if top is not None:
         result["files"] = snapshot(top)
     return result
@@ -445,6 +468,9 @@ def load(path):
         if c["name"] in seen:
             die(f"{path}: duplicate case name {c['name']!r}")
         seen.add(c["name"])
+        if "stdin_offset" in c and "stdin_file" not in c:
+            die(f"{path}: case {c['name']!r} sets an offset on a standard "
+                f"input that is not a file")
         if "stdin_repeat" in c and "stdin" not in c:
             die(f"{path}: case {c['name']!r} repeats a standard input "
                 f"it does not have")
@@ -465,6 +491,9 @@ def load(path):
         for f in c.get("compare", ALL):
             if f not in FIELDS:
                 die(f"{path}: case {c['name']!r} compares unknown {f!r}")
+            if f == "offset" and "stdin_offset" not in c:
+                die(f"{path}: case {c['name']!r} compares the offset and "
+                    f"sets none")
             if f == "files" and not has_scratch(c):
                 die(f"{path}: case {c['name']!r} compares files and has "
                     f"no scratch directory")
@@ -562,6 +591,11 @@ def main(argv):
                 skipped += 1
                 print(f"SKIP {label} ({bound})")
                 continue
+            need = case.get("requires")
+            if need is not None and not os.path.exists(need):
+                skipped += 1
+                print(f"SKIP {label} (no {need} on this host)")
+                continue
             sink = case.get("stdout_file")
             if sink is not None and not os.path.exists(sink):
                 skipped += 1
@@ -570,6 +604,8 @@ def main(argv):
             fields = case.get("compare",
                               ALL if sink is None and not case.get("stdout_closed")
                               else CLOSED)
+            if "stdin_offset" in case and "compare" not in case:
+                fields = tuple(fields) + ("offset",)
             top = None
             if has_scratch(case):
                 if "compare" not in case:

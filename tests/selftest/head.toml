@@ -1,0 +1,14 @@
+# A planted difference in the `offset` field (bu15), for
+# tools/difftest-selftest. boreutils `head -` stops after ten lines of
+# twelve and leaves standard input's offset just past them; GNU `cat -`
+# reads to the end and leaves it at the end. Only the offset is
+# compared, so the harness passes this file only by failing it on the
+# offset alone.
+
+[[case]]
+name = "an offset one side moves"
+args = ["-"]
+stdin_file = "twelve.txt"
+stdin_offset = 3
+gnu_util = "cat"
+compare = ["offset"]

@@ -23,10 +23,12 @@ if ! echo "$out" | grep -q '^FAIL '; then
 fi
 # Every planted case must fail BY NAME: one FAIL line is not enough once
 # there is more than one plant, because the others could be passing.
-# The `files` plants (bu14) are the gate on the scratch directory.
+# The `files` plants (bu14) are the gate on the scratch directory, and
+# the `offset` plant (bu15) the gate on a shared standard input.
 for planted in "true: true is not false" \
                "tee: a file one side writes" \
-               "tee: a file whose bytes differ"; do
+               "tee: a file whose bytes differ" \
+               "head: an offset one side moves"; do
     if ! echo "$out" | grep -qF "FAIL $planted"; then
         echo "difftest-selftest: REFUSED — the plant '$planted' did not fail:"
         echo "$out"
