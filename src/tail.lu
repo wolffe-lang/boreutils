@@ -9,33 +9,32 @@
 //! uutils/coreutils (MIT) and toybox (0BSD) as design references for
 //! the shape of a last-K window. Never GNU source.
 //!
-//! **Seeking backwards, and why this program does not.** GNU `tail`
-//! reads the END of a regular file: it `lseek`s to the end, walks
-//! backwards a block at a time and touches only the last few kilobytes
-//! of a ten gigabyte file. **wolf 0.2.14 has no seek, no tell and no
-//! positional read** — `fs_open`, `fs_read_chunk`, `fs_write_chunk` and
-//! `fs_fstat` are the whole surface, and none of them names an offset
-//! (wolf-lang#405; this lane filed the positional-read half of it with
-//! its own witness). So boreutils `tail` reads the file FORWARD, from
-//! the first byte to the last, and keeps a window of the last K lines
-//! or bytes in `bore/ring.lu`.
+//! **Reading backwards from the end** (bu15, boreutils#19). GNU `tail`
+//! reads the END of a regular file: it seeks to the end, walks back a
+//! block at a time and touches only the last few kilobytes of a ten
+//! gigabyte file. Until wolf 0.2.22 there was no seek, tell or
+//! positional read, so this program read every file forward from byte
+//! zero and kept a window of the last K lines in `bore/ring.lu`
+//! (`tail -n 10` of 256 MiB: 111 ms against GNU's 0.2 ms). Now
+//! `from_end` does what GNU does, for `-n K` and `-c K`:
 //!
-//! That is a real loss and the lane report measures it rather than
-//! hiding it: on a file large enough for the difference to show,
-//! `tail -n 10` is O(size) here and O(1) for GNU. It is the one place
-//! in the streaming trio where wolf cannot express what C expresses.
+//! - **a regular file** whose end `bore.verified_end` can trust: `-c K`
+//!   copies `[end - K, end)` with positional reads; `-n K` walks back
+//!   8 KiB at a time (`bore.line_cut`) to the start of the last K lines
+//!   and copies from there. No window.
+//! - **standard input that is a regular file**: the same, counted from
+//!   descriptor 0's offset rather than from byte 0, and the offset is
+//!   left at the end, where GNU leaves it (measured with a shared
+//!   descriptor; `tests/cases/tail.toml`'s `stdin_offset` cases).
+//! - **a pipe**, and a file whose size cannot be trusted (a `/proc`
+//!   file reports 0, a sysfs one 4096 whatever it holds): read forward
+//!   through the window, as before. GNU cannot seek a pipe either, so
+//!   that comparison was always the fair one.
 //!
-//! **When the input is a pipe, GNU cannot seek either**, and there the
-//! two implementations do the same work: both read every byte and both
-//! hold a window. `tail -n 10` on a pipe is the comparison that is
-//! actually fair, and the bench table gives both.
-//!
-//! **`-c K` on a named regular file is the one case the `fstat` saves.**
-//! The size is known, so the program skips `size - K` bytes and holds
-//! nothing — it still READS them, because there is no seek, but the
-//! window never has to exist. Not taken for `-`: what a reader owes on
-//! a descriptor is size minus the CURRENT OFFSET and there is no tell
-//! (bu02 made the same call for `wc -c`).
+//! `-c +K` on anything with an offset seeks past the first K - 1 bytes
+//! and copies the rest, as GNU does; `-n +K` must count lines, so it
+//! reads forward from the offset. `-f` follows from wherever the first
+//! pass left the offset, which is the end either way.
 //!
 //! GNU's rules, each measured against coreutils 9.11 on both hosts:
 //!

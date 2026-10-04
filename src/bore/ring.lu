@@ -1,9 +1,10 @@
 //! bore.ring — the byte ring the streaming trio keeps its tail in.
 //!
 //! `tail -n 10` and `head -n -10` both have to answer a question about
-//! the END of a stream, and wolf 0.2.14 has no seek and no tell in the
-//! fs family (wolf-lang#405), so neither can start at the end: they
-//! read forward and keep a window. This is that window.
+//! the END of a stream, and a pipe cannot be read from the end: they
+//! read it forward and keep a window. This is that window. A regular
+//! file whose end can be trusted no longer comes here (bu15, on wolf
+//! 0.2.22's positional read: `bore.line_cut`).
 //!
 //! It is a ring rather than a list so that dropping the oldest line
 //! costs two integers instead of a copy of everything behind it, and it

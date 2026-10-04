@@ -822,12 +822,13 @@ pub struct Out {
 /// opened first takes descriptor 1 and `/dev/stdout` then names it.
 ///
 /// **Telling a closed descriptor from a refused reopen.** The reopen is
-/// the only handle wolf gives us on descriptor 1 — `fs_fstat` indexes
-/// the runtime's OWN handle table, not the process's descriptors, so
-/// `fs_fstat(1)` answers `io` whatever descriptor 1 is (measured at
-/// 0.2.14 on both hosts; the first `fs_open_mode` of a program answers
-/// the handle 0 — wolf-lang#424). So the row the reopen raises is the
-/// evidence, and it
+/// the only handle wolf gives us to WRITE descriptor 1 (wolf-lang#405).
+/// Before wolf 0.2.22 it was the only handle at all: `fs_fstat` indexed
+/// the runtime's own handle table, so `fs_fstat(1)` answered `io`
+/// whatever descriptor 1 was (wolf-lang#424). 0.2.22 makes 0, 1 and 2
+/// the standard streams for `fs_fstat` (`[os.fs.std]`), so a later
+/// lane may ask descriptor 1 directly; this one keeps the measured
+/// shape below, where the row the reopen raises is the evidence, and it
 /// is host-shaped. Measured at 0.2.14 against wolf's own builtin:
 ///
 /// | descriptor 1 | linux | macOS |
