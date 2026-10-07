@@ -63,7 +63,7 @@ GNU coreutils is the oracle and must be installed: natively on linux,
 record** below.
 
 **Windows is out of scope.** The only byte-exact route to standard
-input and output in wolf 0.2.23 is reopening `/dev/stdin` and
+input and output in wolf 0.2.25 is reopening `/dev/stdin` and
 `/dev/stdout` (wolf-lang#405), which windows does not have. CI runs on
 linux and macOS.
 
@@ -85,7 +85,7 @@ and measured black-box against GNU:
   works around it.
 
 Two things GNU says that boreutils cannot yet say. The reason text
-after a failed write is `strerror(errno)`, and wolf 0.2.23 carries no
+after a failed write is `strerror(errno)`, and wolf 0.2.25 carries no
 errno text behind an `io` row (wolf-lang#407), so a full disk is
 `write error: Input/output error` here against GNU's `write error: No
 space left on device`; the status is the same and the differential case
@@ -200,7 +200,7 @@ that are outside the regular-expression subset that utility states in
 its header.
 
 **The small-surface set adds twelve skips, and not one of them is a C
-library's.** Each is a wolf 0.2.23 gap, filed with a witness and named
+library's.** Each is a wolf 0.2.25 gap, filed with a witness and named
 in the case file: `printenv`'s four bare listings (wolf lists the
 environment only sorted, wolf-lang#535), `pwd -L` beside a `cp -a` twin
 of the working directory (no file identity, wolf-lang#536), and `tee`'s
@@ -288,7 +288,7 @@ file is 16 MiB of nought-to-seven-letter lines.
 So `cat` starts up level with GNU on both hosts and loses on bulk
 copying, by 1.6x on macOS and by 6x on linux. GNU moves the bytes
 without a round trip through user space where the host allows it, and
-wolf 0.2.23 exposes neither `splice` nor `copy_file_range`, so every
+wolf 0.2.25 exposes neither `splice` nor `copy_file_range`, so every
 byte we copy is read into a list and written back out.
 
 Memory is level, and flat in the size of the input either way: copying
@@ -710,7 +710,7 @@ which a sort that never spilled could not pass.
 The small-surface set — `tee`, `printf`, `printenv`, `pwd`, `sleep`
 and `nproc` — is bu14's, and the wave asked for `env` beside them. **`env`
 is not here**, because its job is to run COMMAND in a modified
-environment and wolf 0.2.23 has no way to do that: no exec, no unset or
+environment and wolf 0.2.25 has no way to do that: no exec, no unset or
 clear, no child working directory, a spawned child's standard input
 wired to the null device, and a signal death that loses its number
 (wolf-lang#534, with the witness). Its print-only half would be
@@ -883,7 +883,7 @@ sums counted as one and `[` as `test`; Arch's build installs 102
 binaries and leaves out `arch`, `chcon`, `runcon`, `hostname`, `kill`
 and `uptime`). boreutils ships **27 of them, 26%**, and `env` is the
 28th row above. Effort is not what blocks most of the other 76: wolf
-0.2.23 has no surface for them, and each gap boreutils has met is filed
+0.2.25 has no surface for them, and each gap boreutils has met is filed
 upstream with its witness. The OS surface lane's first cut, s199's
 wolf-lang#426 and #424 (seek, tell, the positional read, and the
 standard descriptors), shipped in 0.2.22, and `tail`, `head` and `wc`
