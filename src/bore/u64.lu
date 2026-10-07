@@ -3,7 +3,7 @@
 //! GNU prints `unsigned long` and `uintmax_t` values whole: `nproc`
 //! saturates an `OMP_NUM_THREADS` past 2^64 - 1 and prints
 //! 18446744073709551615, and `printf '%u' -1` prints the same. wolf's
-//! `wrapping[u64]` holds those values, but at 0.2.23 its interpolation
+//! `wrapping[u64]` holds those values, but at 0.2.25 its interpolation
 //! prints the bit pattern as a SIGNED number (`-1`) and the native tier
 //! cannot divide one ("wrapping division (no idiv.wrap op)"), so these
 //! render it from two 32-bit halves, which ordinary `int` arithmetic can
