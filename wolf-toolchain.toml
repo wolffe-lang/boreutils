@@ -300,5 +300,13 @@ aarch64-unknown-linux-gnu = "a5c3095751c33a3c966ba46a8fd981771c6be9fbd3ef162ff67
 # KEPT AT THE 0.2.23 BUMP: wolf-std trunk is still 6a0df5e (sc54, std
 # at 0.2.23, had not merged), so there was one candidate; bu16
 # re-derived it against 0.2.23 first (B151).
+# MOVED AT THE 0.2.25 BUMP to wolf-std trunk 2f389a7 (sc54, std at
+# 0.2.23 / 0.1.46; sc55, std at 0.2.25, had not merged), B151 first:
+# both 6a0df5e and 2f389a7 build all 27 utilities under 0.2.25 with
+# --deny-warnings on both tiers, to byte-identical binaries.
+# 6a0df5e..2f389a7 is 8 commits touching one file under `std/`,
+# `std/errors/errors.lu` (`offset_of` renamed `byte_offset`, the same
+# W0304 bu16 met), which no utility reaches: `std.env` and `std.time`
+# import nothing.
 repo = "wolffe-lang/wolf-std"
-rev = "6a0df5e1bd8545548407bd7c76026f6d8cbf3b26"
+rev = "2f389a7f60a88452063c26aea7b8dad55472982e"
