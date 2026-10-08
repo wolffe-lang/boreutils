@@ -86,6 +86,12 @@
 #   * The archives gain `libwolf_rt_none.a` (the freestanding runtime).
 #     `tools/fetch-toolchain` stages the whole archive, so it sits in
 #     `.wolf-bin/` unused: no hosted build links it.
+#   * `unexpand` is 1.51x SLOWER on ordinary lines (+14% instructions,
+#     +63% cycles) with identical IR for its hot fn: the release
+#     partition moved `flush_run` into `one`'s unit because unrelated
+#     fns grew, and clang compiles `one` worse with the body beside it
+#     (wolf-lang#624, witness in `notes/bu17-the-pin-0225.md`). Nothing
+#     here works around it. Every other bench row is within noise.
 #   * The verdict list is byte-identical to 0.2.23's on both tiers
 #     (2749 / 0 / 32 on kasumi); the only verdict text that moved is the
 #     eight SKIP reasons that name the version.
