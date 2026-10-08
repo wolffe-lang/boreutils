@@ -149,17 +149,19 @@ derives no boreutils code from GPL source.
 
 Every utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus, except where a case says otherwise and is
-skipped with its reason. The corpus holds **2,674 cases**; a run on
-kasumi (linux x86-64) at this pin answers **2,642 passed, 0 failed, 32
-skipped**, and CI's macOS leg **2,618 passed, 0 failed, 56 skipped**
-(run 37060771131, at `bd11397`): the twenty-four more are every
-`/dev/full` case, one or two per utility, because macOS has no
-`/dev/full`. (The previous edition of this sentence, before bu14's six
-utilities, said 2,114 cases, 2,094 and 20 on kasumi, and 2,077 and 37
-on macOS, run 36044150121; before that it said 1,753 and 19 for the
-1,772-case corpus, and "five more" on macOS; kasumi answered 1,752
-and 20 at that commit, `eac2a32`, and macOS 37 at that lane's first
-green, run 36029854007.) The corpus
+skipped with its reason. The corpus holds **3,048 cases**; a run on
+kasumi (linux x86-64) at this pin answers **2,986 passed, 0 failed, 62
+skipped**, the same list on the release and the dev tier, and CI's
+macOS leg skips the `/dev/full` and `/proc` cases besides, because
+macOS has neither (bu18's figures and run ids are in
+`notes/bu18-ls.md`). (The previous edition of this sentence, before
+bu18's `ls`, said 2,674 cases, 2,642 and 32 on kasumi, and 2,618 and 56
+on macOS, run 37060771131; before bu14's six utilities it said 2,114
+cases, 2,094 and 20 on kasumi, and 2,077 and 37 on macOS, run
+36044150121; before that it said 1,753 and 19 for the 1,772-case
+corpus, and "five more" on macOS; kasumi answered 1,752 and 20 at that
+commit, `eac2a32`, and macOS 37 at that lane's first green, run
+36029854007.) The corpus
 and the run are stated separately on purpose: an earlier edition of this
 paragraph called the passing count the case count, which quietly
 subtracted the skips from the corpus instead of naming them.
@@ -206,6 +208,19 @@ environment only sorted, wolf-lang#535), `pwd -L` beside a `cp -a` twin
 of the working directory (no file identity, wolf-lang#536), and `tee`'s
 seven — five broken-pipe branches of `-p` and `--output-error`, and
 `-i` twice, all of which need a signal ignored (wolf-lang#423).
+
+**`ls` adds thirty skips, and every one is wolf's.** Twenty-three need a
+link's own identity or the rest of a stat record — the long format and
+the options that imply it, `-s`, `-u`, `-c`, `--time=birth`, and `-F`,
+`-p`, `-S`, `-t` and `-R` meeting a link that resolves (wolf 0.2.25
+follows every link and has no `lstat`, no `readlink`, no mode, owner or
+link count: wolf-lang#625); three need the directory's own order
+(`-U`, `-f`, `--sort=none`: `fs_read_dir` sorts, wolf-lang#626); one
+needs an inode (`-i`, wolf-lang#536) and one an inode and `lstat` both
+(`-L -R` meeting a loop); one needs the errno behind a `Permission
+denied` (wolf-lang#407); one is the terminal default, which waits for
+`os_isatty` (wolf 0.2.26). Each is refused by name, status 2, where
+this program cannot answer; none is ignored.
 
 "vs GNU" is wall-clock from `tools/bench`, GNU's time divided by ours,
 so above 1.00 is faster than GNU. It is a measurement on a stated host,
@@ -805,6 +820,31 @@ file swung by ±29 ms across five runs where ours held ±4 ms. Peak RSS
 over 256 MiB is 2.9 MB against GNU's 2.2 MB, one `region` per 256 KiB
 chunk.
 
+**`ls` is faster than GNU at listing and slower at stat'ing**, and the
+difference is one system call per name. kasumi (linux x86-64, load
+under 1), release tier, GNU 9.11, `tools/bench --scale 10 --runs 20 ls`
+twice (`notes/bu18-ls.md`): `flat/` is 100,000 names, `deep/` 316
+directories of 316.
+
+| ls | boreutils | GNU | GNU / boreutils |
+|---|---:|---:|---:|
+| `flat/`, one per line | 34.4 ms | 78.1 ms | **2.27x** |
+| `flat/`, `-C` | 37.5 ms | 92.8 ms | **2.48x** |
+| `flat/`, `-S` | 110.9 ms | 106.5 ms | 0.96x |
+| `flat/`, `-t` | 111.3 ms | 76.9 ms | 0.69x |
+| `-R` of `deep/` | 84.3 ms | 34.9 ms | 0.41x |
+| start-up, `-d` of one directory | 0.4 ms | 0.4 ms | tie |
+
+A plain listing stats nothing on either side, and here it sorts names
+`fs_read_dir` already sorted. `-S` and `-t` are one stat per name on
+both sides. `-R` is the gap: GNU knows a directory from the type the
+kernel returns with each name, and wolf's listing returns names only,
+so this program must ask of every entry whether it is a directory
+(wolf-lang#626). Peak RSS over the 100,000 names is 37 MB against GNU's
+28 MB, and `-R` holds 2.8 MB against 2.2 MB: one `region` per
+directory, so a walk keeps only the directories it is inside (the first
+draft held every listing it had made, 70 MB).
+
 | utility | status | vs GNU |
 |---|---|---|
 | `true` | done | start-up only |
@@ -834,6 +874,7 @@ chunk.
 | `pwd` | done; `-L` without an inode (wolf-lang#536) | start-up 0.80x (linux) |
 | `sleep` | done, to the millisecond | start-up 0.88x; `sleep 0.1` 1.00x (linux) |
 | `nproc` | done; a fractional cgroup quota rounds down (wolf-lang#537) | start-up 0.80x (linux) |
+| `ls` | done for names: the formats, sorting, `-F`/`-p`, `-q`, `-R`, `-L`/`-H`; the long format, `-i`, `-s`, `-u`, `-c`, `-U` refused (wolf-lang#625, #626, #536), and a link that resolves taken for its target | **2.27x** listing, 0.41x to 0.96x stat'ing (linux) |
 | `env` | not shipped: no exec (wolf-lang#534) | — |
 
 ## Drop-in readiness
@@ -887,9 +928,10 @@ table answers it per utility, from the evidence and from nothing else.
 | `pwd` | 4 / 4 | 44 / 1 | start-up 0.80x | drop-in for scripts that avoid `-L` with a `$PWD` naming a same-time twin of the working directory (wolf-lang#536) |
 | `sleep` | 2 / 2 | 61 / 0 | start-up 0.88x, `sleep 0.1` 1.00x | drop-in |
 | `nproc` | 4 / 4 | 78 / 0 | start-up 0.80x | drop-in outside a fractional cgroup cpu quota (wolf-lang#537) |
+| `ls` | 32 / 60 | 237 / 30 | 0.41x to 2.48x; start-up a tie | drop-in for scripts that read NAMES and avoid the long format and what implies it (`-l -g -n -o --full-time`), `-i`, `-s`, `-u`, `-c`, `-U`/`-f`, `-v`, the quoting, colour and filtering options (each refused by name), and do not need `-F`, `-p`, `-S`, `-t` or `-R` to tell a link that resolves from its target (wolf-lang#625, #626, #536) |
 | `env` | 0 / 14 | not shipped | — | not yet: no exec (wolf-lang#534) |
 
-**15 drop-in, 12 drop-in for scripts that avoid a named thing, 1 not
+**15 drop-in, 13 drop-in for scripts that avoid a named thing, 1 not
 yet.** The same evidence read across: no shipped utility fails a case,
 and every skip that is this program's own names the wolf issue behind
 it.
@@ -898,8 +940,8 @@ it.
 **103 utilities** (its info manual's `invocation` nodes, the four SHA-2
 sums counted as one and `[` as `test`; Arch's build installs 102
 binaries and leaves out `arch`, `chcon`, `runcon`, `hostname`, `kill`
-and `uptime`). boreutils ships **27 of them, 26%**, and `env` is the
-28th row above. Effort is not what blocks most of the other 76: wolf
+and `uptime`). boreutils ships **28 of them, 27%**, and `env` is the
+29th row above. Effort is not what blocks most of the other 76: wolf
 0.2.25 has no surface for them, and each gap boreutils has met is filed
 upstream with its witness. The OS surface lane's first cut, s199's
 wolf-lang#426 and #424 (seek, tell, the positional read, and the
@@ -940,11 +982,19 @@ use it (bu15).
 - **#537**, `os_cpus` rounds a fractional quota down: `nproc`.
 - **#538**, `wrapping[u64]` prints signed and cannot be divided
   natively: worked around in `src/bore/u64.lu`.
+- **#625**, no `lstat`, no `readlink`, and no stat record past kind,
+  size and modification time (mode, link count, owner, group, blocks,
+  atime, ctime): `ls -l` and every `ls` option that must tell a link
+  from its target, `stat`, `readlink`, `realpath`, `du`, `find`-shaped
+  walks, `cp -P`, `test -h`.
+- **#626**, `fs_read_dir` sorts, fails on one name that is not UTF-8,
+  and gives no entry type: `ls -U`/`-f`, and every walk pays a stat per
+  entry (`ls -R` is 0.41x for it).
 
-Beyond those, the host builtin table at 0.2.22 has no call that creates
-or reads a link (`ln`, `link`, `readlink`, `realpath`), changes a mode,
-an owner or a time (`chmod`, `chown`, `chgrp`, `touch`), names a user
-or a group (`id`, `whoami`, `groups`, `logname`, `users`, `who`,
-`pinky`), formats calendar time (`date`, `ls -l`), or asks about a
-terminal (`tty`, `stty`). Those are not filed yet; each will be, with
+Beyond those, the host builtin table at 0.2.25 has no call that creates
+a link (`ln`, `link`), changes a mode, an owner or a time (`chmod`,
+`chown`, `chgrp`, `touch`), names a user or a group (`id`, `whoami`,
+`groups`, `logname`, `users`, `who`, `pinky`), formats calendar time
+(`date`), or asks about a terminal (`tty`, `stty`; `os_isatty` arrives
+in 0.2.26). Those are not filed yet; each will be, with
 its witness, by the lane whose utility meets it first (B6, the census).
