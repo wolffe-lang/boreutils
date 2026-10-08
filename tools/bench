@@ -22,6 +22,10 @@ and deleted when the run ends unless --keep:
   big    1 GiB of text: lowercase words, spaces, lines of about 64 bytes
   lines  64 MiB of very short lines: 0 to 7 letters each
   noise  256 MiB of uniformly random bytes
+  tree   a DIRECTORY (bu18, for ls): flat/ holding 10,000 files and
+         deep/ holding 100 directories of 100 files each, every name
+         drawn from a fixed seed so that no order is already sorted, each
+         file 0 to 999 bytes; --scale multiplies the counts
 
 --scale multiplies every size, so --scale 0.001 is a smoke run.
 
@@ -45,8 +49,9 @@ import tomllib
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BENCH = os.path.join(ROOT, "tests", "bench")
 MIB = 1 << 20
-SIZES = {"big": 1024 * MIB, "lines": 64 * MIB, "noise": 256 * MIB}
-SEEDS = {"big": 0xB0BE, "lines": 0x11E5, "noise": 0x5EED}
+SIZES = {"big": 1024 * MIB, "lines": 64 * MIB, "noise": 256 * MIB,
+         "tree": 10000}
+SEEDS = {"big": 0xB0BE, "lines": 0x11E5, "noise": 0x5EED, "tree": 0x7EE5}
 BLOCK = 4 * MIB
 
 
@@ -68,7 +73,29 @@ def text_table(newline_every):
     return bytes(t)
 
 
+def generate_tree(path, count):
+    """`tree`: flat/ with `count` files, deep/ with sqrt(count)
+    directories of sqrt(count) files; names and sizes from the seed."""
+    rng = random.Random(SEEDS["tree"])
+    side = max(1, int(round(count ** 0.5)))
+
+    def fill(d, n):
+        os.makedirs(d)
+        for _ in range(n):
+            name = "%08x" % rng.getrandbits(32)
+            with open(os.path.join(d, name), "wb") as fh:
+                fh.write(b"x" * rng.randrange(1000))
+
+    fill(os.path.join(path, "flat"), count)
+    os.makedirs(os.path.join(path, "deep"))
+    for k in range(side):
+        fill(os.path.join(path, "deep", "%08x" % rng.getrandbits(32)), side)
+
+
 def generate(name, path, size):
+    if name == "tree":
+        generate_tree(path, size)
+        return
     rng = random.Random(SEEDS[name])
     table = {"big": text_table(64), "lines": text_table(4)}.get(name)
     with open(path, "wb") as fh:
