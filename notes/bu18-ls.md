@@ -244,7 +244,8 @@ under `~/lanes/bu18/` and stay there with the lane's evidence.
   `tests/bench/ls.toml`, a `sync` before timing.
 - `ccf71b5` the planted break, `b235767` its revert (the tree at
   `b235767` is byte-identical to `620cb33`'s).
-- `a3ab4e3` README, `d90f90a` CLAUDE.md.
+- `a3ab4e3` README, `d90f90a` CLAUDE.md, `7a44cc3`/`5b15662` these
+  notes, `3fd2a53`/`a16620b` the eight cases that name 9.11.
 
 ### Case counts by option (tests/cases/ls.toml at `d90f90a`)
 
@@ -265,6 +266,9 @@ under `~/lanes/bu18/` and stay there with the lane's evidence.
 | usage errors (getopt's shapes, ambiguous abbreviations in GNU's order) | 19 | 0 |
 | write errors (`>&-`, `/dev/full`: status 2) | 4 | 0 |
 | **all** | **237** | **30** |
+
+Eight of the 237 name `gnu_min = "9.11"` (the field's 9.4 differs; they
+run on every verdict leg, which is 9.11 everywhere).
 
 Skips by cause: wolf-lang#625 23, #625 and #536 together 1, #536 1,
 #626 3, #407 1, `os_isatty` (wolf 0.2.26) 1.
@@ -299,8 +303,15 @@ sha256 `2f425351…`.
   same six cases on each and on kasumi
   (`~/lanes/bu18/ev/plant-ccf71b5-kasumi.log`): `-r`, `--reverse`,
   `-S -r`, `-X -r`, `--group-directories-first -r`, `-R -r`.
-- The revert and the head: see the PR body (`a3ab4e3` 37737654415,
-  `d90f90a` 37737681436).
+- The revert onward, green: `a3ab4e3` 37737654415, `d90f90a`
+  37737681436, `5b15662` 37738019072 (ubuntu 2986 / 0 / 62, macOS
+  2945 / 0 / 103), `a16620b` 37738654818 (the same). The head's own run
+  is in the PR body.
+- The `field` leg (ubuntu's own 9.4, information): `5b15662` showed
+  eight `ls` cases where 9.4 answers otherwise (no `--sort=name`, the
+  `--sort` words in another order, no sort on `--time=mtime` alone);
+  `3fd2a53` names them `gnu_min = "9.11"`, and the leg's failures went
+  back to trunk's 15 (run 37738654818).
 
 ### The column layout, swept
 
