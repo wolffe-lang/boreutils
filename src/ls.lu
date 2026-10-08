@@ -696,27 +696,22 @@ fn stat_operand(mut e: Entry, o: Opts) {
 
 /// Fill in `e` from the path calls, asking only what `o` needs: every
 /// call is a stat, and there is no call that answers more than one
-/// thing about a path (wolf-lang#625), so a directory is one stat, a
-/// file under `-S` two, and a plain listing none at all. `exists` asks
-/// whether a file is there at all, which only an operand, `-F`'s `@`
-/// and `-L`'s complaint need. A name whose stat finds nothing is taken
-/// for a dangling link; `stat_operand` checks that for operands, and
-/// inside a listing the directory has just named it.
+/// thing about a path (wolf-lang#625), so `-t` is one stat per name,
+/// `-F` one, `-F -t` two, and a plain listing none at all. `exists`
+/// asks whether a file is there at all, which only an operand, `-F`'s
+/// `@` and `-L`'s complaint need. A name whose stat finds nothing is
+/// taken for a dangling link; `stat_operand` checks that for operands,
+/// and inside a listing the directory has just named it.
 fn stat_entry(mut e: Entry, o: Opts, exists: bool) {
     e.known = true
+    e.kind = a_file()
     let size = o.sort == by_size()
     let time = o.sort == by_time()
-    if fs_is_dir(e.path) {
-        e.kind = a_directory()
-        if size {
-            e.size = fs_size(e.path) else 0
+    if exists || needs_kind(o) {
+        if fs_is_dir(e.path) {
+            e.kind = a_directory()
         }
-        if time {
-            e.mtime = fs_modified_ms(e.path) else 0
-        }
-        return
     }
-    e.kind = a_file()
     if size {
         e.size = fs_size(e.path) else |_| {
             e.kind = a_dangling_link()
@@ -729,9 +724,15 @@ fn stat_entry(mut e: Entry, o: Opts, exists: bool) {
             return
         }
     }
-    if exists && !size && !time && !fs_exists(e.path) {
+    if exists && e.kind == a_file() && !size && !time && !fs_exists(e.path) {
         e.kind = a_dangling_link()
     }
+}
+
+/// Whether listing `o`'s way must know a directory from anything else:
+/// to put directories first, to mark them, or to descend into them.
+fn needs_kind(o: Opts) -> bool {
+    o.group_dirs || o.indicator != no_indicator() || o.recursive
 }
 
 /// Why `path` cannot be reached, in GNU's words, as far as wolf can tell
@@ -787,13 +788,9 @@ fn listed_in_parent(path: str) -> bool {
 }
 
 /// Whether listing `o`'s way needs every entry stat'ed: to sort by size
-/// or time, to put directories first, to mark them, or to recurse.
+/// or time, or to know its directories.
 fn needs_stat(o: Opts) -> bool {
-    o.sort == by_size() ||
-        o.sort == by_time() ||
-        o.group_dirs ||
-        o.indicator != no_indicator() ||
-        o.recursive
+    o.sort == by_size() || o.sort == by_time() || needs_kind(o)
 }
 
 // -------------------------------------------------------------- sorting
