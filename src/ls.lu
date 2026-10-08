@@ -95,11 +95,13 @@ struct Opts {
     refused: str,
 }
 
-/// One name to list: what it is called, the path that reaches it, and
-/// what a stat said, once one was needed.
+/// One name to list: what it is called, the directory it was listed
+/// in (`""` for an operand, whose name is its path), and what a stat
+/// said, once one was needed. The path is built only when a stat or a
+/// diagnostic needs it, so a plain listing allocates none.
 struct Entry {
     name: str,
-    path: str,
+    dir: str,
     known: bool,
     kind: int,
     size: int,
@@ -107,8 +109,16 @@ struct Entry {
 }
 
 /// An entry not stat'ed yet.
-fn entry(name: str, path: str) -> Entry {
-    Entry { name: name, path: path, known: false, kind: 0, size: 0, mtime: 0 }
+fn entry(name: str, dir: str) -> Entry {
+    Entry { name: name, dir: dir, known: false, kind: 0, size: 0, mtime: 0 }
+}
+
+/// The path that reaches `e`.
+fn path_of(e: Entry) -> str {
+    if e.dir.len == 0 {
+        return e.name
+    }
+    joined(e.dir, e.name)
 }
 
 // The words for `format`, `sort`, `indicator`, `deref` and `kind`.
@@ -275,7 +285,12 @@ fn main() -> int {
     if operands.len == 0 {
         (mut operands).push(".")
     }
-    let status = list_operands(mut out, o, operands)
+    var failed = false
+    let status = list_operands(mut out, o, operands, mut failed)
+    if failed {
+        bore.write_error(out, "ls", "write error")
+        return 2
+    }
     done(mut out, status)
 }
 
@@ -507,13 +522,15 @@ fn columns() -> int {
 // ---------------------------------------------------------- the listing
 
 /// List every operand, files first, then the directories; answer the
-/// status.
-fn list_operands(mut out: bore.Out, o: Opts, operands: List[str]) -> int {
+/// status. `failed` comes back true when a write failed: the listing
+/// goes on (GNU reports every operand it cannot reach, and the write
+/// error once, at the end) but writes nothing more.
+fn list_operands(mut out: bore.Out, o: Opts, operands: List[str], mut failed: bool) -> int {
     var status = 0
     var files = List[Entry]()
     var dirs = List[Entry]()
     for name in operands {
-        var e = entry(name, name)
+        var e = entry(name, "")
         stat_operand(mut e, o)
         if e.kind == a_dangling_link() && o.deref != follow_dir_operands() {
             bore.warn("ls", "cannot access {quote_always(name)}: {bore.no_such_file()}")
@@ -531,17 +548,26 @@ fn list_operands(mut out: bore.Out, o: Opts, operands: List[str]) -> int {
     var printed = false
     if files.len > 0 {
         let file_order = sorted(mut files, o)
-        let s = print_entries(mut out, files, file_order, o)
+        var bytes = List[byte]()
+        let s = print_entries(mut bytes, files, file_order, o)
         if s > status {
             status = s
         }
+        bore.write_all(mut out, bytes) else |_| {
+            failed = true
+        }
         printed = true
+    }
+    // What is buffered goes out before the first directory, which each
+    // write straight out of their own region.
+    bore.flush(mut out) else |_| {
+        failed = true
     }
     let dir_order = sorted(mut dirs, o)
     let ancestors = List[Entry]()
     for at in dir_order {
         let d = copy dirs[at]
-        let s = list_directory(mut out, o, d.path, headers, mut printed, true, ancestors)
+        let s = list_directory(out, o, d.name, headers, mut printed, true, ancestors, mut failed)
         if s > status {
             status = s
         }
@@ -549,18 +575,38 @@ fn list_operands(mut out: bore.Out, o: Opts, operands: List[str]) -> int {
     status
 }
 
-/// List the directory `path`, and with `-R` everything under it.
+/// List the directory `path`, and with `-R` everything under it, each
+/// directory in a region of its own: what one listing allocates dies
+/// with it, so `-R` holds the directories it is inside and no more.
 /// `printed` says whether anything has been written yet, which decides
 /// the blank line before a header; `operand` says whether a failure to
 /// open it is an operand's (status 2) or a subdirectory's (1).
 fn list_directory(
-    mut out: bore.Out,
+    out: bore.Out,
     o: Opts,
     path: str,
     headers: bool,
     mut printed: bool,
     operand: bool,
     ancestors: List[Entry],
+    mut failed: bool,
+) -> int {
+    var status = 0
+    region listing {
+        status = list_here(out, o, path, headers, mut printed, operand, ancestors, mut failed)
+    }
+    status
+}
+
+fn list_here(
+    out: bore.Out,
+    o: Opts,
+    path: str,
+    headers: bool,
+    mut printed: bool,
+    operand: bool,
+    ancestors: List[Entry],
+    mut failed: bool,
 ) -> int {
     let names = fs_read_dir(path) else |e| {
         let why = match e {
@@ -572,30 +618,37 @@ fn list_directory(
         bore.warn("ls", "cannot open directory {quote_always(path)}: {why}")
         return if operand then 2 else 1
     }
+    var bytes = List[byte]()
     if headers {
         if printed {
-            bore.put(mut out, "\n") else |_| {}
+            (mut bytes).push(10 as byte)
         }
-        bore.put(mut out, "{shown(path, o.hide)}:\n") else |_| {}
+        push_text(mut bytes, shown(path, o.hide))
+        push_text(mut bytes, ":\n")
     }
     printed = true
     var entries = List[Entry]()
     if o.all == 2 {
-        (mut entries).push(entry(".", joined(path, ".")))
-        (mut entries).push(entry("..", joined(path, "..")))
+        (mut entries).push(entry(".", path))
+        (mut entries).push(entry("..", path))
     }
     for n in names {
         if o.all == 0 && n.starts_with(".") {
             continue
         }
-        (mut entries).push(entry(n, joined(path, n)))
+        (mut entries).push(entry(n, path))
     }
     let entry_order = sorted(mut entries, o)
-    var status = print_entries(mut out, entries, entry_order, o)
+    var status = print_entries(mut bytes, entries, entry_order, o)
+    if !failed && bytes.len > 0 {
+        bore.write_direct(out, bytes) else |_| {
+            failed = true
+        }
+    }
     if !o.recursive {
         return status
     }
-    var here = entry(path, path)
+    var here = entry(path, "")
     here.known = true
     here.kind = a_directory()
     here.size = fs_size(path) else -1
@@ -617,12 +670,18 @@ fn list_directory(
         if inside(sub, mine) {
             continue
         }
-        let s = list_directory(mut out, o, sub, true, mut printed, false, mine)
+        let s = list_directory(out, o, sub, true, mut printed, false, mine, mut failed)
         if s > status {
             status = s
         }
     }
     status
+}
+
+fn push_text(mut bytes: List[byte], s: str) {
+    for b in s.bytes() {
+        (mut bytes).push(b)
+    }
 }
 
 /// The path of `name` inside `dir` as a stat needs it: GNU names an
@@ -652,7 +711,7 @@ fn inside(path: str, ancestors: List[Entry]) -> bool {
     let mtime = fs_modified_ms(path) else -1
     for a in ancestors {
         if a.size == size && a.mtime == mtime {
-            if same_listing(a.path, path) {
+            if same_listing(a.name, path) {
                 return true
             }
         }
@@ -689,7 +748,7 @@ fn stat_operand(mut e: Entry, o: Opts) {
     if e.kind != a_dangling_link() {
         return
     }
-    if !listed_in_parent(e.path) {
+    if !listed_in_parent(e.name) {
         e.kind = -1
     }
 }
@@ -704,27 +763,28 @@ fn stat_operand(mut e: Entry, o: Opts) {
 /// and inside a listing the directory has just named it.
 fn stat_entry(mut e: Entry, o: Opts, exists: bool) {
     e.known = true
+    let path = path_of(e)
     e.kind = a_file()
     let size = o.sort == by_size()
     let time = o.sort == by_time()
     if exists || needs_kind(o) {
-        if fs_is_dir(e.path) {
+        if fs_is_dir(path) {
             e.kind = a_directory()
         }
     }
     if size {
-        e.size = fs_size(e.path) else |_| {
+        e.size = fs_size(path) else |_| {
             e.kind = a_dangling_link()
             return
         }
     }
     if time {
-        e.mtime = fs_modified_ms(e.path) else |_| {
+        e.mtime = fs_modified_ms(path) else |_| {
             e.kind = a_dangling_link()
             return
         }
     }
-    if exists && e.kind == a_file() && !size && !time && !fs_exists(e.path) {
+    if exists && e.kind == a_file() && !size && !time && !fs_exists(path) {
         e.kind = a_dangling_link()
     }
 }
@@ -807,45 +867,67 @@ fn sorted(mut es: List[Entry], o: Opts) -> List[int] {
             k += 1
         }
     }
-    var src = List[int]()
+    // A merge sort between two index lists made once, so that sorting
+    // n names allocates 2n words however many passes it takes.
+    let n = es.len
+    var one = List[int]()
+    var two = List[int]()
     var i = 0
-    while i < es.len {
-        (mut src).push(i)
+    while i < n {
+        (mut one).push(i)
+        (mut two).push(i)
         i += 1
     }
-    let n = es.len
     var run = 1
+    var in_one = true
     while run < n {
-        var dst = List[int]()
-        var lo = 0
-        while lo < n {
-            let mid = if lo + run < n then lo + run else n
-            let hi = if lo + 2 * run < n then lo + 2 * run else n
-            var a = lo
-            var b = mid
-            while a < mid && b < hi {
-                if compare(es, o, src[b], src[a]) < 0 {
-                    (mut dst).push(src[b])
-                    b += 1
-                } else {
-                    (mut dst).push(src[a])
-                    a += 1
-                }
-            }
-            while a < mid {
-                (mut dst).push(src[a])
-                a += 1
-            }
-            while b < hi {
-                (mut dst).push(src[b])
-                b += 1
-            }
-            lo = hi
+        if in_one {
+            merge_pass(es, o, one, mut two, run)
+        } else {
+            merge_pass(es, o, two, mut one, run)
         }
-        src = dst
+        in_one = !in_one
         run *= 2
     }
-    src
+    if in_one {
+        return one
+    }
+    two
+}
+
+/// One pass of the merge: every pair of runs of `run` in `src`, merged
+/// into `dst`. Stable, so equal entries keep their order.
+fn merge_pass(es: List[Entry], o: Opts, src: List[int], mut dst: List[int], run: int) {
+    let n = src.len
+    var at = 0
+    var lo = 0
+    while lo < n {
+        let mid = if lo + run < n then lo + run else n
+        let hi = if lo + 2 * run < n then lo + 2 * run else n
+        var a = lo
+        var b = mid
+        while a < mid && b < hi {
+            if compare(es, o, src[b], src[a]) < 0 {
+                dst[at] = src[b]
+                b += 1
+            } else {
+                dst[at] = src[a]
+                a += 1
+            }
+            at += 1
+        }
+        while a < mid {
+            dst[at] = src[a]
+            a += 1
+            at += 1
+        }
+        while b < hi {
+            dst[at] = src[b]
+            b += 1
+            at += 1
+        }
+        lo = hi
+    }
 }
 
 /// Negative when entry `i` lists before entry `j`.
@@ -910,17 +992,17 @@ fn extension(name: str) -> str {
 
 // ------------------------------------------------------------- printing
 
-/// Print one listing (the files among the operands, or one directory)
-/// in the chosen format. Answers 1 when `-L` met a dangling link it had
-/// to follow, else 0.
-fn print_entries(mut out: bore.Out, es: List[Entry], order: List[int], o: Opts) -> int {
+/// One listing (the files among the operands, or one directory) in the
+/// chosen format, onto `bytes`. Answers 1 when `-L` met a dangling link
+/// it had to follow, else 0.
+fn print_entries(mut bytes: List[byte], es: List[Entry], order: List[int], o: Opts) -> int {
     var status = 0
     var items = List[str]()
     var widths = List[int]()
     for at in order {
         let e = copy es[at]
         if o.deref == follow_always() && e.known && e.kind == a_dangling_link() {
-            bore.warn("ls", "cannot access {quote_always(e.path)}: {bore.no_such_file()}")
+            bore.warn("ls", "cannot access {quote_always(path_of(e))}: {bore.no_such_file()}")
             status = 1
         }
         var text = shown(e.name, o.hide)
@@ -934,15 +1016,17 @@ fn print_entries(mut out: bore.Out, es: List[Entry], order: List[int], o: Opts) 
         (mut widths).push(w)
     }
     if o.format == vertical() || o.format == across() {
-        let bytes = bore.grid(items, widths, o.width, o.format == across(), o.tab)
-        bore.write_all(mut out, bytes) else |_| {}
+        for b in bore.grid(items, widths, o.width, o.format == across(), o.tab) {
+            (mut bytes).push(b)
+        }
     } else if o.format == with_commas() {
-        let bytes = bore.commas(items, widths, o.width)
-        bore.write_all(mut out, bytes) else |_| {}
+        for b in bore.commas(items, widths, o.width) {
+            (mut bytes).push(b)
+        }
     } else {
         for t in items {
-            bore.put(mut out, t) else |_| {}
-            bore.put(mut out, "\n") else |_| {}
+            push_text(mut bytes, t)
+            (mut bytes).push(10 as byte)
         }
     }
     status
