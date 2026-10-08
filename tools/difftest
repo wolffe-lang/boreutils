@@ -311,9 +311,23 @@ def has_scratch(case):
     return any(k in case for k in SCRATCH)
 
 
+def unlock(top):
+    """Give back what a case's `scratch_modes` took away, so the tree can
+    be emptied: a directory with mode 0 cannot be opened, so `rmtree`
+    cannot reach in (bu18, `ls` of an unreadable directory). Never
+    follows a link."""
+    if not os.path.isdir(top) or os.path.islink(top):
+        return
+    os.chmod(top, 0o700)
+    for entry in os.scandir(top):
+        if entry.is_dir(follow_symlinks=False):
+            unlock(entry.path)
+
+
 def populate(case, top):
     """Empty `top` and lay the case's scratch tree out in it."""
     if os.path.lexists(top):
+        unlock(top)
         shutil.rmtree(top)
     os.mkdir(top)
     for d in case.get("scratch_dirs", []):
@@ -680,6 +694,7 @@ def main(argv):
                 g = run(gnu, prefix + oracle, case, base_env, top)
             finally:
                 if top is not None:
+                    unlock(holder)
                     shutil.rmtree(holder, ignore_errors=True)
             ok = (b is not None and g is not None
                   and all(b[f] == g[f] for f in fields))
