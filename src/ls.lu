@@ -950,11 +950,11 @@ fn compare(es: List[Entry], o: Opts, i: int, j: int) -> int {
     } else if o.sort == by_extension() {
         c = text_order(extension(es[i].name), extension(es[j].name))
     }
-    if o.reverse {
-        c = -c
-    }
     if c == 0 {
         c = text_order(es[i].name, es[j].name)
+    }
+    if o.reverse {
+        return -c
     }
     c
 }
