@@ -59,9 +59,10 @@
 //! - **`-R` and a link to an ancestor.** GNU never descends through a
 //!   link; this program cannot tell one, so before it descends it asks
 //!   whether the directory is one of the directories it is already
-//!   inside — the same `[kind, size, modified_ms]` and the same
-//!   listing, the test `pwd -L` uses (wolf-lang#536) — and skips it
-//!   silently when it is, which is what GNU does to a link.
+//!   inside — the same size, modification time and listing, the test
+//!   `pwd -L` uses (wolf-lang#536) — and skips it silently when it is,
+//!   which is what GNU does to a link. A link to a directory that is not
+//!   an ancestor is descended, where GNU's is not.
 //! - **`fs_read_dir` sorts, and fails on a name that is not UTF-8**
 //!   (wolf-lang#626): `-U`, `-f` and `--sort=none` are refused, and a
 //!   directory holding such a name cannot be listed (status 2, said so).
@@ -189,10 +190,6 @@ fn a_file() -> int {
 
 fn a_directory() -> int {
     1
-}
-
-fn an_other() -> int {
-    2
 }
 
 fn a_dangling_link() -> int {
@@ -517,7 +514,7 @@ fn list_operands(mut out: bore.Out, o: Opts, operands: List[str]) -> int {
     var dirs = List[Entry]()
     for name in operands {
         var e = entry(name, name)
-        stat_operand(mut e)
+        stat_operand(mut e, o)
         if e.kind == a_dangling_link() && o.deref != follow_dir_operands() {
             bore.warn("ls", "cannot access {quote_always(name)}: {bore.no_such_file()}")
             status = 2
@@ -599,7 +596,10 @@ fn list_directory(
         return status
     }
     var here = entry(path, path)
-    stat_entry(mut here)
+    here.known = true
+    here.kind = a_directory()
+    here.size = fs_size(path) else -1
+    here.mtime = fs_modified_ms(path) else -1
     var mine = copy ancestors
     (mut mine).push(here)
     for at in entry_order {
@@ -614,7 +614,7 @@ fn list_directory(
             continue
         }
         let sub = descended(path, e.name)
-        if inside(sub, e, mine) {
+        if inside(sub, mine) {
             continue
         }
         let s = list_directory(mut out, o, sub, true, mut printed, false, mine)
@@ -643,13 +643,15 @@ fn descended(dir: str, name: str) -> str {
     "{dir}/{name}"
 }
 
-/// Whether the directory `e` at `path` is one this walk is already
-/// inside: the same `[kind, size, modified_ms]` and the same listing as
-/// an ancestor. See the header: it is how a link to an ancestor is told
-/// from a subdirectory, as far as wolf can tell.
-fn inside(path: str, e: Entry, ancestors: List[Entry]) -> bool {
+/// Whether the directory at `path` is one this walk is already inside:
+/// the same size, modification time and listing as an ancestor. See the
+/// header: it is how a link to an ancestor is told from a subdirectory,
+/// as far as wolf can tell.
+fn inside(path: str, ancestors: List[Entry]) -> bool {
+    let size = fs_size(path) else -1
+    let mtime = fs_modified_ms(path) else -1
     for a in ancestors {
-        if a.known && a.kind == e.kind && a.size == e.size && a.mtime == e.mtime {
+        if a.size == size && a.mtime == mtime {
             if same_listing(a.path, path) {
                 return true
             }
@@ -682,8 +684,8 @@ fn same_listing(a: str, b: str) -> bool {
 
 /// What an operand is. A path no call reaches may still be a DANGLING
 /// LINK: the one thing a directory lists that no path call finds.
-fn stat_operand(mut e: Entry) {
-    stat_entry(mut e)
+fn stat_operand(mut e: Entry, o: Opts) {
+    stat_entry(mut e, o, true)
     if e.kind != a_dangling_link() {
         return
     }
@@ -692,23 +694,44 @@ fn stat_operand(mut e: Entry) {
     }
 }
 
-/// Fill in `e` from the path calls. A name whose stat finds nothing is
-/// taken for a dangling link; `stat_operand` checks that for operands,
-/// and inside a listing the directory has just named it.
-fn stat_entry(mut e: Entry) {
+/// Fill in `e` from the path calls, asking only what `o` needs: every
+/// call is a stat, and there is no call that answers more than one
+/// thing about a path (wolf-lang#625), so a directory is one stat, a
+/// file under `-S` two, and a plain listing none at all. `exists` asks
+/// whether a file is there at all, which only an operand, `-F`'s `@`
+/// and `-L`'s complaint need. A name whose stat finds nothing is taken
+/// for a dangling link; `stat_operand` checks that for operands, and
+/// inside a listing the directory has just named it.
+fn stat_entry(mut e: Entry, o: Opts, exists: bool) {
     e.known = true
+    let size = o.sort == by_size()
+    let time = o.sort == by_time()
     if fs_is_dir(e.path) {
         e.kind = a_directory()
-    } else if fs_is_file(e.path) {
-        e.kind = a_file()
-    } else if fs_exists(e.path) {
-        e.kind = an_other()
-    } else {
-        e.kind = a_dangling_link()
+        if size {
+            e.size = fs_size(e.path) else 0
+        }
+        if time {
+            e.mtime = fs_modified_ms(e.path) else 0
+        }
         return
     }
-    e.size = fs_size(e.path) else 0
-    e.mtime = fs_modified_ms(e.path) else 0
+    e.kind = a_file()
+    if size {
+        e.size = fs_size(e.path) else |_| {
+            e.kind = a_dangling_link()
+            return
+        }
+    }
+    if time {
+        e.mtime = fs_modified_ms(e.path) else |_| {
+            e.kind = a_dangling_link()
+            return
+        }
+    }
+    if exists && !size && !time && !fs_exists(e.path) {
+        e.kind = a_dangling_link()
+    }
 }
 
 /// Why `path` cannot be reached, in GNU's words, as far as wolf can tell
@@ -782,7 +805,7 @@ fn sorted(mut es: List[Entry], o: Opts) -> List[int] {
         var k = 0
         while k < es.len {
             if !es[k].known {
-                stat_entry(mut es[k])
+                stat_entry(mut es[k], o, o.indicator == classify() || o.deref == follow_always())
             }
             k += 1
         }

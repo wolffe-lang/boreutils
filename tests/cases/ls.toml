@@ -95,6 +95,13 @@ scratch = { "t/a" = "12345", "t/bb" = "0123456789", "t/d/x" = "" }
 scratch_links = { "t/dangling" = "nope" }
 scratch_times = { "." = 1600004000, "t" = 1600003000, "t/a" = 1600000100, "t/bb" = 1600000200, "t/d" = 1600000300, "t/d/x" = 1600000400, "t/dangling" = 1600000500 }
 
+# A link to the directory that holds it, beside a real subdirectory.
+[tree.loop]
+cwd = "t"
+scratch_dirs = ["t", "t/d", "t/d/e"]
+scratch = { "t/a" = "1", "t/d/x" = "2", "t/d/e/y" = "3" }
+scratch_links = { "t/self" = ".", "t/d/e/back" = "../.." }
+
 # A directory nobody may read, and one inside a readable one.
 [tree.locked]
 cwd = "t"
@@ -1163,6 +1170,17 @@ args = ["--group-directories-first", "-F"]
 name = "-L -R and a dangling link"
 tree = "dangle"
 args = ["-LR"]
+
+[[case]]
+name = "-R does not loop through a link to its own directory"
+tree = "loop"
+args = ["-R"]
+
+[[case]]
+name = "-R does not descend through a link out of the walk"
+tree = "loop"
+args = ["-R", "d"]
+skip = "d/e/back -> ../.. is a link to a directory OUTSIDE the walk: GNU lists it and stops, this ls descends once and stops at the ancestors it then meets; no lstat (wolf-lang#625)"
 
 # What only a link's OWN identity can answer (wolf-lang#625).
 
