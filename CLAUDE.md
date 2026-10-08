@@ -123,5 +123,11 @@ against GNU. The short form for a new utility:
   and `bore.u64_radix`.
 - A case that must see a FILE a utility writes, or stand in a directory
   whose path it knows, uses `tools/difftest`'s scratch directory
-  (`scratch`, `scratch_dirs`, `scratch_links`, `scratch_modes`, `cwd`,
-  `{scratch}`); its `files` field is gated by `tests/selftest/tee.toml`.
+  (`scratch`, `scratch_dirs`, `scratch_links`, `scratch_modes`,
+  `scratch_times`, `cwd`, `{scratch}`); its `files` field is gated by
+  `tests/selftest/tee.toml`. A tree many cases share is a `[tree.NAME]`
+  table in the case file and `tree = "NAME"` in each case (bu18).
+- No `lstat`, no `readlink`, and nothing in a stat past kind, size and
+  modification time: every path call follows a link (wolf-lang#625).
+  `fs_read_dir` sorts its names, fails on one that is not UTF-8, and
+  gives no entry type (wolf-lang#626).
