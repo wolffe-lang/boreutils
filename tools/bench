@@ -198,6 +198,10 @@ def main(argv):
                     inp = os.path.join(scratch, name)
                     if name not in generated:
                         generate(name, inp, max(1, int(SIZES[name] * scale)))
+                        # On disk before it is timed: 20,000 fresh files
+                        # still being written back made ls's rows swing
+                        # ±40% on kasumi (bu18).
+                        os.sync()
                         generated[name] = True
                 export = os.path.join(scratch, "hyperfine.json")
                 cmds = [expand(b["command"], p, inp, scale) for p in (bore, gnu)]
