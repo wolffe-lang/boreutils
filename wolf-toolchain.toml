@@ -350,5 +350,10 @@ aarch64-unknown-linux-gnu = "a5c3095751c33a3c966ba46a8fd981771c6be9fbd3ef162ff67
 # `std/errors/errors.lu` (`offset_of` renamed `byte_offset`, the same
 # W0304 bu16 met), which no utility reaches: `std.env` and `std.time`
 # import nothing.
+# MOVED AGAIN, to 0f74ec5 (sc55, std at wolf 0.2.25 / lupin 0.1.48),
+# which merged while bu17 was open: 2f389a7..0f74ec5 is 8 commits and
+# touches NOTHING under `std/` (the `std/` tree hashes alike at both),
+# so the staged tree and every binary are the same; only `STD-REV`
+# moves. B151 re-run at 0.2.25 before the PR.
 repo = "wolffe-lang/wolf-std"
-rev = "2f389a7f60a88452063c26aea7b8dad55472982e"
+rev = "0f74ec5ae639d26aea50978cc6d307568e9d50e1"
