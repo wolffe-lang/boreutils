@@ -124,8 +124,10 @@ output). The facts the design rests on:
 ### The base
 
 kasumi, trunk `8214ee8`, `~/lanes/bu18/gauntlet.sh` (bu17's, re-pathed)
-into `~/lanes/bu18/ev/gauntlet-base-8214ee8.log`: filled in below when it
-finishes (bu17's own figure at this head: 2749 / 0 / 32 on ubuntu).
+into `~/lanes/bu18/ev/gauntlet-base-8214ee8.log`: **2749 passed, 0
+failed, 32 skipped**, every step exit 0, sorted verdict list
+`verdicts-base-8214ee8.txt` sha256 `6f8d7f2d…` — bu17's figure, held.
+(Filled in after the prediction's commit, when the run finished.)
 
 ## 3. Prediction (committed before the first change)
 
@@ -219,3 +221,197 @@ files in 100 directories: plain `ls` of one 10,000-entry directory at
 `str` per name and sorts twice), `ls -R` of the tree at **0.3–0.7x**
 (GNU knows a directory from `getdents64`'s type; this `ls` must
 `fs_is_dir` every entry), and `ls -C` within 10% of plain `ls`.
+
+## 4. Evidence index
+
+Shas are this branch's (`bu18`, wolffe-lang/boreutils); kasumi paths are
+under `~/lanes/bu18/` and stay there with the lane's evidence.
+
+### The commits
+
+- `00662c5` §1–§3, before any change.
+- `bff34ab`, `814446b`, `f7208cd` — `tools/difftest`: `scratch_times`
+  (an entry's mtime, set without following a link and read back),
+  `[tree.NAME]` fixtures, and unlocking a mode-0 directory before the
+  tree is emptied (the first `ls` run died in `rmtree` on one).
+- `9ad9fe1` — `src/bore/columns.lu`, the `-C`/`-x`/`-m` layout, and 22
+  assertions in `src/bore_test.lu`, every expectation read off GNU.
+- `1c29aae` — `src/ls.lu` and `tests/cases/ls.toml` (265 cases).
+- `7f60406`, `16cd6c3`, `05af69c` — `ls` asks a stat only what the
+  listing needs, a region per directory, one sort buffer pair; two loop
+  cases.
+- `595780c`, `e7c3919`, `40b3353`, `620cb33` — the bench's `tree` input,
+  `tests/bench/ls.toml`, a `sync` before timing.
+- `ccf71b5` the planted break, `b235767` its revert (the tree at
+  `b235767` is byte-identical to `620cb33`'s).
+- `a3ab4e3` README, `d90f90a` CLAUDE.md.
+
+### Case counts by option (tests/cases/ls.toml at `d90f90a`)
+
+| section | pass | skip |
+|---|---:|---:|
+| which names (`-a -A -d`, `--all`, `--almost-all`, `--directory`) | 16 | 0 |
+| operands (files then directories, headers, `--`, missing, ENOTDIR, `POSIXLY_CORRECT`) | 25 | 0 |
+| formats (`-1 -C -x -m`, `--format=`, the last wins, `-l` then `-C`) | 24 | 1 |
+| widths and tabs (`-w`, `--width`, `COLUMNS`, `-T`, `--tabsize`) | 35 | 0 |
+| sorting (`-r -S -t -X`, `--sort=`, `--time=`, `--group-directories-first`) | 35 | 0 |
+| indicators (`-p -F`, `--classify[=]`, `--file-type`, `--indicator-style=`) | 18 | 0 |
+| names (`-q`, `--hide-control-chars`, `--show-control-chars`) | 6 | 0 |
+| recursion (`-R`, `--recursive`) | 15 | 0 |
+| unreadable places (status 2 and 1) | 6 | 1 |
+| links (`-H -L`, dangling, a loop) | 25 | 11 |
+| the deferred: the long format, `-s -i -u -c -U -f --sort=none`, the terminal | 0 | 17 |
+| the rest (`-h -k`, `--color=never|auto|none|bogus`) | 9 | 0 |
+| usage errors (getopt's shapes, ambiguous abbreviations in GNU's order) | 19 | 0 |
+| write errors (`>&-`, `/dev/full`: status 2) | 4 | 0 |
+| **all** | **237** | **30** |
+
+Skips by cause: wolf-lang#625 23, #625 and #536 together 1, #536 1,
+#626 3, #407 1, `os_isatty` (wolf 0.2.26) 1.
+
+### The gauntlet, both tiers
+
+kasumi, `~/lanes/bu18/gauntlet2.sh` (bu17's gauntlet plus the dev tier's
+difftest) on a fresh clone at each head:
+
+| head | release | dev | verdict list |
+|---|---|---|---|
+| `8214ee8` (base) | 2749 / 0 / 32 | — | `6f8d7f2d…` |
+| `1c29aae` | 2985 / 0 / 61 | identical | `a4b3c5db…` |
+| `d90f90a` | **2986 / 0 / 62** | **identical** | `b7154d32…` |
+
+At `d90f90a` every step exits 0 (fetch, oracle, both builds — 28
+utilities, 0 errors, 0 warnings — `wolf test`, fmt, the self-test, both
+difftests); the non-`ls` verdicts are the base's line for line (`comm
+-3` of the two lists, `ls:` lines removed: 0). `target/release/ls`
+sha256 `2f425351…`.
+
+### CI
+
+- `1c29aae`: run **37735194630**, green (ubuntu 2985 / 0 / 61; macOS
+  2944 / 0 / 102, the `/dev/full` and `/proc` cases).
+- `e7c3919` 37736224641, `7f60406` 37736743565, `40b3353` 37736996327,
+  `05af69c` 37737297289: green.
+- **The planted break, `ccf71b5`** ("`-r` leaves the name order of ties
+  alone"): run **37737397450**, red on both verdict legs — ubuntu job
+  113179963781 (`difftest: 2980 passed, 6 failed, 62 skipped`) and
+  macOS job 113179964191 (`2939 passed, 6 failed, 103 skipped`) — the
+  same six cases on each and on kasumi
+  (`~/lanes/bu18/ev/plant-ccf71b5-kasumi.log`): `-r`, `--reverse`,
+  `-S -r`, `-X -r`, `--group-directories-first -r`, `-R -r`.
+- The revert and the head: see the PR body (`a3ab4e3` 37737654415,
+  `d90f90a` 37737681436).
+
+### The column layout, swept
+
+`notes/bu18/ls-columns-sweep.py`: random directories (letters, digits,
+punctuation, a space, a newline, a tab, `\x01`, `é`), `-C`, `-x` and
+`-m` at every width 1–29 and 40, 57, 80, 0, under `-T 0`, `-T 3`, the
+default and `-q`, GNU against this `ls`: **47,520 runs over four seeds,
+0 differences** (seeds 1 and 7 at `1c29aae`'s tree before it was
+committed, 3 at `7f60406`'s, 11 at `d90f90a`). The first run found
+`-w 0` (one line, never a grid: 172 of 15,840 differed); the tab rule
+(no tab that moves one column) was found by hand before it.
+
+### wolf's surface, the witness
+
+`~/lanes/bu18/wit/main.lu` and `witness.txt` (§2): filed as
+**wolf-lang#625** (no `lstat`, `readlink` or stat record) and
+**wolf-lang#626** (`fs_read_dir` sorts, fails on one non-UTF-8 name,
+gives no entry type).
+
+### PAX
+
+pax trunk `644ef64` cloned to `~/lanes/bu18/pax`, read-only to pax:
+`notes/bu18/pax-mpx3-with-ls.patch` is the whole change (the pin at this
+branch's head, `ls` among `UTILS`, twelve `ls` lines on the run list).
+Built in px12's container (`px12-ubuntu`, Ubuntu 24.04, glibc 2.39) by
+pax's own `tools/mkboreutils` from boreutils at the pinned sha, booted on
+kasumi (TCG), four legs (native and release kernel × BIOS and UEFI):
+
+- **Run 3, at `d90f90a`: B1–B5 PASS on all four legs, 29 commands**,
+  every one byte-identical to the same binary on Linux, statuses
+  included (`~/lanes/bu18/ev/pax-run3/`; the release-UEFI transcript is
+  `notes/bu18/pax-run3-release-uefi.serial.log`, `9e535d83…`). The
+  static `ls` is `e177ec39…`, 11,952,032 bytes. The `ls` lines: `/etc`,
+  `-l /etc` (refused, status 2, the same message), `-a /bin`, `-F /etc
+  /bin`, `-R /etc`, `-a -C -w 40 /bin`, `-x -w 30 /bin`, `-m /bin`, `-d
+  /etc /bin/ls /etc/motd`, `-S -r /etc`, `/nothing /etc` (status 2),
+  `-d /`. B4: no system call PAX lacks (`-ENOSYS` only for
+  `set_robust_list` and `rseq`, as for every boreutils binary).
+- **Run 2, at `1c29aae`** (`~/lanes/bu18/ev/pax-run2/`): the same list,
+  20 PASS, 0 FAIL.
+- **Run 1, at `1c29aae`, `ls /` itself** (`~/lanes/bu18/ev/pax-run1/`):
+  PAX prints `bin dev etc`, Linux `bin dev etc proc` — **pax's
+  `tools/linux-run` mounts `/proc` into its chroot** (line 115) and PAX
+  has no `/proc`, so `ls /` cannot agree under that harness whatever
+  `ls` does; `ls -F /` differs the same way, and `ls -t -p /` because
+  PAX's `statx` answers one time for every initramfs entry (PAX lists
+  `bin/ dev/ etc/` by name; Linux orders by its mount times). Every
+  other line of run 1 was byte-identical. Run 2 and 3 therefore list
+  `-d /` and the directories under `/` rather than `/`.
+- System calls on Linux for the `ls` lines (`tools/linux-run --strace`):
+  `arch_prctl brk close execve exit_group fstat getdents64 getrandom
+  mprotect openat prlimit64 readlinkat rseq set_robust_list
+  set_tid_address statx write` — busybox's `ls` set less `getuid`,
+  `ioctl`, `prctl` and `newfstatat`, plus `statx`, which boreutils' `cat`
+  already made.
+
+### The bench
+
+kasumi, load under 1, release tier, GNU 9.11, `tools/bench --scale 10
+--runs 20 ls`, `ls` built from `05af69c` (whose `src/` is `d90f90a`'s),
+twice (`~/lanes/bu18/ev/bench-ls-s10e.md`, `-s10f.md`): flat/ is 100,000
+names, deep/ 316 directories of 316.
+
+| row | boreutils | GNU | GNU / boreutils |
+|---|---:|---:|---:|
+| flat/, one per line | 34.4 / 35.2 ms | 78.1 / 78.6 ms | **2.27x / 2.23x** |
+| flat/, `-C` | 37.5 / 37.3 ms | 92.8 / 92.0 ms | **2.48x / 2.46x** |
+| flat/, `-S` | 110.9 / 111.5 ms | 106.5 / 108.0 ms | 0.96x / 0.97x |
+| flat/, `-t` | 111.3 / 111.0 ms | 76.9 / 77.3 ms | 0.69x / 0.70x |
+| `-R` of deep/ | 84.3 / 83.4 ms | 34.9 / 32.8 ms | 0.41x / 0.39x |
+| start-up, `-d` | 0.4 ms | 0.4 ms | tie |
+
+The road there, measured: at `1c29aae` (four stats per name under
+`-S`/`-t`, every listing kept) `-S` 0.70x, `-t` 0.50x, `-R` 0.34x and
+peak RSS 69 MB flat / **70 MB `-R`** against GNU's 28 MB / 2.2 MB
+(`ev/rss.txt`); at `05af69c` 37 MB / **2.8 MB**. At `--scale 1` the
+rows sit under hyperfine's shell-calibration floor (±5 ms on ~10 ms,
+`bench-ls-1.md`…`-6.md`), which is why the rows of record are at 10.
+
+### Issues filed
+
+- wolf-lang#625 — fs: no lstat, readlink or full stat record.
+- wolf-lang#626 — fs_read_dir sorts, fails the whole listing on one
+  non-UTF-8 name, and gives no entry type.
+
+## 3, against the result
+
+| predicted | measured |
+|---|---|
+| P1: the covered set and the deferred set as listed | **held, with additions**: `-m`, `--format=commas`, `--indicator-style`, `--file-type` and `--color=none` covered; `-1` does not undo `-l` (GNU's rule, kept); `--classify=never` and `=auto` change nothing, not even an earlier `-F` (measured, kept). Deferred exactly as listed |
+| P2: 200 ± 40 cases | **267** — outside the band, high |
+| P2: 40 ± 15 skips | **30** — inside |
+| P2: 0 fail on either CI leg; old verdicts unchanged | **held**: green at every head but the plant's; non-`ls` verdicts identical to the base's |
+| P2: release and dev give the same verdict list | **held** at `1c29aae` and `d90f90a` |
+| P3: two wolf-lang issues, the stat record and the listing | **held**: #625, #626 |
+| P4: `ls /` and `ls -a /bin` byte-identical on PAX, first boot | **half**: `ls -a /bin` and eleven more lines identical on the first boot; `ls /` differs by `proc`, which pax's Linux harness mounts and PAX lacks — a harness asymmetry, not `ls` |
+| P4: no system call busybox's `ls` did not make | **wrong by one**: `statx` (busybox uses `newfstatat`); PAX already serves it for `cat` |
+| P4: `ls -l /etc` refused identically on both | **held** (status 2, byte-identical) |
+| P5: plain `ls` 0.5–1.2x | **wrong, in the good direction: 2.27x** |
+| P5: `-R` 0.3–0.7x | **held at 0.41x** (0.34x before the stat diet) |
+| P5: `-C` within 10% of plain | **held**: 37.5 against 34.4 ms |
+
+## 5. Done-when
+
+- [x] Branch `bu18` on origin; PR wolffe-lang/boreutils#23, unmerged.
+- [x] CI green at the head (run id in the PR body); the planted break
+  red by run id (37737397450) and reverted.
+- [x] `os_isatty`: wolf 0.2.26 (r31) was **not released** while this
+  lane was open (latest v0.2.25), so the terminal defaults stay PENDING
+  and nothing adopts it; a follow-up after r31.
+- [x] Issues filed: wolf-lang#625, #626. Close nothing.
+- [x] kasumi: `~/lanes/bu18/` keeps the evidence; its `target/`
+  directories and the PAX build directory pruned; no process of this
+  lane left running. The local worktree removed.
