@@ -634,6 +634,12 @@ tree = "plain"
 args = ["-C", "-w", "200"]
 
 # -------------------------------------------------------------- sorting
+#
+# Eight cases below name 9.11 (`gnu_min`), a record of the field and not
+# of the oracle: ubuntu-latest's 9.4 (CI's `field` leg, run 37738019072)
+# has no `--sort=name`, lists the `--sort` words in another order
+# (none, time, size, extension, version, width), and does not sort by
+# time on `--time=mtime` alone.
 
 [[case]]
 name = "-r"
@@ -712,6 +718,7 @@ args = ["--sort=extension"]
 
 [[case]]
 name = "--sort=name after -t"
+gnu_min = "9.11"
 tree = "plain"
 args = ["-t", "--sort=name"]
 
@@ -737,36 +744,43 @@ args = ["--sort=s"]
 
 [[case]]
 name = "--sort=bogus"
+gnu_min = "9.11"
 tree = "plain"
 args = ["--sort=bogus"]
 
 [[case]]
 name = "--sort= is ambiguous"
+gnu_min = "9.11"
 tree = "plain"
 args = ["--sort="]
 
 [[case]]
 name = "--time=mtime alone sorts by time"
+gnu_min = "9.11"
 tree = "plain"
 args = ["--time=mtime"]
 
 [[case]]
 name = "--time=modification -r"
+gnu_min = "9.11"
 tree = "plain"
 args = ["--time=modification", "-r"]
 
 [[case]]
 name = "--time=m abbreviated"
+gnu_min = "9.11"
 tree = "plain"
 args = ["--time=m"]
 
 [[case]]
 name = "--time=mtime then --sort=name"
+gnu_min = "9.11"
 tree = "plain"
 args = ["--time=mtime", "--sort=name"]
 
 [[case]]
 name = "--sort=name then --time=mtime"
+gnu_min = "9.11"
 tree = "plain"
 args = ["--sort=name", "--time=mtime"]
 
