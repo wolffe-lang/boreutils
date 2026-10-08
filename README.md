@@ -179,7 +179,9 @@ descriptor 1 closed, 9.11 stops at the first write that fails and 9.4
 keeps walking, so `wc FILE nope >&-` names the missing file on 9.4 and
 not on 9.11. Sixteen more name 9.11 for the same reason, all bu14's:
 9.4 has no `%N$` in `printf` at all, takes an empty number without a
-word, and refuses an `nproc --ignore` past 2^64.
+word, and refuses an `nproc --ignore` past 2^64. Eight more are bu18's
+`ls`: 9.4 has no `--sort=name`, lists the `--sort` words in another
+order, and does not sort by `--time=mtime` alone.
 
 **The transform set adds eight more skips, all the same shape, and none
 of them a coreutils version difference.** They are places where the two
