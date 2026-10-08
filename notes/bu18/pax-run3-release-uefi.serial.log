@@ -1,0 +1,300 @@
+[2J[001;001H[=3h[2J[001;001H[2J[001;001H[8;042;160t[2J[001;001H[2J[001;001H[8;056;240t[2J[001;001HBdsDxe: loading Boot0002 "UEFI QEMU DVD-ROM QM00001 " from PciRoot(0x0)/Pci(0x1F,0x2)/Sata(0x0,0xFFFF,0x0)
+BdsDxe: starting Boot0002 "UEFI QEMU DVD-ROM QM00001 " from PciRoot(0x0)/Pci(0x1F,0x2)/Sata(0x0,0xFFFF,0x0)
+[001;001H[001;001HPAX: Linux programs from the initramfs
+paging: limine cr3 0x00000000044d8000, pax cr3 0x0000000000104000, 57 table frames
+initramfs: module 0xffff80000454f000, 97378752 bytes, 14 entries
+initramfs: dir 0 bin
+initramfs: file 2124608 bin/busybox
+initramfs: file 11898024 bin/cat
+initramfs: file 11866256 bin/echo
+initramfs: file 11910096 bin/head
+initramfs: file 11952032 bin/ls
+initramfs: file 11894592 bin/pwd
+initramfs: file 11876912 bin/sleep
+initramfs: file 11920440 bin/tail
+initramfs: file 11932368 bin/wc
+initramfs: dir 0 etc
+initramfs: file 81 etc/motd
+initramfs: file 1493 etc/pax-run
+initramfs: file 39 etc/words
+fpu: xsave 1, xcr0 0x0000000000000007, area 832 bytes, cr0.em 0, cr0.ts 0, cr4.osfxsr 1, cr4.osxsave 1
+sched: main 0, idle 1, 16 slots, stacks 16 KiB above a 48 KiB guard from 0xffffd00000000000, quantum 2 ticks
+user: syscall star 0x0010000800000000 lstar 0xffffffff8000045c fmask 0x0000000000044700, efer.sce 1, smep 1, smap 1
+run 1: /bin/echo hello from boreutils
+user: exec pid 2 cr3 0x0000000000158000 entry 0x000000000023b240 rsp 0x00007fffffffee50 argc 4 envc 3, 4 PT_LOAD: 0x0000000000200000-0x000000000023a234 r-- 0x000000000023b240-0x0000000000304750 r-x 0x0000000000305750-0x000000000030d000 rw- 0x000000000030d500-0x0000000000315278 rw-, stack 32 pages below 0x00007ffffffff000
+user: echo pid 2 syscall 273: -ENOSYS
+user: echo pid 2 syscall 334: -ENOSYS
+hello from boreutils
+user: echo pid 2 exit_group 0 after 1 runs
+user: frames free 29672 before, 29351 with 1 processes, 29672 after
+run 2: /bin/cat /etc/motd
+user: exec pid 3 cr3 0x0000000000280000 entry 0x000000000023c1c0 rsp 0x00007fffffffee70 argc 2 envc 3, 4 PT_LOAD: 0x0000000000200000-0x000000000023b19c r-- 0x000000000023c1c0-0x000000000030a750 r-x 0x000000000030b750-0x0000000000313000 rw- 0x00000000003135a0-0x000000000031b318 rw-, stack 32 pages below 0x00007ffffffff000
+user: cat pid 3 syscall 273: -ENOSYS
+user: cat pid 3 syscall 334: -ENOSYS
+PAX: this is /etc/motd, a text file in the initramfs, and not an ELF executable.
+user: cat pid 3 exit_group 0 after 1 runs
+user: frames free 29672 before, 29345 with 1 processes, 29672 after
+run 3: /bin/busybox ls /bin /etc
+user: exec pid 4 cr3 0x0000000000440000 entry 0x0000000000410870 rsp 0x00007fffffffee50 argc 4 envc 3, 4 PT_LOAD: 0x0000000000400000-0x00000000004006c8 r-- 0x0000000000401000-0x00000000005a8865 r-x 0x00000000005a9000-0x00000000005fb1e5 r-- 0x00000000005fc820-0x000000000060d108 rw-, stack 32 pages below 0x00007ffffffff000
+user: busybox pid 4 syscall 273: -ENOSYS
+user: busybox pid 4 syscall 334: -ENOSYS
+/bin:
+busybox
+cat
+echo
+head
+ls
+pwd
+sleep
+tail
+wc
+
+/etc:
+motd
+pax-run
+words
+user: busybox pid 4 exit_group 0 after 1 runs
+user: frames free 29672 before, 29102 with 1 processes, 29672 after
+run 4: /bin/wc /etc/words
+user: exec pid 5 cr3 0x0000000000680000 entry 0x000000000023e1c0 rsp 0x00007fffffffee70 argc 2 envc 3, 4 PT_LOAD: 0x0000000000200000-0x000000000023d1ac r-- 0x000000000023e1c0-0x0000000000311df0 r-x 0x0000000000312df0-0x000000000031a000 rw- 0x000000000031ad80-0x0000000000322af8 rw-, stack 32 pages below 0x00007ffffffff000
+user: wc pid 5 syscall 273: -ENOSYS
+user: wc pid 5 syscall 334: -ENOSYS
+ 6  6 39 /etc/words
+user: wc pid 5 exit_group 0 after 1 runs
+user: frames free 29672 before, 29338 with 1 processes, 29672 after
+run 5: /bin/head -n 3 /etc/words
+user: exec pid 6 cr3 0x0000000001940000 entry 0x000000000023c500 rsp 0x00007fffffffee50 argc 4 envc 3, 4 PT_LOAD: 0x0000000000200000-0x000000000023b4ec r-- 0x000000000023c500-0x000000000030d230 r-x 0x000000000030e230-0x0000000000316000 rw- 0x0000000000316080-0x000000000031ddf8 rw-, stack 32 pages below 0x00007ffffffff000
+user: head pid 6 syscall 273: -ENOSYS
+user: head pid 6 syscall 334: -ENOSYS
+alpha
+bravo
+charlie
+user: head pid 6 exit_group 0 after 1 runs
+user: frames free 29672 before, 29343 with 1 processes, 29672 after
+run 6: /bin/tail -n 2 /etc/words
+user: exec pid 7 cr3 0x0000000001ac0000 entry 0x000000000023ca40 rsp 0x00007fffffffee50 argc 4 envc 3, 4 PT_LOAD: 0x0000000000200000-0x000000000023ba18 r-- 0x000000000023ca40-0x000000000030f770 r-x 0x0000000000310770-0x0000000000318000 rw- 0x0000000000318620-0x0000000000320398 rw-, stack 32 pages below 0x00007ffffffff000
+user: tail pid 7 syscall 273: -ENOSYS
+user: tail pid 7 syscall 334: -ENOSYS
+echo
+foxtrot
+user: tail pid 7 exit_group 0 after 1 runs
+user: frames free 29672 before, 29340 with 1 processes, 29672 after
+run 7: /bin/pwd
+user: exec pid 8 cr3 0x0000000001c00000 entry 0x000000000023c280 rsp 0x00007fffffffee70 argc 1 envc 3, 4 PT_LOAD: 0x0000000000200000-0x000000000023b250 r-- 0x000000000023c280-0x0000000000309f20 r-x 0x000000000030af20-0x0000000000312000 rw- 0x0000000000312e80-0x000000000031abf8 rw-, stack 32 pages below 0x00007ffffffff000
+user: pwd pid 8 syscall 273: -ENOSYS
+user: pwd pid 8 syscall 334: -ENOSYS
+/
+user: pwd pid 8 exit_group 0 after 1 runs
+user: frames free 29672 before, 29346 with 1 processes, 29672 after
+run 8: /bin/wc /etc/motd /etc/words
+user: exec pid 9 cr3 0x0000000001d40000 entry 0x000000000023e1c0 rsp 0x00007fffffffee50 argc 3 envc 3, 4 PT_LOAD: 0x0000000000200000-0x000000000023d1ac r-- 0x000000000023e1c0-0x0000000000311df0 r-x 0x0000000000312df0-0x000000000031a000 rw- 0x000000000031ad80-0x0000000000322af8 rw-, stack 32 pages below 0x00007ffffffff000
+user: wc pid 9 syscall 273: -ENOSYS
+user: wc pid 9 syscall 334: -ENOSYS
+  1  15  81 /etc/motd
+  6   6  39 /etc/words
+  7  21 120 total
+user: wc pid 9 exit_group 0 after 1 runs
+user: frames free 29672 before, 29338 with 1 processes, 29672 after
+run 9: /bin/cat etc/words
+user: exec pid 10 cr3 0x0000000002080000 entry 0x000000000023c1c0 rsp 0x00007fffffffee70 argc 2 envc 3, 4 PT_LOAD: 0x0000000000200000-0x000000000023b19c r-- 0x000000000023c1c0-0x000000000030a750 r-x 0x000000000030b750-0x0000000000313000 rw- 0x00000000003135a0-0x000000000031b318 rw-, stack 32 pages below 0x00007ffffffff000
+user: cat pid 10 syscall 273: -ENOSYS
+user: cat pid 10 syscall 334: -ENOSYS
+alpha
+bravo
+charlie
+delta
+echo
+foxtrot
+user: cat pid 10 exit_group 0 after 1 runs
+user: frames free 29672 before, 29345 with 1 processes, 29672 after
+run 10: /bin/head -n 1 /etc/motd
+user: exec pid 11 cr3 0x0000000002240000 entry 0x000000000023c500 rsp 0x00007fffffffee50 argc 4 envc 3, 4 PT_LOAD: 0x0000000000200000-0x000000000023b4ec r-- 0x000000000023c500-0x000000000030d230 r-x 0x000000000030e230-0x0000000000316000 rw- 0x0000000000316080-0x000000000031ddf8 rw-, stack 32 pages below 0x00007ffffffff000
+user: head pid 11 syscall 273: -ENOSYS
+user: head pid 11 syscall 334: -ENOSYS
+PAX: this is /etc/motd, a text file in the initramfs, and not an ELF executable.
+user: head pid 11 exit_group 0 after 1 runs
+user: frames free 29672 before, 29343 with 1 processes, 29672 after
+run 11: /bin/cat
+user: exec pid 12 cr3 0x00000000023c0000 entry 0x000000000023c1c0 rsp 0x00007fffffffee70 argc 1 envc 3, 4 PT_LOAD: 0x0000000000200000-0x000000000023b19c r-- 0x000000000023c1c0-0x000000000030a750 r-x 0x000000000030b750-0x0000000000313000 rw- 0x00000000003135a0-0x000000000031b318 rw-, stack 32 pages below 0x00007ffffffff000
+user: cat pid 12 syscall 273: -ENOSYS
+user: cat pid 12 syscall 334: -ENOSYS
+user: cat pid 12 exit_group 0 after 1 runs
+user: frames free 29672 before, 29345 with 1 processes, 29672 after
+run 12: /bin/sleep 0.2
+user: exec pid 13 cr3 0x0000000002540000 entry 0x000000000023b5c0 rsp 0x00007fffffffee70 argc 2 envc 3, 4 PT_LOAD: 0x0000000000200000-0x000000000023a5c0 r-- 0x000000000023b5c0-0x0000000000306c10 r-x 0x0000000000307c10-0x000000000030f000 rw- 0x000000000030fa00-0x0000000000317778 rw-, stack 32 pages below 0x00007ffffffff000
+user: sleep pid 13 syscall 273: -ENOSYS
+user: sleep pid 13 syscall 334: -ENOSYS
+user: sleep pid 13 exit_group 0 after 2 runs
+user: frames free 29672 before, 29349 with 1 processes, 29672 after
+run 13: /bin/sleep 0.3 & /bin/busybox ls /etc
+user: exec pid 14 cr3 0x0000000002680000 entry 0x000000000023b5c0 rsp 0x00007fffffffee70 argc 2 envc 3, 4 PT_LOAD: 0x0000000000200000-0x000000000023a5c0 r-- 0x000000000023b5c0-0x0000000000306c10 r-x 0x0000000000307c10-0x000000000030f000 rw- 0x000000000030fa00-0x0000000000317778 rw-, stack 32 pages below 0x00007ffffffff000
+user: exec pid 15 cr3 0x00000000027c3000 entry 0x0000000000410870 rsp 0x00007fffffffee50 argc 3 envc 3, 4 PT_LOAD: 0x0000000000400000-0x00000000004006c8 r-- 0x0000000000401000-0x00000000005a8865 r-x 0x00000000005a9000-0x00000000005fb1e5 r-- 0x00000000005fc820-0x000000000060d108 rw-, stack 32 pages below 0x00007ffffffff000
+user: sleep pid 14 syscall 273: -ENOSYS
+user: sleep pid 14 syscall 334: -ENOSYS
+user: busybox pid 15 syscall 273: -ENOSYS
+user: busybox pid 15 syscall 334: -ENOSYS
+motd
+pax-run
+words
+user: busybox pid 15 exit_group 0 after 1 runs
+user: sleep pid 14 exit_group 0 after 2 runs
+user: frames free 29672 before, 28779 with 2 processes, 29672 after
+run 14: /bin/busybox ls -a /etc
+user: exec pid 16 cr3 0x0000000002a40000 entry 0x0000000000410870 rsp 0x00007fffffffee50 argc 4 envc 3, 4 PT_LOAD: 0x0000000000400000-0x00000000004006c8 r-- 0x0000000000401000-0x00000000005a8865 r-x 0x00000000005a9000-0x00000000005fb1e5 r-- 0x00000000005fc820-0x000000000060d108 rw-, stack 32 pages below 0x00007ffffffff000
+user: busybox pid 16 syscall 273: -ENOSYS
+user: busybox pid 16 syscall 334: -ENOSYS
+.
+..
+motd
+pax-run
+words
+user: busybox pid 16 exit_group 0 after 1 runs
+user: frames free 29672 before, 29102 with 1 processes, 29672 after
+run 15: /bin/cat /etc/nothing
+user: exec pid 17 cr3 0x0000000002c80000 entry 0x000000000023c1c0 rsp 0x00007fffffffee70 argc 2 envc 3, 4 PT_LOAD: 0x0000000000200000-0x000000000023b19c r-- 0x000000000023c1c0-0x000000000030a750 r-x 0x000000000030b750-0x0000000000313000 rw- 0x00000000003135a0-0x000000000031b318 rw-, stack 32 pages below 0x00007ffffffff000
+user: cat pid 17 syscall 273: -ENOSYS
+user: cat pid 17 syscall 334: -ENOSYS
+cat: /etc/nothing: No such file or directory
+user: cat pid 17 exit_group 1 after 1 runs
+user: frames free 29672 before, 29345 with 1 processes, 29672 after
+run 16: /bin/cat /bin
+user: exec pid 18 cr3 0x0000000002dc0000 entry 0x000000000023c1c0 rsp 0x00007fffffffee70 argc 2 envc 3, 4 PT_LOAD: 0x0000000000200000-0x000000000023b19c r-- 0x000000000023c1c0-0x000000000030a750 r-x 0x000000000030b750-0x0000000000313000 rw- 0x00000000003135a0-0x000000000031b318 rw-, stack 32 pages below 0x00007ffffffff000
+user: cat pid 18 syscall 273: -ENOSYS
+user: cat pid 18 syscall 334: -ENOSYS
+cat: /bin: Is a directory
+user: cat pid 18 exit_group 1 after 1 runs
+user: frames free 29672 before, 29345 with 1 processes, 29672 after
+run 17: /bin/head -n 2 /etc/motd/x
+user: exec pid 19 cr3 0x0000000002f00000 entry 0x000000000023c500 rsp 0x00007fffffffee50 argc 4 envc 3, 4 PT_LOAD: 0x0000000000200000-0x000000000023b4ec r-- 0x000000000023c500-0x000000000030d230 r-x 0x000000000030e230-0x0000000000316000 rw- 0x0000000000316080-0x000000000031ddf8 rw-, stack 32 pages below 0x00007ffffffff000
+user: head pid 19 syscall 273: -ENOSYS
+user: head pid 19 syscall 334: -ENOSYS
+head: cannot open '/etc/motd/x' for reading: Input/output error
+user: head pid 19 exit_group 1 after 1 runs
+user: frames free 29672 before, 29343 with 1 processes, 29672 after
+run 18: /bin/ls /etc
+user: exec pid 20 cr3 0x0000000003040000 entry 0x000000000023da80 rsp 0x00007fffffffee70 argc 2 envc 3, 4 PT_LOAD: 0x0000000000200000-0x000000000023ca6c r-- 0x000000000023da80-0x0000000000316220 r-x 0x0000000000317220-0x000000000031f000 rw- 0x000000000031f220-0x0000000000326f98 rw-, stack 32 pages below 0x00007ffffffff000
+user: ls pid 20 syscall 273: -ENOSYS
+user: ls pid 20 syscall 334: -ENOSYS
+motd
+pax-run
+words
+user: ls pid 20 exit_group 0 after 1 runs
+user: frames free 29672 before, 29334 with 1 processes, 29672 after
+run 19: /bin/ls -l /etc
+user: exec pid 21 cr3 0x0000000003180000 entry 0x000000000023da80 rsp 0x00007fffffffee60 argc 3 envc 3, 4 PT_LOAD: 0x0000000000200000-0x000000000023ca6c r-- 0x000000000023da80-0x0000000000316220 r-x 0x0000000000317220-0x000000000031f000 rw- 0x000000000031f220-0x0000000000326f98 rw-, stack 32 pages below 0x00007ffffffff000
+user: ls pid 21 syscall 273: -ENOSYS
+user: ls pid 21 syscall 334: -ENOSYS
+ls: the long format (-l, -g, -n, -o, --full-time) needs a file's mode, link count, owner and group, which wolf cannot read (wolf-lang#625)
+user: ls pid 21 exit_group 2 after 1 runs
+user: frames free 29672 before, 29334 with 1 processes, 29672 after
+run 20: /bin/ls -a /bin
+user: exec pid 22 cr3 0x00000000032c0000 entry 0x000000000023da80 rsp 0x00007fffffffee60 argc 3 envc 3, 4 PT_LOAD: 0x0000000000200000-0x000000000023ca6c r-- 0x000000000023da80-0x0000000000316220 r-x 0x0000000000317220-0x000000000031f000 rw- 0x000000000031f220-0x0000000000326f98 rw-, stack 32 pages below 0x00007ffffffff000
+user: ls pid 22 syscall 273: -ENOSYS
+user: ls pid 22 syscall 334: -ENOSYS
+.
+..
+busybox
+cat
+echo
+head
+ls
+pwd
+sleep
+tail
+wc
+user: ls pid 22 exit_group 0 after 1 runs
+user: frames free 29672 before, 29334 with 1 processes, 29672 after
+run 21: /bin/ls -F /etc /bin
+user: exec pid 23 cr3 0x0000000003400000 entry 0x000000000023da80 rsp 0x00007fffffffee60 argc 4 envc 3, 4 PT_LOAD: 0x0000000000200000-0x000000000023ca6c r-- 0x000000000023da80-0x0000000000316220 r-x 0x0000000000317220-0x000000000031f000 rw- 0x000000000031f220-0x0000000000326f98 rw-, stack 32 pages below 0x00007ffffffff000
+user: ls pid 23 syscall 273: -ENOSYS
+user: ls pid 23 syscall 334: -ENOSYS
+/bin:
+busybox
+cat
+echo
+head
+ls
+pwd
+sleep
+tail
+wc
+
+/etc:
+motd
+pax-run
+words
+user: ls pid 23 exit_group 0 after 1 runs
+user: frames free 29672 before, 29334 with 1 processes, 29672 after
+run 22: /bin/ls -R /etc
+user: exec pid 24 cr3 0x0000000003540000 entry 0x000000000023da80 rsp 0x00007fffffffee60 argc 3 envc 3, 4 PT_LOAD: 0x0000000000200000-0x000000000023ca6c r-- 0x000000000023da80-0x0000000000316220 r-x 0x0000000000317220-0x000000000031f000 rw- 0x000000000031f220-0x0000000000326f98 rw-, stack 32 pages below 0x00007ffffffff000
+user: ls pid 24 syscall 273: -ENOSYS
+user: ls pid 24 syscall 334: -ENOSYS
+/etc:
+motd
+pax-run
+words
+user: ls pid 24 exit_group 0 after 1 runs
+user: frames free 29672 before, 29334 with 1 processes, 29672 after
+run 23: /bin/ls -a -C -w 40 /bin
+user: exec pid 25 cr3 0x0000000003680000 entry 0x000000000023da80 rsp 0x00007fffffffee40 argc 6 envc 3, 4 PT_LOAD: 0x0000000000200000-0x000000000023ca6c r-- 0x000000000023da80-0x0000000000316220 r-x 0x0000000000317220-0x000000000031f000 rw- 0x000000000031f220-0x0000000000326f98 rw-, stack 32 pages below 0x00007ffffffff000
+user: ls pid 25 syscall 273: -ENOSYS
+user: ls pid 25 syscall 334: -ENOSYS
+.   busybox  echo  ls	sleep  wc
+..  cat      head  pwd	tail
+user: ls pid 25 exit_group 0 after 1 runs
+user: frames free 29672 before, 29334 with 1 processes, 29672 after
+run 24: /bin/ls -x -w 30 /bin
+user: exec pid 26 cr3 0x00000000037c0000 entry 0x000000000023da80 rsp 0x00007fffffffee50 argc 5 envc 3, 4 PT_LOAD: 0x0000000000200000-0x000000000023ca6c r-- 0x000000000023da80-0x0000000000316220 r-x 0x0000000000317220-0x000000000031f000 rw- 0x000000000031f220-0x0000000000326f98 rw-, stack 32 pages below 0x00007ffffffff000
+user: ls pid 26 syscall 273: -ENOSYS
+user: ls pid 26 syscall 334: -ENOSYS
+busybox  cat  echo   head
+ls	 pwd  sleep  tail
+wc
+user: ls pid 26 exit_group 0 after 1 runs
+user: frames free 29672 before, 29334 with 1 processes, 29672 after
+run 25: /bin/ls -m /bin
+user: exec pid 27 cr3 0x0000000003900000 entry 0x000000000023da80 rsp 0x00007fffffffee60 argc 3 envc 3, 4 PT_LOAD: 0x0000000000200000-0x000000000023ca6c r-- 0x000000000023da80-0x0000000000316220 r-x 0x0000000000317220-0x000000000031f000 rw- 0x000000000031f220-0x0000000000326f98 rw-, stack 32 pages below 0x00007ffffffff000
+user: ls pid 27 syscall 273: -ENOSYS
+user: ls pid 27 syscall 334: -ENOSYS
+busybox, cat, echo, head, ls, pwd, sleep, tail, wc
+user: ls pid 27 exit_group 0 after 1 runs
+user: frames free 29672 before, 29334 with 1 processes, 29672 after
+run 26: /bin/ls -d /etc /bin/ls /etc/motd
+user: exec pid 28 cr3 0x0000000003a40000 entry 0x000000000023da80 rsp 0x00007fffffffee40 argc 5 envc 3, 4 PT_LOAD: 0x0000000000200000-0x000000000023ca6c r-- 0x000000000023da80-0x0000000000316220 r-x 0x0000000000317220-0x000000000031f000 rw- 0x000000000031f220-0x0000000000326f98 rw-, stack 32 pages below 0x00007ffffffff000
+user: ls pid 28 syscall 273: -ENOSYS
+user: ls pid 28 syscall 334: -ENOSYS
+/bin/ls
+/etc
+/etc/motd
+user: ls pid 28 exit_group 0 after 1 runs
+user: frames free 29672 before, 29334 with 1 processes, 29672 after
+run 27: /bin/ls -S -r /etc
+user: exec pid 29 cr3 0x0000000003b80000 entry 0x000000000023da80 rsp 0x00007fffffffee60 argc 4 envc 3, 4 PT_LOAD: 0x0000000000200000-0x000000000023ca6c r-- 0x000000000023da80-0x0000000000316220 r-x 0x0000000000317220-0x000000000031f000 rw- 0x000000000031f220-0x0000000000326f98 rw-, stack 32 pages below 0x00007ffffffff000
+user: ls pid 29 syscall 273: -ENOSYS
+user: ls pid 29 syscall 334: -ENOSYS
+words
+motd
+pax-run
+user: ls pid 29 exit_group 0 after 1 runs
+user: frames free 29672 before, 29334 with 1 processes, 29672 after
+run 28: /bin/ls /nothing /etc
+user: exec pid 30 cr3 0x0000000003cc0000 entry 0x000000000023da80 rsp 0x00007fffffffee60 argc 3 envc 3, 4 PT_LOAD: 0x0000000000200000-0x000000000023ca6c r-- 0x000000000023da80-0x0000000000316220 r-x 0x0000000000317220-0x000000000031f000 rw- 0x000000000031f220-0x0000000000326f98 rw-, stack 32 pages below 0x00007ffffffff000
+user: ls pid 30 syscall 273: -ENOSYS
+user: ls pid 30 syscall 334: -ENOSYS
+ls: cannot access '/nothing': No such file or directory
+/etc:
+motd
+pax-run
+words
+user: ls pid 30 exit_group 2 after 1 runs
+user: frames free 29672 before, 29334 with 1 processes, 29672 after
+run 29: /bin/ls -d /
+user: exec pid 31 cr3 0x0000000003e00000 entry 0x000000000023da80 rsp 0x00007fffffffee60 argc 3 envc 3, 4 PT_LOAD: 0x0000000000200000-0x000000000023ca6c r-- 0x000000000023da80-0x0000000000316220 r-x 0x0000000000317220-0x000000000031f000 rw- 0x000000000031f220-0x0000000000326f98 rw-, stack 32 pages below 0x00007ffffffff000
+user: ls pid 31 syscall 273: -ENOSYS
+user: ls pid 31 syscall 334: -ENOSYS
+/
+user: ls pid 31 exit_group 0 after 1 runs
+user: frames free 29672 before, 29334 with 1 processes, 29672 after
+run: 29 commands
+user: ticks in ring 3 33
+halt

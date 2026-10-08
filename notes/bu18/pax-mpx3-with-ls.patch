@@ -1,0 +1,43 @@
+diff --git a/tests/mpx3-boreutils b/tests/mpx3-boreutils
+index 03c7f91..b5f8695 100755
+--- a/tests/mpx3-boreutils
++++ b/tests/mpx3-boreutils
+@@ -74,7 +74,7 @@ case $legs in both) legs="bios uefi" ;; bios|uefi) ;; *) die "--firmware takes b
+ case $tiers in both) tiers="native release" ;; native|release) ;; *) die "--tier takes native, release or both" ;; esac
+ need readelf python3
+ 
+-UTILS="echo cat head wc tail pwd sleep"
++UTILS="echo cat head wc tail pwd sleep ls"
+ work=$PAX_BUILD/mpx3-boreutils
+ runs=$PAX_BUILD/mpx3-boreutils-runs.txt
+ fail=0 ran=0
+diff --git a/user/boreutils.pin b/user/boreutils.pin
+index ec51163..6fe256a 100644
+--- a/user/boreutils.pin
++++ b/user/boreutils.pin
+@@ -8,4 +8,4 @@
+ # from boreutils' own tree. bu17 (boreutils#22) moves boreutils to
+ # 0.2.25; moving this pin is its own commit.
+ BORE_REPO=https://github.com/wolffe-lang/boreutils
+-BORE_REV=2f1558519a3464a43c1af10e403f12aef5905840
++BORE_REV=d90f90a2b748e98476d1ca4520f7dd302aa85320
+diff --git a/user/mpx3-boreutils.run b/user/mpx3-boreutils.run
+index f98ae71..dbc2e24 100644
+--- a/user/mpx3-boreutils.run
++++ b/user/mpx3-boreutils.run
+@@ -28,3 +28,15 @@
+ /bin/cat /etc/nothing
+ /bin/cat /bin
+ /bin/head -n 2 /etc/motd/x
++/bin/ls /etc
++/bin/ls -l /etc
++/bin/ls -a /bin
++/bin/ls -F /etc /bin
++/bin/ls -R /etc
++/bin/ls -a -C -w 40 /bin
++/bin/ls -x -w 30 /bin
++/bin/ls -m /bin
++/bin/ls -d /etc /bin/ls /etc/motd
++/bin/ls -S -r /etc
++/bin/ls /nothing /etc
++/bin/ls -d /
