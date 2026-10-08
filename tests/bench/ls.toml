@@ -1,35 +1,37 @@
-# ls — a directory of 10,000 names, and a tree of 100 directories of 100
-# (`tree`, generated from a fixed seed by tools/bench). Neither side
-# stats an entry for a plain listing; both must for -S and -t, and for
-# -R this ls must ask of every entry whether it is a directory, where
-# GNU reads the type the kernel hands back with the name (wolf-lang#626).
+# ls — `tree`, generated from a fixed seed by tools/bench: flat/, a
+# directory of 10,000 names, and deep/, 100 directories of 100, at
+# --scale 1 (--scale 10: 100,000 names, and 316 directories of 316).
+# Neither side stats an entry for a plain listing; both must for -S and
+# -t, and for -R this ls must ask of every entry whether it is a
+# directory, where GNU reads the type the kernel hands back with the
+# name (wolf-lang#626).
 
 [[bench]]
-name = "10,000 names, one per line"
+name = "flat/, one per line"
 command = "{prog} {input}/flat > /dev/null"
 input = "tree"
 
 [[bench]]
-name = "10,000 names in columns (-C)"
+name = "flat/ in columns (-C)"
 command = "{prog} -C {input}/flat > /dev/null"
 input = "tree"
 
 [[bench]]
-name = "10,000 names by size (-S)"
+name = "flat/ by size (-S)"
 command = "{prog} -S {input}/flat > /dev/null"
 input = "tree"
 
 [[bench]]
-name = "10,000 names by time (-t)"
+name = "flat/ by time (-t)"
 command = "{prog} -t {input}/flat > /dev/null"
 input = "tree"
 
 [[bench]]
-name = "-R of 100 directories of 100"
+name = "-R of deep/"
 command = "{prog} -R {input}/deep > /dev/null"
 input = "tree"
 
 [[bench]]
-name = "start-up: one empty listing"
+name = "start-up: -d of one directory"
 command = "{prog} -d {input} > /dev/null"
 input = "tree"
