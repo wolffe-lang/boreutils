@@ -30,14 +30,14 @@ Nothing here spawns or runs concurrently, so no row needed `taskset`.
 | what 0.2.25 changes: #598/#601 reloads, #600, no new prelude name | the CHANGELOG says so | holds, and **0.2.24 is crossed too** (never pinned here): `fence` in the prelude, #589, #585, #583, `libwolf_rt_none.a` |
 | s214 measured 2781/2781 | 2749 passed + 32 skipped on ubuntu (bu16's CI run 37229323186) | the same corpus |
 | s200's byte surface is not in 0.2.25 | no `bytes_count`/`fs_copy_chunk` in `wolf prelude --json` (124 names) | holds; bu18 after r31 |
-| — | wolf-std trunk moved to `2f389a7` (sc54); sc55 not merged | the std pin moves (B151, below) |
+| — | wolf-std trunk moved to `2f389a7` (sc54); sc55 merged later, during the lane (`0f74ec5`) | the std pin moves to each in turn (B151, below) |
 
 ## 3. Prediction, scored
 
 | predicted (`f7d60b7`) | measured | verdict |
 |---|---|---|
 | all 27 build on both tiers under `--deny-warnings`, at std `6a0df5e` and `2f389a7`, nothing refused, warned or ICE'd | `errors=0 warnings=0 ice=0 built=27` on release and dev, at the pin (`596f37f`, std `6a0df5e`), at std `2f389a7`, and at head | right |
-| std: the two candidates give byte-identical binaries; the pin moves to trunk `2f389a7` | release: `bins-release-stdtry-2f389a7.sha256` = `bins-release-pin-596f37f.sha256` (`b9d6fb80…`); dev, built in one tree at both std roots: 27 identical (`678189b6…` both) | right; moved in `013f398` |
+| std: the two candidates give byte-identical binaries; the pin moves to trunk `2f389a7` | release: `bins-release-stdtry-2f389a7.sha256` = `bins-release-pin-596f37f.sha256` (`b9d6fb80…`); dev, built in one tree at both std roots: 27 identical (`678189b6…` both) | right; moved in `013f398`. **sc55 then merged** (`0f74ec5`, std at 0.2.25): `2f389a7..0f74ec5` changes nothing under `std/`, so the pin moved again in `89f4983`, as predicted ("unless sc55 merges first, then re-derived"). Gauntlet at `89f4983`: 27 built on each tier, binaries identical to `d84db8f`'s on both (`a74aaa5f…`, `678189b6…`), verdicts `6f8d7f2d…` on both tiers |
 | all 27 differ on both tiers, from the version's crate hash and #598/#601's reloads | 27/27 differ on each tier, raw and after `objcopy --strip-debug --remove-section .note.gnu.build-id` (the orchestrator's method note: the native tier writes the compiler version into DWARF). `--emit=wir` at 0.2.23 and 0.2.25 differs in all 27 ONLY by `load` (+8 to +159), `icmp`, `ptr.off`, one `agg` (head, nproc, tee) and one `zext` (printf); no call, store or branch count moved (`wir-opcode-moves.txt` `7d671295…`) | right. The stripped compare cannot attribute the move by itself: `libwolf_rt.a` differs too (`5af08d0e…` → `6ac563e7…`, 0.2.24's #570 pool fix and the crate hash); the WIR is the attribution |
 | the utilities' own code grows (loads), never shrinks | in the functions the compiler emits (`_W*` symbols, runtime excluded): **dev** grows in all 27 (+1 to +255 instructions); **release** SHRINKS in 18 of 27 (−7 to −31) and its loads fall in head, seq, tail and wc (`own-*.txt`) | **wrong for release**: LLVM re-optimises around the added loads (block layout and inlining move: `head` 33→34 fns, `tac` 26→25, `sleep` 16→17, `wc` 30→31). The lowering only grows; the release machine code does not follow it one for one |
 | #600 moves no binary on its own | the WIR shows no opcode class #600 could account for; s214 measured zero binaries moved by #600 | right (by the WIR) |
@@ -359,6 +359,8 @@ trees are pruned), except the CI logs, which are on nomad-1 at
   - std try (`2f389a7` on `596f37f`): `gauntlet-stdtry-2f389a7.log`
     `76a2ba01…`
   - head `d84db8f`: `gauntlet-head-d84db8f.log` `36c6cb97…`
+  - std at sc55 `89f4983`: `gauntlet-head-89f4983.log` `9536b1e2…`,
+    `devdiff-head-89f4983.log` `e497b384…`
 - **The dev tier's difftest:** `devdiff-base-2f15585.log` `8c428c26…`,
   `devdiff-pin-596f37f.log` `96cfa4c4…`, `devdiff-head-d84db8f.log`
   `27f32c4b…`.
