@@ -1,0 +1,209 @@
+//! bore.columns — names laid out in columns, as GNU's `ls -C`, `-x`
+//! and `-m` lay them out.
+//!
+//! Written for `ls` (bu18) and kept here, out of the utility, because
+//! it is pure arithmetic over widths that the unit tests in
+//! `bore_test.lu` can drive on both machines, and because `dir` and
+//! `vdir` are the same layout.
+//!
+//! **The fit rule, measured black-box against GNU coreutils 9.11 under
+//! `LC_ALL=C`** (`ls -C -w W` over small directories, every W from 1
+//! to 14; kasumi `~/lanes/bu18/probe6.sh`), and nothing else:
+//!
+//! - A layout of C columns starts every column at width 3 and its line
+//!   at 3C. Each name, in order, asks for its width plus 2 in its
+//!   column, or its bare width in the LAST column (C - 1); a column
+//!   that is asked for more than it has grows, and the line grows with
+//!   it.
+//! - A layout is refused once a growth leaves the line at or past the
+//!   width, and only then: three one-letter names take three columns at
+//!   `-w 7` (their line never grows from 9), where `aa b c` needs
+//!   `-w 11` (its first column grows to 4, the line to 10).
+//! - At most ceil(W / 3) columns are tried, and the most that are not
+//!   refused win. `-w 0` is no limit, and no grid either: one line,
+//!   two spaces between names whatever their widths, never a tab.
+//! - `-C` fills each column top to bottom (`rows = ceil(n / C)`, name i
+//!   in column i / rows), `-x` each row left to right (column i % C).
+//! - Between columns the gap is filled with a TAB wherever one moves
+//!   more than one column without passing the next column, and spaces
+//!   elsewhere (`-T 0`: spaces only). Nothing follows a row's last name.
+//!
+//! `-m` writes `, ` between names and breaks the line instead when the
+//! next name, its separator and the comma that would follow it would
+//! reach the width: `aaaa, bbbb` (10 columns) needs `-w 11`.
+//!
+//! References consulted: POSIX.1-2024 `ls` (`-C`, `-x`, `-m`: "the
+//! format is unspecified" beyond multi-column, sorted down or across);
+//! GNU coreutils 9.11's info manual (`General output formatting`) and
+//! black-box runs. Never GNU source.
+
+/// The chosen columns: how many, how many rows, and each column's width
+/// as the fit rule left it (the last one is never used to pad).
+pub struct Grid {
+    cols: int,
+    rows: int,
+    widths: List[int],
+}
+
+/// The layout of `n` names whose display widths are `widths`, at a line
+/// width of `line` (0: no limit), down the columns or (`across`) along
+/// the rows.
+pub fn grid_of(widths: List[int], line: int, across: bool) -> Grid {
+    let n = widths.len
+    if n == 0 {
+        return Grid { cols: 1, rows: 0, widths: List[int]() }
+    }
+    var most = n
+    if line > 0 {
+        let tries = (line + 2) / 3
+        if tries < most {
+            most = tries
+        }
+    }
+    var c = most
+    while c > 1 {
+        let g = try_cols(widths, c, line, across)
+        if g.cols > 0 {
+            return g
+        }
+        c -= 1
+    }
+    try_cols(widths, 1, 0, across)
+}
+
+/// The layout with exactly `c` columns, or one with `cols` 0 when the
+/// fit rule refuses it.
+fn try_cols(widths: List[int], c: int, line: int, across: bool) -> Grid {
+    let n = widths.len
+    let rows = (n + c - 1) / c
+    var col = List[int]()
+    var k = 0
+    while k < c {
+        (mut col).push(3)
+        k += 1
+    }
+    var total = 3 * c
+    var ok = true
+    var i = 0
+    while i < n {
+        let at = if across then i % c else i / rows
+        var want = widths[i]
+        if at != c - 1 {
+            want += 2
+        }
+        if want > col[at] {
+            total += want - col[at]
+            col[at] = want
+            ok = line == 0 || total < line
+            if !ok {
+                return Grid { cols: 0, rows: 0, widths: List[int]() }
+            }
+        }
+        i += 1
+    }
+    Grid { cols: c, rows: rows, widths: col }
+}
+
+/// The bytes of `items` laid out by `grid_of`, each row ending in a
+/// newline. `widths[i]` is the display width of `items[i]`; `tab` is
+/// the tab size, 0 for spaces only.
+pub fn grid(items: List[str], widths: List[int], line: int, across: bool, tab: int) -> List[byte] {
+    var out = List[byte]()
+    if line == 0 {
+        // No limit is not a wide grid: every name on one line, two
+        // spaces between, never a tab and never a column's width.
+        var i = 0
+        while i < items.len {
+            if i > 0 {
+                (mut out).push(32 as byte)
+                (mut out).push(32 as byte)
+            }
+            for b in items[i].bytes() {
+                (mut out).push(b)
+            }
+            i += 1
+        }
+        if items.len > 0 {
+            (mut out).push(10 as byte)
+        }
+        return out
+    }
+    let g = grid_of(widths, line, across)
+    let n = items.len
+    var r = 0
+    while r < g.rows {
+        var pos = 0
+        var start = 0
+        var c = 0
+        while c < g.cols {
+            let i = if across then r * g.cols + c else c * g.rows + r
+            if i >= n {
+                break
+            }
+            for b in items[i].bytes() {
+                (mut out).push(b)
+            }
+            pos = start + widths[i]
+            let next = if across then i + 1 else i + g.rows
+            let more = c + 1 < g.cols && next < n
+            if !more {
+                break
+            }
+            start += g.widths[c]
+            pad(mut out, pos, start, tab)
+            c += 1
+        }
+        (mut out).push(10 as byte)
+        r += 1
+    }
+    out
+}
+
+/// Fill from column `from` to column `to`. A tab is written only where
+/// it moves more than one column and does not pass `to`; everything
+/// else is spaces. Measured: GNU pads `lnd` (ending at 30) to 32 with a
+/// tab, but `new\nline` (ending at 39) to 41 with two spaces, because
+/// the tab stop at 40 is only one column on.
+fn pad(mut out: List[byte], from: int, to: int, tab: int) {
+    var at = from
+    while at < to {
+        if tab > 0 && to / tab > (at + 1) / tab {
+            (mut out).push(9 as byte)
+            at += tab - at % tab
+        } else {
+            (mut out).push(32 as byte)
+            at += 1
+        }
+    }
+}
+
+/// The bytes of `items` as `ls -m` writes them: `, ` between names,
+/// `,` and a newline instead where the next name would reach `line`
+/// (0: never), and a newline at the end.
+pub fn commas(items: List[str], widths: List[int], line: int) -> List[byte] {
+    var out = List[byte]()
+    var pos = 0
+    var i = 0
+    while i < items.len {
+        let w = widths[i]
+        if i > 0 {
+            (mut out).push(44 as byte)
+            if line == 0 || pos + 2 + w < line {
+                (mut out).push(32 as byte)
+                pos += 2
+            } else {
+                (mut out).push(10 as byte)
+                pos = 0
+            }
+        }
+        for b in items[i].bytes() {
+            (mut out).push(b)
+        }
+        pos += w
+        i += 1
+    }
+    if items.len > 0 {
+        (mut out).push(10 as byte)
+    }
+    out
+}

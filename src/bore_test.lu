@@ -66,6 +66,27 @@ fn check_optional(args: List[str], want: str) {
     assert(got == want, "parse {joined(args)}: got {got}, want {want}")
 }
 
+fn ints(a: int, b: int, c: int, d: int, e: int) -> List[int] {
+    var xs = List[int]()
+    for x in [a, b, c, d, e] {
+        if x >= 0 {
+            (mut xs).push(x)
+        }
+    }
+    xs
+}
+
+/// `bore.grid_of`'s column count, against GNU `ls -C -w W` (kasumi
+/// `~/lanes/bu18/probe6.sh`; -1 pads the width list).
+fn check_cols(widths: List[int], line: int, want: int) {
+    let g = bore.grid_of(widths, line, false)
+    assert(g.cols == want, "grid_of at {line}: got {g.cols} columns, want {want}")
+}
+
+fn laid(items: List[str], widths: List[int], line: int, across: bool, tab: int) -> str {
+    str_from_utf8(bore.grid(items, widths, line, across, tab)) else "<not UTF-8>"
+}
+
 fn main() {
     // getopt_long's optional_argument: a word only when attached.
     check_optional(words("--follow", "x", ""), "k=[follow] v=[] g=[0] o=[x] e=")
@@ -142,4 +163,39 @@ fn main() {
     assert(bore.quote_name("é") == "''$'\\303\\251'", "a name that is one non-ASCII char")
     assert(bore.quote_name("a'b\tc") == "'a'\\''b'$'\\t''c'", "a single quote and a tab")
     assert(bore.quote_name("a\\b\tc") == "'a\\b'$'\\t''c'", "a backslash and a tab")
+    // bore.columns: GNU ls -C's fit rule, every expectation read off
+    // GNU coreutils 9.11 (`ls -C -w W`).
+    check_cols(ints(1, 1, -1, -1, -1), 3, 1)
+    check_cols(ints(1, 1, -1, -1, -1), 4, 2)
+    check_cols(ints(4, 2, -1, -1, -1), 9, 1)
+    check_cols(ints(4, 2, -1, -1, -1), 10, 2)
+    check_cols(ints(4, 4, -1, -1, -1), 10, 1)
+    check_cols(ints(4, 4, -1, -1, -1), 11, 2)
+    check_cols(ints(2, 1, 1, -1, -1), 7, 1)
+    check_cols(ints(2, 1, 1, -1, -1), 8, 2)
+    check_cols(ints(2, 1, 1, -1, -1), 11, 3)
+    check_cols(ints(1, 1, 1, 1, 1), 3, 1)
+    check_cols(ints(1, 1, 1, 1, 1), 4, 2)
+    check_cols(ints(1, 1, 1, 1, 1), 6, 2)
+    check_cols(ints(1, 1, 1, 1, 1), 7, 3)
+    check_cols(ints(1, 1, 1, 1, 1), 0, 5)
+    let five = ["a", "b", "c", "d", "e"]
+    assert(laid(five, ints(1, 1, 1, 1, 1), 4, false, 8) == "a  d\nb  e\nc\n", "-C -w 4")
+    assert(laid(five, ints(1, 1, 1, 1, 1), 7, true, 8) == "a  b  c\nd  e\n", "-x -w 7")
+    assert(laid(five, ints(1, 1, 1, 1, 1), 30, false, 3) == "a\tb\tc\td\te\n", "-T 3")
+    assert(laid(five, ints(1, 1, 1, 1, 1), 0, false, 8) == "a  b  c  d  e\n", "-w 0")
+    // A tab only where it moves more than one column.
+    assert(
+        laid(["abcdef", "x"], ints(6, 1, -1, -1, -1), 80, false, 8) == "abcdef\tx\n",
+        "a tab of two",
+    )
+    assert(
+        laid(["abcdefg", "x"], ints(7, 1, -1, -1, -1), 80, false, 8) == "abcdefg  x\n",
+        "no tab of one",
+    )
+    // -m breaks before a name that would reach the width.
+    let ab = str_from_utf8(bore.commas(["aaaa", "bbbb"], ints(4, 4, -1, -1, -1), 10)) else ""
+    assert(ab == "aaaa,\nbbbb\n", "-m -w 10")
+    let ab2 = str_from_utf8(bore.commas(["aaaa", "bbbb"], ints(4, 4, -1, -1, -1), 11)) else ""
+    assert(ab2 == "aaaa, bbbb\n", "-m -w 11")
 }
