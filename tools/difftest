@@ -100,6 +100,13 @@ Case file (TOML, one file per utility, any number of [[case]] tables):
                                  #   (`tee FILE`), and the only way a
                                  #   case can stand in a directory whose
                                  #   path it knows (`pwd -L`).
+  tree = "basic"                 # optional (bu18): start from the file's
+                                 #   [tree.basic] table, which holds any of
+                                 #   the scratch keys above; the case's own
+                                 #   keys are laid over it (a table entry
+                                 #   by name, a list by appending), so one
+                                 #   fixture tree serves a hundred cases
+                                 #   without being written a hundred times
   skip = "reason"                # optional: reported, not run
   timeout = 10                   # optional, seconds
   gnu_min = "9.11"               # optional: run only when the GNU oracle
@@ -166,7 +173,7 @@ KEYS = {"name", "args", "stdin", "stdin_file", "stdin_offset", "requires",
         "compare", "stdout_bytes", "stdout_closed", "stdout_file", "skip",
         "timeout", "gnu_util", "gnu_min", "gnu_max", "scratch",
         "scratch_dirs", "scratch_links", "scratch_modes", "scratch_times",
-        "cwd"}
+        "cwd", "tree"}
 # Naming any of these gives a case a scratch directory and a `files` field.
 SCRATCH = ("scratch", "scratch_dirs", "scratch_links", "scratch_modes",
            "scratch_times", "cwd")
@@ -473,13 +480,45 @@ def show(side, result, fields):
     return "\n".join(lines)
 
 
+def planted(case, trees, path):
+    """The case with its named tree laid under it (`tree = "NAME"`)."""
+    name = case.get("tree")
+    if name is None:
+        return case
+    if name not in trees:
+        die(f"{path}: case {case.get('name', '?')!r} names tree {name!r}, "
+            f"which the file does not define")
+    base = trees[name]
+    extra = set(base) - set(SCRATCH)
+    if extra:
+        die(f"{path}: tree {name!r} holds keys that are not scratch keys "
+            f"({sorted(extra)})")
+    out = {}
+    for key in SCRATCH:
+        if key in base and key in case:
+            if isinstance(base[key], dict):
+                merged = dict(base[key])
+                merged.update(case[key])
+                out[key] = merged
+            elif isinstance(base[key], list):
+                out[key] = list(base[key]) + list(case[key])
+            else:
+                out[key] = case[key]
+        elif key in base:
+            out[key] = base[key]
+    merged = dict(case)
+    merged.update(out)
+    return merged
+
+
 def load(path):
     try:
         with open(path, "rb") as fh:
             doc = tomllib.load(fh)
     except (OSError, tomllib.TOMLDecodeError) as e:
         die(f"{path}: {e}")
-    cases = doc.get("case", [])
+    trees = doc.get("tree", {})
+    cases = [planted(c, trees, path) for c in doc.get("case", [])]
     seen = set()
     for c in cases:
         extra = set(c) - KEYS
