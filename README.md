@@ -586,6 +586,23 @@ were wrong.**
 | `unexpand -a` under UTF-8 | 1190 ms | 3561 ms | **2.99x** |
 | `unexpand` on binary noise | 173 ms | 1594 ms | **9.23x** |
 
+**At wolf 0.2.25, `unexpand` lost about a third of its lead
+(wolf-lang#624, bu17).** The program did not change, and its hot
+function's IR did not change either. The release tier's codegen
+partition moved `flush_run` into the same unit as the loop that calls
+it. That happened because unrelated functions grew. With the callee's
+body visible, clang compiles the loop into code that runs 14% more
+instructions and 63% more cycles. The measurement is kasumi, GNU 9.11,
+the bench's full-size inputs, and 0.2.23 and 0.2.25 in one hyperfine
+run:
+
+| bench | 0.2.23 | 0.2.25 | GNU | vs GNU |
+|---|---:|---:|---:|---:|
+| `unexpand`, ordinary lines | 2594 ms | 4182 ms | 5903 ms | 2.28x → **1.41x** |
+| `unexpand`, very short lines | 286 ms | 311 ms | 622 ms | 2.17x → **2.00x** |
+| `unexpand`, leading runs | 834 ms | 889 ms | 1550 ms | 1.86x → **1.74x** |
+| `unexpand` on binary noise | 686 ms | 721 ms | 5981 ms | 8.73x → **8.29x** |
+
 **`tac` is the one that loses, and the reason was `tail`'s reason.** GNU
 seeks to the end of a regular file and walks backwards through it; until
 wolf 0.2.22 there was no seek, no tell and no positional read
