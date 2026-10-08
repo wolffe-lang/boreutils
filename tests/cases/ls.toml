@@ -1,0 +1,1504 @@
+# ls — GNU coreutils 9.11, black-box, on linux x86-64 and macOS arm64,
+# with standard output NOT a terminal (difftest's pipe), which is the
+# only output this ls writes until wolf can ask (os_isatty, wolf 0.2.26).
+#
+# Every case stands in a SCRATCH tree laid out fresh for each side
+# (tools/difftest): the trees below are named and shared, every entry's
+# modification time set to the second (`scratch_times`, bu18) so that
+# `-t` compares what both sides were given and not the instant the
+# harness made the file. Most cases stand in `t`, so `..` is the scratch
+# directory itself, whose time is set too.
+#
+# The help and version TEXT is ours, so those compare the exit only.
+# A behaviour this ls cannot match is a SKIP naming why:
+#   wolf-lang#625  no lstat/readlink/full stat: the long format, -s, -u,
+#                  -c, and every case that needs a link's OWN identity
+#   wolf-lang#626  fs_read_dir sorts: -U, -f, --sort=none
+#   wolf-lang#536  no inode: -i
+#   wolf 0.2.26    os_isatty: the terminal defaults
+
+# ------------------------------------------------------------- the trees
+
+# Files of distinct sizes (two deliberately tied), hidden files, a name
+# with a space, a name with a NEWLINE, a non-ASCII name, extensions for
+# -X, directories nested two deep, an empty one and a hidden one.
+[tree.plain]
+cwd = "t"
+scratch_dirs = ["t", "t/dir", "t/dir/sub", "t/empty", "t/.hdir"]
+scratch_times = { "." = 1600004000, "t" = 1600003000, "t/a" = 1600000100, "t/bb" = 1600000900, "t/ccc" = 1600000500, "t/Upper" = 1600000300, "t/_under" = 1600000700, "t/with space" = 1600000200, "t/new\nline" = 1600000600, "t/x.tar.gz" = 1600000400, "t/b.c" = 1600001000, "t/z.c" = 1600000800, "t/A.TXT" = 1600001100, "t/.hidden" = 1600001200, "t/é" = 1600001300, "t/dir" = 1600001400, "t/empty" = 1600001500, "t/.hdir" = 1600001600, "t/dir/inner" = 1600002000, "t/dir/.dot" = 1600002100, "t/dir/sub" = 1600002200, "t/dir/sub/deep" = 1600002300, "t/.hdir/h" = 1600002400 }
+
+[tree.plain.scratch]
+"t/a" = "12345"
+"t/bb" = "0123456789012345678901234567890123456789"
+"t/ccc" = "x"
+"t/Upper" = "1234567"
+"t/_under" = "abc"
+"t/with space" = "ab"
+"t/new\nline" = "xyz"
+"t/x.tar.gz" = "123456"
+"t/b.c" = "12345678"
+"t/z.c" = "123456789"
+"t/A.TXT" = "0123456789"
+"t/.hidden" = "0123456789a"
+"t/é" = "0123456789ab"
+"t/dir/inner" = "i"
+"t/dir/.dot" = "dd"
+"t/dir/sub/deep" = "eee"
+"t/.hdir/h" = "h"
+
+# Twenty-four names for the column layouts.
+[tree.greek]
+cwd = "t"
+scratch_dirs = ["t"]
+
+[tree.greek.scratch]
+"t/alpha" = ""
+"t/beta" = ""
+"t/gamma" = ""
+"t/delta" = ""
+"t/epsilon" = ""
+"t/zeta" = ""
+"t/eta" = ""
+"t/theta" = ""
+"t/iota" = ""
+"t/kappa" = ""
+"t/lambda" = ""
+"t/mu" = ""
+"t/nu" = ""
+"t/xi" = ""
+"t/omicron" = ""
+"t/pi" = ""
+"t/rho" = ""
+"t/sigma" = ""
+"t/tau" = ""
+"t/upsilon" = ""
+"t/phi" = ""
+"t/chi" = ""
+"t/psi" = ""
+"t/omega" = ""
+
+# Symbolic links: to a file, to a directory, to nothing, and to the
+# directory that holds it.
+[tree.links]
+cwd = "t"
+scratch_dirs = ["t", "t/d"]
+scratch = { "t/a" = "12345", "t/d/inner" = "i", "t/zz" = "0123456789" }
+scratch_links = { "t/ln" = "a", "t/lnd" = "d", "t/dangling" = "nope", "t/loop" = "." }
+scratch_times = { "." = 1600004000, "t" = 1600003000, "t/a" = 1600000100, "t/d" = 1600000200, "t/d/inner" = 1600000300, "t/zz" = 1600000400, "t/ln" = 1600000500, "t/lnd" = 1600000600, "t/dangling" = 1600000700, "t/loop" = 1600000800 }
+
+# A dangling link and nothing that resolves: the one kind of link this
+# ls can see.
+[tree.dangle]
+cwd = "t"
+scratch_dirs = ["t", "t/d"]
+scratch = { "t/a" = "12345", "t/bb" = "0123456789", "t/d/x" = "" }
+scratch_links = { "t/dangling" = "nope" }
+scratch_times = { "." = 1600004000, "t" = 1600003000, "t/a" = 1600000100, "t/bb" = 1600000200, "t/d" = 1600000300, "t/d/x" = 1600000400, "t/dangling" = 1600000500 }
+
+# A directory nobody may read, and one inside a readable one.
+[tree.locked]
+cwd = "t"
+scratch_dirs = ["t", "t/locked", "t/open", "t/open/inner", "t/open/inner/shut"]
+scratch = { "t/f" = "" }
+scratch_modes = { "t/locked" = 0o000, "t/open/inner/shut" = 0o000 }
+
+# ------------------------------------------------------- which names
+
+[[case]]
+name = "no operand lists the working directory"
+tree = "plain"
+
+[[case]]
+name = "the operand ."
+tree = "plain"
+args = ["."]
+
+[[case]]
+name = "-a lists . and .. and the hidden names"
+tree = "plain"
+args = ["-a"]
+
+[[case]]
+name = "-A lists the hidden names but not . and .."
+tree = "plain"
+args = ["-A"]
+
+[[case]]
+name = "--all"
+tree = "plain"
+args = ["--all"]
+
+[[case]]
+name = "--almost-all"
+tree = "plain"
+args = ["--almost-all"]
+
+[[case]]
+name = "--alm abbreviated"
+tree = "plain"
+args = ["--alm"]
+
+[[case]]
+name = "-a then -A: the last wins"
+tree = "plain"
+args = ["-a", "-A"]
+
+[[case]]
+name = "-A then -a: the last wins"
+tree = "plain"
+args = ["-A", "-a"]
+
+[[case]]
+name = "-aA clustered"
+tree = "plain"
+args = ["-aA"]
+
+[[case]]
+name = "-a of a subdirectory"
+tree = "plain"
+args = ["-a", "dir"]
+
+[[case]]
+name = "-d lists the operand, not its contents"
+tree = "plain"
+args = ["-d", "dir"]
+
+[[case]]
+name = "-d with no operand is ."
+tree = "plain"
+args = ["-d"]
+
+[[case]]
+name = "--directory of files and directories, sorted together"
+tree = "plain"
+args = ["--directory", "dir", "a", "empty", "bb"]
+
+[[case]]
+name = "-d of a directory written with a slash"
+tree = "plain"
+args = ["-d", "dir/"]
+
+[[case]]
+name = "-da lists . itself"
+tree = "plain"
+args = ["-da"]
+
+# ------------------------------------------------------------ operands
+
+[[case]]
+name = "file operands, sorted"
+tree = "plain"
+args = ["ccc", "a", "bb"]
+
+[[case]]
+name = "files first, then each directory under a header"
+tree = "plain"
+args = ["dir", "a", "empty", "bb"]
+
+[[case]]
+name = "two directories"
+tree = "plain"
+args = ["empty", "dir"]
+
+[[case]]
+name = "one directory gets no header"
+tree = "plain"
+args = ["dir"]
+
+[[case]]
+name = "one directory written with a slash"
+tree = "plain"
+args = ["dir/"]
+
+[[case]]
+name = "a directory named twice"
+tree = "plain"
+args = ["dir", "dir"]
+
+[[case]]
+name = "a file named twice"
+tree = "plain"
+args = ["a", "a"]
+
+[[case]]
+name = "a path inside a directory"
+tree = "plain"
+args = ["dir/inner", "dir/sub"]
+
+[[case]]
+name = "a path starting ./"
+tree = "plain"
+args = ["./a", "./dir"]
+
+[[case]]
+name = "an absolute path"
+tree = "plain"
+args = ["{scratch}/t/dir"]
+
+[[case]]
+name = "the parent directory"
+tree = "plain"
+cwd = "t/dir"
+args = [".."]
+
+[[case]]
+name = "the root of the scratch tree"
+tree = "plain"
+cwd = "."
+args = ["t/empty", "t/dir/sub"]
+
+[[case]]
+name = "a missing operand is status 2"
+tree = "plain"
+args = ["nope"]
+
+[[case]]
+name = "a missing operand among good ones"
+tree = "plain"
+args = ["nope", "a", "dir"]
+
+[[case]]
+name = "a missing operand and one directory still gets the header"
+tree = "plain"
+args = ["nope", "dir"]
+
+[[case]]
+name = "the empty operand"
+tree = "plain"
+args = [""]
+
+[[case]]
+name = "a missing operand with a space and a quote in it"
+tree = "plain"
+args = ["it's gone", "no such"]
+
+[[case]]
+name = "a missing operand with a slash"
+tree = "plain"
+args = ["nope/"]
+
+[[case]]
+name = "a file operand written with a slash"
+tree = "plain"
+args = ["a/"]
+
+[[case]]
+name = "a path through a file is not a directory"
+tree = "plain"
+args = ["a/x", "a"]
+
+[[case]]
+name = "a path through a missing directory"
+tree = "plain"
+args = ["nope/x"]
+
+[[case]]
+name = "-- ends the options"
+tree = "plain"
+args = ["--", "-a"]
+
+[[case]]
+name = "options after operands permute"
+tree = "plain"
+args = ["dir", "-a"]
+
+[[case]]
+name = "POSIXLY_CORRECT stops at the first operand"
+tree = "plain"
+args = ["dir", "-a"]
+env = { POSIXLY_CORRECT = "1" }
+
+[[case]]
+name = "the name with a newline as an operand"
+tree = "plain"
+args = ["new\nline", "a"]
+
+# ------------------------------------------------------------- formats
+
+[[case]]
+name = "-1 one per line"
+tree = "plain"
+args = ["-1"]
+
+[[case]]
+name = "-C columns at 80"
+tree = "greek"
+args = ["-C"]
+
+[[case]]
+name = "-x across at 80"
+tree = "greek"
+args = ["-x"]
+
+[[case]]
+name = "-m commas at 80"
+tree = "greek"
+args = ["-m"]
+
+[[case]]
+name = "-C with the odd names"
+tree = "plain"
+args = ["-C"]
+
+[[case]]
+name = "-x with the odd names"
+tree = "plain"
+args = ["-x"]
+
+[[case]]
+name = "-m with the odd names"
+tree = "plain"
+args = ["-m"]
+
+[[case]]
+name = "-1 after -C: the last wins"
+tree = "greek"
+args = ["-C", "-1"]
+
+[[case]]
+name = "-C after -1: the last wins"
+tree = "greek"
+args = ["-1", "-C"]
+
+[[case]]
+name = "-x after -m"
+tree = "greek"
+args = ["-m", "-x"]
+
+[[case]]
+name = "-m after -x"
+tree = "greek"
+args = ["-x", "-m"]
+
+[[case]]
+name = "--format=vertical"
+tree = "greek"
+args = ["--format=vertical"]
+
+[[case]]
+name = "--format=across"
+tree = "greek"
+args = ["--format=across"]
+
+[[case]]
+name = "--format=horizontal"
+tree = "greek"
+args = ["--format", "horizontal"]
+
+[[case]]
+name = "--format=commas"
+tree = "greek"
+args = ["--format=commas"]
+
+[[case]]
+name = "--format=single-column after -C"
+tree = "greek"
+args = ["-C", "--format=single-column"]
+
+[[case]]
+name = "--format=co abbreviated"
+tree = "greek"
+args = ["--format=co"]
+
+[[case]]
+name = "--format=v is ambiguous"
+tree = "greek"
+args = ["--format=v"]
+
+[[case]]
+name = "--format=bogus"
+tree = "greek"
+args = ["--format=bogus"]
+
+[[case]]
+name = "--format= is ambiguous"
+tree = "greek"
+args = ["--format="]
+
+[[case]]
+name = "--format without its word"
+tree = "greek"
+args = ["--format"]
+
+[[case]]
+name = "-l and then --format=across: the last wins"
+tree = "greek"
+args = ["-l", "--format=across"]
+
+[[case]]
+name = "-l and then -C: -C wins"
+tree = "greek"
+args = ["-l", "-C"]
+
+[[case]]
+name = "-o and then -m: -m wins"
+tree = "greek"
+args = ["-o", "-m"]
+
+[[case]]
+name = "-g and then -1: -1 does not undo the long format"
+tree = "greek"
+args = ["-g", "-1"]
+skip = "the long format: no mode, link count or group (wolf-lang#625)"
+
+# ----------------------------------------------------- widths and tabs
+
+[[case]]
+name = "-C -w 40"
+tree = "greek"
+args = ["-C", "-w", "40"]
+
+[[case]]
+name = "-x -w 40"
+tree = "greek"
+args = ["-x", "-w", "40"]
+
+[[case]]
+name = "-C -w 50"
+tree = "greek"
+args = ["-C", "-w", "50"]
+
+[[case]]
+name = "-C -w 20"
+tree = "greek"
+args = ["-C", "-w", "20"]
+
+[[case]]
+name = "-C -w 1"
+tree = "greek"
+args = ["-C", "-w", "1"]
+
+[[case]]
+name = "-C -w 0 is no limit"
+tree = "greek"
+args = ["-C", "-w", "0"]
+
+[[case]]
+name = "-x -w 0 is no limit"
+tree = "plain"
+args = ["-x", "-w", "0"]
+
+[[case]]
+name = "-m -w 0 is no limit"
+tree = "greek"
+args = ["-m", "-w", "0"]
+
+[[case]]
+name = "-m -w 30"
+tree = "greek"
+args = ["-m", "-w", "30"]
+
+[[case]]
+name = "-m -w 11, a name that would end on the edge"
+tree = "plain"
+args = ["-m", "-w", "11"]
+
+[[case]]
+name = "-w30 attached"
+tree = "greek"
+args = ["-Cw30"]
+
+[[case]]
+name = "--width=35"
+tree = "greek"
+args = ["-C", "--width=35"]
+
+[[case]]
+name = "--wid 60 abbreviated"
+tree = "greek"
+args = ["-x", "--wid", "60"]
+
+[[case]]
+name = "-w without -C changes nothing"
+tree = "greek"
+args = ["-w", "20"]
+
+[[case]]
+name = "a huge -w is no limit"
+tree = "greek"
+args = ["-C", "-w", "99999999999999999999"]
+
+[[case]]
+name = "-w abc"
+tree = "greek"
+args = ["-w", "abc"]
+
+[[case]]
+name = "-w 3x"
+tree = "greek"
+args = ["-w", "3x"]
+
+[[case]]
+name = "-w with an empty word"
+tree = "greek"
+args = ["-w", ""]
+
+[[case]]
+name = "-w -1"
+tree = "greek"
+args = ["-w", "-1"]
+
+[[case]]
+name = "-w with no word"
+tree = "greek"
+args = ["-C", "-w"]
+
+[[case]]
+name = "COLUMNS=30 -C"
+tree = "greek"
+args = ["-C"]
+env = { COLUMNS = "30" }
+
+[[case]]
+name = "COLUMNS=30 -x"
+tree = "greek"
+args = ["-x"]
+env = { COLUMNS = "30" }
+
+[[case]]
+name = "COLUMNS=30 -m"
+tree = "greek"
+args = ["-m"]
+env = { COLUMNS = "30" }
+
+[[case]]
+name = "COLUMNS=0 is no limit"
+tree = "greek"
+args = ["-C"]
+env = { COLUMNS = "0" }
+
+[[case]]
+name = "-w wins over COLUMNS"
+tree = "greek"
+args = ["-C", "-w", "60"]
+env = { COLUMNS = "30" }
+
+[[case]]
+name = "COLUMNS=abc warns and takes 80"
+tree = "greek"
+args = ["-C"]
+env = { COLUMNS = "abc" }
+
+[[case]]
+name = "COLUMNS=-3 warns and takes 80"
+tree = "greek"
+args = ["-x"]
+env = { COLUMNS = "-3" }
+
+[[case]]
+name = "COLUMNS empty is 80"
+tree = "greek"
+args = ["-C"]
+env = { COLUMNS = "" }
+
+[[case]]
+name = "COLUMNS=abc is not read one per line"
+tree = "greek"
+env = { COLUMNS = "abc" }
+
+[[case]]
+name = "-T 0: spaces only"
+tree = "greek"
+args = ["-C", "-w", "50", "-T", "0"]
+
+[[case]]
+name = "-T 3"
+tree = "greek"
+args = ["-C", "-w", "50", "-T", "3"]
+
+[[case]]
+name = "--tabsize=4"
+tree = "greek"
+args = ["-x", "-w", "45", "--tabsize=4"]
+
+[[case]]
+name = "-T x"
+tree = "greek"
+args = ["-T", "x"]
+
+[[case]]
+name = "-T -1"
+tree = "greek"
+args = ["-T", "-1"]
+
+[[case]]
+name = "a tab one column from the next column is two spaces"
+tree = "plain"
+args = ["-C", "-w", "200"]
+
+# -------------------------------------------------------------- sorting
+
+[[case]]
+name = "-r"
+tree = "plain"
+args = ["-r"]
+
+[[case]]
+name = "--reverse"
+tree = "plain"
+args = ["--reverse"]
+
+[[case]]
+name = "-S largest first, ties by name"
+tree = "plain"
+args = ["-S"]
+
+[[case]]
+name = "-S -r"
+tree = "plain"
+args = ["-S", "-r"]
+
+[[case]]
+name = "-S of file operands"
+tree = "plain"
+args = ["-S", "a", "bb", "ccc", "z.c"]
+
+[[case]]
+name = "-t newest first"
+tree = "plain"
+args = ["-t"]
+
+[[case]]
+name = "-t -r"
+tree = "plain"
+args = ["-tr"]
+
+[[case]]
+name = "-t with . and .."
+tree = "plain"
+args = ["-ta"]
+
+[[case]]
+name = "-t of directory operands orders the directories"
+tree = "plain"
+args = ["-t", "dir", "empty", ".hdir"]
+
+[[case]]
+name = "-X by extension"
+tree = "plain"
+args = ["-X"]
+
+[[case]]
+name = "-X -r"
+tree = "plain"
+args = ["-X", "-r"]
+
+[[case]]
+name = "-X with the hidden names"
+tree = "plain"
+args = ["-XA"]
+
+[[case]]
+name = "--sort=size"
+tree = "plain"
+args = ["--sort=size"]
+
+[[case]]
+name = "--sort=time"
+tree = "plain"
+args = ["--sort=time"]
+
+[[case]]
+name = "--sort=extension"
+tree = "plain"
+args = ["--sort=extension"]
+
+[[case]]
+name = "--sort=name after -t"
+tree = "plain"
+args = ["-t", "--sort=name"]
+
+[[case]]
+name = "-t after --sort=size"
+tree = "plain"
+args = ["--sort=size", "-t"]
+
+[[case]]
+name = "-S then -t: the last wins"
+tree = "plain"
+args = ["-S", "-t"]
+
+[[case]]
+name = "-t then -S: the last wins"
+tree = "plain"
+args = ["-t", "-S"]
+
+[[case]]
+name = "--sort=s abbreviated"
+tree = "plain"
+args = ["--sort=s"]
+
+[[case]]
+name = "--sort=bogus"
+tree = "plain"
+args = ["--sort=bogus"]
+
+[[case]]
+name = "--sort= is ambiguous"
+tree = "plain"
+args = ["--sort="]
+
+[[case]]
+name = "--time=mtime alone sorts by time"
+tree = "plain"
+args = ["--time=mtime"]
+
+[[case]]
+name = "--time=modification -r"
+tree = "plain"
+args = ["--time=modification", "-r"]
+
+[[case]]
+name = "--time=m abbreviated"
+tree = "plain"
+args = ["--time=m"]
+
+[[case]]
+name = "--time=mtime then --sort=name"
+tree = "plain"
+args = ["--time=mtime", "--sort=name"]
+
+[[case]]
+name = "--sort=name then --time=mtime"
+tree = "plain"
+args = ["--sort=name", "--time=mtime"]
+
+[[case]]
+name = "--time=mtime with -S"
+tree = "plain"
+args = ["--time=mtime", "-S"]
+
+[[case]]
+name = "--time=bogus"
+tree = "plain"
+args = ["--time=bogus"]
+
+[[case]]
+name = "--time= is ambiguous"
+tree = "plain"
+args = ["--time="]
+
+[[case]]
+name = "--group-directories-first"
+tree = "plain"
+args = ["--group-directories-first"]
+
+[[case]]
+name = "--group-directories-first -r keeps them first"
+tree = "plain"
+args = ["--group-directories-first", "-r"]
+
+[[case]]
+name = "--group-directories-first -S"
+tree = "plain"
+args = ["--group-directories-first", "-S"]
+
+[[case]]
+name = "--group-directories-first -t -a"
+tree = "plain"
+args = ["--group-directories-first", "-ta"]
+
+[[case]]
+name = "--group abbreviated"
+tree = "plain"
+args = ["--group", "-A"]
+
+# ----------------------------------------------------------- indicators
+
+[[case]]
+name = "-p marks directories"
+tree = "plain"
+args = ["-p"]
+
+[[case]]
+name = "-p with . and .."
+tree = "plain"
+args = ["-pa"]
+
+[[case]]
+name = "-F marks directories"
+tree = "plain"
+args = ["-F"]
+
+[[case]]
+name = "--classify"
+tree = "plain"
+args = ["--classify"]
+
+[[case]]
+name = "--classify=always"
+tree = "plain"
+args = ["--classify=always"]
+
+[[case]]
+name = "--classify=never"
+tree = "plain"
+args = ["--classify=never"]
+
+[[case]]
+name = "--classify=auto, not a terminal"
+tree = "plain"
+args = ["--classify=auto"]
+
+[[case]]
+name = "-F then --classify=never changes nothing"
+tree = "plain"
+args = ["-F", "--classify=never"]
+
+[[case]]
+name = "--classify=bogus"
+tree = "plain"
+args = ["--classify=bogus"]
+
+[[case]]
+name = "--file-type"
+tree = "plain"
+args = ["--file-type"]
+
+[[case]]
+name = "--indicator-style=slash"
+tree = "plain"
+args = ["--indicator-style=slash"]
+
+[[case]]
+name = "--indicator-style=none after -F"
+tree = "plain"
+args = ["-F", "--indicator-style=none"]
+
+[[case]]
+name = "--indicator-style=classify"
+tree = "plain"
+args = ["--indicator-style=classify"]
+
+[[case]]
+name = "--indicator-style=file-type"
+tree = "plain"
+args = ["--indicator-style=file-type"]
+
+[[case]]
+name = "--indicator-style=bogus"
+tree = "plain"
+args = ["--indicator-style=bogus"]
+
+[[case]]
+name = "-F -d ."
+tree = "plain"
+args = ["-F", "-d", ".", "a", "dir"]
+
+[[case]]
+name = "-p -C counts the slash in the width"
+tree = "plain"
+args = ["-p", "-C", "-w", "50"]
+
+[[case]]
+name = "-F -m"
+tree = "plain"
+args = ["-F", "-m", "-w", "40"]
+
+# ---------------------------------------------------------------- names
+
+[[case]]
+name = "-q shows each unprintable byte as ?"
+tree = "plain"
+args = ["-q"]
+
+[[case]]
+name = "--hide-control-chars"
+tree = "plain"
+args = ["--hide-control-chars"]
+
+[[case]]
+name = "--show-control-chars after -q"
+tree = "plain"
+args = ["-q", "--show-control-chars"]
+
+[[case]]
+name = "-q -C"
+tree = "plain"
+args = ["-q", "-C", "-w", "40"]
+
+[[case]]
+name = "-q -m"
+tree = "plain"
+args = ["-q", "-m"]
+
+[[case]]
+name = "-q of a directory header"
+tree = "plain"
+args = ["-q", "-R", "."]
+
+# ------------------------------------------------------------ recursion
+
+[[case]]
+name = "-R"
+tree = "plain"
+args = ["-R"]
+
+[[case]]
+name = "-R ."
+tree = "plain"
+args = ["-R", "."]
+
+[[case]]
+name = "-R of a directory"
+tree = "plain"
+args = ["-R", "dir"]
+
+[[case]]
+name = "-R of a directory written with a slash"
+tree = "plain"
+args = ["-R", "dir/"]
+
+[[case]]
+name = "-R -a descends into hidden directories, never . or .."
+tree = "plain"
+args = ["-Ra"]
+
+[[case]]
+name = "-R -A"
+tree = "plain"
+args = ["-RA"]
+
+[[case]]
+name = "-R with file operands first"
+tree = "plain"
+args = ["-R", "dir", "a", "empty"]
+
+[[case]]
+name = "-R -d does not descend"
+tree = "plain"
+args = ["-R", "-d", "dir"]
+
+[[case]]
+name = "-R -r"
+tree = "plain"
+args = ["-Rr"]
+
+[[case]]
+name = "-R -t"
+tree = "plain"
+args = ["-Rt"]
+
+[[case]]
+name = "-R -C"
+tree = "plain"
+args = ["-R", "-C", "-w", "40"]
+
+[[case]]
+name = "-R -m"
+tree = "plain"
+args = ["-Rm"]
+
+[[case]]
+name = "-R -F"
+tree = "plain"
+args = ["-RF"]
+
+[[case]]
+name = "--recursive"
+tree = "plain"
+args = ["--recursive", "dir"]
+
+[[case]]
+name = "-R from the scratch root"
+tree = "plain"
+cwd = "."
+args = ["-R"]
+
+# ---------------------------------------------------- unreadable places
+
+[[case]]
+name = "a directory operand that cannot be opened is status 2"
+tree = "locked"
+args = ["locked"]
+
+[[case]]
+name = "an unopenable directory among others"
+tree = "locked"
+args = ["locked", "open", "f"]
+
+[[case]]
+name = "-d of an unreadable directory"
+tree = "locked"
+args = ["-d", "locked"]
+
+[[case]]
+name = "-R meeting an unreadable subdirectory is status 1"
+tree = "locked"
+args = ["-R", "open"]
+
+[[case]]
+name = "-R of everything, both kinds of failure"
+tree = "locked"
+args = ["-R"]
+
+[[case]]
+name = "a path through an unreadable directory"
+tree = "locked"
+args = ["locked/x"]
+skip = "GNU says 'Permission denied' (EACCES); wolf has no errno behind a row to tell it from a missing name (wolf-lang#407)"
+
+[[case]]
+name = "-F of an unreadable directory still marks it"
+tree = "locked"
+args = ["-F"]
+
+# -------------------------------------------------------------- links
+
+[[case]]
+name = "a listing with links names them"
+tree = "links"
+
+[[case]]
+name = "a listing with links, -a"
+tree = "links"
+args = ["-a"]
+
+[[case]]
+name = "a listing with links, -C"
+tree = "links"
+args = ["-C"]
+
+[[case]]
+name = "a link to a file as an operand"
+tree = "links"
+args = ["ln"]
+
+[[case]]
+name = "a link to a directory as an operand is followed"
+tree = "links"
+args = ["lnd"]
+
+[[case]]
+name = "a dangling link as an operand is listed"
+tree = "links"
+args = ["dangling"]
+
+[[case]]
+name = "link operands of all three kinds"
+tree = "links"
+args = ["ln", "lnd", "dangling"]
+
+[[case]]
+name = "-d of a link to a directory"
+tree = "links"
+args = ["-d", "lnd", "ln"]
+
+[[case]]
+name = "-H follows an operand, so a dangling one is missing"
+tree = "links"
+args = ["-H", "dangling", "a"]
+
+[[case]]
+name = "-L and a dangling operand"
+tree = "links"
+args = ["-L", "dangling"]
+
+[[case]]
+name = "-L does not stat what it need not"
+tree = "links"
+args = ["-L"]
+
+[[case]]
+name = "-L -F follows every link, a dangling one is status 1"
+tree = "links"
+args = ["-LF"]
+
+[[case]]
+name = "-L -p"
+tree = "links"
+args = ["-Lp"]
+
+[[case]]
+name = "--dereference -t"
+tree = "links"
+args = ["--dereference", "-t", "a", "ln", "zz", "d", "lnd"]
+
+[[case]]
+name = "-L -S of links that resolve"
+tree = "links"
+args = ["-L", "-S", "a", "ln", "zz", "lnd"]
+
+[[case]]
+name = "--dereference-command-line-symlink-to-dir"
+tree = "links"
+args = ["--dereference-command-line-symlink-to-dir", "lnd"]
+
+[[case]]
+name = "--group-directories-first counts a link to a directory"
+tree = "links"
+args = ["--group-directories-first"]
+
+[[case]]
+name = "-q and -m with links"
+tree = "links"
+args = ["-qm"]
+
+[[case]]
+name = "-F marks a dangling link"
+tree = "dangle"
+args = ["-F"]
+
+[[case]]
+name = "-p leaves a dangling link unmarked"
+tree = "dangle"
+args = ["-p"]
+
+[[case]]
+name = "-F of a dangling operand"
+tree = "dangle"
+args = ["-F", "dangling", "d"]
+
+[[case]]
+name = "-R past a dangling link"
+tree = "dangle"
+args = ["-R"]
+
+[[case]]
+name = "--group-directories-first with a dangling link"
+tree = "dangle"
+args = ["--group-directories-first", "-F"]
+
+[[case]]
+name = "-L -R and a dangling link"
+tree = "dangle"
+args = ["-LR"]
+
+# What only a link's OWN identity can answer (wolf-lang#625).
+
+[[case]]
+name = "-F marks a link that resolves with @"
+tree = "links"
+args = ["-F"]
+skip = "a link that resolves is taken for its target: no lstat (wolf-lang#625)"
+
+[[case]]
+name = "-p leaves a link to a directory unmarked"
+tree = "links"
+args = ["-p"]
+skip = "a link that resolves is taken for its target: no lstat (wolf-lang#625)"
+
+[[case]]
+name = "-S sorts a link by its own size"
+tree = "links"
+args = ["-S"]
+skip = "a link's own size needs lstat (wolf-lang#625)"
+
+[[case]]
+name = "-t sorts a link by its own time"
+tree = "links"
+args = ["-t"]
+skip = "a link's own time needs lstat (wolf-lang#625)"
+
+[[case]]
+name = "-R does not descend through a link to a directory"
+tree = "links"
+args = ["-R"]
+skip = "a link to a directory is taken for the directory: no lstat (wolf-lang#625)"
+
+[[case]]
+name = "-F of a link to a directory as an operand is the link"
+tree = "links"
+args = ["-F", "lnd"]
+skip = "a link that resolves is taken for its target: no lstat (wolf-lang#625)"
+
+[[case]]
+name = "-d -F of link operands"
+tree = "links"
+args = ["-dF", "ln", "lnd", "dangling"]
+skip = "a link that resolves is taken for its target: no lstat (wolf-lang#625)"
+
+[[case]]
+name = "-S of a dangling link uses the link's size"
+tree = "dangle"
+args = ["-S"]
+skip = "a link's own size needs lstat (wolf-lang#625)"
+
+[[case]]
+name = "-t of a dangling link uses the link's time"
+tree = "dangle"
+args = ["-t"]
+skip = "a link's own time needs lstat (wolf-lang#625)"
+
+[[case]]
+name = "-L -R meets a link to an ancestor"
+tree = "links"
+args = ["-LR"]
+skip = "GNU names the loop by inode ('not listing already-listed directory'); no inode (wolf-lang#536) and no lstat (wolf-lang#625)"
+
+# --------------------------------------------- the deferred: long format
+
+[[case]]
+name = "-l"
+tree = "plain"
+args = ["-l"]
+skip = "the long format: no mode, link count, owner or group (wolf-lang#625)"
+
+[[case]]
+name = "-l of links shows their targets"
+tree = "links"
+args = ["-l"]
+skip = "the long format: no mode, link count, owner, group or readlink (wolf-lang#625)"
+
+[[case]]
+name = "-g"
+tree = "plain"
+args = ["-g"]
+skip = "the long format: no mode, link count or group (wolf-lang#625)"
+
+[[case]]
+name = "-n"
+tree = "plain"
+args = ["-n"]
+skip = "the long format: no mode, link count, uid or gid (wolf-lang#625)"
+
+[[case]]
+name = "-o"
+tree = "plain"
+args = ["-o"]
+skip = "the long format: no mode, link count or owner (wolf-lang#625)"
+
+[[case]]
+name = "--full-time"
+tree = "plain"
+args = ["--full-time"]
+skip = "the long format: no mode, link count, owner or group (wolf-lang#625)"
+
+[[case]]
+name = "--format=long"
+tree = "plain"
+args = ["--format=long"]
+skip = "the long format: no mode, link count, owner or group (wolf-lang#625)"
+
+[[case]]
+name = "-lh"
+tree = "plain"
+args = ["-lh"]
+skip = "the long format: no mode, link count, owner or group (wolf-lang#625)"
+
+[[case]]
+name = "-s"
+tree = "plain"
+args = ["-s"]
+skip = "no block count (wolf-lang#625)"
+
+[[case]]
+name = "-i"
+tree = "plain"
+args = ["-i"]
+skip = "no inode number (wolf-lang#536)"
+
+[[case]]
+name = "-u sorts by access time"
+tree = "plain"
+args = ["-u"]
+skip = "no access time (wolf-lang#625)"
+
+[[case]]
+name = "-c sorts by status-change time"
+tree = "plain"
+args = ["-c"]
+skip = "no status-change time (wolf-lang#625)"
+
+[[case]]
+name = "--time=birth"
+tree = "plain"
+args = ["--time=birth", "-t"]
+skip = "no birth time (wolf-lang#625)"
+
+[[case]]
+name = "-U in directory order"
+tree = "plain"
+args = ["-U"]
+skip = "fs_read_dir sorts, so the directory's order is lost (wolf-lang#626)"
+
+[[case]]
+name = "-f"
+tree = "plain"
+args = ["-f"]
+skip = "fs_read_dir sorts, so the directory's order is lost (wolf-lang#626)"
+
+[[case]]
+name = "--sort=none"
+tree = "plain"
+args = ["--sort=none"]
+skip = "fs_read_dir sorts, so the directory's order is lost (wolf-lang#626)"
+
+[[case]]
+name = "-C on a terminal is the default"
+tree = "greek"
+skip = "terminal defaults wait for os_isatty (wolf 0.2.26, s215)"
+
+# ------------------------------------------ the rest of the vocabulary
+
+[[case]]
+name = "-h changes nothing without -l or -s"
+tree = "plain"
+args = ["-h"]
+
+[[case]]
+name = "-k changes nothing without -l or -s"
+tree = "plain"
+args = ["-k"]
+
+[[case]]
+name = "--human-readable"
+tree = "plain"
+args = ["--human-readable", "-C"]
+
+[[case]]
+name = "--color=never"
+tree = "plain"
+args = ["--color=never"]
+
+[[case]]
+name = "--color=auto, not a terminal"
+tree = "plain"
+args = ["--color=auto"]
+
+[[case]]
+name = "--color=none"
+tree = "plain"
+args = ["--color=none", "-F"]
+
+[[case]]
+name = "--color=bogus"
+tree = "plain"
+args = ["--color=bogus"]
+
+[[case]]
+name = "-H with no links"
+tree = "plain"
+args = ["-H"]
+
+[[case]]
+name = "-L with no links"
+tree = "plain"
+args = ["-L", "-F"]
+
+# ------------------------------------------------------- usage errors
+
+[[case]]
+name = "--help"
+tree = "plain"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "--version"
+tree = "plain"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "--help before a bad option"
+tree = "plain"
+args = ["--help", "-j"]
+compare = ["exit"]
+
+[[case]]
+name = "an unknown short option is status 2"
+tree = "plain"
+args = ["-j"]
+
+[[case]]
+name = "an unknown long option"
+tree = "plain"
+args = ["--bogus"]
+
+[[case]]
+name = "a bad option after a good one"
+tree = "plain"
+args = ["-a", "-j", "dir"]
+
+[[case]]
+name = "--a is ambiguous"
+tree = "plain"
+args = ["--a"]
+
+[[case]]
+name = "--d is ambiguous five ways"
+tree = "plain"
+args = ["--d"]
+
+[[case]]
+name = "--h is ambiguous"
+tree = "plain"
+args = ["--h"]
+
+[[case]]
+name = "--s is ambiguous"
+tree = "plain"
+args = ["--s"]
+
+[[case]]
+name = "--t is ambiguous"
+tree = "plain"
+args = ["--t"]
+
+[[case]]
+name = "--i is ambiguous"
+tree = "plain"
+args = ["--i"]
+
+[[case]]
+name = "--f is ambiguous"
+tree = "plain"
+args = ["--f"]
+
+[[case]]
+name = "--r is ambiguous"
+tree = "plain"
+args = ["--r"]
+
+[[case]]
+name = "--c is ambiguous"
+tree = "plain"
+args = ["--c"]
+
+[[case]]
+name = "--dereference-c is ambiguous"
+tree = "plain"
+args = ["--dereference-c"]
+
+[[case]]
+name = "--all takes no word"
+tree = "plain"
+args = ["--all=x"]
+
+[[case]]
+name = "--sort without its word"
+tree = "plain"
+args = ["--sort"]
+
+[[case]]
+name = "-T without its word"
+tree = "plain"
+args = ["-T"]
+
+# ------------------------------------------------------- write errors
+
+[[case]]
+name = "standard output closed is a write error, status 2"
+tree = "plain"
+stdout_closed = true
+
+[[case]]
+name = "standard output closed with nothing to write"
+tree = "plain"
+args = ["empty"]
+stdout_closed = true
+
+[[case]]
+name = "standard output closed under --help"
+tree = "plain"
+args = ["--help"]
+stdout_closed = true
+
+# GNU appends strerror(ENOSPC), which wolf cannot say (wolf-lang#407), so
+# the exit status is the comparison; a SKIP where there is no /dev/full.
+[[case]]
+name = "a write error on a live descriptor"
+tree = "plain"
+stdout_file = "/dev/full"
+compare = ["exit"]
