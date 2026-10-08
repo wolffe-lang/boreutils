@@ -72,12 +72,20 @@ Case file (TOML, one file per utility, any number of [[case]] tables):
                                  #   and naming "stdout" in `compare` is
                                  #   a malformed case.
   scratch = { "a" = "old\n" }   # optional: run in a SCRATCH directory
-  scratch_dirs = ["d"]           #   (bu14). Naming any of these four
+  scratch_dirs = ["d"]           #   (bu14). Naming any of these six
   scratch_links = { "l" = "d" }  #   keys gives the case a fresh, empty
   scratch_modes = { "a" = 0o444 }#   directory, populated from them:
-  cwd = "d"                      #   files with their bytes, directories,
-                                 #   symbolic links (name = target) and
-                                 #   modes. Each side runs in it (or in
+  scratch_times = { "a" = 0 }    #   files with their bytes, directories,
+  cwd = "d"                      #   symbolic links (name = target),
+                                 #   modes, and modification times
+                                 #   (bu18: seconds from the epoch, set
+                                 #   on the entry itself, never through
+                                 #   a link, after every entry exists so
+                                 #   that adding one cannot move its
+                                 #   directory's time afterwards: what
+                                 #   `touch -h -d @N` sets; `ls -t` is
+                                 #   the reader).
+                                 #   Each side runs in it (or in
                                  #   `cwd` under it) ONE AFTER THE OTHER,
                                  #   at the SAME path, which is emptied
                                  #   and repopulated between them, so a
@@ -157,9 +165,11 @@ KEYS = {"name", "args", "stdin", "stdin_file", "stdin_offset", "requires",
         "stdin_repeat", "env",
         "compare", "stdout_bytes", "stdout_closed", "stdout_file", "skip",
         "timeout", "gnu_util", "gnu_min", "gnu_max", "scratch",
-        "scratch_dirs", "scratch_links", "scratch_modes", "cwd"}
+        "scratch_dirs", "scratch_links", "scratch_modes", "scratch_times",
+        "cwd"}
 # Naming any of these gives a case a scratch directory and a `files` field.
-SCRATCH = ("scratch", "scratch_dirs", "scratch_links", "scratch_modes", "cwd")
+SCRATCH = ("scratch", "scratch_dirs", "scratch_links", "scratch_modes",
+           "scratch_times", "cwd")
 # What a case compares when descriptor 1 is closed: there is no stdout.
 CLOSED = ("stderr", "exit")
 
@@ -308,6 +318,18 @@ def populate(case, top):
             fh.write(text.encode())
     for name, target in case.get("scratch_links", {}).items():
         os.symlink(target, os.path.join(top, name))
+    # Times after every entry exists, because creating an entry moves
+    # its directory's mtime and a time set earlier would not survive;
+    # before the modes, which move no mtime but can lock a directory
+    # this loop must reach into. Each time is READ BACK, so a host that
+    # silently ignores one (a link's, say) refuses the case rather than
+    # letting both sides sort by whatever was there.
+    for name, secs in case.get("scratch_times", {}).items():
+        path = os.path.join(top, name)
+        ns = int(secs) * 1_000_000_000
+        os.utime(path, ns=(ns, ns), follow_symlinks=False)
+        if os.lstat(path).st_mtime_ns != ns:
+            die(f"scratch_times: {name} did not take {secs}")
     for name, mode in case.get("scratch_modes", {}).items():
         os.chmod(os.path.join(top, name), mode)
 
