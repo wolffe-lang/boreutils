@@ -236,22 +236,75 @@ fn input_stop(why: str) -> Stop {
     Stop { why: why, unwritable: false, code: 0 }
 }
 
-/// The fast path: no option is on, so the bytes go straight through.
-/// The chunk is handed to the writer whole and uncopied.
+/// The fast path: no option is on, so the host copies the bytes from
+/// the input's descriptor to descriptor 1 itself (`fs_copy_chunk`,
+/// `[os.fs.copy]`, wolf 0.2.26, s200): linux tries `copy_file_range`,
+/// `sendfile` and `splice` before a read/write loop, and no byte passes
+/// through this program. GNU's `cat` reaches for the same calls.
+///
+/// One `fs_copy_chunk` failure (`io`) does not say WHICH side failed,
+/// and GNU words the two differently (`cat: NAME: reason` for the input,
+/// `cat: write error: reason` for the output, which ends the program).
+/// So the rest of the operand goes through `copy_through`, the
+/// read-then-write loop this path was until 0.2.26, whose own failure
+/// names its side. One shape it cannot see: the host's read/write rung
+/// (linux's last, macOS's only) READS before it writes, so a write that
+/// fails has already taken its bytes off the input, and when those were
+/// the last ones `copy_through` meets the end and fails at nothing
+/// (measured: `cat f > /dev/full` exited 0 with no message). A copy
+/// that failed and a fallback that did not is therefore the write's
+/// failure, named by the number the copy left (wolf-lang#642).
+fn copy_bytes(out: bore.Out, src: bore.In) -> Stop {
+    var stop = false
+    var failed = false
+    var code = 0
+    while !stop {
+        let n = fs_copy_chunk(src.fd, out.fd, copy_size()) else |e| match e {
+            eof => {
+                stop = true
+                0
+            },
+            io => {
+                stop = true
+                failed = true
+                code = bore.host_code()
+                0
+            },
+        }
+        if n == 0 {
+            stop = true
+        }
+    }
+    if !failed {
+        return Stop { why: "", unwritable: false, code: 0 }
+    }
+    let rest = copy_through(out, src)
+    if rest.why.len > 0 || rest.unwritable {
+        return rest
+    }
+    Stop { why: "", unwritable: true, code: code }
+}
+
+/// The most one `fs_copy_chunk` moves. The host's own calls take any
+/// size; the read/write loop (macOS, and linux's last rung) holds this
+/// much at a time, so it is `read_size()`'s knee.
+fn copy_size() -> int {
+    read_size()
+}
+
+/// The bytes through this program, a chunk at a time: what the fast path
+/// falls back to when the host's copy fails, so that the failure is
+/// named by the side it happened on.
 ///
 /// The body is one `region` per chunk because `fs_read_chunk` allocates
 /// the list it answers and the ambient region never frees one. Measured
 /// on 256 MiB, release tier, nomad-1: without the block this peaked at
-/// 340 MB of RSS against GNU's 1.9 MB, and with it at 1.8 MB, with the
-/// bytes identical either way. There is no builtin that reads into a
-/// buffer the caller already owns, so the allocation per read cannot be
-/// avoided here, only scoped — the gap is reported to the orchestrator
-/// for filing against wolf-lang and has no issue number yet.
+/// 340 MB of RSS against GNU's 1.9 MB, and with it at 1.8 MB.
 ///
 /// Nothing may outlive the block, and that is why the write goes
 /// through `write_direct`, which takes the writer by READ: handing a
 /// region-local list to `write_all`, whose writer is `mut`, is E1010.
-fn copy_bytes(out: bore.Out, src: bore.In) -> Stop {
+fn copy_through(out: bore.Out, src: bore.In) -> Stop {
     var failed = false
     var code = 0
     var unwritable = false
