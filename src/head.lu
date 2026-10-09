@@ -319,14 +319,7 @@ fn digit_option(err: str) -> str {
 /// Write one operand. Answers 0 for success, 1 for a failure of this
 /// operand, or 2 for a failed write to standard output, which is the
 /// whole program's failure and is reported once at the end.
-fn one(
-    out: bore.Out,
-    path: str,
-    o: Opts,
-    show: bool,
-    mut first: bool,
-    mut wcode: int,
-) -> int {
+fn one(out: bore.Out, path: str, o: Opts, show: bool, mut first: bool, mut wcode: int) -> int {
     let label = if path == "-" then bore.stdin_label() else path
     let src = bore.open_input(path) else |e| match e {
         not_found => {
