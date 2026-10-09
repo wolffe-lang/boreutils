@@ -611,16 +611,33 @@ pub fn directory_reason() -> str {
     "Is a directory"
 }
 
-/// The stand-in for every other host failure.
+/// The host's words for the most recent failed fs call: GNU's
+/// `strerror(errno)`, so `Not a directory`, `Too many levels of symbolic
+/// links`, `No space left on device`.
 ///
-/// GNU prints `strerror(errno)` here and wolf 0.2.14 has no errno text
-/// behind a row (wolf-lang#407), so this one wording covers every `io`
-/// row. It is the one diagnostic in this module that is NOT known to
-/// match GNU byte for byte; no differential case can reach it, because
-/// nothing in the corpus can provoke a read failure that is not already
-/// `not_found`, `denied` or `is_dir`.
+/// Since wolf 0.2.26 the host's error number travels beside the row
+/// (`os_error`, `os_error_text`, `[os.fs.error]`, s200, wolf-lang#407):
+/// the task's most recent fallible fs call sets it when the host
+/// refused and CLEARS it when the call succeeded. So this must be asked
+/// before any other fs call, a successful `fs_close` included; a caller
+/// that reports later keeps `host_code()` and asks `reason_of` then.
+/// 0 (the call failed before the host was asked) keeps the stand-in
+/// this module used before 0.2.26, `Input/output error`.
 pub fn io_error() -> str {
-    "Input/output error"
+    reason_of(host_code())
+}
+
+/// The host's error number for the most recent fallible fs call, or 0.
+pub fn host_code() -> int {
+    os_error()
+}
+
+/// The host's words for `code`, or `Input/output error` for 0.
+pub fn reason_of(code: int) -> str {
+    if code == 0 {
+        return "Input/output error"
+    }
+    os_error_text(code)
 }
 
 // ------------------------------------------------------------------ input
@@ -890,20 +907,26 @@ pub fn bad_descriptor() -> str {
     "Bad file descriptor"
 }
 
-/// The reason to print after a failed write's message.
-///
-/// A closed descriptor is the one reason this module DETECTS rather
-/// than reads from the host, so it is the one GNU wording it can match:
-/// everything else falls back to `io_error`, because wolf 0.2.14 has no
-/// `strerror` text behind an `io` row (wolf-lang#407). GNU's
-/// `write error: No space left on device` is therefore
-/// `write error: Input/output error` here, and no differential case can
-/// assert it.
+/// The reason to print after a failed write's message: `Bad file
+/// descriptor` for a descriptor 1 that was closed (detected, never
+/// written), otherwise the host's words for the failed write (`No space
+/// left on device`), read at once.
 fn write_reason(o: Out) -> str {
     if o.closed {
         return bad_descriptor()
     }
     io_error()
+}
+
+/// `write_error` with the host's number kept from the moment the write
+/// failed, for a program that streams and reports after other fs calls
+/// (closing an input clears the number).
+pub fn write_error_code(o: Out, prog: str, message: str, code: int) {
+    if o.closed {
+        warn(prog, "{message}: {bad_descriptor()}")
+        return
+    }
+    warn(prog, "{message}: {reason_of(code)}")
 }
 
 /// Report a failed write to standard output in GNU's shape,
