@@ -138,8 +138,9 @@ fn main() -> int {
     var line = List[byte]()
     var status = 0
     var wfail = false
+    var wcode = 0
     for path in paths {
-        let code = one(out, path, o, mut line, keeper)
+        let code = one(out, path, o, mut line, keeper, mut wcode)
         if code != 0 {
             status = 1
         }
@@ -148,7 +149,7 @@ fn main() -> int {
         }
     }
     if wfail {
-        bore.write_error(out, "fold", "write error")
+        bore.write_error_code(out, "fold", "write error", wcode)
         return 1
     }
     bore.finish(mut out, "fold", status)
@@ -334,7 +335,14 @@ fn locale_is_utf8() -> bool {
 // ------------------------------------------------------------- the stream
 
 /// Fold one operand. 0 success, 1 this operand failed, 2 a failed write.
-fn one(out: bore.Out, path: str, o: Opts, mut line: List[byte], keeper: region) -> int {
+fn one(
+    out: bore.Out,
+    path: str,
+    o: Opts,
+    mut line: List[byte],
+    keeper: region,
+    mut wcode: int,
+) -> int {
     let src = bore.open_input(path) else |e| match e {
         not_found => {
             bore.input_error("fold", path, bore.no_such_file())
@@ -354,6 +362,9 @@ fn one(out: bore.Out, path: str, o: Opts, mut line: List[byte], keeper: region) 
         },
     }
     var why = 0
+    // The host's number for a failed read or write, kept at the failure:
+    // `close_input` clears it.
+    var host = 0
     var held = 0
     var stop = false
     while !stop {
@@ -378,6 +389,7 @@ fn one(out: bore.Out, path: str, o: Opts, mut line: List[byte], keeper: region) 
                 io => {
                     stop = true
                     why = 1
+                    host = bore.host_code()
                     List[byte]()
                 },
             }
@@ -399,6 +411,7 @@ fn one(out: bore.Out, path: str, o: Opts, mut line: List[byte], keeper: region) 
                 if buf.len > 0 {
                     bore.write_direct(out, buf) else |_| {
                         why = 2
+                        host = bore.host_code()
                         stop = true
                     }
                 }
@@ -414,12 +427,16 @@ fn one(out: bore.Out, path: str, o: Opts, mut line: List[byte], keeper: region) 
             if buf.len > 0 {
                 bore.write_direct(out, buf) else |_| {
                     why = 2
+                    host = bore.host_code()
                 }
             }
         }
     }
     if why == 1 {
-        bore.input_error("fold", path, bore.io_error())
+        bore.input_error("fold", path, bore.reason_of(host))
+    }
+    if why == 2 && wcode == 0 {
+        wcode = host
     }
     why
 }

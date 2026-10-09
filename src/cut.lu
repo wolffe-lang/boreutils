@@ -206,8 +206,9 @@ fn main() -> int {
     }
     var status = 0
     var wfail = false
+    var wcode = 0
     for path in paths {
-        let code = one(out, path, o, spans)
+        let code = one(out, path, o, spans, mut wcode)
         if code != 0 {
             status = 1
         }
@@ -218,7 +219,7 @@ fn main() -> int {
     if wfail {
         // One message, after every operand, status 1, as `head`'s
         // comment measures.
-        bore.write_error(out, "cut", "write error")
+        bore.write_error_code(out, "cut", "write error", wcode)
         return 1
     }
     bore.finish(mut out, "cut", status)
@@ -508,7 +509,7 @@ fn complement(spans: List[Span]) -> List[Span] {
 /// Cut one operand. Answers 0 for success, 1 for a failure of this
 /// operand, or 2 for a failed write to standard output, which is the
 /// whole program's failure and is reported once at the end.
-fn one(out: bore.Out, path: str, o: Opts, spans: List[Span]) -> int {
+fn one(out: bore.Out, path: str, o: Opts, spans: List[Span], mut wcode: int) -> int {
     let src = bore.open_input(path) else |e| match e {
         not_found => {
             bore.input_error("cut", path, bore.no_such_file())
@@ -528,9 +529,14 @@ fn one(out: bore.Out, path: str, o: Opts, spans: List[Span]) -> int {
         },
     }
     let why = run(out, src, o, spans)
+    // The host's number for the failure, before `close_input` clears it.
+    let host = bore.host_code()
     bore.close_input(src)
     if why == 1 {
-        bore.input_error("cut", path, bore.io_error())
+        bore.input_error("cut", path, bore.reason_of(host))
+    }
+    if why == 2 && wcode == 0 {
+        wcode = host
     }
     why
 }

@@ -162,9 +162,10 @@ fn main() -> int {
     let show = o.verbose || !o.quiet && paths.len > 1
     var status = 0
     var wfail = false
+    var wcode = 0
     var first = true
     for path in paths {
-        let code = one(out, path, o, show, mut first)
+        let code = one(out, path, o, show, mut first, mut wcode)
         if code != 0 {
             status = 1
         }
@@ -178,7 +179,7 @@ fn main() -> int {
         // the open error first and one `write error` last, and
         // `head missing >&-` prints only the open error, because
         // nothing was ever written.
-        bore.write_error(out, "head", "write error")
+        bore.write_error_code(out, "head", "write error", wcode)
         return 1
     }
     bore.finish(mut out, "head", status)
@@ -318,7 +319,14 @@ fn digit_option(err: str) -> str {
 /// Write one operand. Answers 0 for success, 1 for a failure of this
 /// operand, or 2 for a failed write to standard output, which is the
 /// whole program's failure and is reported once at the end.
-fn one(out: bore.Out, path: str, o: Opts, show: bool, mut first: bool) -> int {
+fn one(
+    out: bore.Out,
+    path: str,
+    o: Opts,
+    show: bool,
+    mut first: bool,
+    mut wcode: int,
+) -> int {
     let label = if path == "-" then bore.stdin_label() else path
     let src = bore.open_input(path) else |e| match e {
         not_found => {
@@ -346,6 +354,9 @@ fn one(out: bore.Out, path: str, o: Opts, show: bool, mut first: bool) -> int {
     }
     if show {
         bore.banner(out, first, label) else |_| {
+            if wcode == 0 {
+                wcode = bore.host_code()
+            }
             bore.close_input(src)
             return 2
         }
@@ -391,6 +402,9 @@ fn one(out: bore.Out, path: str, o: Opts, show: bool, mut first: bool) -> int {
     } else {
         why = first_lines(out, src, o.count, o.delim, mut sent)
     }
+    // The host's number for a failure, before the seek and the close
+    // below clear it.
+    let host = bore.host_code()
     // GNU leaves a file's offset just past what it wrote, so that
     // `{ head -n 1; cat; } < f` hands `cat` the rest (measured with a
     // shared descriptor, bu15), where the forward reads above went a
@@ -400,7 +414,10 @@ fn one(out: bore.Out, path: str, o: Opts, show: bool, mut first: bool) -> int {
     }
     bore.close_input(src)
     if why == 1 {
-        bore.cannot_read("head", path, bore.io_error())
+        bore.cannot_read("head", path, bore.reason_of(host))
+    }
+    if why == 2 && wcode == 0 {
+        wcode = host
     }
     why
 }

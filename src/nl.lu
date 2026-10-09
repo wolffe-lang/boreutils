@@ -660,6 +660,7 @@ fn main() -> int {
         (mut names).push("-")
     }
     var at = Where { num: c.start, section: 1, wfail: false }
+    var wcode = 0
     var status = 0
     for name in names {
         let src = bore.open_input(name) else |e| match e {
@@ -685,11 +686,16 @@ fn main() -> int {
             },
         }
         at = number_file(out, src, c, at)
+        // The host's number for a failed write, before the close clears
+        // it; the first failure is the one reported.
+        if at.wfail && wcode == 0 {
+            wcode = bore.host_code()
+        }
         bore.close_input(src)
     }
     if at.wfail {
         // One message, after every operand, status 1.
-        bore.write_error(out, "nl", "write error")
+        bore.write_error_code(out, "nl", "write error", wcode)
         return 1
     }
     bore.finish(mut out, "nl", status)

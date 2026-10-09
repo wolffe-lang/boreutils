@@ -115,8 +115,9 @@ fn main() -> int {
     }
     var status = 0
     var wfail = false
+    var wcode = 0
     for path in paths {
-        let code = one(out, path, o)
+        let code = one(out, path, o, mut wcode)
         if code != 0 {
             status = 1
         }
@@ -125,7 +126,7 @@ fn main() -> int {
         }
     }
     if wfail {
-        bore.write_error(out, "expand", "write error")
+        bore.write_error_code(out, "expand", "write error", wcode)
         return 1
     }
     bore.finish(mut out, "expand", status)
@@ -231,7 +232,7 @@ fn locale_is_utf8() -> bool {
 // ------------------------------------------------------------- the stream
 
 /// Expand one operand. 0 success, 1 this operand failed, 2 a failed write.
-fn one(out: bore.Out, path: str, o: Opts) -> int {
+fn one(out: bore.Out, path: str, o: Opts, mut wcode: int) -> int {
     let src = bore.open_input(path) else |e| match e {
         not_found => {
             bore.input_error("expand", path, bore.no_such_file())
@@ -251,6 +252,9 @@ fn one(out: bore.Out, path: str, o: Opts) -> int {
         },
     }
     var why = 0
+    // The host's number for a failed read or write, kept at the failure:
+    // `close_input` clears it.
+    var host = 0
     var col = 0
     var initial = true
     // A character that straddles two chunks: how many bytes of it are
@@ -277,6 +281,7 @@ fn one(out: bore.Out, path: str, o: Opts) -> int {
                 io => {
                     stop = true
                     why = 1
+                    host = bore.host_code()
                     List[byte]()
                 },
             }
@@ -340,6 +345,7 @@ fn one(out: bore.Out, path: str, o: Opts) -> int {
                 if buf.len > 0 {
                     bore.write_direct(out, buf) else |_| {
                         why = 2
+                        host = bore.host_code()
                         stop = true
                     }
                 }
@@ -348,7 +354,10 @@ fn one(out: bore.Out, path: str, o: Opts) -> int {
     }
     bore.close_input(src)
     if why == 1 {
-        bore.input_error("expand", path, bore.io_error())
+        bore.input_error("expand", path, bore.reason_of(host))
+    }
+    if why == 2 && wcode == 0 {
+        wcode = host
     }
     why
 }

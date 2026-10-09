@@ -255,11 +255,12 @@ fn main() -> int {
     let show = o.verbose || !o.quiet && paths.len > 1
     var status = 0
     var wfail = false
+    var wcode = 0
     var first = true
     var held = List[bore.In]()
     var names = List[str]()
     for path in paths {
-        let code = one(out, path, o, show, mut first, mut held, mut names)
+        let code = one(out, path, o, show, mut first, mut held, mut names, mut wcode)
         if code != 0 {
             status = 1
         }
@@ -270,7 +271,7 @@ fn main() -> int {
     if wfail {
         // One message, after every operand, status 1. `head`'s comment
         // carries the measurement; `tail` answers the same.
-        bore.write_error(out, "tail", "write error")
+        bore.write_error_code(out, "tail", "write error", wcode)
         return 1
     }
     if o.follow && held.len > 0 {
@@ -507,6 +508,7 @@ fn one(
     mut first: bool,
     mut held: List[bore.In],
     mut names: List[str],
+    mut wcode: int,
 ) -> int {
     let label = if path == "-" then bore.stdin_label() else path
     let src = bore.open_input(path) else |e| match e {
@@ -533,6 +535,9 @@ fn one(
     }
     if show {
         bore.banner(out, first, label) else |_| {
+            if wcode == 0 {
+                wcode = bore.host_code()
+            }
             bore.close_input(src)
             return 2
         }
@@ -549,9 +554,14 @@ fn one(
         why = forward(out, src, o)
     }
     if why != 0 {
+        // The host's number for the failure, before the close clears it.
+        let host = bore.host_code()
         bore.close_input(src)
         if why == 1 {
-            bore.cannot_read("tail", path, bore.io_error())
+            bore.cannot_read("tail", path, bore.reason_of(host))
+        }
+        if why == 2 && wcode == 0 {
+            wcode = host
         }
         return why
     }
@@ -596,11 +606,13 @@ fn from_end(out: bore.Out, src: bore.In, o: Opts) -> int {
             return -1
         }
     }
-    let why = bore.copy_range(out, src, from, end)
+    // The offset moves first: `copy_range` reads by position and never
+    // touches it, and a seek after a failed write would clear the host's
+    // number for it (`[os.fs.error]`) before `one` reports it.
     if end > start {
         bore.seek_to(src, end)
     }
-    why
+    bore.copy_range(out, src, from, end)
 }
 
 /// The answer read FORWARD from the handle's cursor: a pipe's only
