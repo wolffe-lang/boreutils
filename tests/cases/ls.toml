@@ -1,6 +1,6 @@
 # ls — GNU coreutils 9.11, black-box, on linux x86-64 and macOS arm64,
-# with standard output NOT a terminal (difftest's pipe), which is the
-# only output this ls writes until wolf can ask (os_isatty, wolf 0.2.26).
+# with standard output a pipe (difftest's default) and, in the cases
+# under "on a terminal", a pseudo-terminal (`tty`, bu19).
 #
 # Every case stands in a SCRATCH tree laid out fresh for each side
 # (tools/difftest): the trees below are named and shared, every entry's
@@ -15,7 +15,7 @@
 #                  -c, and every case that needs a link's OWN identity
 #   wolf-lang#626  fs_read_dir sorts: -U, -f, --sort=none
 #   wolf-lang#536  no inode: -i
-#   wolf 0.2.26    os_isatty: the terminal defaults
+#   wolf-lang#643  a terminal's own width (GNU asks TIOCGWINSZ)
 
 # ------------------------------------------------------------- the trees
 
@@ -1355,10 +1355,174 @@ tree = "plain"
 args = ["--sort=none"]
 skip = "fs_read_dir sorts, so the directory's order is lost (wolf-lang#626)"
 
+# ---------------------------------------------------------- on a terminal
+#
+# Standard output a pseudo-terminal (`tty = COLUMNS`, bu19): `ls` asks
+# `os_isatty(1)` (wolf 0.2.26, s215) and takes GNU's terminal defaults,
+# measured black-box against 9.11: columns, the shell-escape quoting
+# style with one leading space for every unquoted name in a listing that
+# holds a quoted one, quoted headers, and `?` for an unprintable byte
+# under the literal style (`-N`). The terminal's own width is asked by
+# GNU (TIOCGWINSZ) and cannot be by wolf (wolf-lang#643), so the
+# terminals here are 80 wide or report no size, where the two agree; the
+# rest skip naming it.
+
 [[case]]
 name = "-C on a terminal is the default"
 tree = "greek"
-skip = "terminal defaults wait for os_isatty (wolf 0.2.26, s215)"
+tty = 80
+
+[[case]]
+name = "a terminal: columns, quoted names, the alignment space"
+tree = "plain"
+tty = 80
+
+[[case]]
+name = "a terminal with -a"
+tree = "plain"
+args = ["-a"]
+tty = 80
+
+[[case]]
+name = "a terminal with -1: quoted, no alignment space"
+tree = "plain"
+args = ["-1"]
+tty = 80
+
+[[case]]
+name = "a terminal with --format=single-column"
+tree = "plain"
+args = ["--format=single-column"]
+tty = 80
+
+[[case]]
+name = "a terminal with -x"
+tree = "plain"
+args = ["-x"]
+tty = 80
+
+[[case]]
+name = "a terminal with -m: quoted, no alignment space"
+tree = "plain"
+args = ["-m"]
+tty = 80
+
+[[case]]
+name = "a terminal with -N: literal, ? for the unprintable"
+tree = "plain"
+args = ["-N"]
+tty = 80
+
+[[case]]
+name = "a terminal with -N --show-control-chars: the bytes themselves"
+tree = "plain"
+args = ["-N", "--show-control-chars"]
+tty = 80
+
+[[case]]
+name = "a terminal with --literal -1"
+tree = "plain"
+args = ["--literal", "-1"]
+tty = 80
+
+[[case]]
+name = "a terminal with -q: still the shell-escape style"
+tree = "plain"
+args = ["-q"]
+tty = 80
+
+[[case]]
+name = "a terminal with --show-control-chars: still the shell-escape style"
+tree = "plain"
+args = ["--show-control-chars"]
+tty = 80
+
+[[case]]
+name = "a terminal with -F"
+tree = "plain"
+args = ["-F"]
+tty = 80
+
+[[case]]
+name = "a terminal with -R: quoted headers"
+tree = "plain"
+args = ["-R"]
+scratch_dirs = ["t/dir/a b"]
+tty = 80
+
+[[case]]
+name = "a terminal: files then directories, a quoted directory header"
+tree = "plain"
+args = ["a", "with space", "dir", "empty"]
+scratch_dirs = ["t/odd dir"]
+tty = 80
+
+[[case]]
+name = "a terminal: a directory header that needs quoting"
+tree = "plain"
+args = ["odd dir", "empty"]
+scratch_dirs = ["t/odd dir"]
+tty = 80
+
+[[case]]
+name = "a terminal with -d"
+tree = "plain"
+args = ["-d", "with space", "dir", "a"]
+tty = 80
+
+[[case]]
+name = "a terminal with -w 40"
+tree = "plain"
+args = ["-w", "40"]
+tty = 80
+
+[[case]]
+name = "a terminal with -r -S"
+tree = "plain"
+args = ["-r", "-S"]
+tty = 80
+
+[[case]]
+name = "a terminal with nothing to quote: no alignment space"
+tree = "greek"
+args = ["-x"]
+tty = 80
+
+[[case]]
+name = "a terminal and an empty directory"
+tree = "plain"
+args = ["empty"]
+tty = 80
+
+[[case]]
+name = "a terminal and a missing operand"
+tree = "plain"
+args = ["nope", "a"]
+tty = 80
+
+[[case]]
+name = "a terminal that reports no size takes COLUMNS"
+tree = "plain"
+env = { COLUMNS = "30" }
+tty = 0
+
+[[case]]
+name = "a terminal that reports no size, and no COLUMNS, is 80 wide"
+tree = "greek"
+tty = 0
+
+[[case]]
+name = "a terminal 40 wide"
+tree = "plain"
+tty = 40
+skip = "GNU lays out to the terminal's own width (TIOCGWINSZ), which wolf 0.2.26 cannot ask (wolf-lang#643); this ls takes COLUMNS or 80"
+
+[[case]]
+name = "a terminal 80 wide outranks COLUMNS"
+tree = "plain"
+env = { COLUMNS = "30" }
+tty = 80
+skip = "GNU lays out to the terminal's own width (TIOCGWINSZ), which wolf 0.2.26 cannot ask (wolf-lang#643); this ls takes COLUMNS or 80"
 
 # ------------------------------------------ the rest of the vocabulary
 
