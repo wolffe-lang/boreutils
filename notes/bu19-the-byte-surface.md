@@ -236,7 +236,9 @@ trees are pruned) unless named otherwise.
   `ab-confirm-wc`, `ab-confirm-head` (each a `rows.json`, a `table.md`
   and the hyperfine JSON per row; `rows.json` `8a7bd026…`, `de27c852…`,
   `593085d9…`, `498ca8ce…`, `2fcd0ee6…`, `840f1546…`, `4141486c…`,
-  `39cb1f08…`); the binaries of every state in `~/lanes/bu19/bins/`.
+  `39cb1f08…`); the `cut`, `wc`, `unexpand` and `ls` binaries of every
+  state in `~/lanes/bu19/bins/` (the rest pruned; `ev/bins-state-*.sha256`
+  and `ev/bins-*-*.sha256` hash them all).
 - **Witnesses filed upstream**: wolf-lang#642 (`~/lanes/bu19/wit/copy-lost/`,
   `copy_lost.lu` `dbef39f4…`), wolf-lang#643 (`~/lanes/bu19/probe/ptyrun.py`
   `578924ef…`, `ls` `71db0e52…`), wolf-lang#644 (`bins/pin/cut`
@@ -256,6 +258,8 @@ trees are pruned) unless named otherwise.
 ## 5. Done-when
 
 Branch `bu19`, PR wolffe-lang/boreutils#24 open and unmerged; CI green
-at the head; the worktree and kasumi's build trees removed, `ev/`,
-`bins/`, `probe/` and `wit/` kept as the evidence above. Close nothing.
+at the head; the worktree and kasumi's build trees and extracted
+archives removed (kasumi `~/lanes/bu19/` is 279 MB: `ev/`, `bins/`,
+`probe/`, `wit/` and the one bench input wolf-lang#644 names). Close
+nothing.
 Filed wolf-lang#642, #643, #644; commented on #624.
