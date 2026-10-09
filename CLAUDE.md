@@ -104,16 +104,17 @@ against GNU. The short form for a new utility:
 
 ## What wolf cannot do here yet
 
-- No builtin reads descriptor 0 or writes descriptor 1 as bytes:
-  `/dev/stdin` and `/dev/stdout` are reopened instead (wolf-lang#405).
-  Open `/dev/stdout` BEFORE any input file — with descriptor 1 closed,
-  a file opened first takes it.
+- Descriptors 0, 1 and 2 are read and written directly since wolf
+  0.2.26 (`[os.fs.std]`); `bore.stdout()` still comes BEFORE any input
+  file, because GNU checks standard output first.
 - A non-UTF-8 argument aborts the runtime in `env_args`
   (wolf-lang#406), so no utility can handle one yet.
 - `print`/`print_raw` discard write errors and are one `write(2)` per
   call (wolf-lang#408): use `bore.Out`.
-- No permissions (wolf-lang#346), no pids (wolf-lang#141), no `isatty`,
-  no `strerror` text behind a row (wolf-lang#407).
+- No permissions (wolf-lang#346), no pids (wolf-lang#141). The host's
+  reason for an fs failure is `bore.io_error()` (`os_error_text`, wolf
+  0.2.26): ask it before any other fs call, which clears it, or keep
+  `bore.host_code()` and ask `bore.reason_of` later.
 - No exec, no environment unset or clear, and a spawned child's stdin is
   the null device (wolf-lang#534); `env_vars()` lists the environment
   only sorted (wolf-lang#535); no file identity, so two names or
