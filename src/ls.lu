@@ -10,13 +10,21 @@
 //! Never GNU source. The probes behind every rule below are kasumi
 //! `~/lanes/bu18/probe*.sh` and `notes/bu18-ls.md`.
 //!
-//! **What this `ls` is: GNU's `ls` when standard output is not a
-//! terminal.** wolf 0.2.25 cannot ask whether descriptor 1 is a
-//! terminal (`os_isatty` arrives in wolf 0.2.26, s215), so the two
-//! terminal defaults — columns, and `?` for an unprintable byte — are
-//! never taken: one name per line unless `-C`, `-x` or `-m` asks, names
-//! printed as they are unless `-q` asks. Exactly what GNU does into a
-//! pipe or a file, which is where scripts read it.
+//! **Into a pipe or a file**, where scripts read it: one name per line
+//! unless `-C`, `-x` or `-m` asks, names printed as they are unless `-q`
+//! asks.
+//!
+//! **On a terminal** (`os_isatty(1)`, wolf 0.2.26, s215; bu19), GNU's
+//! terminal defaults, measured through a pseudo-terminal against 9.11:
+//! columns unless a format was asked for; the shell-escape quoting style
+//! (`'with space'`, `'new'$'\n''line'`, `''$'\303\251'`), with one
+//! leading space before every unquoted name of a `-C`/`-x` listing that
+//! holds a quoted one, and quoted directory headers; and under `-N`
+//! (`--literal`) `?` for an unprintable byte unless
+//! `--show-control-chars`. The width is `-w`, then `COLUMNS`, then 80:
+//! GNU asks the terminal its own width before `COLUMNS`, and wolf cannot
+//! (wolf-lang#643), so the two agree on a terminal 80 wide or one that
+//! reports no size.
 //!
 //! GNU's rules, each measured against 9.11:
 //!
@@ -66,8 +74,9 @@
 //! - **`fs_read_dir` sorts, and fails on a name that is not UTF-8**
 //!   (wolf-lang#626): `-U`, `-f` and `--sort=none` are refused, and a
 //!   directory holding such a name cannot be listed (status 2, said so).
-//! - `-v`, `--sort=width`, the quoting styles (`-b -Q -N
-//!   --quoting-style`), `-I --ignore --hide -B`, `-D`, `-Z`,
+//! - `-v`, `--sort=width`, the quoting styles but `-N` (`-b -Q
+//!   --quoting-style`, and the `QUOTING_STYLE` variable is not read),
+//!   `-I --ignore --hide -B`, `-D`, `-Z`,
 //!   `--color=always`, `--hyperlink`, `--zero`, `--block-size`, `--si`,
 //!   `--author`, `-G` and `--time-style` are not written yet, and are
 //!   refused by name (status 2) rather than ignored.
@@ -90,6 +99,10 @@ struct Opts {
     reverse: bool,
     indicator: int,
     hide: bool,
+    hide_given: bool,
+    quote: bool,
+    literal: bool,
+    format_given: bool,
     deref: int,
     group_dirs: bool,
     refused: str,
@@ -228,6 +241,10 @@ fn main() -> int {
         reverse: false,
         indicator: no_indicator(),
         hide: false,
+        hide_given: false,
+        quote: false,
+        literal: false,
+        format_given: false,
         deref: follow_dir_operands(),
         group_dirs: false,
         refused: "",
@@ -276,6 +293,22 @@ fn main() -> int {
     if o.time_given && !o.sort_given {
         o.sort = by_time()
     }
+    // On a terminal GNU's defaults change (measured through a
+    // pseudo-terminal, 9.11): columns, `?` for an unprintable byte, and
+    // the shell-escape quoting style, unless the command line chose. A
+    // closed descriptor 1 is not a terminal.
+    let tty = os_isatty(1) else false
+    if tty {
+        if !o.format_given {
+            o.format = vertical()
+        }
+        if !o.hide_given {
+            o.hide = true
+        }
+        if !o.literal {
+            o.quote = true
+        }
+    }
     if o.format == vertical() || o.format == across() || o.format == with_commas() {
         if !o.width_given {
             o.width = columns()
@@ -323,14 +356,21 @@ fn take_option(mut o: Opts, k: str, v: str, given: bool) -> int {
         if o.format != long_format() {
             o.format = one_per_line()
         }
+        o.format_given = true
     } else if k == "C" {
         o.format = vertical()
+        o.format_given = true
     } else if k == "x" {
         o.format = across()
+        o.format_given = true
     } else if k == "m" {
         o.format = with_commas()
+        o.format_given = true
     } else if k == "l" || k == "g" || k == "o" || k == "numeric-uid-gid" || k == "full-time" {
         o.format = long_format()
+        o.format_given = true
+    } else if k == "literal" {
+        o.literal = true
     } else if k == "format" {
         let m = bore.argmatch(v, format_words(), format_meanings())
         if m < 0 {
@@ -344,6 +384,7 @@ fn take_option(mut o: Opts, k: str, v: str, given: bool) -> int {
             )
         }
         o.format = m
+        o.format_given = true
     } else if k == "S" {
         o.sort = by_size()
         o.sort_given = true
@@ -428,8 +469,10 @@ fn take_option(mut o: Opts, k: str, v: str, given: bool) -> int {
         o.indicator = if m == 3 then classify() else m
     } else if k == "hide-control-chars" {
         o.hide = true
+        o.hide_given = true
     } else if k == "show-control-chars" {
         o.hide = false
+        o.hide_given = true
     } else if k == "dereference-command-line" {
         o.deref = follow_operands()
     } else if k == "dereference" {
@@ -623,7 +666,7 @@ fn list_here(
         if printed {
             (mut bytes).push(10 as byte)
         }
-        push_text(mut bytes, shown(path, o.hide))
+        push_text(mut bytes, label(path, o))
         push_text(mut bytes, ":\n")
     }
     printed = true
@@ -1016,14 +1059,30 @@ fn print_entries(mut bytes: List[byte], es: List[Entry], order: List[int], o: Op
     var status = 0
     var items = List[str]()
     var widths = List[int]()
+    // In columns, when any name in the listing is quoted, every name that
+    // is not gains one leading space, so the names line up past the
+    // quote (measured, 9.11 on a terminal: `'x y'   z`); `-1` and `-m`
+    // do not pad.
+    var pad = false
+    if o.quote && (o.format == vertical() || o.format == across()) {
+        for at in order {
+            if bore.quote_name(es[at].name) != es[at].name {
+                pad = true
+            }
+        }
+    }
     for at in order {
         let e = copy es[at]
         if o.deref == follow_always() && e.known && e.kind == a_dangling_link() {
             bore.warn("ls", "cannot access {quote_always(path_of(e))}: {bore.no_such_file()}")
             status = 1
         }
-        var text = shown(e.name, o.hide)
-        var w = width(e.name, o.hide)
+        var text = label(e.name, o)
+        var w = label_width(e.name, o)
+        if pad && text == e.name {
+            text = " {text}"
+            w += 1
+        }
         let mark = indicator(e, o)
         if mark.len > 0 {
             text += mark
@@ -1062,6 +1121,24 @@ fn indicator(e: Entry, o: Opts) -> str {
         return "@"
     }
     ""
+}
+
+/// A name as this listing prints it: in the shell-escape style on a
+/// terminal (`bore.quote_name`, quoted only when it has to be: `'with
+/// space'`, `'new'$'\n''line'`), else literally, through `shown`.
+fn label(name: str, o: Opts) -> str {
+    if o.quote {
+        return bore.quote_name(name)
+    }
+    shown(name, o.hide)
+}
+
+/// The columns `label` takes: the quoted form is all printable ASCII.
+fn label_width(name: str, o: Opts) -> int {
+    if o.quote {
+        return bore.quote_name(name).len
+    }
+    width(name, o.hide)
 }
 
 /// A name as it is printed: as it is, or with `-q` every byte outside
@@ -1354,7 +1431,9 @@ fn help() -> str {
       -p                         / after a directory
           --indicator-style=WORD none, slash (-p), file-type, classify (-F)
       -q, --hide-control-chars   ? for every byte that is not printable
-          --show-control-chars   names as they are (the default here)
+          --show-control-chars   names as they are (the default off a terminal)
+      -N, --literal              no quoting (on a terminal names are quoted
+                                 as a shell would read them)
       -h, -k                     accepted; they change only -l and -s
 
     Links:
@@ -1365,9 +1444,9 @@ fn help() -> str {
           --version              print the version and exit
 
     Not here yet, and refused by name: -l and what implies it (-g -n -o
-    --full-time), -i, -s, -u, -c, -U, -f, -v, and the quoting, colour
-    and filtering options. This ls never asks whether its output is a
-    terminal, so it always writes what GNU's writes into a pipe.
+    --full-time), -i, -s, -u, -c, -U, -f, -v, the quoting styles but
+    -N, and the colour and filtering options. On a terminal the width is
+    -w, COLUMNS or 80: the terminal's own width cannot be asked.
 
     Exit status: 0 when all went well, 1 for a minor problem (a
     subdirectory it could not open), 2 for a serious one (an operand it
