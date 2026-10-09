@@ -409,7 +409,7 @@ name = "-p: a reader that goes away is dropped, status 0"
 args = ["-p"]
 stdin_file = "/dev/zero"
 stdout_bytes = 16
-skip = "needs SIGPIPE ignored and EPIPE seen; wolf 0.2.25 can do neither, so this dies of SIGPIPE (141) where GNU exits 0 (wolf-lang#423)"
+skip = "needs SIGPIPE ignored and EPIPE seen; wolf 0.2.26 can do neither, so this dies of SIGPIPE (141) where GNU exits 0 (wolf-lang#423)"
 
 [[case]]
 name = "-p: the file is still written to the end"
@@ -445,10 +445,10 @@ name = "-i ignores interrupts"
 args = ["-i", "a"]
 stdin = "hello\n"
 scratch = {}
-skip = "refused by name: ignoring SIGINT needs a signal disposition wolf 0.2.25 does not have (wolf-lang#423)"
+skip = "refused by name: ignoring SIGINT needs a signal disposition wolf 0.2.26 does not have (wolf-lang#423)"
 
 [[case]]
 name = "--ignore-interrupts"
 args = ["--ignore-interrupts"]
 stdin = "hello\n"
-skip = "refused by name: ignoring SIGINT needs a signal disposition wolf 0.2.25 does not have (wolf-lang#423)"
+skip = "refused by name: ignoring SIGINT needs a signal disposition wolf 0.2.26 does not have (wolf-lang#423)"
