@@ -253,7 +253,10 @@ fn scan_bytes(src: bore.In) -> Counts ! {io} {
     c
 }
 
-/// Lines and bytes.
+/// Lines and bytes. The newlines are counted by `bytes_count` (wolf
+/// 0.2.26, `[mem.list.bytes]`, s200), one runtime call per chunk in the
+/// target's baseline vector instructions, where a `for b in piece` loop
+/// compared one byte at a time.
 fn scan_lines(src: bore.In) -> Counts ! {io} {
     var lines: int = 0
     var bytes: int = 0
@@ -273,11 +276,7 @@ fn scan_lines(src: bore.In) -> Counts ! {io} {
                 stop = true
             }
             bytes += piece.len
-            for b in piece {
-                if b as int == 10 {
-                    lines += 1
-                }
-            }
+            lines += bytes_count(piece, 10 as byte)
         }
     }
     if failed {
