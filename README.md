@@ -62,10 +62,11 @@ GNU coreutils is the oracle and must be installed: natively on linux,
 `tools/difftest` says so and stops when it is not — see **The oracle of
 record** below.
 
-**Windows is out of scope.** The only byte-exact route to standard
-input and output in wolf 0.2.25 is reopening `/dev/stdin` and
-`/dev/stdout` (wolf-lang#405), which windows does not have. CI runs on
-linux and macOS.
+**Windows is out of scope**: the oracle of record is a unix build of GNU
+coreutils, and CI runs on linux and macOS. (The reason used to be that
+the only byte-exact route to standard input and output was reopening
+`/dev/stdin` and `/dev/stdout`; since wolf 0.2.26 boreutils reads
+descriptor 0 and writes descriptor 1 directly, bu19.)
 
 ## Standard output, and the exit convention
 
@@ -84,15 +85,16 @@ and measured black-box against GNU:
   shape the default disposition is the right answer, so nothing here
   works around it.
 
-Two things GNU says that boreutils cannot yet say. The reason text
-after a failed write is `strerror(errno)`, and wolf 0.2.25 carries no
-errno text behind an `io` row (wolf-lang#407), so a full disk is
-`write error: Input/output error` here against GNU's `write error: No
-space left on device`; the status is the same and the differential case
-compares it. And on linux, when standard output is a socket, the
-`/dev/stdout` reopen is refused and output falls back to `print_raw`,
-which discards write errors (wolf-lang#408) — output still arrives, but
-a write error on that one path is invisible.
+**The reason is the host's.** Since wolf 0.2.26 (`os_error`,
+`os_error_text`, bu19) the text after a failed write or read is the
+host's own `strerror`, as GNU's is: a full disk is `write error: No
+space left on device` on both sides, and every `/dev/full` case compares
+stderr. A program that reports after other fs calls keeps the host's
+number from the moment of the failure (`bore.host_code`), because the
+next successful call clears it. And standard output is descriptor 1
+itself, so a socket is written like any other descriptor (until 0.2.26
+linux refused the `/dev/stdout` reopen for a socket and output fell back
+to `print_raw`, which discards write errors, wolf-lang#408).
 
 ## The oracle of record
 
@@ -149,13 +151,14 @@ derives no boreutils code from GPL source.
 
 Every utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus, except where a case says otherwise and is
-skipped with its reason. The corpus holds **3,048 cases**; a run on
-kasumi (linux x86-64) at this pin answers **2,986 passed, 0 failed, 62
+skipped with its reason. The corpus holds **3,077 cases**; a run on
+kasumi (linux x86-64) at this pin answers **3,017 passed, 0 failed, 60
 skipped**, the same list on the release and the dev tier, and CI's
 macOS leg skips the `/dev/full` and `/proc` cases besides, because
-macOS has neither (bu18's figures and run ids are in
-`notes/bu18-ls.md`). (The previous edition of this sentence, before
-bu18's `ls`, said 2,674 cases, 2,642 and 32 on kasumi, and 2,618 and 56
+macOS has neither (bu19's figures and run ids are in
+`notes/bu19-the-byte-surface.md`). (The previous edition of this
+sentence, before bu19, said 3,048 cases, 2,986 and 62 on kasumi; before
+bu18's `ls` it said 2,674 cases, 2,642 and 32 on kasumi, and 2,618 and 56
 on macOS, run 37060771131; before bu14's six utilities it said 2,114
 cases, 2,094 and 20 on kasumi, and 2,077 and 37 on macOS, run
 36044150121; before that it said 1,753 and 19 for the 1,772-case
@@ -166,18 +169,19 @@ and the run are stated separately on purpose: an earlier edition of this
 paragraph called the passing count the case count, which quietly
 subtracted the skips from the corpus instead of naming them.
 
-Four `wc` cases are skipped and say why in
-the case file: two errno shapes that no wolf fs row can carry
-(wolf-lang#407), and two code points whose display width the two hosts'
-own `wcwidth` disagree about. Five more run only on a host with
+Two `wc` cases are skipped and say why in
+the case file: two code points whose display width the two hosts' own
+`wcwidth` disagree about. (Two more, the ENOTDIR and ELOOP reasons, ran
+once wolf 0.2.26 put the host's error number beside the row, bu19.) Five more run only on a host with
 `/dev/full`, which is how a write error on a LIVE descriptor is reached
-at all, and so are skipped on macOS. Nine `wc` cases name the GNU
+at all, and so are skipped on macOS. Ten `wc` cases name the GNU
 version they describe with `gnu_min` — those are a record of the field,
 not of the oracle, which is 9.11 everywhere the gauntlet runs. The
 ninth was found by the `field` leg on the first run it ever made: with
 descriptor 1 closed, 9.11 stops at the first write that fails and 9.4
 keeps walking, so `wc FILE nope >&-` names the missing file on 9.4 and
-not on 9.11. Sixteen more name 9.11 for the same reason, all bu14's:
+not on 9.11. The tenth is bu19's: into `/dev/full` 9.11 names the
+reason and 9.4 says a bare `write error`. Sixteen more name 9.11 for the same reason, all bu14's:
 9.4 has no `%N$` in `printf` at all, takes an empty number without a
 word, and refuses an `nproc --ignore` past 2^64. Eight more are bu18's
 `ls`: 9.4 has no `--sort=name`, lists the `--sort` words in another
@@ -219,10 +223,12 @@ follows every link and has no `lstat`, no `readlink`, no mode, owner or
 link count: wolf-lang#625); three need the directory's own order
 (`-U`, `-f`, `--sort=none`: `fs_read_dir` sorts, wolf-lang#626); one
 needs an inode (`-i`, wolf-lang#536) and one an inode and `lstat` both
-(`-L -R` meeting a loop); one needs the errno behind a `Permission
-denied` (wolf-lang#407); one is the terminal default, which waits for
-`os_isatty` (wolf 0.2.26). Each is refused by name, status 2, where
-this program cannot answer; none is ignored.
+(`-L -R` meeting a loop); two are a terminal whose own width is not 80,
+which GNU asks and wolf cannot (wolf-lang#643). Each is refused by name,
+status 2, where this program cannot answer; none is ignored. (bu19
+cleared two: `Permission denied` through an unreadable directory is the
+host's reason now, and the terminal defaults are taken through
+`os_isatty`, with 24 cases run on a pseudo-terminal.)
 
 "vs GNU" is wall-clock from `tools/bench`, GNU's time divided by ours,
 so above 1.00 is faster than GNU. It is a measurement on a stated host,
@@ -305,8 +311,45 @@ file is 16 MiB of nought-to-seven-letter lines.
 So `cat` starts up level with GNU on both hosts and loses on bulk
 copying, by 1.6x on macOS and by 6x on linux. GNU moves the bytes
 without a round trip through user space where the host allows it, and
-wolf 0.2.25 exposes neither `splice` nor `copy_file_range`, so every
-byte we copy is read into a list and written back out.
+wolf 0.2.25 exposed neither `splice` nor `copy_file_range`, so every
+byte was read into a list and written back out.
+
+**Since wolf 0.2.26 the host does the copy (bu19).** `cat`'s plain path
+is `fs_copy_chunk` to descriptor 1 (`copy_file_range`, `sendfile`,
+`splice`, then a loop), `wc -l` counts newlines with `bytes_count`, and
+`head`, `tail`, `nl`, `uniq` and `cut` find their lines with
+`bytes_find`/`bytes_count`. kasumi, release tier, GNU 9.11, the bench's
+full-size inputs, one hyperfine call per row with every build and GNU
+in it (10 runs; load 4 to 11, other lanes): 0.2.25 is trunk `50d8907`,
+"before" the same tree at 0.2.26 with descriptors 0..2 adopted, "after"
+the adoption.
+
+| bench | 0.2.25 | before | after | GNU | vs GNU |
+|---|---:|---:|---:|---:|---:|
+| `cat` 1 GiB to /dev/null | 285 ms | 252 ms | **9.9 ms** | 8.3 ms | 0.84x |
+| `cat` 1 GiB to a file (btrfs) | 700 ms | 548 ms | **60 ms** | 55 ms | 0.91x |
+| `cat`, 64 operands to /dev/null | 804 ms | 818 ms | **25 ms** | 18 ms | 0.73x |
+| `cat -n`, short lines | 874 ms | 888 ms | 910 ms | 249 ms | 0.27x |
+| `wc -l`, 1 GiB | 504 ms | 481 ms | **173 ms** | 88 ms | 0.51x |
+| `wc -l`, very short lines | 140 ms | 141 ms | **15.6 ms** | 7.0 ms | 0.45x |
+| `tail -n 10` through a pipe | 454 ms | 460 ms | **167 ms** | 302 ms | **1.82x** |
+| `tail -n 10` of short lines through a pipe | 138 ms | 138 ms | **11.2 ms** | 79.6 ms | **7.11x** |
+| `head -n -1` through a pipe | 1352 ms | 1294 ms | 1058 ms | 362 ms | 0.34x |
+| `nl`, ordinary lines | 2624 ms | 2632 ms | 2409 ms | 2167 ms | 0.90x |
+| `uniq`, very short lines | 424 ms | 422 ms | 371 ms | 381 ms | **1.03x** |
+| `uniq`, ordinary lines | 3069 ms | 2679 ms | 2342 ms | 1250 ms | 0.53x |
+| `cut -b1-10` | 949 ms | 971 ms | 698 ms | 495 ms | 0.71x |
+| `cut -f1 -d' '` | 1317 ms | 1241 ms | 951 ms | 619 ms | 0.65x |
+| `cut -b1-10`, very short lines | 373 ms | 546 ms | 533 ms | 221 ms | 0.41x |
+| `cut -b1-10` on binary noise | 155 ms | 160 ms | 75 ms | 51 ms | 0.68x |
+
+Every row and the rest are in `notes/bu19-the-byte-surface.md`. One row
+moved the wrong way and it is not the program's: `cut` on very short
+lines went from 373 to 546 ms when descriptor 1 stopped being reopened,
+with the same instructions; the system time is 1,537 `brk` calls where
+there were 10, glibc trimming and regrowing the heap as each chunk's
+`region` frees, and a malloc tunable makes both builds equal
+(wolf-lang#644). `uniq` moved 11% the other way for the same reason.
 
 Memory is level, and flat in the size of the input either way: copying
 256 MiB peaks at 2.4 MB of RSS on nomad-1 against GNU's 1.9 MB, and at
@@ -620,6 +663,16 @@ run:
 | `unexpand`, leading runs | 834 ms | 889 ms | 1550 ms | 1.86x → **1.74x** |
 | `unexpand` on binary noise | 686 ms | 721 ms | 5981 ms | 8.73x → **8.29x** |
 
+**At wolf 0.2.26 the loss is gone, and not because anything fixed it
+(bu19).** In one hyperfine run at load ~4.5, boreutils trunk `50d8907`
+at 0.2.25 and the same tree at 0.2.26 run `unexpand` on ordinary lines
+in 2820 ms and 2929 ms against GNU's 6547 ms (2.24x), with identical
+user instructions (62.17 G) and a `one` of 689 instructions, 0.2.23's
+count rather than 0.2.25's 710: the partition no longer puts
+`flush_run` beside it. `unexpand.lu` did not change; the shared `bore`
+module did (bu18's `ls`). The fragility wolf-lang#624 names stands, and
+the issue carries the measurement.
+
 **`tac` is the one that loses, and the reason was `tail`'s reason.** GNU
 seeks to the end of a regular file and walks backwards through it; until
 wolf 0.2.22 there was no seek, no tell and no positional read
@@ -855,13 +908,13 @@ draft held every listing it had made, 70 MB).
 | `basename` | done | 1.04x (macOS) |
 | `dirname` | done | start-up only |
 | `yes` | done | 2.74x (macOS), 0.63x (linux) |
-| `cat` | done | start-up 1.18x (macOS), 0.97x (linux); bulk copy 0.64x, 0.16x |
-| `wc` | done | `-w` 1.27x, `-l` 0.92x (macOS, load 13.9); 0.88x, 0.17x (linux); `-c < f` start-up on both sides since bu15 |
-| `head` | done | `-n 1` start-up on both sides; `-n -K` of a file 0.79x since bu15 (was 0.09x), 0.26x through a pipe (linux) |
-| `tail` | done, `-f` and `--follow[=WORD]` included | a file 0.31 ms against GNU's 0.21 ms since bu15 (was 114 ms); pipe `-c` 0.88x to 0.99x, `-n` 0.57x to 0.64x (linux) |
-| `cut` | done, without 9.11's `-w`, `-F` and `-O` | 0.27x to 0.63x (linux) |
+| `cat` | done | start-up 1.18x (macOS), 0.97x (linux); bulk copy 0.64x (macOS), **0.73x to 0.91x** (linux, `fs_copy_chunk` since bu19; was 0.04x to 0.08x) |
+| `wc` | done | `-w` 1.27x, `-l` 0.92x (macOS, load 13.9); 0.88x, **0.51x** (linux; `-l` through `bytes_count` since bu19, was 0.17x); `-c < f` start-up on both sides since bu15 |
+| `head` | done | `-n 1` start-up on both sides; `-n -K` of a file 0.79x since bu15 (was 0.09x), 0.34x through a pipe (linux, bu19; was 0.26x) |
+| `tail` | done, `-f` and `--follow[=WORD]` included | a file 0.31 ms against GNU's 0.21 ms since bu15 (was 114 ms); pipe `-c` 0.88x to 0.99x, `-n` **1.82x to 7.11x** since bu19 (`bytes_count`; was 0.57x to 0.64x) (linux) |
+| `cut` | done, without 9.11's `-w`, `-F` and `-O` | 0.27x to 0.71x (linux; lines through `bytes_find` since bu19) |
 | `tr` | done | 0.34x translating, **3.72x** translating and squeezing (linux) |
-| `uniq` | done | 0.46x to **1.01x** (linux) |
+| `uniq` | done | 0.46x to **1.03x** (linux) |
 | `seq` | done | 0.07x on integers, **1.27x to 1.96x** everywhere else (linux) |
 | `nl` | done | 0.51x to **1.20x** (linux) |
 | `tac` | done | 0.18x on a stream, **2.09x to 2.79x** under `-r` (linux) |
@@ -876,7 +929,7 @@ draft held every listing it had made, 70 MB).
 | `pwd` | done; `-L` without an inode (wolf-lang#536) | start-up 0.80x (linux) |
 | `sleep` | done, to the millisecond | start-up 0.88x; `sleep 0.1` 1.00x (linux) |
 | `nproc` | done; a fractional cgroup quota rounds down (wolf-lang#537) | start-up 0.80x (linux) |
-| `ls` | done for names: the formats, sorting, `-F`/`-p`, `-q`, `-R`, `-L`/`-H`; the long format, `-i`, `-s`, `-u`, `-c`, `-U` refused (wolf-lang#625, #626, #536), and a link that resolves taken for its target | **2.27x** listing, 0.41x to 0.96x stat'ing (linux) |
+| `ls` | done for names: the formats, sorting, `-F`/`-p`, `-q`, `-N`, `-R`, `-L`/`-H`, and GNU's terminal defaults (bu19); the long format, `-i`, `-s`, `-u`, `-c`, `-U` refused (wolf-lang#625, #626, #536), a link that resolves taken for its target, and a terminal's own width not asked (wolf-lang#643) | **2.27x** listing, 0.41x to 0.96x stat'ing (linux) |
 | `env` | not shipped: no exec (wolf-lang#534) | — |
 
 ## Drop-in readiness
@@ -909,13 +962,13 @@ table answers it per utility, from the evidence and from nothing else.
 | `basename` | 5 / 5 | 48 / 0 | start-up 0.80x | drop-in |
 | `dirname` | 3 / 3 | 27 / 0 | start-up 0.80x | drop-in |
 | `yes` | 2 / 2 | 18 / 0 | 0.63x | drop-in |
-| `cat` | 12 / 12 | 119 / 0 | 0.16x to 0.97x | drop-in for scripts that never make an input its own output: `cat f >> f` and `cat < f >> f` refuse in GNU (`input file is output file`, status 1) and grow `f` without end here, because nothing in wolf can tell that two descriptors name one file (wolf-lang#424, #536); no case can reach it |
-| `wc` | 10 / 10 | 156 / 4 | 0.04x to 0.99x | drop-in for scripts that do not read the REASON in an ENOTDIR or ELOOP diagnostic (wolf-lang#407); the other two skips are the hosts' `wcwidth` |
-| `head` | 7 / 7 | 159 / 0 | 0.14x to 0.90x | drop-in |
-| `tail` | 12 / 14 | 182 / 2 | 0.45x to 0.99x; a file at start-up (0.31 ms against 0.21 ms) | drop-in for scripts that avoid 9.11's `--debug` (refused) and `--max-unchanged-stats` (accepted, no case); the skips are follows that never end |
-| `cut` | 10 / 13 | 124 / 0 | 0.27x to 0.63x | drop-in for scripts that avoid 9.11's `-F`, `-w` and the short `-O` (`--output-delimiter` works) |
+| `cat` | 12 / 12 | 119 / 0 | 0.27x to 0.97x | drop-in for scripts that never make an input its own output: `cat f >> f` and `cat < f >> f` refuse in GNU (`input file is output file`, status 1) and grow `f` without end here, because nothing in wolf can tell that two descriptors name one file (wolf-lang#424, #536); no case can reach it |
+| `wc` | 10 / 10 | 158 / 2 | 0.04x to 0.99x | drop-in; the skips are the hosts' `wcwidth` |
+| `head` | 7 / 7 | 160 / 0 | 0.14x to 0.90x | drop-in |
+| `tail` | 12 / 14 | 183 / 2 | 0.45x to 7.11x; a file at start-up (0.31 ms against 0.21 ms) | drop-in for scripts that avoid 9.11's `--debug` (refused) and `--max-unchanged-stats` (accepted, no case); the skips are follows that never end |
+| `cut` | 10 / 13 | 124 / 0 | 0.27x to 0.71x | drop-in for scripts that avoid 9.11's `-F`, `-w` and the short `-O` (`--output-delimiter` works) |
 | `tr` | 6 / 6 | 146 / 0 | 0.34x to 3.72x | drop-in |
-| `uniq` | 13 / 13 | 124 / 1 | 0.45x to 1.01x | drop-in; the skip is the hosts' `/dev/stdout` |
+| `uniq` | 13 / 13 | 124 / 1 | 0.45x to 1.03x | drop-in; the skip is the hosts' `/dev/stdout` |
 | `seq` | 5 / 5 | 122 / 6 | 0.07x to 1.96x | drop-in for scripts that avoid `-f %a`; where GNU's `long double` loops or misrounds, `seq` is exact instead |
 | `nl` | 13 / 13 | 104 / 2 | 0.51x to 1.20x | drop-in for scripts that avoid a BRE interval, group or back reference in `-b`, `-h` or `-f p…` |
 | `tac` | 5 / 5 | 99 / 3 | 0.18x to 2.79x | drop-in for scripts that avoid `-r` with a group or an alternation |
@@ -923,18 +976,18 @@ table answers it per utility, from the evidence and from nothing else.
 | `fold` | 6 / 6 | 100 / 2 | 1.07x to 5.15x | drop-in; the skips are the hosts' `strerror(ERANGE)` |
 | `expand` | 5 / 5 | 88 / 0 | 1.01x to 8.47x | drop-in |
 | `unexpand` | 6 / 6 | 98 / 0 | 1.00x to 9.23x | drop-in |
-| `sort` | 24 / 31 | 324 / 0 | 0.10x to 0.45x | drop-in for scripts that avoid `-g`, `-V`, `-R`, `--random-source`, `--debug`, `--files0-from` and `--compress-program`, each refused by name |
+| `sort` | 24 / 31 | 326 / 0 | 0.10x to 0.45x | drop-in for scripts that avoid `-g`, `-V`, `-R`, `--random-source`, `--debug`, `--files0-from` and `--compress-program`, each refused by name |
 | `tee` | 5 / 6 | 62 / 7 | 0.70x to 1.27x | drop-in for scripts that avoid `-i` (refused) and do not need `-p` or `--output-error` to survive a reader that leaves early (wolf-lang#423) |
 | `printf` | 2 / 2, and all 19 conversions | 270 / 0 | 0.19x to 0.86x | drop-in |
 | `printenv` | 3 / 3 | 33 / 4 | start-up 0.78x | drop-in for scripts that name their variables; the bare listing is sorted (wolf-lang#535) |
 | `pwd` | 4 / 4 | 44 / 1 | start-up 0.80x | drop-in for scripts that avoid `-L` with a `$PWD` naming a same-time twin of the working directory (wolf-lang#536) |
 | `sleep` | 2 / 2 | 61 / 0 | start-up 0.88x, `sleep 0.1` 1.00x | drop-in |
 | `nproc` | 4 / 4 | 78 / 0 | start-up 0.80x | drop-in outside a fractional cgroup cpu quota (wolf-lang#537) |
-| `ls` | 32 / 60 | 237 / 30 | 0.41x to 2.48x; start-up a tie | drop-in for scripts that read NAMES and avoid the long format and what implies it (`-l -g -n -o --full-time`), `-i`, `-s`, `-u`, `-c`, `-U`/`-f`, `-v`, the quoting, colour and filtering options (each refused by name), and do not need `-F`, `-p`, `-S`, `-t` or `-R` to tell a link that resolves from its target (wolf-lang#625, #626, #536) |
+| `ls` | 33 / 60 | 262 / 30 | 0.41x to 2.48x; start-up a tie | drop-in for scripts that read NAMES and avoid the long format and what implies it (`-l -g -n -o --full-time`), `-i`, `-s`, `-u`, `-c`, `-U`/`-f`, `-v`, the quoting styles but `-N`, the colour and filtering options (each refused by name), and do not need `-F`, `-p`, `-S`, `-t` or `-R` to tell a link that resolves from its target (wolf-lang#625, #626, #536); on a terminal, one 80 wide or reporting no size (wolf-lang#643) |
 | `env` | 0 / 14 | not shipped | — | not yet: no exec (wolf-lang#534) |
 
-**15 drop-in, 13 drop-in for scripts that avoid a named thing, 1 not
-yet.** The same evidence read across: no shipped utility fails a case,
+**16 drop-in, 12 drop-in for scripts that avoid a named thing, 1 not
+yet** (`wc` became drop-in at bu19, when the host's reason arrived). The same evidence read across: no shipped utility fails a case,
 and every skip that is this program's own names the wolf issue behind
 it.
 
@@ -944,7 +997,7 @@ sums counted as one and `[` as `test`; Arch's build installs 102
 binaries and leaves out `arch`, `chcon`, `runcon`, `hostname`, `kill`
 and `uptime`). boreutils ships **28 of them, 27%**, and `env` is the
 29th row above. Effort is not what blocks most of the other 76: wolf
-0.2.25 has no surface for them, and each gap boreutils has met is filed
+0.2.26 has no surface for them, and each gap boreutils has met is filed
 upstream with its witness. The OS surface lane's first cut, s199's
 wolf-lang#426 and #424 (seek, tell, the positional read, and the
 standard descriptors), shipped in 0.2.22, and `tail`, `head` and `wc`
@@ -952,20 +1005,26 @@ use it (bu15).
 
 - **#346**, no permission surface: `chmod`, `install -m`, `mkdir -m`,
   `mkfifo`/`mknod -m`, `mktemp`'s private file, `cp -p`.
-- **#405**, no byte surface for descriptors 0 and 1: every utility here
-  reopens `/dev/stdin` and `/dev/stdout`, which on linux loses the
-  shared offset and refuses a socket, and which is why windows is out
-  of scope; `dd` and anything that must share its caller's offset.
-- **#407**, no errno behind an `io` row: every failure past
-  not-found, denied and is-a-directory says `Input/output error`, so
-  `rm`, `cp`, `mv`, `ln`, `mkdir` and `rmdir` would give the wrong
-  reason on most of their failures.
-- **#411**, no bulk byte scan: the throughput of `wc -l` and every line
-  or byte search (a speed gap, not a correctness one).
+- **#405** (closed, wolf 0.2.26): descriptors 0, 1 and 2 are read and
+  written directly; every utility here does (bu19).
+- **#407** (closed, wolf 0.2.26): `os_error`/`os_error_text` give the
+  host's reason; every utility here says it (bu19). The net and os
+  families do not set it yet (wolf-lang#609).
+- **#411** (closed, wolf 0.2.26): `bytes_count`/`bytes_find`; `wc -l`,
+  `head`, `tail`, `nl`, `uniq` and `cut` find lines with them (bu19).
+  There is no backward scan, so `tail`'s walk back from the end still
+  compares a byte at a time.
 - **#416**, a streaming read allocates and the ambient region never
   frees: worked around here with one `region` per chunk.
-- **#417**, no `splice`, `copy_file_range` or `sendfile`: `cat` and a
-  future `cp` copy through user space (`cat` is 0.16x on linux).
+- **#417** (closed for files, wolf 0.2.26): `fs_copy_chunk`; `cat`'s
+  plain path uses it (0.73x to 0.91x on linux, from 0.04x to 0.08x).
+  Its read/write rung loses the bytes it read when the write fails
+  (**#642**), which `cat` works out from the failure's shape.
+- **#643**, no way to ask a terminal its size: `ls -C` on a terminal
+  wider or narrower than 80; `stty size`, `tput cols`.
+- **#644**, a region's exit frees to `malloc`: a streaming program's
+  system time follows glibc's trim heuristics (`cut` on short lines
+  moved +42% from an unrelated start-up change).
 - **#423**, no signal disposition but four meanings: `tee -p`/`-i`
   here; `timeout`, `kill`, `nohup` and `env --ignore-signal` beyond.
 - **#424** (closed, wolf 0.2.22): `fs_fstat`, `fs_seek`, `fs_tell` and
@@ -997,6 +1056,6 @@ Beyond those, the host builtin table at 0.2.25 has no call that creates
 a link (`ln`, `link`), changes a mode, an owner or a time (`chmod`,
 `chown`, `chgrp`, `touch`), names a user or a group (`id`, `whoami`,
 `groups`, `logname`, `users`, `who`, `pinky`), formats calendar time
-(`date`), or asks about a terminal (`tty`, `stty`; `os_isatty` arrives
-in 0.2.26). Those are not filed yet; each will be, with
+(`date`), or asks a terminal its name or settings (`tty`, `stty`;
+`os_isatty` exists since 0.2.26). Those are not filed yet; each will be, with
 its witness, by the lane whose utility meets it first (B6, the census).
