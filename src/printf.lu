@@ -249,15 +249,10 @@ fn push_str(mut buf: List[byte], s: str) {
 
 /// Write `bytes` to standard error as they are, which `eprint` cannot
 /// do for bytes that are not UTF-8 (a character constant's remainder,
-/// cut after its first byte under `LC_ALL=C`). Descriptor 2 is reached
-/// as `bore` reaches descriptor 1, by reopening its device.
+/// cut after its first byte under `LC_ALL=C`). Descriptor 2 itself
+/// (`[os.fs.std]`, wolf 0.2.26), where it used to reopen `/dev/stderr`.
 fn eprint_bytes(bytes: List[byte]) {
-    let fd = fs_open_mode("/dev/stderr", 2) else |_| {
-        eprint_raw(str_from_utf8(bytes) else "?")
-        return
-    }
-    fs_write_chunk(fd, bytes) else |_| {}
-    fs_close(fd) else |_| {}
+    fs_write_chunk(2, bytes) else |_| {}
 }
 
 /// Report a fatal error: GNU stops at once, status 1.

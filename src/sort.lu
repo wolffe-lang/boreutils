@@ -2422,13 +2422,7 @@ fn disorder(path: str, n: int, a: List[byte], s: int, e: int, delim: byte) {
         i += 1
     }
     (mut b).push(delim)
-    let fd = fs_open_mode("/dev/stderr", 2) else |_| {
-        let text = str_from_utf8(b) else "sort: {path}:{n}: disorder"
-        eprint_raw(text)
-        return
-    }
-    fs_write_chunk(fd, b) else |_| {}
-    fs_close(fd) else |_| {}
+    fs_write_chunk(2, b) else |_| {}
 }
 
 fn help() -> str {
