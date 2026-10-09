@@ -795,13 +795,21 @@ fn needs_kind(o: Opts) -> bool {
     o.group_dirs || o.indicator != no_indicator() || o.recursive
 }
 
-/// Why `path` cannot be reached, in GNU's words, as far as wolf can tell
-/// without an errno (wolf-lang#407): `Not a directory` when a leading
-/// part of it is a file (`a/`, `a/x`), which is the host's ENOTDIR and
-/// the only reason the path calls can be made to show; otherwise `No
-/// such file or directory`. A directory that may not be searched is
-/// GNU's `Permission denied`, and it is not told apart here.
+/// Why `path` cannot be reached, in GNU's words: the host's own reason
+/// for a stat of it (`os_error_text`, wolf 0.2.26), so a directory that
+/// may not be searched is `Permission denied`. When the stat succeeds or
+/// never reached the host (a name the directory does not list), the walk
+/// below answers as it did before 0.2.26: `Not a directory` when a
+/// leading part of it is a file (`a/`, `a/x`), otherwise `No such file
+/// or directory`.
 fn missing_reason(path: str) -> str {
+    // The host's own answer first (wolf 0.2.26, `[os.fs.error]`): a stat
+    // through an unreadable directory is EACCES, `Permission denied`,
+    // which the walk below cannot tell from a missing name.
+    let code = host_stat_code(path)
+    if code != 0 {
+        return bore.reason_of(code)
+    }
     var at = 1
     while at < path.len {
         let rest = path[at..]
@@ -819,6 +827,15 @@ fn missing_reason(path: str) -> str {
         at += slash + 1
     }
     bore.no_such_file()
+}
+
+/// The host's error number for a stat of `path`, or 0 when it succeeds
+/// or the host was never asked.
+fn host_stat_code(path: str) -> int {
+    let _ = fs_size(path) else |_| {
+        return bore.host_code()
+    }
+    0
 }
 
 /// Whether the last component of `path` is a name its directory lists.

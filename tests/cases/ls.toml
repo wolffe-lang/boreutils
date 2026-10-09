@@ -1057,7 +1057,6 @@ args = ["-R"]
 name = "a path through an unreadable directory"
 tree = "locked"
 args = ["locked/x"]
-skip = "GNU says 'Permission denied' (EACCES); wolf has no errno behind a row to tell it from a missing name (wolf-lang#407)"
 
 [[case]]
 name = "-F of an unreadable directory still marks it"
@@ -1527,10 +1526,10 @@ tree = "plain"
 args = ["--help"]
 stdout_closed = true
 
-# GNU appends strerror(ENOSPC), which wolf cannot say (wolf-lang#407), so
-# the exit status is the comparison; a SKIP where there is no /dev/full.
+# GNU appends strerror(ENOSPC), and so does this ls since wolf 0.2.26
+# (`os_error_text`, bu19); a SKIP where there is no /dev/full.
 [[case]]
 name = "a write error on a live descriptor"
 tree = "plain"
 stdout_file = "/dev/full"
-compare = ["exit"]
+compare = ["stderr", "exit"]
