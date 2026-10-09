@@ -64,6 +64,15 @@ Case file (TOML, one file per utility, any number of [[case]] tables):
                                  #   so by being absent on macOS. As with
                                  #   stdout_closed there is no stdout to
                                  #   compare.
+  tty = 80                       # optional (bu19): standard output is a
+                                 #   PSEUDO-TERMINAL this many columns wide
+                                 #   (0: a terminal that reports no size),
+                                 #   for what a program does when it asks
+                                 #   `isatty`. Its stdout is what the
+                                 #   terminal received, line discipline
+                                 #   and all (`\n` arrives as `\r\n` on
+                                 #   both sides). Exclusive with the other
+                                 #   stdout keys.
   stdout_closed = true           # optional: run the program with
                                  #   DESCRIPTOR 1 CLOSED, the shape a
                                  #   shell writes `prog >&-`. There is no
@@ -157,6 +166,7 @@ import os
 import platform
 import re
 import shutil
+import select
 import signal
 import subprocess
 import sys
@@ -173,7 +183,7 @@ KEYS = {"name", "args", "stdin", "stdin_file", "stdin_offset", "requires",
         "compare", "stdout_bytes", "stdout_closed", "stdout_file", "skip",
         "timeout", "gnu_util", "gnu_min", "gnu_max", "scratch",
         "scratch_dirs", "scratch_links", "scratch_modes", "scratch_times",
-        "cwd", "tree"}
+        "cwd", "tree", "tty"}
 # Naming any of these gives a case a scratch directory and a `files` field.
 SCRATCH = ("scratch", "scratch_dirs", "scratch_links", "scratch_modes",
            "scratch_times", "cwd")
@@ -410,6 +420,9 @@ def run(exe, argv0, case, base_env, top=None):
     closed = bool(case.get("stdout_closed"))
     sink = case.get("stdout_file")
     timeout = case.get("timeout", 10)
+    tty = case.get("tty")
+    if tty is not None:
+        return run_tty(exe, argv0, case, env, cwd, stdin, data, timeout, int(tty), top)
     if sink is not None:
         stdout = open(sink, "wb", buffering=0)
     elif closed:
@@ -470,6 +483,60 @@ def run(exe, argv0, case, base_env, top=None):
               "exit": status(proc.returncode)}
     if "stdin_offset" in case:
         result["offset"] = offset
+    if top is not None:
+        result["files"] = snapshot(top)
+    return result
+
+
+def run_tty(exe, argv0, case, env, cwd, stdin, data, timeout, cols, top):
+    """`run` with standard output on a pseudo-terminal `cols` wide.
+
+    The pty is made here and its size set before the child starts, so a
+    program that asks the terminal's width (GNU's `ls`, TIOCGWINSZ) and
+    one that cannot (this repository's, which takes COLUMNS or 80) are
+    measured against the same terminal. The parent closes its copy of
+    the terminal end and reads the other until the child has gone (EIO
+    or EOF); stderr is a pipe, read after."""
+    import fcntl
+    import pty
+    import struct
+    import termios
+    master, slave = pty.openpty()
+    fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, cols, 0, 0))
+    proc = subprocess.Popen(
+        [argv0] + [substitute(a, top) for a in case.get("args", [])],
+        executable=exe, env=env, stdin=stdin, stdout=slave,
+        stderr=subprocess.PIPE, cwd=cwd, restore_signals=True)
+    os.close(slave)
+    if data is not None:
+        feed(proc, data)
+    out = b""
+    try:
+        while True:
+            ready, _, _ = select.select([master], [], [], timeout)
+            if not ready:
+                proc.kill()
+                proc.wait()
+                return None
+            try:
+                chunk = os.read(master, 65536)
+            except OSError:
+                break
+            if not chunk:
+                break
+            out += chunk
+        err = proc.stderr.read()
+        proc.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait()
+        return None
+    finally:
+        os.close(master)
+        if hasattr(stdin, "close"):
+            stdin.close()
+    result = {"stdout": out, "stderr": normalize(err, argv0),
+              "exit": status(proc.returncode)}
     if top is not None:
         result["files"] = snapshot(top)
     return result
@@ -556,6 +623,10 @@ def load(path):
             if "stdout" in c.get("compare", CLOSED):
                 die(f"{path}: case {c['name']!r} redirects standard "
                     f"output and still compares it")
+        if "tty" in c and (c.get("stdout_closed") or "stdout_file" in c
+                           or "stdout_bytes" in c):
+            die(f"{path}: case {c['name']!r} puts standard output on a "
+                f"terminal and also closes, redirects or reads it")
         if c.get("stdout_closed"):
             if "stdout_bytes" in c:
                 die(f"{path}: case {c['name']!r} both closes standard "
