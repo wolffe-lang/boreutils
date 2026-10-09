@@ -268,12 +268,10 @@ args = ["/etc/sudoers"]
 [[case]]
 name = "a missing path component"
 args = ["tests/fixtures/two.txt/x"]
-skip = "ENOTDIR: GNU says 'Not a directory', the wolf fs rows have no errno behind them and answer `io`, so boreutils says 'Input/output error' (wolf-lang#407)"
 
 [[case]]
 name = "a symlink loop"
 args = ["tests/fixtures/loopself"]
-skip = "ELOOP: GNU says 'Too many levels of symbolic links', the wolf fs rows answer `io` (wolf-lang#407)"
 
 [[case]]
 name = "a missing file under a name that needs quoting"
@@ -775,7 +773,7 @@ stdout_closed = true
 name = "a write error on a live descriptor"
 args = ["tests/fixtures/plain.txt"]
 stdout_file = "/dev/full"
-compare = ["exit"]
+compare = ["stderr", "exit"]
 
 # ------------------------------------------------------------- the seek
 #
