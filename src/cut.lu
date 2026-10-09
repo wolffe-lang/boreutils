@@ -584,7 +584,7 @@ fn run(out: bore.Out, src: bore.In, o: Opts, spans: List[Span]) -> int {
                 var buf = List[byte]()
                 var at = 0
                 if bore.ring_len(pend) > 0 {
-                    let d = find_delim(chunk, 0, chunk.len, o.line_delim)
+                    let d = line_end(chunk, 0, o.line_delim)
                     if d < 0 {
                         in keeper {
                             for b in chunk {
@@ -610,7 +610,7 @@ fn run(out: bore.Out, src: bore.In, o: Opts, spans: List[Span]) -> int {
                     }
                 }
                 while at < chunk.len {
-                    let d = find_delim(chunk, at, chunk.len, o.line_delim)
+                    let d = line_end(chunk, at, o.line_delim)
                     if d < 0 {
                         in keeper {
                             var k = at
@@ -665,16 +665,13 @@ fn run(out: bore.Out, src: bore.In, o: Opts, spans: List[Span]) -> int {
     why
 }
 
-/// The index of the first `delim` in `b[from..to]`, or -1.
-fn find_delim(b: List[byte], from: int, to: int, delim: byte) -> int {
-    var i = from
-    while i < to {
-        if b[i] == delim {
-            return i
-        }
-        i += 1
-    }
-    -1
+/// The index of the first line delimiter in `b` at or after `from`, or
+/// -1: `bytes_find` (wolf 0.2.26, `[mem.list.bytes]`), a runtime scan in
+/// the target's vector instructions. Lines only: a FIELD delimiter is
+/// looked for within its line (`at_delim`), where a scan that ran on to
+/// the chunk's end would cost the rest of the chunk per line.
+fn line_end(b: List[byte], from: int, delim: byte) -> int {
+    bytes_find(b, delim, from) else -1
 }
 
 /// Cut the line `b[at..at + len]` into `buf`, delimiter and all.
