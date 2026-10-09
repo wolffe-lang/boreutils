@@ -825,7 +825,11 @@ fn number_file(out: bore.Out, src: bore.In, c: Conf, at_in: Where) -> Where {
             var at = 0
             var k = 0
             while k < piece.len {
-                if piece[k] as int == 10 {
+                // Straight to the next newline: `bytes_find` (wolf
+                // 0.2.26) scans in the target's vector instructions.
+                let next = bytes_find(piece, 10 as byte, k) else piece.len
+                k = next
+                if k < piece.len {
                     // A line that straddled the boundary finishes in the
                     // carry-over buffer; every other line is read where
                     // it lies, with no copy at all.
