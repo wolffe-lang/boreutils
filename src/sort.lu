@@ -68,8 +68,8 @@
 //! refuses it, and are then refused by name (status 2). `--parallel` is
 //! validated and ignored: this program sorts on one thread. `-S N%`
 //! (a share of physical memory) is taken as the default budget, because
-//! wolf has no physical-memory query. A write error other than a closed
-//! descriptor cannot name its reason (wolf-lang#407).
+//! wolf has no physical-memory query. A write error names the host's
+//! reason (`os_error_text`, wolf 0.2.26).
 
 use bore
 
@@ -1549,7 +1549,8 @@ fn emit_lines(
 }
 
 /// GNU's two lines for a failed flush of standard output, and its
-/// status. Only the closed descriptor's reason is known (wolf-lang#407).
+/// status. `host` is the host's error number, kept from the failed write
+/// (`[os.fs.error]`, wolf 0.2.26).
 ///
 /// **The second line is host-shaped, and both shapes are GNU 9.11's.**
 /// With descriptor 1 closed, linux's GNU (Arch's and the staged build
@@ -1560,8 +1561,8 @@ fn emit_lines(
 /// The host is told apart the way `bore.stdout` tells it: linux
 /// publishes `/proc/self/fd`, macOS has no `/proc`, and asking by path
 /// opens no descriptor.
-fn write_failed(out: bore.Out) -> int {
-    let why = if out.closed then bore.bad_descriptor() else bore.io_error()
+fn write_failed(out: bore.Out, host: int) -> int {
+    let why = if out.closed then bore.bad_descriptor() else bore.reason_of(host)
     bore.warn("sort", "fflush failed: 'standard output': {why}")
     if out.closed && !fs_is_dir("/proc/self/fd") {
         bore.warn("sort", "write error: {why}")
@@ -1572,8 +1573,8 @@ fn write_failed(out: bore.Out) -> int {
 }
 
 /// The same for a `-o` file.
-fn file_write_failed(path: str) -> int {
-    bore.warn("sort", "fflush failed: {bore.quote_name(path)}: {bore.io_error()}")
+fn file_write_failed(path: str, host: int) -> int {
+    bore.warn("sort", "fflush failed: {bore.quote_name(path)}: {bore.reason_of(host)}")
     bore.warn("sort", "write error")
     2
 }
@@ -1909,17 +1910,19 @@ fn sort_mode(c: Conf, paths: List[str], o: Opts, out: bore.Out) -> int {
                         status = 2
                     } else {
                         var wrote = true
+                        var host = 0
                         emit_lines(c, buf, starts, perm, out, ofd) else |_| {
                             wrote = false
+                            host = bore.host_code()
                         }
                         if ofd >= 0 {
                             fs_close(ofd) else |_| {}
                         }
                         if !wrote {
                             status = if ofd >= 0 {
-                                file_write_failed(o.output)
+                                file_write_failed(o.output, host)
                             } else {
-                                write_failed(out)
+                                write_failed(out, host)
                             }
                         }
                     }
@@ -2283,12 +2286,14 @@ fn merge_runs(c: Conf, dir: str, o: Opts, ids: List[int], out: bore.Out) -> int 
         }
     }
     let code = merge_temps(c, dir, runs, out, ofd)
+    // The host's number for a failed write, before the close clears it.
+    let host = bore.host_code()
     if ofd >= 0 {
         fs_close(ofd) else |_| {}
     }
     remove_temps(dir, runs)
     if code == 3 {
-        return if ofd >= 0 then file_write_failed(o.output) else write_failed(out)
+        return if ofd >= 0 then file_write_failed(o.output, host) else write_failed(out, host)
     }
     code
 }
@@ -2343,11 +2348,13 @@ fn merge_mode(c: Conf, paths: List[str], o: Opts, out: bore.Out) -> int {
     }
     var rd = readers(fds, paths)
     let code = merge_into(c, out, ofd, mut rd)
+    // The host's number for a failed write, before the close clears it.
+    let host = bore.host_code()
     if ofd >= 0 {
         fs_close(ofd) else |_| {}
     }
     if code == 3 {
-        return if ofd >= 0 then file_write_failed(o.output) else write_failed(out)
+        return if ofd >= 0 then file_write_failed(o.output, host) else write_failed(out, host)
     }
     code
 }

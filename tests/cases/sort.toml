@@ -1489,3 +1489,18 @@ args = ["--parallel=-1", "tests/fixtures/sortwords.txt"]
 [[case]]
 name = "parallel a bad suffix"
 args = ["--parallel=3x", "tests/fixtures/sortwords.txt"]
+
+# A write error on a LIVE descriptor (linux only; a SKIP where there is
+# no /dev/full): GNU names `strerror(ENOSPC)` in its `fflush failed`
+# line, and so does this sort since wolf 0.2.26 (`os_error_text`, bu19),
+# for standard output and for a `-o` file alike.
+[[case]]
+name = "a write error on a live descriptor"
+args = ["tests/fixtures/sortwords.txt"]
+stdout_file = "/dev/full"
+compare = ["stderr", "exit"]
+
+[[case]]
+name = "-o into a full device"
+args = ["-o", "/dev/full", "tests/fixtures/sortwords.txt"]
+requires = "/dev/full"
