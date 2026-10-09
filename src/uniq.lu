@@ -526,7 +526,7 @@ fn main() -> int {
                 return 1
             },
         }
-        out = bore.Out { fd: fd, direct: true, closed: false, wrote: false, buf: List[byte]() }
+        out = bore.Out { fd: fd, closed: false, wrote: false, buf: List[byte]() }
     }
     var name = "-"
     if p.operands.len >= 1 {

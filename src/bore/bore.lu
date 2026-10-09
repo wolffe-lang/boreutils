@@ -9,21 +9,24 @@
 //!   and operands permuted among options unless `POSIXLY_CORRECT` is set.
 //! - **Diagnostics** in GNU's shape: `prog: message`, and for a usage
 //!   error the `Try 'prog --help' for more information.` line after it.
-//! - **Output** as bytes, buffered: `/dev/stdout` reopened in append
-//!   mode, written in 64 KiB chunks with `fs.write_chunk`.
+//! - **Output** as bytes, buffered: descriptor 1 itself, written in
+//!   64 KiB chunks with `fs_write_chunk`.
 //!
 //! References consulted: POSIX.1-2024 XBD 12.2 (Utility Syntax
 //! Guidelines); GNU coreutils 9.11's `--help` output and black-box runs
 //! of its binaries (macOS Homebrew and linux native, glibc). Never GNU
 //! source.
 //!
-//! **Why `/dev/stdout` and not `print_raw`.** `print_raw` takes a `str`,
+//! **Why descriptor 1 and not `print_raw`.** `print_raw` takes a `str`,
 //! so it cannot write bytes that are not UTF-8; it makes one `write` per
 //! call; and it discards write errors, so a full disk looks like success.
-//! wolf 0.2.14 has no builtin that writes descriptor 1 as bytes, and
-//! reopening `/dev/stdout` is the route to one. On linux that route
-//! fails when standard output is a socket (the reopen is refused), and
-//! then this module falls back to `print_raw` for UTF-8 output.
+//! Since wolf 0.2.26 the byte calls serve descriptors 0, 1 and 2
+//! themselves (`[os.fs.std]`, s200, wolf-lang#405), so standard output
+//! is `fs_write_chunk(1, …)` and standard input `fs_read_chunk(0, …)`.
+//! Before that this module REOPENED `/dev/stdout` and `/dev/stdin`, which
+//! linux refused for a socket (and the module fell back to `print_raw`)
+//! and which made standard input a fresh open file description with its
+//! own offset (bu15). Both workarounds are gone.
 //!
 //! ## The exit convention, which every boreutils program honours
 //!
@@ -633,22 +636,13 @@ pub error ReadFailed = {eof, io}
 /// One input stream: a named file, or standard input for the operand
 /// `-`.
 ///
-/// Standard input is reached by reopening `/dev/stdin`, because no
-/// builtin reads descriptor 0 as bytes yet (wolf-lang#405). Open
-/// standard OUTPUT before the first input: with descriptor 1 closed,
-/// the first file opened takes descriptor 1.
-///
-/// **The reopen and the offset.** On linux `/dev/stdin` is
-/// `/proc/self/fd/0`, and opening it makes a FRESH open file description
-/// at offset 0; on macOS it duplicates descriptor 0 and shares its
-/// offset. So when standard input is a regular file the shell has
-/// already read into (`{ read h; tail; } < f`), linux used to read it
-/// from byte 0 and leave descriptor 0 where it was, where GNU reads from
-/// the offset and moves it (measured, bu15). Since wolf 0.2.22 the
-/// offset calls serve descriptor 0 (`[os.fs.std]`), so `open_input`
-/// moves the new handle to descriptor 0's offset and `settle` moves
-/// descriptor 0 to wherever the handle stopped. On macOS both are the
-/// same offset and both moves are no-ops.
+/// Standard input is descriptor 0 itself (`[os.fs.std]`, wolf 0.2.26):
+/// a read starts at the offset the process shares with whoever started
+/// it and moves it, so `{ read h; tail; } < f` reads from where `read`
+/// stopped and `{ head -n 1; cat; } < f` hands `cat` the rest, as GNU
+/// does. Until 0.2.26 linux reached it by reopening `/dev/stdin`, a
+/// fresh open file description at offset 0, and bu15 moved offsets by
+/// hand to hide that; nothing needs moving now.
 pub struct In {
     fd: int,
     name: str,
@@ -669,15 +663,7 @@ pub fn name_of(i: In) -> str {
 /// still be told apart.
 pub fn open_input(path: str) -> In ! OpenFailed {
     if path == "-" {
-        let fd = fs_open("/dev/stdin")?
-        if stdin_is_file() {
-            let at = fs_tell(0) else 0
-            let mine = fs_tell(fd) else at
-            if mine != at {
-                let _ = fs_seek(fd, at, 0) else 0
-            }
-        }
-        return In { fd: fd, name: "-" }
+        return In { fd: 0, name: "-" }
     }
     let fd = fs_open(path)?
     let st = fs_fstat(fd) else |_| {
@@ -702,38 +688,13 @@ pub fn read_chunk(i: In, n: int) -> List[byte] ! ReadFailed {
 }
 
 /// Close `i`. A close failure is not reportable and is dropped, as GNU
-/// drops it for an input. Standard input is `settle`d first.
+/// drops it for an input. Standard input stays open: a later `-` reads
+/// it again, from wherever this read left descriptor 0.
 pub fn close_input(i: In) {
-    settle(i)
+    if i.fd < 3 {
+        return
+    }
     fs_close(i.fd) else |_| {}
-}
-
-/// Whether descriptor 0 is a regular file, the one kind of standard
-/// input that has an offset worth keeping (`[os.fs.std]`).
-fn stdin_is_file() -> bool {
-    let st = fs_fstat(0) else |_| {
-        return false
-    }
-    st[0] == 0
-}
-
-/// Leave descriptor 0 where this program's handle on standard input
-/// stopped, as GNU leaves it: `{ head -n 1; cat; } < f` hands `cat` the
-/// rest of `f`. Nothing for a named file, a pipe, or a host where the
-/// reopen already shares descriptor 0's offset (macOS).
-pub fn settle(i: In) {
-    if i.name != "-" || i.fd < 0 || !stdin_is_file() {
-        return
-    }
-    let mine = fs_tell(i.fd) else |_| {
-        return
-    }
-    let theirs = fs_tell(0) else |_| {
-        return
-    }
-    if mine != theirs {
-        let _ = fs_seek(0, mine, 0) else 0
-    }
 }
 
 /// Move `i`'s offset to `at`, counted from the start. A pipe has no
@@ -814,77 +775,32 @@ pub fn version_text(prog: str) -> str {
 /// where `true --version >&-` writes and exits 1.
 pub struct Out {
     fd: int,
-    direct: bool,
     closed: bool,
     wrote: bool,
     buf: List[byte],
 }
 
-/// Standard output, ready to buffer.
+/// Standard output, ready to buffer: descriptor 1 itself
+/// (`[os.fs.std]`, wolf 0.2.26).
 ///
-/// Open it before any other file: when descriptor 1 is closed, a file
-/// opened first takes descriptor 1 and `/dev/stdout` then names it.
-///
-/// **Telling a closed descriptor from a refused reopen.** The reopen is
-/// the only handle wolf gives us to WRITE descriptor 1 (wolf-lang#405).
-/// Before wolf 0.2.22 it was the only handle at all: `fs_fstat` indexed
-/// the runtime's own handle table, so `fs_fstat(1)` answered `io`
-/// whatever descriptor 1 was (wolf-lang#424). 0.2.22 makes 0, 1 and 2
-/// the standard streams for `fs_fstat` (`[os.fs.std]`), so a later
-/// lane may ask descriptor 1 directly; this one keeps the measured
-/// shape below, where the row the reopen raises is the evidence, and it
-/// is host-shaped. Measured at 0.2.14 against wolf's own builtin:
-///
-/// | descriptor 1 | linux | macOS |
-/// |---|---|---|
-/// | a regular file, a pipe | opens | opens |
-/// | a socket | `denied` or `io` | opens |
-/// | closed | `not_found` | `io` |
-///
-/// linux reaches descriptor 1 through `/proc/self/fd/1`, which does not
-/// EXIST when the descriptor is closed — so `not_found` there means
-/// closed and means nothing else. macOS's `/dev/stdout` is a devfs node
-/// that always exists and dups descriptor 1, so it fails only when
-/// there is no descriptor 1 to dup. The one ambiguous row is `io`, and
-/// the two hosts are told apart by the thing that causes the
-/// difference: linux publishes `/proc/self/fd` and macOS has no `/proc`
-/// at all.
+/// A closed descriptor 1 is `fs_fstat(1)` answering `io` (`EBADF`), on
+/// every host: the runtime never hands out 0, 1 or 2 for a file it
+/// opens, and a write to a closed 1 is `io`, never a write into a file
+/// that took the number. Until 0.2.26 this module reopened
+/// `/dev/stdout`, read "closed" from the row the reopen raised (linux
+/// `not_found`, macOS `io`), and fell back to `print_raw` when linux
+/// refused the reopen for a socket. Ask it first anyway: GNU checks
+/// standard output before it looks at an operand.
 pub fn stdout() -> Out {
-    let fd = fs_open_mode("/dev/stdout", 2) else |e| match e {
-        not_found => { return shut() },
-        denied => { return refused() },
-        exists => { return refused() },
-        invalid => { return refused() },
-        io => { return refused() },
+    let _ = fs_fstat(1) else |_| {
+        return shut()
     }
-    Out { fd: fd, direct: true, closed: false, wrote: false, buf: List[byte]() }
+    Out { fd: 1, closed: false, wrote: false, buf: List[byte]() }
 }
 
 /// A stream whose descriptor 1 is closed: every write fails.
 fn shut() -> Out {
-    Out { fd: -1, direct: false, closed: true, wrote: false, buf: List[byte]() }
-}
-
-/// A stream whose reopen was refused for a reason other than a missing
-/// descriptor 1. On linux that is a live socket and `print_raw` still
-/// reaches it; on macOS nothing but a closed descriptor refuses.
-fn refused() -> Out {
-    if has_proc() {
-        return Out { fd: -1, direct: false, closed: false, wrote: false, buf: List[byte]() }
-    }
-    shut()
-}
-
-/// Whether this host publishes `/proc/self/fd` — that is, whether it is
-/// linux. Reached only when the reopen has already failed, so it cannot
-/// be the open that steals descriptor 1 from a program that still has
-/// one.
-fn has_proc() -> bool {
-    let d = fs_open("/proc/self/fd") else |_| {
-        return false
-    }
-    fs_close(d) else |_| {}
-    true
+    Out { fd: -1, closed: true, wrote: false, buf: List[byte]() }
 }
 
 /// Append `s` to the buffer, writing when it is full.
@@ -949,9 +865,8 @@ pub fn write_direct(o: Out, bytes: List[byte]) -> () ! {io} {
 
 /// Write what is buffered.
 ///
-/// Rows: `io` when the write fails, when descriptor 1 is closed and the
-/// program has written to it, or, on the `print_raw` fallback, when the
-/// bytes are not UTF-8 and so cannot be written at all.
+/// Rows: `io` when the write fails, or when descriptor 1 is closed and
+/// the program has written to it.
 pub fn flush(mut o: Out) -> () ! {io} {
     if o.closed && o.wrote {
         return io
@@ -967,12 +882,7 @@ fn emit(o: Out, bytes: List[byte]) -> () ! {io} {
     if o.closed {
         return io
     }
-    if o.direct {
-        fs_write_chunk(o.fd, bytes) else |_| { return io }
-        return
-    }
-    let text = str_from_utf8(bytes) else |_| { return io }
-    print_raw(text)
+    fs_write_chunk(o.fd, bytes) else |_| { return io }
 }
 
 /// GNU's wording for a descriptor that is not open.

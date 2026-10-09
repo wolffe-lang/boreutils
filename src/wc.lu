@@ -1018,7 +1018,7 @@ fn count_one(
             if end > start {
                 bore.seek_to(src, end)
             }
-            done_with(inp, src)
+            done_with(src)
             var c = zero()
             c.bytes = size
             c.chars = size
@@ -1032,11 +1032,11 @@ fn count_one(
         }
     }
     let c = scan(src, sel, utf8) else |_| {
-        done_with(inp, src)
+        done_with(src)
         bore.input_error("wc", inp.label, bore.io_error())
         return failed
     }
-    done_with(inp, src)
+    done_with(src)
     if !only {
         emit(mut out, c, sel, width, label) else |_| {
             bore.write_error(out, "wc", "write error")
@@ -1046,15 +1046,11 @@ fn count_one(
     c
 }
 
-/// Finish with one input: close a file this program opened, and leave
-/// standard input open (a later `-` reads it again) but with descriptor
-/// 0 moved to where this read stopped (`bore.settle`).
-fn done_with(inp: Input, src: bore.In) {
-    if inp.stdin {
-        bore.settle(src)
-    } else {
-        bore.close_input(src)
-    }
+/// Finish with one input: close a file this program opened. Standard
+/// input stays open, and a later `-` reads it again from wherever this
+/// read left descriptor 0 (`bore.close_input` never closes 0..2).
+fn done_with(src: bore.In) {
+    bore.close_input(src)
 }
 
 fn help() -> str {
