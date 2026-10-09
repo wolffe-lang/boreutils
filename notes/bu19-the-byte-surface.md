@@ -137,3 +137,125 @@ pseudo-terminal in `tools/difftest`.**
 
 **CI.** Green on ubuntu, macOS and the field leg at the head: trunk's
 counts plus the new cases, minus the cleared skips, 0 failed.
+
+## 3a. The prediction, scored (added after the measurements; §3 above is as committed in `7a2f552`)
+
+| # | predicted | measured | verdict |
+|---|---|---|---|
+| 1 | digests as the API; `_wolf` keeps `a368c8ec…` | all six archives match (`archives.log` `10fd5da8…`); `_wolf` `a368c8ec…` in all three wolf archives; new members `wolf.1`, `wolf.bash`, `LICENSE-EXCEPTION` | right |
+| 2 | 28 build on both tiers, no diagnostic | `errors=0 warnings=0 ice=0 built=28` release and dev at the pin (`gauntlet-pin-d39e57c.log` `7df1f40e…`) | right |
+| 3 | 28 differ raw and stripped; WIR identical in 28 | 28/28 raw, 28/28 stripped on each tier; `--emit=wir` identical in 28/28 (`wir-*.sha256` `532121dc…` both); own-function instruction and load counts identical on both tiers; `libwolf_rt.a` `6ac563e7…` → `679d77e1…` | right |
+| 4 | verdicts identical, only restated reasons move | `b7154d32…` at base and pin, release and dev (2986 / 0 / 62); the nine "wolf 0.2.25" reasons restated in `4a5b801` | right |
+| 5 | every benched row within ±5% at the pin, #624 still ~1.5x | most rows within ±5%; **`wc` default counts +11.7%** at the pin, confirmed at 30 runs (2069 → 2310 ms), identical user instructions (13.805 G) and +12.4% cycles, hot loop at a different address: code placement, and the next build (`ab`) is back at 2076 ms; `cat` rows −12% at the pin in the noisiest window (load 7–11), not repeated; **#624 is GONE**: `unexpand` ordinary lines 2820 / 2929 ms at 0.2.25 / 0.2.26 against GNU 6547, `one` 689 instructions as at 0.2.23 | **wrong twice**: a placement move on `wc`, and #624 vanished because `bore` grew (bu18), not because anything fixed it; commented on wolf-lang#624 |
+| 6 | A: every verdict identical | 2986 / 0 / 62 after A (`try-fdA.log`) | right |
+| 7 | A: no reopen in strace; no row past ±5% | no `/dev/stdout`, `/dev/stdin` or `/proc/self/fd` open in `cat`, `wc -l <`, `head -`; rows: **`cut` on very short lines +42% / +45%** (383 → 546, 543 → 788 ms), **`uniq` −11% / −14%**; the stdin rows' first +7–10% did not survive 30 runs | **wrong for `cut`/`uniq`**: same instructions, the system time is glibc trimming the heap per chunk (10 → 1,537 `brk`), and a malloc tunable makes both builds equal: filed **wolf-lang#644** |
+| 8 | B: three skips pass; 24 `/dev/full` cases compare stderr | wc ENOTDIR, wc ELOOP, ls EACCES pass; every `/dev/full` case passes with stderr; added `sort` ×2, `head`, `tail` full-device cases | right, after threading the host's number past `close_input` in eight utilities (a successful close clears it) |
+| 9 | C: `cat` ≤ 15 / ≤ 60 / ≤ 40 ms, `-n` ±5% | 9.9 ms (GNU 8.3), **60.1 ms** (GNU 54.5, min 53.0), 25.3 ms (GNU 18.4), `-n` +2.5% | right but for the file row, 0.1 ms over its bound by the mean; and a **silent wrong answer found on the way**: the first cut exited 0 on `cat f > /dev/full` (the copy's read/write rung had taken the bytes off the input), caught by the difftest case, fixed, filed **wolf-lang#642** |
+| 10 | D: `wc -l` 150–280 ms, short ≤ 30 ms | 173 / 172 ms (GNU 88 / 91), 15.6 ms (GNU 7.0); default counts +2% | right |
+| 11 | E: `tail -n 10` pipe ≤ 250, short ≤ 80; read-back rows unchanged | 166.5 ms (GNU 302: **1.82x GNU**), 11.2 ms (GNU 79.6: **7.11x**); `-n 10` of a file 0.4 → 0.5 ms, `-n +1` +4.5% | right |
+| 12 | E: `nl`/`uniq`/`cut` 0 to −15% on ordinary lines, ±5% on very short | `nl` −8.5%; `uniq` −12.6%; **`cut -b` −28%, `cut -f1` −23%, binary noise −53%**; very short: `nl` −2%, **`uniq` −12%**, `cut` −2% / −7%; `head -n -1` through a pipe −18% | **wrong in the good direction for `cut` and short-line `uniq`**: `cut`'s line scan was a larger share than its per-line work; every one adopted |
+| 13 | F: pty cases pass on both hosts; PENDING clears; two skip on width; pipes unchanged | 24 run + 2 skip on linux (kasumi, CI) and macOS (CI); `-C on a terminal` passes; 21 of them fail against the pin's `ls` (`lsF-against-pin.diff` `3fc864e4…`); `ls` pipe rows within ±3% | right; GNU's default QUOTING style on a terminal was the drift §2 recorded before writing code |
+| CI | green on all three legs | run 37984988431 at `9d9cb2b` green: ubuntu 3017 / 0 / 60, macOS 2972 / 0 / 105 (as run 37982011386 at `880af7f`); field 2951 / 16 / 110 there, the 16th the `wc` `/dev/full` reason 9.4 does not print, bounded by `gnu_min` in `9d9cb2b` | right, and the field leg found a tenth 9.11-only `wc` case |
+
+## The move table
+
+**Verdicts**, kasumi, release and dev identical at each state:
+
+| state | passed / failed / skipped | list |
+|---|---|---|
+| base `50d8907` (0.2.25) | 2986 / 0 / 62 | `b7154d32…` |
+| pin `d39e57c` | 2986 / 0 / 62 | `b7154d32…` |
+| head `9d9cb2b` (the code at the PR head) | **3017 / 0 / 60** | `591bf0fc…` |
+
+pin → head: +29 cases (24 run on a pseudo-terminal and 2 skipped on its
+width, `sort` ×2, `head` ×1, `tail` ×1 into a full device); three skips
+now pass (`wc` ENOTDIR and ELOOP, `ls` EACCES); the `ls` PENDING case
+passes; nine restated reasons. Nothing that passed stopped passing.
+
+**Binaries**: pin → head, all 28 differ stripped on both tiers (every
+utility compiles `bore`, whose output path changed).
+
+**Bench rows before and after**, kasumi, one hyperfine call per row
+(10 runs, `ab.py`, kasumi `~/lanes/bu19/ev/ab-*/`), ms mean:
+
+| adoption | row | 0.2.25 | pin | after A+B | after the adoption | GNU 9.11 |
+|---|---|---:|---:|---:|---:|---:|
+| C `cat` | 1 GiB to /dev/null | 285.1 | 250.3 | 251.7 | **9.9** | 8.3 |
+| C `cat` | 1 GiB to a file | 699.7 | 613.8 | 548.3 | **60.1** | 54.5 |
+| C `cat` | -n, short lines | 874.4 | 898.8 | 887.5 | 910.0 | 248.8 |
+| C `cat` | 64 operands | 804.2 | 841.9 | 818.1 | **25.3** | 18.4 |
+| D `wc` | -l, C | 504.4 | 482.5 | 480.8 | **173.1** | 87.6 |
+| D `wc` | -l, UTF-8 | 512.4 | 486.1 | 494.8 | **171.6** | 90.7 |
+| D `wc` | -l, very short lines | 140.3 | 139.0 | 141.4 | **15.6** | 7.0 |
+| D `wc` | default counts (30 runs) | 2069.0 | 2310.1 | 2075.6 | 2128.6 | 2023.8 |
+| E `tail` | -n 10 through a pipe | 454.4 | 453.5 | 459.7 | **166.5** | 302.3 |
+| E `tail` | -n 10, short lines, pipe | 137.6 | 135.9 | 138.4 | **11.2** | 79.6 |
+| E `tail` | -n +1, the whole file | 139.7 | 139.8 | 143.4 | 149.8 | 131.7 |
+| E `head` | -n -1 through a pipe | 1352.0 | 1326.3 | 1294.1 | 1057.6 | 361.7 |
+| E `head` | -n 100000 of short lines | 1.9 | 1.8 | 1.9 | 1.8 | 1.5 |
+| E `nl` | very short lines | 1022.3 | 1029.9 | 1040.5 | 1017.2 | 953.4 |
+| E `nl` | ordinary lines | 2623.9 | 2636.8 | 2631.8 | 2409.0 | 2167.4 |
+| E `nl` | no numbers at all | 3010.8 | 2881.4 | 2799.5 | 2755.5 | 1322.9 |
+| E `uniq` | very short lines | 423.6 | 427.8 | 422.2 | 371.4 | 381.4 |
+| E `uniq` | ordinary lines | 3069.3 | 3028.7 | 2679.1 | 2342.2 | 1250.0 |
+| E `uniq` | a field skipped | 3588.4 | 3632.9 | 3129.6 | 2648.9 | 1606.6 |
+| E `cut` | -b1-10, C | 949.2 | 940.5 | 970.9 | 698.2 | 495.1 |
+| E `cut` | -f1 -d' ', C | 1316.9 | 1299.3 | 1240.7 | 951.4 | 619.4 |
+| E `cut` | -b1-10, very short lines | 373.3 | 383.3 | 546.2 | 532.6 | 220.7 |
+| E `cut` | -f1, very short lines | 563.9 | 543.3 | 788.3 | 735.5 | 316.9 |
+| E `cut` | -b1-10 on binary noise | 154.9 | 148.6 | 160.2 | 75.2 | 50.9 |
+| F `ls` | flat/, one per line | 4.0 | 4.1 | — | 4.0 | 6.4 |
+| F `ls` | flat/ -C | 4.2 | 4.3 | — | 4.2 | 7.6 |
+| F `ls` | -R of deep/ | 10.0 | 9.7 | — | 9.7 | 3.7 |
+| #624 | `unexpand`, ordinary lines | 2820.1 | 2928.9 | — | — | 6546.8 |
+
+A (descriptors) has no row of its own to win: its stdin rows (`head -c
+-1024` / `-n -1` of stdin that is a file, `tail` of stdin, `wc -c <`)
+are within noise at 30 runs (`ab-confirm-head`), and its two real moves
+are `cut` and `uniq` above (wolf-lang#644).
+
+## 4. Evidence index
+
+Everything below is under kasumi `~/lanes/bu19/ev/` (kept; the build
+trees are pruned) unless named otherwise.
+
+- **Archives**: `archives.log` `10fd5da8…`, the six unix archives and
+  every member hashed by name; identity `wolf 0.2.26 (wolfgang, pin
+  89dc139)` / `paired with lupin 0.1.49 (reference interpreter), pin
+  294d626`; `lupin 0.1.49 (wolf-interp, reference interpreter at pin
+  294d626)`.
+- **The prediction**: `7a2f552`, pushed before `archives.sh` ran.
+- **Gauntlets** (fetch, both tiers, WIR, own counts, stripped hashes,
+  `wolf test`, fmt, selftest, difftest on both tiers): base
+  `gauntlet-base-50d8907.log` `468adc37…`, pin
+  `gauntlet-pin-d39e57c.log` `7df1f40e…`, head
+  `gauntlet-head-9d9cb2b.log` `8ce0b50f…`; verdict lists
+  `verdicts-{release,dev}-*.txt`; WIR `wir-{base,pin}-*/` with
+  `wir-*.sha256` `532121dc…`; own counts `own-*-*.txt`.
+- **Bench**: `ab-cat`, `ab-fds`, `ab-wc`, `ab-split`, `ab-624`, `ab-ls`,
+  `ab-confirm-wc`, `ab-confirm-head` (each a `rows.json`, a `table.md`
+  and the hyperfine JSON per row; `rows.json` `8a7bd026…`, `de27c852…`,
+  `593085d9…`, `498ca8ce…`, `2fcd0ee6…`, `840f1546…`, `4141486c…`,
+  `39cb1f08…`); the binaries of every state in `~/lanes/bu19/bins/`.
+- **Witnesses filed upstream**: wolf-lang#642 (`~/lanes/bu19/wit/copy-lost/`,
+  `copy_lost.lu` `dbef39f4…`), wolf-lang#643 (`~/lanes/bu19/probe/ptyrun.py`
+  `578924ef…`, `ls` `71db0e52…`), wolf-lang#644 (`bins/pin/cut`
+  `f043c929…`, `bins/ab/cut` `d3a0bfcf…`, input `bench-in/lines`
+  `29933fd1…`); the #624 re-measure is a comment on that issue.
+- **Gates seen red**: the pty capture planted to read nothing makes
+  `difftest-selftest` refuse (`selftest-plant-tty.log` `e79ed0d8…`); the
+  24 terminal cases against the pin's `ls`: 21 FAIL
+  (`lsF-against-pin.diff` `3fc864e4…`); **in CI**, the plant `9ecce3e`
+  (`ls` asks descriptor 2) red in run **37985034764**, ubuntu job
+  114004784611 (`difftest: 2996 passed, 21 failed, 60 skipped`),
+  reverted in `d02941f`.
+- **CI green**: run 37982011386 at `880af7f` (ubuntu 3017 / 0 / 60,
+  macOS 2972 / 0 / 105, field 2951 / 16 / 110); run 37984988431 at
+  `9d9cb2b`; the head's run is in the PR.
+
+## 5. Done-when
+
+Branch `bu19`, PR wolffe-lang/boreutils#24 open and unmerged; CI green
+at the head; the worktree and kasumi's build trees removed, `ev/`,
+`bins/`, `probe/` and `wit/` kept as the evidence above. Close nothing.
+Filed wolf-lang#642, #643, #644; commented on #624.
