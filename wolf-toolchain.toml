@@ -48,6 +48,44 @@
 #     `List[T]()` and pushes, because lupin 0.1.36 refused list
 #     literals, so the literal's element type is unreachable here.
 #
+# ## The bump to 0.2.26 / 0.1.49 (bu19, 2026-10-09)
+#
+# One release on each half, taken from the release archives by digest
+# as above; the per-member hashes are in kasumi
+# `~/lanes/bu19/ev/archives.log` and `notes/bu19-the-byte-surface.md`.
+# `_wolf` keeps a368c8eccce8b1800c80aa818ae482e541aa9636b676540851e23863d333eb8b
+# in all three wolf archives, so the one-build cross-check holds.
+# lupin 0.1.49's spec pin is still wolf v0.2.24 (`294d626`).
+#
+# What a downstream has to read at this bump:
+#
+#   * The reason for it: s200's byte surface. The byte calls serve
+#     descriptors 0, 1 and 2 (#405), `bytes_find`/`bytes_count` (#411),
+#     `fs_copy_chunk` (#417), `os_error`/`os_error_text` (#407); and
+#     s215's `os_isatty`. Later commits on this branch adopt them; the
+#     pin commit itself changes no line of `src/`.
+#   * Ten new prelude names (the nine host functions and `never`): `src/`
+#     declares none, so no W0304 under `--deny-warnings`.
+#   * Capabilities are derived from the builtins a package reaches
+#     (s217): boreutils has no `wolf.pkg`, so no build here can be
+#     refused by E1504, and `wolf audit` has nothing to audit.
+#   * A call's `str` result is an allocation site in the region it is
+#     called in (#618, s216): a result held past its region is E1010. At
+#     the pin no site moved (s216 measured boreutils byte-identical),
+#     and that is why the host-reason adoption keeps the host's NUMBER
+#     inside a `region` and asks for the words outside it: a helper that
+#     answers `os_error_text(…)` is not literal-only, so its result is
+#     region-bound where `io_error`'s literal was exempt.
+#   * `-> never`, `!` on integers, `copy region`: surfaces `src/` does not
+#     use.
+#   * Measured at the pin (`d39e57c`) against trunk (`50d8907`): all 28
+#     utilities build on both tiers with no diagnostic; `--emit=wir` is
+#     byte-identical in all 28; the instruction and load counts inside
+#     each program's own functions are identical on both tiers; every
+#     binary differs raw and stripped only because `libwolf_rt.a` did
+#     (`6ac563e7…` -> `679d77e1…` on linux x86-64). The verdict list is
+#     byte-identical (2986 / 0 / 62, `b7154d32…`, release and dev).
+#
 # ## The bump to 0.2.25 / 0.1.48 (bu17, 2026-10-07)
 #
 # Two releases on the wolf half (0.2.24 was never pinned here), two on
@@ -361,5 +399,8 @@ aarch64-unknown-linux-gnu = "e1f53d15d92d604cccf967644288b2cf90550d489d98719de46
 # touches NOTHING under `std/` (the `std/` tree hashes alike at both),
 # so the staged tree and every binary are the same; only `STD-REV`
 # moves. B151 re-run at 0.2.25 before the PR.
+# KEPT AT THE 0.2.26 BUMP: wolf-std trunk is still 0f74ec5 (sc57, std at
+# 0.2.26, had not merged), so there was one candidate; bu19 re-derived
+# it against 0.2.26 first (B151): all 28 build on both tiers.
 repo = "wolffe-lang/wolf-std"
 rev = "0f74ec5ae639d26aea50978cc6d307568e9d50e1"
