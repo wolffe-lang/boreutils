@@ -532,13 +532,13 @@ stdout_closed = true
 name = "a write error on a live descriptor"
 args = ["tests/fixtures/plain.txt"]
 stdout_file = "/dev/full"
-compare = ["exit"]
+compare = ["stderr", "exit"]
 
 [[case]]
 name = "a write error on a live descriptor, a rendering option"
 args = ["-n", "tests/fixtures/plain.txt"]
 stdout_file = "/dev/full"
-compare = ["exit"]
+compare = ["stderr", "exit"]
 
 # ------------------------------------------------- standard input's offset
 #

@@ -49,10 +49,10 @@
 //!   disk, a closed descriptor, a file that cannot be opened — is
 //!   implemented and has cases; the pipe half is skipped cases that say
 //!   why.
-//! - A failure's reason is `strerror(errno)` in GNU and wolf has no
-//!   errno text behind an `io` row (wolf-lang#407): a full disk is
-//!   `Input/output error` here against `No space left on device`. A
-//!   directory is told apart by asking, so `Is a directory` matches.
+//! - A failure's reason is `strerror(errno)` in GNU and the host's own
+//!   words here too since wolf 0.2.26 (`os_error_text`): a full disk is
+//!   `No space left on device`. A directory is told apart by asking, so
+//!   `Is a directory` matches.
 
 use bore
 

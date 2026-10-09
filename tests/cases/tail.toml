@@ -638,7 +638,7 @@ stdout_closed = true
 name = "a write error on a live descriptor"
 args = ["-n", "1", "tests/fixtures/plain.txt"]
 stdout_file = "/dev/full"
-compare = ["exit"]
+compare = ["stderr", "exit"]
 
 # ------------------------------------------------------------- the seek
 #

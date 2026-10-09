@@ -327,17 +327,17 @@ args = ["--append=x"]
 stdin = "hello\nworld\n"
 
 # A write error on a LIVE descriptor. /dev/full accepts the open and
-# refuses the write with ENOSPC; GNU appends strerror(ENOSPC) and wolf
-# has no errno text behind an `io` row (wolf-lang#407), so stderr is
-# not compared — stdout, the exit status and the files are. Where there
-# is no /dev/full (macOS) the open is refused on both sides instead, and
-# the case still compares the same way.
+# refuses the write with ENOSPC; GNU appends strerror(ENOSPC), and so
+# does boreutils since wolf 0.2.26 (`os_error_text`, bu19), so stderr is
+# compared with stdout, the exit status and the files. Where there is no
+# /dev/full (macOS) the open is refused on both sides instead, and the
+# case still compares the same way.
 [[case]]
 name = "/dev/full as a FILE: diagnosed, the others still written"
 args = ["/dev/full", "a"]
 stdin = "hello\nworld\n"
 scratch = {}
-compare = ["stdout", "exit", "files"]
+compare = ["stdout", "stderr", "exit", "files"]
 
 [[case]]
 name = "/dev/full twice"
@@ -365,7 +365,7 @@ args = ["a"]
 stdin = "hello\nworld\n"
 stdout_file = "/dev/full"
 scratch = {}
-compare = ["exit", "files"]
+compare = ["stderr", "exit", "files"]
 
 [[case]]
 name = "standard output into a full disk under --output-error=exit"
@@ -373,7 +373,7 @@ args = ["--output-error=exit", "a"]
 stdin = "hello\nworld\n"
 stdout_file = "/dev/full"
 scratch = {}
-compare = ["exit", "files"]
+compare = ["stderr", "exit", "files"]
 
 # A reader that goes away. The input is /dev/zero (an absolute
 # `stdin_file` is taken as it is), which never ends, so the only way out

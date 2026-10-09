@@ -751,4 +751,4 @@ name = "a write error on a live descriptor"
 args = ["a", "b"]
 stdin = "aaa\n"
 stdout_file = "/dev/full"
-compare = ["exit"]
+compare = ["stderr", "exit"]

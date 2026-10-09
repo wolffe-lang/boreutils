@@ -254,11 +254,10 @@ args = ["--help"]
 stdout_closed = true
 
 # A write error on a LIVE descriptor (linux only; a SKIP where there is
-# no /dev/full). The exit status is the comparison: GNU appends
-# `strerror(ENOSPC)`, and wolf has no errno text behind an `io` row
-# (wolf-lang#407).
+# no /dev/full). GNU appends `strerror(ENOSPC)`, and so does boreutils
+# since wolf 0.2.26 (`os_error_text`, bu19).
 [[case]]
 name = "help into a full disk is a write error"
 args = ["--help"]
 stdout_file = "/dev/full"
-compare = ["exit"]
+compare = ["stderr", "exit"]

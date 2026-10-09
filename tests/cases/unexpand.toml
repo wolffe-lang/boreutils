@@ -479,7 +479,7 @@ stdout_closed = true
 name = "a write error on a live descriptor"
 args = ["tests/fixtures/tabs.txt"]
 stdout_file = "/dev/full"
-compare = ["exit"]
+compare = ["stderr", "exit"]
 
 [[case]]
 name = "the reader goes away"

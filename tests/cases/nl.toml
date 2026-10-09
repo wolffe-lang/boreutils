@@ -547,4 +547,4 @@ stdout_closed = true
 name = "a write error on a live descriptor"
 args = ["tests/fixtures/plain.txt"]
 stdout_file = "/dev/full"
-compare = ["exit"]
+compare = ["stderr", "exit"]
