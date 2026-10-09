@@ -17,7 +17,7 @@
 #
 # GNU's behaviour differs across ITS OWN releases, and the hosts do not
 # agree on which one they have: ubuntu-latest ships 9.4 where Homebrew
-# and Arch ship 9.11. NINE cases below carry gnu_min = "9.11" because
+# and Arch ship 9.11. TEN cases below carry gnu_min = "9.11" because
 # 9.4 answers them differently:
 #
 #   - `wc -w`: 9.4 SKIPS a byte that is not printable, so it neither
@@ -32,6 +32,10 @@
 #     on 9.11, and reports the missing file too on 9.4. Found by CI's
 #     `field` leg on the first run it ever made, which is the argument
 #     for keeping that leg (B44).
+#   - a write error on a live descriptor (`/dev/full`): 9.11 names the
+#     reason, `write error: No space left on device`, and 9.4 says a
+#     bare `write error`. Found by the `field` leg (run 37982011386) the
+#     first time the case compared stderr (bu19).
 #
 # boreutils implements 9.11: it is what both development hosts run and
 # what every other expectation in this file was read from. The exact
@@ -774,6 +778,7 @@ name = "a write error on a live descriptor"
 args = ["tests/fixtures/plain.txt"]
 stdout_file = "/dev/full"
 compare = ["stderr", "exit"]
+gnu_min = "9.11"
 
 # ------------------------------------------------------------- the seek
 #
