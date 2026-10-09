@@ -1,0 +1,13 @@
+# A planted difference on a pseudo-terminal (`tty`, bu19), for
+# tools/difftest-selftest: boreutils `echo x` against GNU `true`, with
+# standard output a terminal. The harness passes this file only by
+# failing it, which it can do only if it reads what the program wrote
+# to the terminal: a capture that read nothing would compare two empty
+# outputs and pass.
+
+[[case]]
+name = "what a terminal received"
+args = ["x"]
+gnu_util = "true"
+tty = 80
+compare = ["stdout"]
