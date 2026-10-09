@@ -709,14 +709,14 @@ fn from_line(out: bore.Out, src: bore.In, skip: int, delim: byte) -> int {
             } else {
                 var from = 0
                 if left > 0 {
-                    var i = 0
-                    while i < chunk.len && left > 0 {
-                        if chunk[i] == delim {
-                            left -= 1
-                        }
-                        i += 1
+                    let have = count_delims(chunk, delim)
+                    if have < left {
+                        left -= have
+                        from = chunk.len
+                    } else {
+                        from = bore.nth_end(chunk, delim, left)
+                        left = 0
                     }
-                    from = i
                 }
                 if from == 0 {
                     bore.write_direct(out, chunk) else |_| {
@@ -864,15 +864,10 @@ fn last_lines(out: bore.Out, src: bore.In, n: int, delim: byte) -> int {
     why
 }
 
-/// How many delimiters `chunk` holds.
+/// How many delimiters `chunk` holds: `bytes_count` (wolf 0.2.26), one
+/// vectorised runtime scan per chunk.
 fn count_delims(chunk: List[byte], delim: byte) -> int {
-    var n = 0
-    for b in chunk {
-        if b == delim {
-            n += 1
-        }
-    }
-    n
+    bytes_count(chunk, delim)
 }
 
 /// Where the last `n` lines of `chunk` begin: one past the `n + 1`-th

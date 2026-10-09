@@ -918,3 +918,11 @@ name = "seek: c 20 of standard input whose size lies"
 args = ["-c", "20"]
 stdin_file = "/proc/version"
 requires = "/proc/version"
+
+# The window's write into a full device, read forward from a pipe.
+[[case]]
+name = "-n 2 of a pipe into a full device"
+args = ["-n", "2"]
+stdin = "one\ntwo\nthree\n"
+stdout_file = "/dev/full"
+compare = ["stderr", "exit"]
