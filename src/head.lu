@@ -484,15 +484,12 @@ fn first_lines(out: bore.Out, src: bore.In, n: int, delim: byte, mut sent: int) 
                 stop = true
             } else {
                 var cut = chunk.len
-                var i = 0
-                while i < chunk.len && left > 0 {
-                    if chunk[i] == delim {
-                        left -= 1
-                        if left == 0 {
-                            cut = i + 1
-                        }
-                    }
-                    i += 1
+                let have = count_delims(chunk, delim)
+                if have < left {
+                    left -= have
+                } else {
+                    cut = bore.nth_end(chunk, delim, left)
+                    left = 0
                 }
                 if left == 0 {
                     stop = true
@@ -605,7 +602,11 @@ fn drop_last_bytes(out: bore.Out, src: bore.In, n: int) -> int {
             bore.ring_drop(mut r, k)
         }
     }
-    placed(src, r)
+    // A failed write leaves the host's number for `one` to report; a seek
+    // here would clear it.
+    if why == 0 {
+        placed(src, r)
+    }
     why
 }
 
@@ -721,7 +722,11 @@ fn drop_last_lines(out: bore.Out, src: bore.In, n: int, delim: byte) -> int {
         }
         bore.ring_drop(mut r, k)
     }
-    placed(src, r)
+    // A failed write leaves the host's number for `one` to report; a seek
+    // here would clear it.
+    if why == 0 {
+        placed(src, r)
+    }
     why
 }
 
@@ -737,15 +742,10 @@ fn placed(src: bore.In, r: bore.Ring) {
     }
 }
 
-/// How many delimiters `chunk` holds.
+/// How many delimiters `chunk` holds: `bytes_count` (wolf 0.2.26), one
+/// vectorised runtime scan per chunk.
 fn count_delims(chunk: List[byte], delim: byte) -> int {
-    var n = 0
-    for b in chunk {
-        if b == delim {
-            n += 1
-        }
-    }
-    n
+    bytes_count(chunk, delim)
 }
 
 /// Where the last `n` lines of `chunk` begin: one past the `n + 1`-th

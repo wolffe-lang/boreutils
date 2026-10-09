@@ -767,3 +767,13 @@ args = ["-n", "-1"]
 stdin_file = "/proc/version"
 stdin_offset = 0
 requires = "/proc/version"
+
+# The window's write into a full device: the reason is the host's, and
+# the offset is not placed after a failed write (a seek would clear the
+# host's number before it is reported).
+[[case]]
+name = "-n -1 of a pipe into a full device"
+args = ["-n", "-1"]
+stdin = "one\ntwo\nthree\n"
+stdout_file = "/dev/full"
+compare = ["stderr", "exit"]
