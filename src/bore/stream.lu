@@ -265,6 +265,23 @@ pub fn cannot_read(prog: str, name: str, why: str) {
     eprint("{prog}: error reading {quote_always(name)}: {why}")
 }
 
+/// Just past the `k`-th `delim` in `chunk` (`k` at least 1), or
+/// `chunk.len` when it holds fewer. One `bytes_find` per line (wolf
+/// 0.2.26, `[mem.list.bytes]`): a runtime scan in the target's vector
+/// instructions, where `head` and `tail` compared a byte at a time.
+pub fn nth_end(chunk: List[byte], delim: byte, k: int) -> int {
+    var at = 0
+    var left = k
+    while left > 0 {
+        let found = bytes_find(chunk, delim, at) else |_| {
+            return chunk.len
+        }
+        at = found + 1
+        left -= 1
+    }
+    at
+}
+
 /// Whether `i` is a regular file.
 ///
 /// `tail -f` follows a regular file forever and stops at the end of a
