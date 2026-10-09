@@ -297,7 +297,7 @@ fn main() -> int {
     // pseudo-terminal, 9.11): columns, `?` for an unprintable byte, and
     // the shell-escape quoting style, unless the command line chose. A
     // closed descriptor 1 is not a terminal.
-    let tty = os_isatty(2) else false
+    let tty = os_isatty(1) else false
     if tty {
         if !o.format_given {
             o.format = vertical()
