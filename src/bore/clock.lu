@@ -6,8 +6,9 @@
 //! applies it, measured black-box against GNU 9.11 on glibc:
 //!
 //! - `TZ` unset: `/etc/localtime`. `TZ` empty: UTC.
-//! - `TZ=NAME` or `TZ=:NAME`: the file `NAME` under `TZDIR` (else
-//!   `/usr/share/zoneinfo`), or `NAME` itself when it starts with `/`.
+//! - `TZ=NAME` or `TZ=:NAME`: the file `NAME` under `/usr/share/zoneinfo`
+//!   (on linux under `TZDIR` when that is set: it is glibc's variable),
+//!   or `NAME` itself when it starts with `/`.
 //! - no such file: `NAME` read as a POSIX rule (`UTC0`, `EST5EDT`,
 //!   `<+0330>-3:30`, `CET-1CEST,M3.5.0,M10.5.0/3`); a rule that cannot
 //!   be read is UTC.
@@ -104,7 +105,12 @@ pub fn zone() -> Zone {
     if name.starts_with("/") {
         return zone_file(name, name)
     }
-    let dir = env_get("TZDIR") else "/usr/share/zoneinfo"
+    // `TZDIR` is the GNU C library's variable, so it is read where that
+    // library is the host's.
+    var dir = "/usr/share/zoneinfo"
+    if built_for_linux() {
+        dir = env_get("TZDIR") else "/usr/share/zoneinfo"
+    }
     zone_file("{dir}/{name}", name)
 }
 
