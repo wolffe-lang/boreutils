@@ -1734,10 +1734,12 @@ scratch_modes = { "t/sticky" = 0o1644, "t/stickyx" = 0o1755 }
 scratch_time_all = 1600000000
 
 # Sizes on both sides of every unit, as holes: no bytes are written.
+# The largest is 10 TiB: ext4, which CI's scratch directory is on, holds
+# no file past 16 TiB.
 [tree.sizes]
 cwd = "t"
 scratch_dirs = ["t"]
-scratch_sizes = { "t/s0" = 0, "t/s1" = 1, "t/s999" = 999, "t/s1000" = 1000, "t/s1001" = 1001, "t/s1023" = 1023, "t/s1024" = 1024, "t/s1025" = 1025, "t/s9999" = 9999, "t/s10239" = 10239, "t/s10240" = 10240, "t/s10241" = 10241, "t/s999999" = 999999, "t/s1048575" = 1048575, "t/s1048576" = 1048576, "t/s1048577" = 1048577, "t/s9G" = 10736344498, "t/huge" = 123456789012, "t/s1T" = 1099511627776, "t/s5P" = 5629499534213120 }
+scratch_sizes = { "t/s0" = 0, "t/s1" = 1, "t/s999" = 999, "t/s1000" = 1000, "t/s1001" = 1001, "t/s1023" = 1023, "t/s1024" = 1024, "t/s1025" = 1025, "t/s9999" = 9999, "t/s10239" = 10239, "t/s10240" = 10240, "t/s10241" = 10241, "t/s999999" = 999999, "t/s1048575" = 1048575, "t/s1048576" = 1048576, "t/s1048577" = 1048577, "t/s9G" = 10736344498, "t/huge" = 123456789012, "t/s1T" = 1099511627776, "t/s10T" = 10995116277760 }
 scratch_time_all = 1600000000
 
 # Distinct modification and access times, in different orders.
@@ -2641,6 +2643,7 @@ args = ["-uS"]
 name = "-u with --sort=name sorts by name"
 tree = "times"
 args = ["-u", "--sort=name"]
+gnu_min = "9.11"
 
 [[case]]
 name = "-u with -X"
@@ -2666,11 +2669,13 @@ args = ["--time=use", "-t"]
 name = "--time=mtime sorts by it"
 tree = "times"
 args = ["--time=mtime"]
+gnu_min = "9.11"
 
 [[case]]
 name = "--time=modification"
 tree = "times"
 args = ["--time=modification"]
+gnu_min = "9.11"
 
 [[case]]
 name = "--time=a abbreviates"
@@ -2696,6 +2701,7 @@ args = ["--time=c"]
 name = "-u and then --time=mtime"
 tree = "times"
 args = ["-u", "--time=mtime"]
+gnu_min = "9.11"
 
 [[case]]
 name = "--time=mtime and then -u"
