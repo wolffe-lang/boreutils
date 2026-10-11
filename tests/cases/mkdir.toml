@@ -1,0 +1,547 @@
+# mkdir — GNU coreutils 9.11, black-box, on linux x86-64 and macOS arm64.
+# Written by ~/lanes/bu21/gen/mkdir_cases.py (kept beside the lane's
+# evidence, not in the repository); this file is the record.
+#
+# mkdir changes the file system, so every case runs in a scratch
+# directory whether it names one or not (tools/difftest, bu21), and what
+# each side leaves is compared twice: `files` (names, kinds, bytes) and
+# `tree` (modes, link counts). No case names a path outside it.
+#
+# What this mkdir cannot match is named, never imitated:
+#   wolf-lang#346  no mode at creation and no chmod: -m is refused (skips)
+#   wolf-lang#704  no umask: under -p a missing parent gets the mask's
+#                  mode, not GNU's u+wx (two skips, under masks that take
+#                  the owner's write or search)
+
+[[case]]
+name = "no operand"
+args = []
+
+[[case]]
+name = "one directory"
+args = ["a"]
+
+[[case]]
+name = "two directories"
+args = ["a", "b"]
+
+[[case]]
+name = "a directory that exists"
+args = ["a"]
+scratch_dirs = ["a"]
+
+[[case]]
+name = "a file is in the way"
+args = ["f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "a missing parent"
+args = ["x/y/z"]
+
+[[case]]
+name = "the rest are still made"
+args = ["a", "b", "a", "c"]
+scratch_dirs = ["a"]
+
+[[case]]
+name = "a trailing slash"
+args = ["t/"]
+
+[[case]]
+name = "a trailing slash on a file"
+args = ["f/"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "inside an existing directory"
+args = ["d/e"]
+scratch_dirs = ["d"]
+
+[[case]]
+name = "under a file"
+args = ["f/x"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "an empty name"
+args = [""]
+
+[[case]]
+name = "the working directory"
+args = ["."]
+
+[[case]]
+name = "a link to a directory is in the way"
+args = ["l"]
+scratch_dirs = ["d"]
+scratch_links = { "l" = "d" }
+
+[[case]]
+name = "a dangling link is in the way"
+args = ["l"]
+scratch_links = { "l" = "nowhere" }
+
+[[case]]
+name = "through a link to a directory"
+args = ["l/x"]
+scratch_dirs = ["d"]
+scratch_links = { "l" = "d" }
+
+[[case]]
+name = "a directory that may not be written"
+args = ["ro/x"]
+scratch_dirs = ["ro"]
+scratch_modes = { "ro" = 0o555 }
+
+[[case]]
+name = "a directory that may not be searched"
+args = ["no/x"]
+scratch_dirs = ["no"]
+scratch_modes = { "no" = 0o000 }
+
+[[case]]
+name = "a name with a space"
+args = ["sp ace"]
+
+[[case]]
+name = "names that need quoting, taken"
+args = ["q'uote", "a\"b", "tab\tx", "new\nline", "\u00e9", "back\\slash"]
+scratch_dirs = ["q'uote", "a\"b", "tab\tx", "new\nline", "\u00e9", "back\\slash"]
+
+[[case]]
+name = "-- ends the options"
+args = ["--", "-p"]
+
+[[case]]
+name = "a name that begins with a dash, refused as an option"
+args = ["-x"]
+
+[[case]]
+name = "POSIXLY_CORRECT: the first operand ends the options"
+args = ["pc", "-v", "pc2"]
+env = { "POSIXLY_CORRECT" = "1" }
+
+[[case]]
+name = "the cwd is a subdirectory"
+args = ["x"]
+scratch_dirs = ["d"]
+cwd = "d"
+
+[[case]]
+name = "an absolute path"
+args = ["{scratch}/abs"]
+
+[[case]]
+name = "an absolute path that exists"
+args = ["{scratch}/d"]
+scratch_dirs = ["d"]
+
+[[case]]
+name = "-v"
+args = ["-v", "a"]
+
+[[case]]
+name = "-v, several"
+args = ["-v", "a", "b", "c"]
+
+[[case]]
+name = "--verbose"
+args = ["--verbose", "a"]
+
+[[case]]
+name = "--verb abbreviates"
+args = ["--verb", "a"]
+
+[[case]]
+name = "--v is ambiguous"
+args = ["--v", "a"]
+
+[[case]]
+name = "-v says nothing of a failure"
+args = ["-v", "a", "b"]
+scratch_dirs = ["a"]
+
+[[case]]
+name = "-v with a trailing slash"
+args = ["-v", "e/"]
+
+[[case]]
+name = "-v quotes as a shell would"
+args = ["-v", "q'uote", "a\"b", "c'd\"e", "tab\tx", "#h", "e=f", "plain", "\u00e9", "a'b c", "sp ace", "new\nline"]
+
+[[case]]
+name = "-v after the operands"
+args = ["a", "-v"]
+
+[[case]]
+name = "--verbose=1 takes no argument"
+args = ["--verbose=1", "a"]
+
+[[case]]
+name = "-p: three levels"
+args = ["-p", "x/y/z"]
+
+[[case]]
+name = "-p: all of it exists"
+args = ["-p", "x/y/z"]
+scratch_dirs = ["x/y/z"]
+
+[[case]]
+name = "-p: part of it exists"
+args = ["-p", "x/y/z"]
+scratch_dirs = ["x"]
+
+[[case]]
+name = "-p: an existing directory is no error"
+args = ["-p", "a"]
+scratch_dirs = ["a"]
+
+[[case]]
+name = "-p: a file is in the way"
+args = ["-p", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "-p: a file is in the way, with a slash"
+args = ["-p", "f/"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "-p: under a file"
+args = ["-p", "f/x"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "-p: deep under a file"
+args = ["-p", "f/x/y"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "-p: a file in the middle"
+args = ["-p", "d/f/x"]
+scratch = { "d/f" = "x\n" }
+
+[[case]]
+name = "-p: the rest are still made"
+args = ["-p", "a/n1", "f/n2", "a/n3"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "-p: an empty name"
+args = ["-p", ""]
+
+[[case]]
+name = "-p: the working directory"
+args = ["-p", "."]
+
+[[case]]
+name = "-p: ./"
+args = ["-p", "./"]
+
+[[case]]
+name = "-p: dot components"
+args = ["-p", "./t/./u"]
+
+[[case]]
+name = "-p: a final dot"
+args = ["-p", "d/new/."]
+scratch_dirs = ["d"]
+
+[[case]]
+name = "-p: doubled slashes"
+args = ["-p", "t//u///"]
+
+[[case]]
+name = "-p: a link to a directory"
+args = ["-p", "l"]
+scratch_dirs = ["d"]
+scratch_links = { "l" = "d" }
+
+[[case]]
+name = "-p: through a link to a directory"
+args = ["-p", "l/x/y"]
+scratch_dirs = ["d"]
+scratch_links = { "l" = "d" }
+
+[[case]]
+name = "-p: a dangling link"
+args = ["-p", "l"]
+scratch_links = { "l" = "nowhere" }
+
+[[case]]
+name = "-p: through a dangling link"
+args = ["-p", "l/x"]
+scratch_links = { "l" = "nowhere" }
+
+[[case]]
+name = "-p: a link to a file"
+args = ["-p", "l"]
+scratch = { "f" = "x\n" }
+scratch_links = { "l" = "f" }
+
+[[case]]
+name = "-p: through a link to a file"
+args = ["-p", "l/x"]
+scratch = { "f" = "x\n" }
+scratch_links = { "l" = "f" }
+
+[[case]]
+name = "-p: a directory that may not be written"
+args = ["-p", "ro/x/y"]
+scratch_dirs = ["ro"]
+scratch_modes = { "ro" = 0o555 }
+
+[[case]]
+name = "-p: a directory that may not be searched"
+args = ["-p", "no/sub/x"]
+scratch_dirs = ["no/sub"]
+scratch_modes = { "no" = 0o000 }
+
+[[case]]
+name = "-p: a new name in a directory that may not be searched"
+args = ["-p", "no/new"]
+scratch_dirs = ["no"]
+scratch_modes = { "no" = 0o000 }
+
+[[case]]
+name = "-p: the directory that may not be searched, itself"
+args = ["-p", "no"]
+scratch_dirs = ["no"]
+scratch_modes = { "no" = 0o000 }
+
+[[case]]
+name = "-p: deep in a directory that may not be searched"
+args = ["-p", "ok/no/a/b"]
+scratch_dirs = ["ok/no"]
+scratch_modes = { "ok/no" = 0o000 }
+
+[[case]]
+name = "-p: an absolute path"
+args = ["-p", "{scratch}/x/y"]
+
+[[case]]
+name = "-p: no operand"
+args = ["-p"]
+
+[[case]]
+name = "--parents"
+args = ["--parents", "x/y"]
+
+[[case]]
+name = "--p abbreviates"
+args = ["--p", "x/y"]
+
+[[case]]
+name = "--parents=1 takes no argument"
+args = ["--parents=1", "x"]
+
+[[case]]
+name = "-pv: each one made is named"
+args = ["-pv", "p/q/r"]
+
+[[case]]
+name = "-pv: only the ones made"
+args = ["-pv", "p/q/r", "p/q/s"]
+scratch_dirs = ["p"]
+
+[[case]]
+name = "-pv: nothing made, nothing said"
+args = ["-pv", "p/q"]
+scratch_dirs = ["p/q"]
+
+[[case]]
+name = "-pv: the last is the operand as typed"
+args = ["-pv", "t//u///"]
+
+[[case]]
+name = "-pv: a trailing slash"
+args = ["-pv", "a/b/", "a//c", "a/./d/"]
+
+[[case]]
+name = "-pv: dot components are not named"
+args = ["-pv", "./t/./u"]
+
+[[case]]
+name = "-pv: a final dot"
+args = ["-pv", "d/new/."]
+scratch_dirs = ["d"]
+
+[[case]]
+name = "-pv: through a link"
+args = ["-pv", "l/in"]
+scratch_dirs = ["d"]
+scratch_links = { "l" = "d" }
+
+[[case]]
+name = "-pv: a failure between two successes"
+args = ["-pv", "a/b", "ro/x", "c/d"]
+scratch_dirs = ["ro"]
+scratch_modes = { "ro" = 0o555 }
+
+[[case]]
+name = "-pv: under a file, then another"
+args = ["-pv", "f/x/y", "g"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "-pv: names that need quoting"
+args = ["-pv", "a b/c'd", "new\nline/x"]
+
+[[case]]
+name = "-v -p given apart and twice"
+args = ["-v", "-p", "deep/er", "-v"]
+
+[[case]]
+name = "-p quotes a failure as an error does"
+args = ["-p", "a b/c'd/x"]
+scratch = { "a b/c'd" = "x\n" }
+
+[[case]]
+name = "a mask of 077"
+args = ["a"]
+umask = 0o077
+
+[[case]]
+name = "a mask of 027 under -p"
+args = ["-p", "a/b/c"]
+umask = 0o027
+
+[[case]]
+name = "a mask of 077 under -p"
+args = ["-p", "a/b/c"]
+umask = 0o077
+
+[[case]]
+name = "a mask of 000"
+args = ["-p", "a/b"]
+umask = 0o000
+
+[[case]]
+name = "a mask that takes the owner's write: one directory"
+args = ["a"]
+umask = 0o277
+
+# What this mkdir cannot match, named: see the header of src/mkdir.lu.
+[[case]]
+name = "a mask that takes the owner's write: -p"
+args = ["-p", "a/b/c"]
+umask = 0o277
+skip = "GNU gives a missing parent u+wx whatever the mask says; wolf cannot read or set the mask (wolf-lang#704), so the parent gets the mask's mode and the host refuses the next component"
+
+[[case]]
+name = "a mask that takes the owner's search: -p"
+args = ["-p", "a/b"]
+umask = 0o177
+skip = "GNU gives a missing parent u+wx whatever the mask says; wolf cannot read or set the mask (wolf-lang#704)"
+
+[[case]]
+name = "a mask that takes the owner's write: -p of one new component"
+args = ["-p", "a"]
+umask = 0o277
+
+[[case]]
+name = "-Z is accepted"
+args = ["-Z", "z"]
+
+[[case]]
+name = "-Zv"
+args = ["-Zv", "z"]
+
+[[case]]
+name = "-pZ on a directory that exists"
+args = ["-pZ", "z"]
+scratch_dirs = ["z"]
+
+[[case]]
+name = "--context alone is accepted"
+args = ["--context", "z"]
+
+[[case]]
+name = "--context=CTX warns and carries on"
+args = ["--context=foo", "z"]
+
+[[case]]
+name = "--contex=CTX abbreviates"
+args = ["--contex=x", "z"]
+
+[[case]]
+name = "-Z with no operand"
+args = ["-Z"]
+
+# -m: refused by name (wolf-lang#346).
+[[case]]
+name = "-m 700"
+args = ["-m", "700", "m"]
+skip = "a directory's mode cannot be set in wolf 0.2.27 (wolf-lang#346): -m is refused by name, status 1, and nothing is made"
+
+[[case]]
+name = "-m attached"
+args = ["-m755", "m"]
+skip = "a directory's mode cannot be set in wolf 0.2.27 (wolf-lang#346): -m is refused by name, status 1, and nothing is made"
+
+[[case]]
+name = "--mode=u+x,g-w"
+args = ["--mode=u+x,g-w", "m"]
+skip = "a directory's mode cannot be set in wolf 0.2.27 (wolf-lang#346): -m is refused by name, status 1, and nothing is made"
+
+[[case]]
+name = "-m 0"
+args = ["-m", "0", "m"]
+skip = "a directory's mode cannot be set in wolf 0.2.27 (wolf-lang#346): -m is refused by name, status 1, and nothing is made"
+
+[[case]]
+name = "-m a=rwxt"
+args = ["-m", "a=rwxt", "m"]
+skip = "a directory's mode cannot be set in wolf 0.2.27 (wolf-lang#346): -m is refused by name, status 1, and nothing is made"
+
+[[case]]
+name = "-pm 700: the parents take the mask, the last the mode"
+args = ["-pm", "700", "pm/a/b"]
+skip = "a directory's mode cannot be set in wolf 0.2.27 (wolf-lang#346): -m is refused by name, status 1, and nothing is made"
+
+[[case]]
+name = "-m with an invalid mode"
+args = ["-m", "999", "m"]
+skip = "a directory's mode cannot be set in wolf 0.2.27 (wolf-lang#346): -m is refused by name, status 1, and nothing is made (GNU says: invalid mode '999')"
+
+[[case]]
+name = "-m with no argument"
+args = ["-m"]
+
+[[case]]
+name = "--mode with no argument"
+args = ["--mode"]
+
+[[case]]
+name = "--help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "--version"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "--help wins over a later bad option"
+args = ["--help", "--bogus"]
+compare = ["exit"]
+
+[[case]]
+name = "a bad option before --help"
+args = ["--bogus", "--help"]
+
+[[case]]
+name = "an unknown long option"
+args = ["--bogus", "a"]
+
+[[case]]
+name = "stdout closed, nothing to write"
+args = ["a"]
+stdout_closed = true
+
+[[case]]
+name = "stdout closed under -v"
+args = ["-v", "a"]
+stdout_closed = true
