@@ -69,6 +69,12 @@ fetch_archive() {
 fetch_archive wolf wolf "$wolf_digest"
 fetch_archive lupin lupin "$lupin_digest"
 
+# Since wolf 0.2.27 the archive carries its own `std/` (ruling #59), and
+# the copy above has just put it in `.wolf-bin/`. Unpacking the pinned
+# tree over it would leave a MIX wherever the two commits differ in a
+# file one of them lacks, so the archive's copy goes first: the std this
+# repository builds against is the one `[std]` pins, whole.
+rm -rf .wolf-bin/std
 std_repo=$(toml_value std repo)
 echo "fetch-toolchain: https://github.com/$std_repo at $std_rev"
 git init -q "$tmp/std"
