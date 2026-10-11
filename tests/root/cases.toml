@@ -1,0 +1,233 @@
+# rm, mv and cp handed `/` — run ONLY by tools/roottest, in a throwaway
+# container whose whole root file system is scratch (bu21). tools/difftest
+# refuses every one of these operands, and no host ever sees them.
+#
+# `user` and `root` are what GNU coreutils 9.11 answered in that
+# container, as an unprivileged user and as root inside it: MEASURED
+# (kasumi, px12's Ubuntu 24.04 image, the oracle's tarball by digest built
+# in that image; `tools/roottest --record`), and asserted of GNU again
+# whenever a 9.11 for the image is given. `state` is what became of
+# /work/other, /work/link-to-root (a link to `/`) and /work/x, and what
+# appeared in `/`. Every case also demands the sentinel tree intact.
+#
+# `gnu = false`: never handed to GNU, container or not.
+# `ours_user` / `ours_root`: where this repository answers differently
+# by design, and says so.
+#
+# `rm -rf /*` is out of scope by name: the shell expands it, and `rm`
+# then sees ordinary directories, none of them `/`.
+
+[[case]]
+util = "rm"
+name = "-r /"
+args = ["-r", "/"]
+user = { exit = 1, stderr = "rm: it is dangerous to operate recursively on '/'\nrm: use --no-preserve-root to override this failsafe\n", state = "other link x" }
+root = { exit = 1, stderr = "rm: it is dangerous to operate recursively on '/'\nrm: use --no-preserve-root to override this failsafe\n", state = "other link x" }
+
+[[case]]
+util = "rm"
+name = "-rf /"
+args = ["-rf", "/"]
+user = { exit = 1, stderr = "rm: it is dangerous to operate recursively on '/'\nrm: use --no-preserve-root to override this failsafe\n", state = "other link x" }
+root = { exit = 1, stderr = "rm: it is dangerous to operate recursively on '/'\nrm: use --no-preserve-root to override this failsafe\n", state = "other link x" }
+
+[[case]]
+util = "rm"
+name = "-rf //"
+args = ["-rf", "//"]
+user = { exit = 1, stderr = "rm: it is dangerous to operate recursively on '//' (same as '/')\nrm: use --no-preserve-root to override this failsafe\n", state = "other link x" }
+root = { exit = 1, stderr = "rm: it is dangerous to operate recursively on '//' (same as '/')\nrm: use --no-preserve-root to override this failsafe\n", state = "other link x" }
+
+[[case]]
+util = "rm"
+name = "-r ///"
+args = ["-r", "///"]
+user = { exit = 1, stderr = "rm: it is dangerous to operate recursively on '/'\nrm: use --no-preserve-root to override this failsafe\n", state = "other link x" }
+root = { exit = 1, stderr = "rm: it is dangerous to operate recursively on '/'\nrm: use --no-preserve-root to override this failsafe\n", state = "other link x" }
+
+[[case]]
+util = "rm"
+name = "-rf /."
+args = ["-rf", "/."]
+user = { exit = 1, stderr = "rm: refusing to remove '.' or '..' directory: skipping '/.'\n", state = "other link x" }
+root = { exit = 1, stderr = "rm: refusing to remove '.' or '..' directory: skipping '/.'\n", state = "other link x" }
+
+[[case]]
+util = "rm"
+name = "-rf /.."
+args = ["-rf", "/.."]
+user = { exit = 1, stderr = "rm: refusing to remove '.' or '..' directory: skipping '/..'\n", state = "other link x" }
+root = { exit = 1, stderr = "rm: refusing to remove '.' or '..' directory: skipping '/..'\n", state = "other link x" }
+
+[[case]]
+util = "rm"
+name = "-rf /../"
+args = ["-rf", "/../"]
+user = { exit = 1, stderr = "rm: refusing to remove '.' or '..' directory: skipping '/../'\n", state = "other link x" }
+root = { exit = 1, stderr = "rm: refusing to remove '.' or '..' directory: skipping '/../'\n", state = "other link x" }
+
+[[case]]
+util = "rm"
+name = "-rf -- /"
+args = ["-rf", "--", "/"]
+user = { exit = 1, stderr = "rm: it is dangerous to operate recursively on '/'\nrm: use --no-preserve-root to override this failsafe\n", state = "other link x" }
+root = { exit = 1, stderr = "rm: it is dangerous to operate recursively on '/'\nrm: use --no-preserve-root to override this failsafe\n", state = "other link x" }
+
+[[case]]
+util = "rm"
+name = "-rf / other"
+args = ["-rf", "/", "other"]
+user = { exit = 1, stderr = "rm: it is dangerous to operate recursively on '/'\nrm: use --no-preserve-root to override this failsafe\n", state = "no-other link x" }
+root = { exit = 1, stderr = "rm: it is dangerous to operate recursively on '/'\nrm: use --no-preserve-root to override this failsafe\n", state = "no-other link x" }
+
+[[case]]
+util = "rm"
+name = "-rf other /"
+args = ["-rf", "other", "/"]
+user = { exit = 1, stderr = "rm: it is dangerous to operate recursively on '/'\nrm: use --no-preserve-root to override this failsafe\n", state = "no-other link x" }
+root = { exit = 1, stderr = "rm: it is dangerous to operate recursively on '/'\nrm: use --no-preserve-root to override this failsafe\n", state = "no-other link x" }
+
+[[case]]
+util = "rm"
+name = "-rf link-to-root/"
+args = ["-rf", "link-to-root/"]
+user = { exit = 1, stderr = "rm: it is dangerous to operate recursively on 'link-to-root/' (same as '/')\nrm: use --no-preserve-root to override this failsafe\n", state = "other link x" }
+root = { exit = 1, stderr = "rm: it is dangerous to operate recursively on 'link-to-root/' (same as '/')\nrm: use --no-preserve-root to override this failsafe\n", state = "other link x" }
+
+[[case]]
+util = "rm"
+name = "-rf link-to-root"
+args = ["-rf", "link-to-root"]
+user = { exit = 0, stderr = "", state = "other no-link x" }
+root = { exit = 0, stderr = "", state = "other no-link x" }
+
+[[case]]
+util = "rm"
+name = "-rf the link by its whole path, with a slash"
+args = ["-rf", "/work/link-to-root/"]
+user = { exit = 1, stderr = "rm: it is dangerous to operate recursively on '/work/link-to-root/' (same as '/')\nrm: use --no-preserve-root to override this failsafe\n", state = "other link x" }
+root = { exit = 1, stderr = "rm: it is dangerous to operate recursively on '/work/link-to-root/' (same as '/')\nrm: use --no-preserve-root to override this failsafe\n", state = "other link x" }
+
+[[case]]
+util = "rm"
+name = "-rf ."
+args = ["-rf", "."]
+user = { exit = 1, stderr = "rm: refusing to remove '.' or '..' directory: skipping '.'\n", state = "other link x" }
+root = { exit = 1, stderr = "rm: refusing to remove '.' or '..' directory: skipping '.'\n", state = "other link x" }
+
+[[case]]
+util = "rm"
+name = "-rf .."
+args = ["-rf", ".."]
+user = { exit = 1, stderr = "rm: refusing to remove '.' or '..' directory: skipping '..'\n", state = "other link x" }
+root = { exit = 1, stderr = "rm: refusing to remove '.' or '..' directory: skipping '..'\n", state = "other link x" }
+
+[[case]]
+util = "rm"
+name = "-rf ./.."
+args = ["-rf", "./.."]
+user = { exit = 1, stderr = "rm: refusing to remove '.' or '..' directory: skipping './..'\n", state = "other link x" }
+root = { exit = 1, stderr = "rm: refusing to remove '.' or '..' directory: skipping './..'\n", state = "other link x" }
+
+[[case]]
+util = "rm"
+name = "-rf the empty name"
+args = ["-rf", ""]
+user = { exit = 0, stderr = "", state = "other link x" }
+root = { exit = 0, stderr = "", state = "other link x" }
+
+[[case]]
+util = "rm"
+name = "-r --preserve-root /"
+args = ["-r", "--preserve-root", "/"]
+user = { exit = 1, stderr = "rm: it is dangerous to operate recursively on '/'\nrm: use --no-preserve-root to override this failsafe\n", state = "other link x" }
+root = { exit = 1, stderr = "rm: it is dangerous to operate recursively on '/'\nrm: use --no-preserve-root to override this failsafe\n", state = "other link x" }
+
+[[case]]
+util = "rm"
+name = "/ without -r"
+args = ["/"]
+user = { exit = 1, stderr = "rm: cannot remove '/': Is a directory\n", state = "other link x" }
+root = { exit = 1, stderr = "rm: cannot remove '/': Is a directory\n", state = "other link x" }
+
+[[case]]
+util = "rm"
+name = "-d /"
+args = ["-d", "/"]
+user = { exit = 1, stderr = "rm: cannot remove '/': Device or resource busy\n", state = "other link x" }
+root = { exit = 1, stderr = "rm: cannot remove '/': Device or resource busy\n", state = "other link x" }
+
+[[case]]
+util = "rm"
+name = "-rf --no-preserve-root /"
+args = ["-rf", "--no-preserve-root", "/"]
+# GNU would remove the root: this is the case --no-preserve-root exists for.
+gnu = false
+user = { exit = 1, stderr = "rm: --no-preserve-root is refused: this rm does not remove '/'\n", state = "other link x" }
+root = { exit = 1, stderr = "rm: --no-preserve-root is refused: this rm does not remove '/'\n", state = "other link x" }
+
+[[case]]
+util = "rm"
+name = "-rf --no-preserve-root other"
+args = ["-rf", "--no-preserve-root", "other"]
+user = { exit = 0, stderr = "", state = "no-other link x" }
+root = { exit = 0, stderr = "", state = "no-other link x" }
+# GNU removes `other`. This rm refuses the option by name and removes nothing.
+ours_user = { exit = 1, stderr = "rm: --no-preserve-root is refused: this rm does not remove '/'\n", state = "other link x" }
+ours_root = { exit = 1, stderr = "rm: --no-preserve-root is refused: this rm does not remove '/'\n", state = "other link x" }
+
+[[case]]
+util = "mv"
+name = "/ to a new name"
+args = ["/", "x2"]
+user = { exit = 1, stderr = "mv: cannot move '/' to 'x2': Device or resource busy\n", state = "other link x" }
+root = { exit = 1, stderr = "mv: cannot move '/' to 'x2': Device or resource busy\n", state = "other link x" }
+
+[[case]]
+util = "mv"
+name = "a file into /"
+args = ["x", "/"]
+user = { exit = 1, stderr = "mv: cannot move 'x' to '/x': Permission denied\n", state = "other link x" }
+root = { exit = 0, stderr = "", state = "other link no-x /x" }
+
+[[case]]
+util = "mv"
+name = "-T a file over /"
+args = ["-T", "x", "/"]
+user = { exit = 1, stderr = "mv: cannot overwrite directory '/' with non-directory 'x'\n", state = "other link x" }
+root = { exit = 1, stderr = "mv: cannot overwrite directory '/' with non-directory 'x'\n", state = "other link x" }
+
+[[case]]
+util = "mv"
+name = "/ onto /"
+args = ["/", "/"]
+user = { exit = 1, stderr = "mv: '/' and '/' are the same file\n", state = "other link x" }
+root = { exit = 1, stderr = "mv: '/' and '/' are the same file\n", state = "other link x" }
+
+[[case]]
+util = "cp"
+name = "/ without -r"
+args = ["/", "x2"]
+user = { exit = 1, stderr = "cp: -r not specified; omitting directory '/'\n", state = "other link x" }
+root = { exit = 1, stderr = "cp: -r not specified; omitting directory '/'\n", state = "other link x" }
+
+[[case]]
+util = "cp"
+name = "a file into /"
+args = ["x", "/"]
+user = { exit = 1, stderr = "cp: cannot create regular file '/x': Permission denied\n", state = "other link x" }
+root = { exit = 0, stderr = "", state = "other link x /x" }
+
+[[case]]
+util = "cp"
+name = "-T a file over /"
+args = ["-T", "x", "/"]
+user = { exit = 1, stderr = "cp: cannot overwrite directory '/' with non-directory 'x'\n", state = "other link x" }
+root = { exit = 1, stderr = "cp: cannot overwrite directory '/' with non-directory 'x'\n", state = "other link x" }
+
+[[case]]
+util = "cp"
+name = "-r a tree into /"
+args = ["-r", "other", "/"]
+user = { exit = 1, stderr = "cp: cannot create directory '/other': Permission denied\n", state = "other link x" }
+root = { exit = 0, stderr = "", state = "other link x /other" }

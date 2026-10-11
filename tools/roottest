@@ -1,0 +1,284 @@
+#!/usr/bin/env python3
+"""roottest - rm, mv and cp where `/` is disposable (bu21).
+
+`rm -r /` must be refused, and a refusal nobody has run as a program is
+a paragraph, not a guard. It cannot be run on a host, and
+tools/difftest refuses every case that names `/`. So this tool runs it
+somewhere the whole root file system is scratch: a THROWAWAY CONTAINER,
+one per case, made from an image this tool builds (a base image plus
+the programs, copied in) and removes again.
+
+  - no volume and no bind mount, of anything: the programs are COPIED
+    into the image, so nothing of the host is reachable from inside;
+  - `--network none`;
+  - each case twice, as an unprivileged user and as ROOT INSIDE THE
+    CONTAINER — the case that matters, and not root anywhere else;
+  - nothing under test is ever executed on the host. This tool starts
+    the container engine and reads what the container printed.
+
+Inside, /sentinel is a small tree owned by the unprivileged user, and
+/work (the working directory) holds `other/`, a file `x`, and
+`link-to-root`, a symbolic link to `/`. Before and after the program
+runs, a script in the image sums the sentinel tree (names and bytes)
+with the entry counts of /etc and /usr/bin and the programs
+themselves. A case passes when the exit status and standard error are
+the ones tests/root/cases.toml records — MEASURED from GNU coreutils
+9.11 in the same image, never remembered — the sums agree, and what
+became of `other`, `x` and the link is what is recorded. A root file
+system that has been removed cannot run the second sum, so a guard
+that failed reads as a missing line and fails the case: the test is
+fail-safe by construction.
+
+Three programs are run for each case: GNU's (when a 9.11 built for the
+image is given with --gnu; the expectation is asserted of GNU too, so
+it stays a measurement), and this repository's on both tiers, built
+static so they run in any image. A case may say `gnu = false` (GNU
+would do what the case exists to refuse: `--no-preserve-root /` is
+never handed to GNU, container or not) and may give `ours_user` /
+`ours_root` where this repository answers differently BY DESIGN.
+
+`rm -rf /*` is out of scope by name: the shell expands it, and what
+`rm` then sees is a list of ordinary directories, none of them `/`.
+
+usage: tools/roottest [--engine docker|podman] [--image IMAGE]
+                      [--bin DIR] [--gnu DIR] [--record]
+
+  --bin DIR   DIR/release and DIR/dev hold static rm, mv, cp (default:
+              build them here with a `cc` that adds -static)
+  --gnu DIR   a directory holding GNU 9.11's rm, mv, cp built for IMAGE
+  --record    run GNU only and print what it answers, as TOML
+
+Exit status: 0 every case passed, 1 a case failed, 2 the tool could
+not run (no engine, no image, a program that is not there).
+"""
+
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import tomllib
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CASES = os.path.join(ROOT, "tests", "root", "cases.toml")
+UTILS = ("rm", "mv", "cp")
+TIERS = (("release", ["--release"]), ("dev", []))
+USERS = (("user", "4242"), ("root", "0"))
+
+CASE_SH = r"""#!/bin/sh
+# usage: /t/case WHO UTIL ARGS...   (inside the container)
+who=$1; util=$2; shift 2
+sum() {
+    { find /sentinel -print | sort
+      find /sentinel -type f -exec sha256sum {} + | sort
+      ls /etc | wc -l; ls /usr/bin | wc -l
+      sha256sum /t/bin/*/* /t/case; } 2>&1 | sha256sum
+}
+before=$(sum)
+"/t/bin/$who/$util" "$@" < /dev/null
+echo "@status $?"
+after=$(sum)
+[ -n "$before" ] && [ "$before" = "$after" ] && echo "@intact"
+state=""
+[ -e /work/other/in/f ] && state="$state other" || state="$state no-other"
+[ -L /work/link-to-root ] && state="$state link" || state="$state no-link"
+[ -e /work/x ] && state="$state x" || state="$state no-x"
+[ -e /x ] && state="$state /x"
+[ -e /other/in/f ] && state="$state /other"
+[ -e /work/x2 ] && state="$state x2"
+echo "@state$state"
+"""
+
+DOCKERFILE = """FROM {image}
+COPY t /t
+RUN chmod -R a+rX /t && chmod a+x /t/case /t/bin/*/* \\
+ && useradd -m -u 4242 bore \\
+ && mkdir -p /sentinel/deep/er /work/other/in \\
+ && printf 'kept\\n' > /sentinel/a && printf 'kept too\\n' > /sentinel/deep/er/b \\
+ && ln -s a /sentinel/link \\
+ && printf 'o\\n' > /work/other/in/f && printf 'x\\n' > /work/x \\
+ && ln -s / /work/link-to-root \\
+ && chown -R bore /sentinel /work
+WORKDIR /work
+"""
+
+
+def die(msg):
+    print(f"roottest: {msg}", file=sys.stderr)
+    sys.exit(2)
+
+
+def build_static(out):
+    """rm, mv and cp on both tiers, linked static: wolf's own build
+    through a `cc` that adds -static (pax's recipe, bu20's)."""
+    wolf = os.path.join(ROOT, ".wolf-bin", "wolf")
+    if not os.access(wolf, os.X_OK):
+        die("no .wolf-bin/wolf (run tools/fetch-toolchain)")
+    real = shutil.which("cc") or die("no cc on PATH")
+    wrap = os.path.join(out, "cc-static")
+    os.makedirs(wrap, exist_ok=True)
+    with open(os.path.join(wrap, "cc"), "w") as fh:
+        fh.write(f'#!/bin/sh\nexec {real} -static "$@"\n')
+    os.chmod(os.path.join(wrap, "cc"), 0o755)
+    env = dict(os.environ)
+    env["PATH"] = wrap + os.pathsep + env.get("PATH", "")
+    env["WOLF_STD"] = os.path.join(ROOT, ".wolf-bin", "std")
+    for tier, flags in TIERS:
+        os.makedirs(os.path.join(out, tier), exist_ok=True)
+        for util in UTILS:
+            dest = os.path.join(out, tier, util)
+            done = subprocess.run(
+                [wolf, "build"] + flags + ["--no-cache", "--deny-warnings",
+                 os.path.join("src", util + ".lu"), "-o", dest],
+                cwd=ROOT, env=env)
+            if done.returncode != 0:
+                die(f"wolf build of {util} ({tier}) exited {done.returncode}")
+    return out
+
+
+def is_static(path):
+    with open(path, "rb") as fh:
+        head = fh.read(1 << 16)
+    return b"/ld-linux" not in head and b"/ld-musl" not in head
+
+
+def one(engine, image, who, uid, util, args, serial):
+    """Run one program once in a fresh container; what it answered."""
+    name = f"bore-roottest-{os.getpid()}-{serial}"
+    cmd = [engine, "run", "--rm", "--name", name, "--network", "none",
+           "--user", uid, "--workdir", "/work", image,
+           "/t/case", who, util] + list(args)
+    try:
+        done = subprocess.run(cmd, capture_output=True, timeout=180)
+    except subprocess.TimeoutExpired:
+        subprocess.run([engine, "rm", "-f", name], capture_output=True)
+        return {"exit": "timeout", "stderr": "", "intact": False, "state": ""}
+    exit_status, intact, state = None, False, ""
+    for line in done.stdout.decode(errors="replace").splitlines():
+        if line.startswith("@status "):
+            exit_status = int(line.split()[1])
+        elif line == "@intact":
+            intact = True
+        elif line.startswith("@state"):
+            state = line[len("@state"):].strip()
+    return {"exit": exit_status, "stderr": done.stderr.decode(errors="replace"),
+            "intact": intact, "state": state}
+
+
+def main(argv):
+    engine = image = bindir = gnudir = None
+    record = False
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a in ("--engine", "--image", "--bin", "--gnu"):
+            if i + 1 >= len(argv):
+                die(f"{a} needs a value")
+            v = argv[i + 1]
+            i += 1
+            if a == "--engine":
+                engine = v
+            elif a == "--image":
+                image = v
+            elif a == "--bin":
+                bindir = os.path.abspath(v)
+            else:
+                gnudir = os.path.abspath(v)
+        elif a == "--record":
+            record = True
+        else:
+            die(f"unknown argument {a!r}")
+        i += 1
+    engine = engine or ("docker" if shutil.which("docker") else "podman")
+    if shutil.which(engine) is None:
+        die(f"no container engine ({engine}) on PATH: this test runs nowhere else")
+    image = image or "ubuntu:24.04"
+    with open(CASES, "rb") as fh:
+        cases = tomllib.load(fh)["case"]
+    if record and gnudir is None:
+        die("--record needs --gnu")
+
+    scratch = tempfile.mkdtemp(prefix="bore-roottest.")
+    tag = f"bore-roottest:{os.getpid()}"
+    failed = passed = 0
+    try:
+        if bindir is None and not record:
+            bindir = build_static(os.path.join(ROOT, "target", "roottest"))
+        ctx = os.path.join(scratch, "ctx")
+        whos = []
+        if gnudir is not None:
+            whos.append(("gnu", gnudir))
+        if not record:
+            for tier, _ in TIERS:
+                whos.append((tier, os.path.join(bindir, tier)))
+        for who, src in whos:
+            os.makedirs(os.path.join(ctx, "t", "bin", who))
+            for util in UTILS:
+                path = os.path.join(src, util)
+                if not os.access(path, os.X_OK):
+                    die(f"no program at {path}")
+                shutil.copy(path, os.path.join(ctx, "t", "bin", who, util))
+                if who != "gnu":
+                    print(f"roottest: {who}/{util} is "
+                          f"{'static' if is_static(path) else 'DYNAMIC (needs the image to hold its libraries)'}")
+        with open(os.path.join(ctx, "t", "case"), "w") as fh:
+            fh.write(CASE_SH)
+        with open(os.path.join(ctx, "Dockerfile"), "w") as fh:
+            fh.write(DOCKERFILE.format(image=image))
+        built = subprocess.run([engine, "build", "-q", "-t", tag, ctx],
+                               capture_output=True, text=True)
+        if built.returncode != 0:
+            die(f"{engine} build failed: {built.stderr.strip()[-600:]}")
+        print(f"roottest: {engine}, image {image}, one fresh container a case, "
+              f"no mount, no network")
+        if gnudir is not None:
+            # The oracle of record, asserted where it runs (B44).
+            with open(os.path.join(ROOT, "gnu-oracle.toml"), "rb") as fh:
+                oracle = str(tomllib.load(fh)["oracle"]["version"])
+            said = subprocess.run(
+                [engine, "run", "--rm", "--network", "none", tag,
+                 "/t/bin/gnu/rm", "--version"], capture_output=True, text=True)
+            first = (said.stdout.splitlines() or [""])[0]
+            if said.returncode != 0 or not first.endswith(" " + oracle):
+                die(f"the GNU rm given does not run in {image} as coreutils "
+                    f"{oracle}: {first!r} {said.stderr.strip()[:200]!r}")
+            print(f"roottest: gnu = {first}")
+        serial = 0
+        for c in cases:
+            for uname, uid in USERS:
+                want = c[uname]
+                for who, _ in whos:
+                    if who == "gnu" and c.get("gnu") is False:
+                        continue
+                    serial += 1
+                    got = one(engine, tag, who, uid, c["util"], c["args"], serial)
+                    label = f"{c['util']} {c['name']} [{uname}, {who}]"
+                    if record:
+                        print(f"# {label}: exit={got['exit']!r} intact={got['intact']} "
+                              f"state={got['state']!r}\n#   stderr={got['stderr']!r}")
+                        continue
+                    exp = want if who == "gnu" else c.get("ours_" + uname, want)
+                    ok = (got["intact"] and got["exit"] == exp["exit"]
+                          and got["stderr"] == exp["stderr"]
+                          and got["state"] == exp["state"])
+                    if ok:
+                        passed += 1
+                        print(f"ok   {label}")
+                    else:
+                        failed += 1
+                        print(f"FAIL {label}  args={c['args']!r}")
+                        print(f"    got : exit={got['exit']!r} intact={got['intact']} "
+                              f"state={got['state']!r} stderr={got['stderr']!r}")
+                        print(f"    want: exit={exp['exit']!r} intact=True "
+                              f"state={exp['state']!r} stderr={exp['stderr']!r}")
+    finally:
+        subprocess.run([engine, "rmi", "-f", tag], capture_output=True)
+        shutil.rmtree(scratch, ignore_errors=True)
+    if not record:
+        print(f"roottest: {passed} passed, {failed} failed")
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    sys.stdout.reconfigure(line_buffering=True)
+    sys.exit(main(sys.argv[1:]))
