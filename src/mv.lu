@@ -124,20 +124,22 @@ fn main() -> int {
         return 1
     }
     var names = List[str]()
-    // Whether a SOURCE lost trailing slashes to
-    // `--strip-trailing-slashes`: renamed to a DEST (not moved into a
-    // directory) it must still be a directory, so the DEST is handed
-    // to the host with a slash (measured: `mv --strip-trailing-slashes
-    // file/ x` is `cannot move 'file' to 'x': Not a directory`).
-    var slashed = List[bool]()
+    // A SOURCE as it was typed, when `--strip-trailing-slashes` took
+    // slashes from it: renamed to a DEST (not moved into a directory)
+    // it is still HANDED TO THE HOST with them, and only looked at and
+    // named without (measured: `mv --strip-trailing-slashes file/ x`
+    // is `cannot move 'file' to 'x': Not a directory` on both hosts,
+    // and `link-to-dir/` is that on linux and moves the DIRECTORY on
+    // macOS, as the host's own rename of `link/` does).
+    var typed = List[str]()
     for n in p.operands {
         if strip {
             let bare = bore.without_slashes(n)
             (mut names).push(bare)
-            (mut slashed).push(bare.len < n.len)
+            (mut typed).push(if bare.len < n.len then n else "")
         } else {
             (mut names).push(n)
-            (mut slashed).push(false)
+            (mut typed).push("")
         }
     }
     if names.len == 0 {
@@ -176,11 +178,11 @@ fn main() -> int {
     if into {
         for n in names {
             let dest = bore.join_name(target, bore.last_name(n))
-            if !rename_one(mut out, c, n, dest, false) {
+            if !rename_one(mut out, c, n, dest, "") {
                 status = 1
             }
         }
-    } else if !rename_one(mut out, c, names[0], names[1], slashed[0]) {
+    } else if !rename_one(mut out, c, names[0], names[1], typed[0]) {
         status = 1
     }
     bore.finish(mut out, "mv", status)
@@ -223,6 +225,13 @@ fn octal4(mode: int) -> str {
     "{d[a..a + 1]}{d[b..b + 1]}{d[e..e + 1]}{d[f..f + 1]}"
 }
 
+fn exists(path: str) -> bool {
+    let _ = fs_lstat(path) else |_| {
+        return false
+    }
+    true
+}
+
 /// Whether `src`, a symbolic link, names the very file `to` describes.
 /// Moving a link onto what it points at would leave a link to itself.
 fn link_to(src: str, to: List[int]) -> bool {
@@ -242,9 +251,15 @@ fn confirm(mut out: bore.Out, question: str) -> bool {
 
 /// Move `src` to `dst`. Answers false on a failure — and a move the
 /// user declined IS one to GNU's `mv` (status 1, nothing more said),
-/// where one `-n` declined is not. `as_dir` says `src` was typed with
-/// a trailing slash that `--strip-trailing-slashes` took.
-fn rename_one(mut out: bore.Out, c: Cfg, src: str, dst: str, as_dir: bool) -> bool {
+/// where one `-n` declined is not. `typed` is `src` as it was typed
+/// when `--strip-trailing-slashes` took slashes from it, else `""`.
+fn rename_one(mut out: bore.Out, c: Cfg, src: str, dst: str, typed: str) -> bool {
+    if c.over == 3 && !bore.built_for_linux() && exists(if dst.len == 0 then "." else dst) {
+        // Measured on macOS: GNU's `-n` looks at DEST before it looks
+        // at SOURCE, so a missing SOURCE beside an existing DEST is
+        // silence there and `cannot stat` on linux.
+        return true
+    }
     var why = ""
     let from = fs_lstat(src) else |_| {
         why = bore.io_error()
@@ -262,8 +277,10 @@ fn rename_one(mut out: bore.Out, c: Cfg, src: str, dst: str, as_dir: bool) -> bo
     var handed = dst
     if dst.len == 0 {
         handed = "."
-    } else if as_dir && !dst.ends_with("/") {
-        handed = "{dst}/"
+    }
+    var given = src
+    if typed.len > 0 {
+        given = typed
     }
     var there = true
     let to = fs_lstat(if dst.len == 0 then "." else dst) else |_| {
@@ -312,7 +329,7 @@ fn rename_one(mut out: bore.Out, c: Cfg, src: str, dst: str, as_dir: bool) -> bo
     var code = 0
     var across = false
     var ok = true
-    fs_rename(src, handed) else |e| {
+    fs_rename(given, handed) else |e| {
         code = bore.host_code()
         ok = false
         match e {

@@ -262,7 +262,7 @@ fn operand(mut out: bore.Out, c: Cfg, src: str, dst: str, mut made: List[int]) -
     // The source directories being read, outermost first, as device and
     // inode pairs: a link followed back to one of them is a cycle.
     var above = List[int]()
-    let end = any(mut out, c, src, dst, true, mut made, mut above)
+    let end = any(mut out, c, src, dst, true, List[int](), mut made, mut above)
     if end == into_itself() {
         bore.warn(
             "cp",
@@ -393,20 +393,25 @@ fn mode_refusal(src: str, dst: str, mode: int) {
 }
 
 /// Copy whatever `src` names to `dst`. `top` says `src` is an operand,
-/// which `-H` follows.
+/// which `-H` follows. `known` is `src`'s own record when its
+/// directory's walk has already read it (without following a link), and
+/// empty otherwise.
 fn any(
     mut out: bore.Out,
     c: Cfg,
     src: str,
     dst: str,
     top: bool,
+    known: List[int],
     mut made: List[int],
     mut above: List[int],
 ) -> int {
     let follow = c.follow == 2 || top && c.follow == 1
     var why = ""
     var rec = List[int]()
-    if follow {
+    if known.len > 0 && (!follow || bore.rec_kind(known) != bore.kind_link()) {
+        rec = copy known
+    } else if follow {
         rec = fs_stat(src) else |_| {
             why = bore.io_error()
             List[int]()
@@ -685,6 +690,12 @@ fn directory(
     var status = copied()
     let from = bore.without_slashes(src)
     let onto = bore.without_slashes(dst)
+    // Every entry's name and its own record, then the order of their
+    // inode numbers: GNU copies a directory in that order, not the
+    // directory's own (measured on ext4 and APFS, where the two part).
+    var names = List[str]()
+    var records = List[int]()
+    var inodes = List[int]()
     for e in entries {
         var raw = List[byte]()
         var i = 1
@@ -705,12 +716,29 @@ fn directory(
             status = failed()
             continue
         }
+        let r = fs_lstat(bore.join_name(from, base)) else |_| {
+            List[int]()
+        }
+        (mut names).push(base)
+        (mut inodes).push(if r.len > 0 then bore.rec_ino(r) else 0)
+        var w = 0
+        while w < 20 {
+            (mut records).push(if r.len > 0 then r[w] else -1)
+            w += 1
+        }
+    }
+    for k in bore.order_by(inodes) {
+        var known = List[int]()
+        if records[k * 20] >= 0 {
+            known = records[k * 20..k * 20 + 20]
+        }
         let end = any(
             mut out,
             c,
-            bore.join_name(from, base),
-            bore.join_name(onto, base),
+            bore.join_name(from, names[k]),
+            bore.join_name(onto, names[k]),
             false,
+            known,
             mut made,
             mut above,
         )

@@ -97,5 +97,20 @@ fn main() {
     assert(bore.last_name(".") == ".", ".")
     assert(bore.last_name("a/..") == "..", "a/..")
     assert(bore.last_name("/x") == "x", "/x")
+    // The order `cp -r` copies in.
+    var keys = List[int]()
+    for k in [50, 10, 40, 10, 30, 20, 60] {
+        (mut keys).push(k)
+    }
+    let order = bore.order_by(keys)
+    var seen = ""
+    for i in order {
+        seen += "{i} "
+    }
+    assert(seen == "1 3 5 4 2 0 6 ", "order_by: got {seen}")
+    assert(bore.order_by(List[int]()).len == 0, "order_by of nothing")
+    var one = List[int]()
+    (mut one).push(7)
+    assert(bore.order_by(one).len == 1, "order_by of one")
     print("change: the root and dot refusals hold")
 }

@@ -164,3 +164,58 @@ pub fn said_yes() -> bool {
     }
     first == 121 || first == 89
 }
+
+/// The indices of `keys` in ascending order of key, equal keys in
+/// their first order: a merge sort, so a hundred thousand entries cost
+/// a hundred thousand times seventeen comparisons and not their
+/// square. `cp -r` copies a directory's entries in the order of their
+/// inode numbers, as GNU's does (measured: on ext4 and APFS, where the
+/// directory's own order is neither that nor the names').
+pub fn order_by(keys: List[int]) -> List[int] {
+    var idx = List[int]()
+    var i = 0
+    while i < keys.len {
+        (mut idx).push(i)
+        i += 1
+    }
+    var width = 1
+    while width < idx.len {
+        var next = List[int]()
+        var lo = 0
+        while lo < idx.len {
+            // (Not the prelude's `min`: the native tiers refuse it at
+            // 0.2.27, "a std/prelude stub without a signature".)
+            var mid = lo + width
+            if mid > idx.len {
+                mid = idx.len
+            }
+            var hi = lo + 2 * width
+            if hi > idx.len {
+                hi = idx.len
+            }
+            var a = lo
+            var b = mid
+            while a < mid && b < hi {
+                if keys[idx[b]] < keys[idx[a]] {
+                    (mut next).push(idx[b])
+                    b += 1
+                } else {
+                    (mut next).push(idx[a])
+                    a += 1
+                }
+            }
+            while a < mid {
+                (mut next).push(idx[a])
+                a += 1
+            }
+            while b < hi {
+                (mut next).push(idx[b])
+                b += 1
+            }
+            lo = hi
+        }
+        idx = next
+        width = width * 2
+    }
+    idx
+}
