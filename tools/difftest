@@ -773,6 +773,8 @@ def run(exe, argv0, case, base_env, top=None, now=0, fresh=True):
             stdin.close()
         if hasattr(stdout, "close"):
             stdout.close()
+    if case.get("_changer"):
+        out = prog_lines(out, argv0, case.get("_util"))
     result = {"stdout": masked(out, case), "stderr": masked(normalize(err, argv0, case.get("_util")), case),
               "exit": status(proc.returncode)}
     if "stdin_offset" in case:
@@ -859,6 +861,22 @@ def normalize(err, argv0, util=None):
         err = re.sub(rb"(?<![\w-])" + re.escape(name.encode()) + rb"(?![\w-])",
                      b"PROG", err)
     return err
+
+
+def prog_lines(out, argv0, util=None):
+    """Standard output with a LINE-LEADING `name: ` made `PROG: `, for
+    the utilities that change the file system (bu21). `mkdir -v` and
+    `rmdir -v` name themselves on standard output (`mkdir: created
+    directory 'a'`), and GNU run as `gmkdir` says `gmkdir:` there: the
+    macOS leg of run 38122354989 failed 36 cases on that prefix and on
+    nothing else. Only the start of a line, and only for those
+    utilities: any other program's standard output is data."""
+    names = [argv0]
+    if util is not None and util != argv0:
+        names.append(util)
+    for name in names:
+        out = re.sub(rb"(?m)^" + re.escape(name.encode()) + rb": ", b"PROG: ", out)
+    return out
 
 
 def show(side, result, fields):
