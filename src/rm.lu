@@ -600,7 +600,10 @@ fn entry(mut out: bore.Out, c: Cfg, dir: str, e: List[byte], device: int) -> int
     // A directory, a link, or a kind the host did not give: the record
     // decides, read WITHOUT following a link, immediately before use.
     var why = ""
-    let rec = fs_lstat(path) else |_| {
+    // PLANT (bu21, to be reverted in the next commit): `fs_stat` for
+    // `fs_lstat`, so a link to a directory is taken for a directory and
+    // the walk follows it out of its tree.
+    let rec = fs_stat(path) else |_| {
         why = bore.io_error()
         List[int]()
     }
