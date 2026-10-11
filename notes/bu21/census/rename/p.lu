@@ -1,0 +1,38 @@
+// bu21 census: fs_rename, every pairing a `mv` meets. Run in an empty
+// working directory. One line per call: the row and the host's number.
+
+fn ren(a: str, b: str) -> str {
+    fs_rename(a, b) else |e| {
+        return "{e} errno={os_error()}"
+    }
+    "ok"
+}
+
+fn put(p: str, text: str) {
+    fs_write_text(p, text) else |_| {}
+}
+
+fn text_of(p: str) -> str {
+    fs_read_text(p) else |e| {
+        return "<{e}>"
+    }
+}
+
+fn main() {
+    put("a", "A")
+    put("b", "B")
+    fs_create_dir("d") else |_| {}
+    fs_create_dir("full") else |_| {}
+    put("full/x", "X")
+    fs_create_dir("empty") else |_| {}
+    print("file to a new name: {ren("a", "a2")}")
+    print("file over a file: {ren("a2", "b")} b now holds {text_of("b")}")
+    print("missing source: {ren("nope", "z")}")
+    print("into a missing directory: {ren("b", "nodir/b")}")
+    print("file over a directory: {ren("b", "d")}")
+    print("directory over a file: {ren("d", "b")}")
+    print("directory over an empty directory: {ren("d", "empty")}")
+    print("directory over a directory that is not empty: {ren("empty", "full")}")
+    print("directory into itself: {ren("full", "full/inside")}")
+    print("a name onto itself: {ren("b", "b")}")
+}

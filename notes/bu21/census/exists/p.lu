@@ -1,0 +1,133 @@
+// bu21 census: the operations predicted to EXIST. Run in an empty
+// working directory holding one symbolic link the shell made first:
+// `ln -s target link` (wolf cannot make one). Every path is relative,
+// so lupin serves it. Prints one line per call: the row, and the host's
+// error number beside it.
+
+fn mk(p: str) -> str {
+    fs_create_dir(p) else |e| {
+        return "{e} errno={os_error()}"
+    }
+    "ok"
+}
+
+fn mk_all(p: str) -> str {
+    fs_create_dir_all(p) else |e| {
+        return "{e} errno={os_error()}"
+    }
+    "ok"
+}
+
+fn rmd(p: str) -> str {
+    fs_remove_dir(p) else |e| {
+        return "{e} errno={os_error()}"
+    }
+    "ok"
+}
+
+fn unl(p: str) -> str {
+    fs_remove(p) else |e| {
+        return "{e} errno={os_error()}"
+    }
+    "ok"
+}
+
+fn put(p: str, text: str) -> str {
+    fs_write_text(p, text) else |e| {
+        return "{e} errno={os_error()}"
+    }
+    "ok"
+}
+
+fn mode_of(p: str) -> int {
+    let r = fs_lstat(p) else |_| {
+        return -1
+    }
+    r[4]
+}
+
+fn kind_of(p: str) -> int {
+    let r = fs_lstat(p) else |_| {
+        return -1
+    }
+    r[0]
+}
+
+fn size_of_path(p: str) -> int {
+    let r = fs_lstat(p) else |_| {
+        return -1
+    }
+    r[1]
+}
+
+fn truncate_zero(p: str) -> str {
+    let fd = fs_open_mode(p, 1) else |e| {
+        return "{e} errno={os_error()}"
+    }
+    fs_close(fd) else |_| {}
+    "ok"
+}
+
+fn copy_file(from: str, to: str) -> str {
+    let src = fs_open(from) else |e| {
+        return "open {e} errno={os_error()}"
+    }
+    let dst = fs_open_mode(to, 4) else |e| {
+        return "create {e} errno={os_error()}"
+    }
+    var total: int = 0
+    var done = false
+    var why = ""
+    while !done {
+        let n = fs_copy_chunk(src, dst, 1048576) else |e| match e {
+            eof => {
+                done = true
+                0
+            },
+            io => {
+                why = "io errno={os_error()}"
+                done = true
+                0
+            },
+        }
+        total += n
+    }
+    fs_close(src) else |_| {}
+    fs_close(dst) else |_| {}
+    if why.len > 0 {
+        return why
+    }
+    "ok {total} bytes"
+}
+
+fn main() {
+    print("mkdir d: {mk("d")}")
+    print("mkdir d again: {mk("d")}")
+    print("mkdir nope/x: {mk("nope/x")}")
+    print("mode of d: {mode_of("d")}")
+    print("mkdir -p a/b/c: {mk_all("a/b/c")}")
+    print("mkdir -p a/b/c again: {mk_all("a/b/c")}")
+    print("kind of a/b/c: {kind_of("a/b/c")}")
+    print("write f: {put("f", "hello\n")}")
+    print("mode of f: {mode_of("f")}")
+    print("mkdir -p f/x (through a file): {mk_all("f/x")}")
+    print("mkdir f (a file is there): {mk("f")}")
+    print("rmdir d: {rmd("d")}")
+    print("rmdir d again: {rmd("d")}")
+    print("rmdir a (not empty): {rmd("a")}")
+    print("rmdir f (a file): {rmd("f")}")
+    print("unlink a (a directory): {unl("a")}")
+    print("unlink missing: {unl("missing")}")
+    print("kind of link before: {kind_of("link")}")
+    print("write target: {put("target", "kept\n")}")
+    print("unlink link: {unl("link")}")
+    print("kind of link after: {kind_of("link")}")
+    print("size of target after: {size_of_path("target")}")
+    print("copy f to g: {copy_file("f", "g")}")
+    print("size of g: {size_of_path("g")}")
+    print("copy f to g again (create-new): {copy_file("f", "g")}")
+    print("truncate g to zero: {truncate_zero("g")}")
+    print("size of g: {size_of_path("g")}")
+    print("unlink f: {unl("f")}")
+    print("kind of f: {kind_of("f")}")
+}

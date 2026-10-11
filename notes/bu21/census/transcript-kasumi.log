@@ -1,0 +1,281 @@
+census: wolf 0.2.27 (wolfgang, pin 0ddda6b); lupin 0.1.50 (wolf-interp, reference interpreter at pin 294d626)
+census: host Linux x86_64, filesystem btrfs, umask 0022
+== exists on native
+   mkdir d: ok
+   mkdir d again: exists errno=17
+   mkdir nope/x: not_found errno=2
+   mode of d: 493
+   mkdir -p a/b/c: ok
+   mkdir -p a/b/c again: ok
+   kind of a/b/c: 1
+   write f: ok
+   mode of f: 420
+   mkdir -p f/x (through a file): io errno=20
+   mkdir f (a file is there): exists errno=17
+   rmdir d: ok
+   rmdir d again: not_found errno=2
+   rmdir a (not empty): io errno=39
+   rmdir f (a file): io errno=20
+   unlink a (a directory): io errno=21
+   unlink missing: not_found errno=2
+   kind of link before: 3
+   write target: ok
+   unlink link: ok
+   kind of link after: -1
+   size of target after: 5
+   copy f to g: ok 6 bytes
+   size of g: 6
+   copy f to g again (create-new): create exists errno=17
+   truncate g to zero: ok
+   size of g: 0
+   unlink f: ok
+   kind of f: -1
+   exit 0
+== exists on release
+   mkdir d: ok
+   mkdir d again: exists errno=17
+   mkdir nope/x: not_found errno=2
+   mode of d: 493
+   mkdir -p a/b/c: ok
+   mkdir -p a/b/c again: ok
+   kind of a/b/c: 1
+   write f: ok
+   mode of f: 420
+   mkdir -p f/x (through a file): io errno=20
+   mkdir f (a file is there): exists errno=17
+   rmdir d: ok
+   rmdir d again: not_found errno=2
+   rmdir a (not empty): io errno=39
+   rmdir f (a file): io errno=20
+   unlink a (a directory): io errno=21
+   unlink missing: not_found errno=2
+   kind of link before: 3
+   write target: ok
+   unlink link: ok
+   kind of link after: -1
+   size of target after: 5
+   copy f to g: ok 6 bytes
+   size of g: 6
+   copy f to g again (create-new): create exists errno=17
+   truncate g to zero: ok
+   size of g: 0
+   unlink f: ok
+   kind of f: -1
+   exit 0
+== exists on checked
+   mkdir d: ok
+   mkdir d again: exists errno=17
+   mkdir nope/x: not_found errno=2
+   mode of d: 493
+   mkdir -p a/b/c: ok
+   mkdir -p a/b/c again: ok
+   kind of a/b/c: 1
+   write f: ok
+   mode of f: 420
+   mkdir -p f/x (through a file): io errno=20
+   mkdir f (a file is there): exists errno=17
+   rmdir d: ok
+   rmdir d again: not_found errno=2
+   rmdir a (not empty): io errno=39
+   rmdir f (a file): io errno=20
+   unlink a (a directory): io errno=21
+   unlink missing: not_found errno=2
+   kind of link before: 3
+   write target: ok
+   unlink link: ok
+   kind of link after: -1
+   size of target after: 5
+   copy f to g: ok 6 bytes
+   size of g: 6
+   copy f to g again (create-new): create exists errno=17
+   truncate g to zero: ok
+   size of g: 0
+   unlink f: ok
+   kind of f: -1
+   verdict exit(0)
+   conform-run exit 0
+== exists on lupin
+   mkdir d: ok
+   mkdir d again: exists errno=0
+   mkdir nope/x: not_found errno=2
+   mode of d: 493
+   mkdir -p a/b/c: ok
+   mkdir -p a/b/c again: ok
+   kind of a/b/c: 1
+   write f: ok
+   mode of f: 420
+   mkdir -p f/x (through a file): io errno=20
+   mkdir f (a file is there): exists errno=0
+   rmdir d: ok
+   rmdir d again: not_found errno=2
+   rmdir a (not empty): io errno=39
+   rmdir f (a file): io errno=20
+   unlink a (a directory): io errno=21
+   unlink missing: not_found errno=2
+   kind of link before: 3
+   write target: ok
+   unlink link: ok
+   kind of link after: -1
+   size of target after: 5
+   copy f to g: ok 6 bytes
+   size of g: 6
+   copy f to g again (create-new): create exists errno=17
+   truncate g to zero: ok
+   size of g: 0
+   unlink f: ok
+   kind of f: -1
+   exit 0
+== rename on native
+   file to a new name: ok
+   file over a file: ok b now holds A
+   missing source: not_found errno=2
+   into a missing directory: not_found errno=2
+   file over a directory: io errno=21
+   directory over a file: io errno=20
+   directory over an empty directory: ok
+   directory over a directory that is not empty: io errno=39
+   directory into itself: io errno=22
+   a name onto itself: ok
+   exit 0
+== rename on release
+   file to a new name: ok
+   file over a file: ok b now holds A
+   missing source: not_found errno=2
+   into a missing directory: not_found errno=2
+   file over a directory: io errno=21
+   directory over a file: io errno=20
+   directory over an empty directory: ok
+   directory over a directory that is not empty: io errno=39
+   directory into itself: io errno=22
+   a name onto itself: ok
+   exit 0
+== rename on checked
+   file to a new name: ok
+   file over a file: ok b now holds A
+   missing source: not_found errno=2
+   into a missing directory: not_found errno=2
+   file over a directory: io errno=21
+   directory over a file: io errno=20
+   directory over an empty directory: ok
+   directory over a directory that is not empty: io errno=39
+   directory into itself: io errno=22
+   a name onto itself: ok
+   verdict exit(0)
+   conform-run exit 0
+== rename on lupin
+   file to a new name: ok
+   file over a file: ok b now holds A
+   missing source: not_found errno=2
+   into a missing directory: not_found errno=2
+   file over a directory: io errno=21
+   directory over a file: io errno=20
+   directory over an empty directory: ok
+   directory over a directory that is not empty: io errno=39
+   directory into itself: io errno=22
+   a name onto itself: ok
+   exit 0
+== holes on native
+   offset 16777216 size 16777217 hole_kept true
+   seek whence 3 (SEEK_DATA): invalid
+   exit 0
+== holes on release
+   offset 16777216 size 16777217 hole_kept true
+   seek whence 3 (SEEK_DATA): invalid
+   exit 0
+== holes on checked
+   offset 16777216 size 16777217 hole_kept true
+   seek whence 3 (SEEK_DATA): invalid
+   verdict exit(0)
+   conform-run exit 0
+== holes on lupin
+   offset 16777216 size 16777217 hole_kept true
+   seek whence 3 (SEEK_DATA): invalid
+   exit 0
+== xdev on native
+   two devices: true
+   rename across: cross_device errno=18 text=Invalid cross-device link
+   exit 0
+== xdev on release
+   two devices: true
+   rename across: cross_device errno=18 text=Invalid cross-device link
+   exit 0
+== xdev on checked
+   two devices: true
+   rename across: cross_device errno=18 text=Invalid cross-device link
+   verdict exit(0)
+   conform-run exit 0
+== xdev on lupin
+   two devices: true
+   rename across: cross_device errno=0 text=
+   exit 0
+== missing/access
+   native: wolf build exit 2 — error[E0301]: nothing named `fs_access` is in scope
+   release: wolf build exit 2 — error[E0301]: nothing named `fs_access` is in scope
+   checked: conform-run exit 0 — error[E0301]: nothing named `fs_access` is in scope; record "verdict":"fail(E0301)"
+   lupin: exit 4 — p.lu: unsupported: `fs_access` does not resolve
+== missing/chmod
+   native: wolf build exit 2 — error[E0301]: nothing named `fs_chmod` is in scope
+   release: wolf build exit 2 — error[E0301]: nothing named `fs_chmod` is in scope
+   checked: conform-run exit 0 — error[E0301]: nothing named `fs_chmod` is in scope; record "verdict":"fail(E0301)"
+   lupin: exit 4 — p.lu: unsupported: `fs_chmod` does not resolve
+== missing/chown
+   native: wolf build exit 2 — error[E0301]: nothing named `fs_chown` is in scope
+   release: wolf build exit 2 — error[E0301]: nothing named `fs_chown` is in scope
+   checked: conform-run exit 0 — error[E0301]: nothing named `fs_chown` is in scope; record "verdict":"fail(E0301)"
+   lupin: exit 4 — p.lu: unsupported: `fs_chown` does not resolve
+== missing/create_mode
+   native: wolf build exit 2 — error[E0301]: nothing named `fs_open_mode_perm` is in scope
+   release: wolf build exit 2 — error[E0301]: nothing named `fs_open_mode_perm` is in scope
+   checked: conform-run exit 0 — error[E0301]: nothing named `fs_open_mode_perm` is in scope; record "verdict":"fail(E0301)"
+   lupin: exit 4 — p.lu: unsupported: `fs_open_mode_perm` does not resolve
+== missing/euid
+   native: wolf build exit 2 — error[E0301]: nothing named `os_euid` is in scope
+   release: wolf build exit 2 — error[E0301]: nothing named `os_euid` is in scope
+   checked: conform-run exit 0 — error[E0301]: nothing named `os_euid` is in scope; record "verdict":"fail(E0301)"
+   lupin: exit 4 — p.lu: unsupported: `os_euid` does not resolve
+== missing/hardlink
+   native: wolf build exit 2 — error[E0301]: nothing named `fs_link` is in scope
+   release: wolf build exit 2 — error[E0301]: nothing named `fs_link` is in scope
+   checked: conform-run exit 0 — error[E0301]: nothing named `fs_link` is in scope; record "verdict":"fail(E0301)"
+   lupin: exit 4 — p.lu: unsupported: `fs_link` does not resolve
+== missing/mkdir_mode
+   native: wolf build exit 2 — error[E0301]: nothing named `fs_create_dir_mode` is in scope
+   release: wolf build exit 2 — error[E0301]: nothing named `fs_create_dir_mode` is in scope
+   checked: conform-run exit 0 — error[E0301]: nothing named `fs_create_dir_mode` is in scope; record "verdict":"fail(E0301)"
+   lupin: exit 4 — p.lu: unsupported: `fs_create_dir_mode` does not resolve
+== missing/mkfifo
+   native: wolf build exit 2 — error[E0301]: nothing named `fs_mkfifo` is in scope
+   release: wolf build exit 2 — error[E0301]: nothing named `fs_mkfifo` is in scope
+   checked: conform-run exit 0 — error[E0301]: nothing named `fs_mkfifo` is in scope; record "verdict":"fail(E0301)"
+   lupin: exit 4 — p.lu: unsupported: `fs_mkfifo` does not resolve
+== missing/rename_noreplace
+   native: wolf build exit 2 — error[E0301]: nothing named `fs_rename_new` is in scope
+   release: wolf build exit 2 — error[E0301]: nothing named `fs_rename_new` is in scope
+   checked: conform-run exit 0 — error[E0301]: nothing named `fs_rename_new` is in scope; record "verdict":"fail(E0301)"
+   lupin: exit 4 — p.lu: unsupported: `fs_rename_new` does not resolve
+== missing/set_times
+   native: wolf build exit 2 — error[E0301]: nothing named `fs_set_times` is in scope
+   release: wolf build exit 2 — error[E0301]: nothing named `fs_set_times` is in scope
+   checked: conform-run exit 0 — error[E0301]: nothing named `fs_set_times` is in scope; record "verdict":"fail(E0301)"
+   lupin: exit 4 — p.lu: unsupported: `fs_set_times` does not resolve
+== missing/symlink
+   native: wolf build exit 2 — error[E0301]: nothing named `fs_symlink` is in scope
+   release: wolf build exit 2 — error[E0301]: nothing named `fs_symlink` is in scope
+   checked: conform-run exit 0 — error[E0301]: nothing named `fs_symlink` is in scope; record "verdict":"fail(E0301)"
+   lupin: exit 4 — p.lu: unsupported: `fs_symlink` does not resolve
+== missing/truncate
+   native: wolf build exit 2 — error[E0301]: nothing named `fs_truncate` is in scope
+   release: wolf build exit 2 — error[E0301]: nothing named `fs_truncate` is in scope
+   checked: conform-run exit 0 — error[E0301]: nothing named `fs_truncate` is in scope; record "verdict":"fail(E0301)"
+   lupin: exit 4 — p.lu: unsupported: `fs_truncate` does not resolve
+== missing/umask
+   native: wolf build exit 2 — error[E0301]: nothing named `os_umask` is in scope
+   release: wolf build exit 2 — error[E0301]: nothing named `os_umask` is in scope
+   checked: conform-run exit 0 — error[E0301]: nothing named `os_umask` is in scope; record "verdict":"fail(E0301)"
+   lupin: exit 4 — p.lu: unsupported: `os_umask` does not resolve
+== missing/unlink_at
+   native: wolf build exit 2 — error[E0301]: nothing named `fs_remove_at` is in scope
+   release: wolf build exit 2 — error[E0301]: nothing named `fs_remove_at` is in scope
+   checked: conform-run exit 0 — error[E0301]: nothing named `fs_remove_at` is in scope; record "verdict":"fail(E0301)"
+   lupin: exit 4 — p.lu: unsupported: `fs_remove_at` does not resolve
+census: done

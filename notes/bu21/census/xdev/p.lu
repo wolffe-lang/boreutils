@@ -1,0 +1,19 @@
+// bu21 census: a rename across file systems. Run in a directory that
+// holds `here/` and `there/`, where `there` is another btrfs subvolume
+// (a different st_dev). Not for lupin: the pair is made by the shell.
+
+fn main() {
+    fs_write_text("here/f", "F") else |_| {}
+    let a = fs_stat("here") else |_| {
+        return
+    }
+    let b = fs_stat("there") else |_| {
+        return
+    }
+    print("two devices: {a[9] != b[9]}")
+    fs_rename("here/f", "there/f") else |e| {
+        print("rename across: {e} errno={os_error()} text={os_error_text(os_error())}")
+        return
+    }
+    print("rename across: ok")
+}

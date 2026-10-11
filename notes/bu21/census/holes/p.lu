@@ -1,0 +1,33 @@
+// bu21 census: a hole can be written (seek past the end, then write);
+// the record's blocks word says whether the host kept it a hole.
+
+fn main() {
+    let fd = fs_open_mode("sparse", 1) else |e| {
+        print("open: {e}")
+        return
+    }
+    let at = fs_seek(fd, 16777216, 0) else |e| {
+        print("seek: {e}")
+        return
+    }
+    var one = List[byte]()
+    (mut one).push(120 as byte)
+    fs_write_chunk(fd, one) else |e| {
+        print("write: {e}")
+        return
+    }
+    fs_close(fd) else |_| {}
+    let r = fs_stat("sparse") else |e| {
+        print("stat: {e}")
+        return
+    }
+    print("offset {at} size {r[1]} hole_kept {r[8] * 512 < r[1]}")
+    let fd2 = fs_open("sparse") else |_| {
+        return
+    }
+    let data = fs_seek(fd2, 0, 3) else |e| {
+        print("seek whence 3 (SEEK_DATA): {e}")
+        return
+    }
+    print("seek whence 3 answered {data}")
+}
