@@ -1,0 +1,901 @@
+//! member: false
+//!
+//! stat — print a file's status.
+//!
+//! References consulted: POSIX.1-2024 `<sys/stat.h>` (the fields); GNU
+//! coreutils 9.11 `stat --help`, the info manual's `stat invocation`
+//! node, and black-box runs of the GNU binary on linux x86-64 and macOS
+//! arm64 (Homebrew `gstat`), under `LC_ALL=C` (kasumi
+//! `~/lanes/bu20/probe4.sh`, `probe5.sh`). (stat is not in POSIX.)
+//! Never GNU source.
+//!
+//! The record is `fs_lstat`'s, or `fs_stat`'s under `-L` (wolf 0.2.27,
+//! s218, `[os.fs.stat]`); `bore/info.lu` names its words.
+//!
+//! GNU's rules, each measured against 9.11:
+//!
+//! - Each FILE prints in the DEFAULT format (eight lines), in the terse
+//!   one under `-t` (one line of sixteen fields), or as FORMAT under
+//!   `-c`/`--format` (a newline after each file) or `--printf` (no
+//!   newline, and backslash escapes are read). The last of
+//!   `-c`/`--printf` wins, over `-t` too.
+//! - A directive is `%`, flags (`-` left, `0` zero-fill, `#` a leading
+//!   `0` or `0x` on an octal or hex number, `+` and space on a time in
+//!   seconds; `'` is accepted), a width, a `.precision`, and a letter:
+//!   `%a %A` the mode in octal and as `ls -l` prints it, `%b %B` blocks
+//!   and their size (512), `%d %D` the device in decimal and hex (`%Hd
+//!   %Ld` its major and minor), `%f` the raw mode in hex, `%F` the
+//!   type in words, `%g %G %u %U` the group and owner as number and
+//!   name, `%h` links, `%i` the inode, `%m` the mount point, `%n %N`
+//!   the name plain and quoted (a link's with `-> 'TARGET'`), `%s` the
+//!   size, `%r %R` a device file's own number in decimal and hex (`%Hr
+//!   %Lr` and `%t %T` its major and minor in decimal and in hex), and
+//!   the four times, `%w %x %y %z` (birth, access, modification, status
+//!   change) as `2020-09-13 12:26:40.000000000 +0000` and `%W %X %Y
+//!   %Z` as seconds from the epoch.
+//! - A precision cuts a string, is the least digits of a number, and
+//!   for `%W %X %Y %Z` the digits after a decimal point (`%.3Y` is
+//!   `1600000000.000`; a time before the epoch prints the true decimal,
+//!   `-1.750`). A birth time nobody keeps is `-`, and `0` in seconds.
+//! - `%N` alone is quoted as a shell would read it; given a width or a
+//!   precision it is not, and the name and the target are each laid in
+//!   that width (measured: `[%12N]` is `[           l ->            f]`).
+//! - An unknown letter prints `?`. `%%` is `%`, and a `%` that ends the
+//!   format is itself; `%` and flags or a width with nothing or `%`
+//!   after them is `invalid directive`, status 1, after what was already
+//!   printed. A name with no account is `UNKNOWN`.
+//! - `--printf` escapes: `\a \b \e \f \n \r \t \v`, `\"`, `\\`, one
+//!   to three octal digits, `\x` and one or two hex digits; any other
+//!   is a warning and the character itself.
+//! - A FILE that cannot be reached is `cannot statx` (linux; `cannot
+//!   stat` elsewhere) with the host's reason, status 1; the rest still
+//!   print. No operand is a usage error, status 1.
+//!
+//! **What wolf cannot see, and what that costs** (each a stated skip or
+//! mask in `tests/cases/stat.toml`, never an imitation):
+//!
+//! - **`%o`, and the default format's `IO Block:`** — the preferred I/O
+//!   block size is not in the record (wolf-lang#684). Both print `?`,
+//!   where GNU prints a number that is usually but not always 4096.
+//! - **`-f`/`--file-system`** needs the file system's own record, which
+//!   no call answers (wolf-lang#686): refused by name, status 1.
+//! - **`-` (standard input)** needs the record of an open handle, and
+//!   `fs_fstat` answers three words of it (wolf-lang#536): refused by
+//!   name, status 1.
+//! - **`%C`** is a security context, an extended attribute
+//!   (wolf-lang#685): refused by name, status 1.
+//! - **Owner and group names** come from `/etc/passwd` and `/etc/group`
+//!   alone (`bore/ids.lu`). The `QUOTING_STYLE` variable is not read.
+//!   `--cached` is accepted and changes nothing (there is one stat
+//!   call).
+
+use bore
+
+/// What a directive's flags, width and precision said. `any` is whether
+/// any of them was written at all.
+struct Spec {
+    left: bool,
+    zero: bool,
+    alt: bool,
+    plus: bool,
+    space: bool,
+    width: int,
+    prec: int,
+    any: bool,
+}
+
+/// What every file's rendering reads: the account tables and the zone
+/// (each only when the format prints a name or a time), and the host.
+struct Ctx {
+    names: bore.Names,
+    zone: bore.Zone,
+    linux: bool,
+}
+
+/// One file to print: its name as given, its record, and for a link
+/// that was not followed, where it points.
+struct File {
+    name: str,
+    rec: List[int],
+    target: str,
+    link: bool,
+}
+
+fn main() -> int {
+    let p = bore.parse(options(), env_args(), bore.permute())
+    var out = bore.stdout()
+    var follow = false
+    var terse = false
+    var format = ""
+    var chosen = false
+    var printf = false
+    var refused = ""
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i]
+        let v = p.values[i]
+        if k == "help" {
+            bore.put(mut out, help()) else |_| {}
+            return bore.finish(mut out, "stat", 0)
+        }
+        if k == "version" {
+            bore.put(mut out, bore.version_text("stat")) else |_| {}
+            return bore.finish(mut out, "stat", 0)
+        }
+        if k == "dereference" {
+            follow = true
+        } else if k == "terse" {
+            terse = true
+        } else if k == "format" {
+            format = v
+            chosen = true
+            printf = false
+        } else if k == "printf" {
+            format = v
+            chosen = true
+            printf = true
+        } else if k == "cached" {
+            let m = bore.argmatch(v, cached_words(), cached_meanings())
+            if m < 0 {
+                return bore.argmatch_error(
+                    "stat",
+                    v,
+                    "cached",
+                    cached_words(),
+                    cached_meanings(),
+                    m == -2,
+                )
+            }
+        } else if k == "file-system" {
+            refused = "-f needs a file system's own record, which wolf cannot read (wolf-lang#686)"
+        }
+        i += 1
+    }
+    if !bore.ok(p) {
+        return bore.usage_error("stat", p.error)
+    }
+    if refused.len > 0 {
+        bore.warn("stat", refused)
+        return 1
+    }
+    if p.operands.len == 0 {
+        return bore.usage_error("stat", "missing operand")
+    }
+    if chosen && wants(format, 67) {
+        bore.warn(
+            "stat",
+            "%C needs a security context, an extended attribute wolf cannot read (wolf-lang#685)",
+        )
+        return 1
+    }
+    var cx = Ctx { names: bore.no_names(), zone: bore.utc(), linux: fs_is_dir("/proc/self/fd") }
+    // The account tables and the zone are read only for a format that
+    // prints a name or a time.
+    let default_format_asked = !chosen && !terse
+    if default_format_asked || wants(format, 85) || wants(format, 71) {
+        cx.names = bore.read_names()
+    }
+    if default_format_asked ||
+        wants(format, 119) ||
+        wants(format, 120) ||
+        wants(format, 121) ||
+        wants(format, 122) {
+        cx.zone = bore.zone()
+    }
+    var status = 0
+    for name in p.operands {
+        if name == "-" {
+            bore.warn(
+                "stat",
+                "'-': the record of standard input needs more than fs_fstat's three words (wolf-lang#536)",
+            )
+            status = 1
+            continue
+        }
+        var f = File { name: name, rec: List[int](), target: "", link: false }
+        if !load(mut f, follow) {
+            let verb = if cx.linux then "statx" else "stat"
+            bore.warn("stat", "cannot {verb} {bore.quote_always(name)}: {bore.io_error()}")
+            status = 1
+            continue
+        }
+        var bytes = List[byte]()
+        var bad = ""
+        if chosen {
+            bad = render(mut bytes, format, printf, f, cx)
+            if !printf && bad.len == 0 {
+                (mut bytes).push(10 as byte)
+            }
+        } else if terse {
+            bad = render(mut bytes, terse_format(), false, f, cx)
+            (mut bytes).push(10 as byte)
+        } else {
+            push_text(mut bytes, "  File: {f.name}")
+            if f.link {
+                push_text(mut bytes, " -> {f.target}")
+            }
+            (mut bytes).push(10 as byte)
+            bad = render(mut bytes, default_format(f.rec), false, f, cx)
+        }
+        for b in bytes {
+            bore.put_byte(mut out, b) else |_| {}
+        }
+        if bad.len > 0 {
+            // GNU stops here, having written what came before.
+            let _ = bore.finish(mut out, "stat", 1)
+            bore.warn("stat", "{bore.quote(bad)}: invalid directive")
+            return 1
+        }
+    }
+    bore.finish(mut out, "stat", status)
+}
+
+/// Read `f`'s record, and for a link that is not followed, its target.
+/// False when the host refuses; its reason is then `bore.io_error()`.
+fn load(mut f: File, follow: bool) -> bool {
+    var failed = false
+    if follow {
+        f.rec = fs_stat(f.name) else |_| {
+            failed = true
+            List[int]()
+        }
+    } else {
+        f.rec = fs_lstat(f.name) else |_| {
+            failed = true
+            List[int]()
+        }
+    }
+    if failed || f.rec.len != 20 {
+        return false
+    }
+    if bore.rec_kind(f.rec) == bore.kind_link() {
+        let bytes = fs_read_link(f.name) else |_| {
+            List[byte]()
+        }
+        f.link = true
+        f.target = text_of(bytes)
+    }
+    true
+}
+
+/// A link's target as text: its bytes when they are UTF-8, else with
+/// every byte outside ASCII as `?` (wolf-lang#687).
+fn text_of(bytes: List[byte]) -> str {
+    str_from_utf8(bytes) else |_| {
+        var plain = List[byte]()
+        for b in bytes {
+            if b as int < 128 {
+                (mut plain).push(b)
+            } else {
+                (mut plain).push(63 as byte)
+            }
+        }
+        str_from_utf8(plain) else "?"
+    }
+}
+
+/// Whether `format` holds a directive whose letter is the byte `letter`
+/// (a cheap over-estimate: any `%…letter` counts), to decide what to
+/// read before the first file.
+fn wants(format: str, letter: int) -> bool {
+    var after = false
+    for b in format.bytes() {
+        let n = b as int
+        if after {
+            if n == letter {
+                return true
+            }
+            let flag = n == 35 || n == 45 || n == 43 || n == 32 || n == 48 || n == 39 || n == 46
+            let digit = n >= 48 && n <= 57
+            if !flag && !digit && n != 72 && n != 76 {
+                after = false
+            }
+        } else if n == 37 {
+            after = true
+        }
+    }
+    false
+}
+
+/// The default format after its `File:` line. A device file's own
+/// numbers follow its link count, which is then padded.
+fn default_format(rec: List[int]) -> str {
+    let device = bore.rec_kind(rec) == bore.kind_char() || bore.rec_kind(rec) == bore.kind_block()
+    let links = if device then "%-5h Device type: %Hr,%Lr" else "%h"
+    "  Size: %-10s\tBlocks: %-10b IO Block: %-6o %F\nDevice: %Hd,%Ld\tInode: %-10i  Links: {links}\nAccess: (%04a/%10.10A)  Uid: (%5u/%8U)   Gid: (%5g/%8G)\nAccess: %x\nModify: %y\nChange: %z\n Birth: %w\n"
+}
+
+fn terse_format() -> str {
+    "%n %s %b %f %u %g %D %i %h %t %T %X %Y %Z %W %o"
+}
+
+fn push_text(mut bytes: List[byte], s: str) {
+    for b in s.bytes() {
+        (mut bytes).push(b)
+    }
+}
+
+/// Write `format` for `f` onto `out`. Answers `""`, or the text of a
+/// directive GNU calls invalid, at which the rendering stopped.
+fn render(mut out: List[byte], format: str, printf: bool, f: File, cx: Ctx) -> str {
+    let b = format.bytes()
+    let n = b.len
+    var i = 0
+    while i < n {
+        let c = b[i] as int
+        if c == 92 && printf {
+            i = escape(mut out, b, i + 1)
+            continue
+        }
+        if c != 37 {
+            (mut out).push(b[i])
+            i += 1
+            continue
+        }
+        // A directive: flags, width, precision, letter.
+        let start = i
+        i += 1
+        var sp = Spec {
+            left: false,
+            zero: false,
+            alt: false,
+            plus: false,
+            space: false,
+            width: 0,
+            prec: -1,
+            any: false,
+        }
+        var flags = true
+        while flags && i < n {
+            let x = b[i] as int
+            if x == 45 {
+                sp.left = true
+            } else if x == 48 {
+                sp.zero = true
+            } else if x == 35 {
+                sp.alt = true
+            } else if x == 43 {
+                sp.plus = true
+            } else if x == 32 {
+                sp.space = true
+            } else if x != 39 {
+                flags = false
+            }
+            if flags {
+                sp.any = true
+                i += 1
+            }
+        }
+        while i < n && b[i] as int >= 48 && b[i] as int <= 57 {
+            sp.width = sp.width * 10 + (b[i] as int - 48)
+            sp.any = true
+            i += 1
+        }
+        if i < n && b[i] as int == 46 {
+            sp.prec = 0
+            sp.any = true
+            i += 1
+            while i < n && b[i] as int >= 48 && b[i] as int <= 57 {
+                sp.prec = sp.prec * 10 + (b[i] as int - 48)
+                i += 1
+            }
+        }
+        if i >= n {
+            if !sp.any {
+                (mut out).push(37 as byte)
+                return ""
+            }
+            return format[start..n]
+        }
+        let letter = b[i] as int
+        i += 1
+        if letter == 37 {
+            if sp.any {
+                return format[start..i]
+            }
+            (mut out).push(37 as byte)
+            continue
+        }
+        var second = 0
+        if letter == 72 || letter == 76 {
+            // %Hd %Ld %Hr %Lr; anything else after H or L is unknown,
+            // and the next character is not part of it.
+            if i < n && (b[i] as int == 100 || b[i] as int == 114) {
+                second = b[i] as int
+                i += 1
+            } else {
+                (mut out).push(63 as byte)
+                continue
+            }
+        }
+        directive(mut out, letter, second, sp, f, cx)
+    }
+    ""
+}
+
+/// One backslash escape of a `--printf` format, the byte after the
+/// backslash being `b[at]`. Answers where the format goes on.
+fn escape(mut out: List[byte], b: List[byte], at: int) -> int {
+    if at >= b.len {
+        bore.warn("stat", "warning: backslash at end of format")
+        (mut out).push(92 as byte)
+        return at
+    }
+    let c = b[at] as int
+    if c >= 48 && c <= 55 {
+        var value = 0
+        var k = at
+        while k < b.len && k < at + 3 && b[k] as int >= 48 && b[k] as int <= 55 {
+            value = value * 8 + (b[k] as int - 48)
+            k += 1
+        }
+        (mut out).push((value % 256) as byte)
+        return k
+    }
+    if c == 120 {
+        var value = 0
+        var k = at + 1
+        while k < b.len && k < at + 3 && hex_of(b[k] as int) >= 0 {
+            value = value * 16 + hex_of(b[k] as int)
+            k += 1
+        }
+        if k == at + 1 {
+            bore.warn("stat", "warning: unrecognized escape '\\x'")
+            (mut out).push(120 as byte)
+            return k
+        }
+        (mut out).push(value as byte)
+        return k
+    }
+    var plain = -1
+    if c == 97 {
+        plain = 7
+    } else if c == 98 {
+        plain = 8
+    } else if c == 101 {
+        plain = 27
+    } else if c == 102 {
+        plain = 12
+    } else if c == 110 {
+        plain = 10
+    } else if c == 114 {
+        plain = 13
+    } else if c == 116 {
+        plain = 9
+    } else if c == 118 {
+        plain = 11
+    } else if c == 34 || c == 92 {
+        plain = c
+    }
+    if plain < 0 {
+        // The escape is named by its character, which may be the first
+        // byte of a longer one.
+        var one = List[byte]()
+        (mut one).push(b[at])
+        let shown = str_from_utf8(one) else "?"
+        bore.warn("stat", "warning: unrecognized escape '\\{shown}'")
+        (mut out).push(b[at])
+        return at + 1
+    }
+    (mut out).push(plain as byte)
+    at + 1
+}
+
+fn hex_of(c: int) -> int {
+    if c >= 48 && c <= 57 {
+        return c - 48
+    }
+    if c >= 97 && c <= 102 {
+        return c - 87
+    }
+    if c >= 65 && c <= 70 {
+        return c - 55
+    }
+    -1
+}
+
+/// The digits of `n` (a host's unsigned word, carried in an `int`) in
+/// `base` 8, 10 or 16.
+fn digits(n: int, base: int) -> str {
+    if n < 0 {
+        if base == 10 {
+            return bore.u64_text(n as wrapping[u64])
+        }
+        return bore.u64_radix(n as wrapping[u64], if base == 8 then 3 else 4, false)
+    }
+    if base == 10 {
+        return "{n}"
+    }
+    if n == 0 {
+        return "0"
+    }
+    var rev = List[byte]()
+    var v = n
+    while v > 0 {
+        let d = v % base
+        (mut rev).push((if d < 10 then 48 + d else 87 + d) as byte)
+        v = v / base
+    }
+    var out = List[byte]()
+    var k = rev.len
+    while k > 0 {
+        k -= 1
+        (mut out).push(rev[k])
+    }
+    str_from_utf8(out) else "0"
+}
+
+/// `text` laid in the directive's width: to the left under `-`, else to
+/// the right, zero-filled under `0` when `zeros` allows (after a sign).
+fn laid(mut out: List[byte], text: str, sp: Spec, zeros: bool) {
+    var pad = sp.width - text.len
+    if pad <= 0 {
+        push_text(mut out, text)
+        return
+    }
+    if sp.left {
+        push_text(mut out, text)
+        while pad > 0 {
+            (mut out).push(32 as byte)
+            pad -= 1
+        }
+        return
+    }
+    if zeros && sp.zero {
+        var from = 0
+        if text.starts_with("-") || text.starts_with("+") || text.starts_with(" ") {
+            push_text(mut out, text[0..1])
+            from = 1
+        }
+        while pad > 0 {
+            (mut out).push(48 as byte)
+            pad -= 1
+        }
+        push_text(mut out, text[from..])
+        return
+    }
+    while pad > 0 {
+        (mut out).push(32 as byte)
+        pad -= 1
+    }
+    push_text(mut out, text)
+}
+
+/// A string directive: cut to the precision, laid in the width.
+fn put_text(mut out: List[byte], text: str, sp: Spec) {
+    var t = text
+    if sp.prec >= 0 && sp.prec < t.len {
+        // Cut on a character boundary at or before the precision.
+        var cut = sp.prec
+        var done = false
+        while !done {
+            let piece = t.get(0..cut) else |_| {
+                cut -= 1
+                continue
+            }
+            t = piece
+            done = true
+        }
+    }
+    laid(mut out, t, sp, false)
+}
+
+/// A number directive in `base`: at least `prec` digits, `#` giving an
+/// octal number a leading `0` and a hex one `0x` (zero stays `0`).
+fn put_number(mut out: List[byte], n: int, base: int, sp: Spec) {
+    var text = digits(n, base)
+    while sp.prec > text.len {
+        text = "0" + text
+    }
+    if sp.alt && base == 8 && !text.starts_with("0") {
+        text = "0" + text
+    }
+    if sp.alt && base == 16 && n != 0 {
+        text = "0x" + text
+    }
+    laid(mut out, text, sp, sp.prec < 0)
+}
+
+/// A time in seconds from the epoch: whole (the floor) with no
+/// precision, else the true decimal to that many digits.
+fn put_seconds(mut out: List[byte], secs: int, nanos: int, sp: Spec) {
+    var text = "{secs}"
+    if sp.prec > 0 {
+        var whole = secs
+        var frac = nanos
+        var minus = false
+        if secs < 0 {
+            minus = true
+            if nanos > 0 {
+                whole = secs + 1
+                frac = 1000000000 - nanos
+            }
+            whole = -whole
+        }
+        var fraction = bore.zero_padded(frac, 9)
+        if sp.prec < 9 {
+            fraction = fraction[0..sp.prec]
+        }
+        while fraction.len < sp.prec {
+            fraction += "0"
+        }
+        text = "{whole}.{fraction}"
+        if minus {
+            text = "-" + text
+        }
+    }
+    if secs >= 0 {
+        if sp.plus {
+            text = "+" + text
+        } else if sp.space {
+            text = " " + text
+        }
+    }
+    laid(mut out, text, sp, true)
+}
+
+/// A time as GNU's full stamp, or `-` for one the host does not keep.
+fn stamp(rec: List[int], which: int, cx: Ctx) -> str {
+    if !bore.rec_has_time(rec, which) {
+        return "-"
+    }
+    bore.full_stamp(bore.civil_in(cx.zone, bore.rec_secs(rec, which)), bore.rec_nanos(rec, which))
+}
+
+/// The file's type in GNU's words.
+fn type_words(rec: List[int]) -> str {
+    let kind = bore.rec_kind(rec)
+    if kind == bore.kind_file() {
+        return if bore.rec_size(rec) == 0 then "regular empty file" else "regular file"
+    }
+    if kind == bore.kind_dir() {
+        return "directory"
+    }
+    if kind == bore.kind_link() {
+        return "symbolic link"
+    }
+    if kind == bore.kind_fifo() {
+        return "fifo"
+    }
+    if kind == bore.kind_socket() {
+        return "socket"
+    }
+    if kind == bore.kind_char() {
+        return "character special file"
+    }
+    if kind == bore.kind_block() {
+        return "block special file"
+    }
+    "weird file"
+}
+
+/// The type bits `%f` prints above the permissions (`S_IFMT`): octal
+/// 100000 a regular file, 40000 a directory, 120000 a link, 10000 a
+/// pipe, 140000 a socket, 20000 and 60000 the character and block
+/// devices. Written in decimal: an `0o…` literal is refused by the
+/// native and release tiers at wolf 0.2.27 (wolf-lang#688).
+fn type_bits(kind: int) -> int {
+    if kind == bore.kind_file() {
+        return 32768
+    }
+    if kind == bore.kind_dir() {
+        return 16384
+    }
+    if kind == bore.kind_link() {
+        return 40960
+    }
+    if kind == bore.kind_fifo() {
+        return 4096
+    }
+    if kind == bore.kind_socket() {
+        return 49152
+    }
+    if kind == bore.kind_char() {
+        return 8192
+    }
+    if kind == bore.kind_block() {
+        return 24576
+    }
+    0
+}
+
+/// The mount point `%m` prints: the highest directory above the file
+/// that is on the file's own device.
+fn mount_point(f: File) -> str {
+    var start = f.name
+    if bore.rec_kind(f.rec) != bore.kind_dir() {
+        let cut = f.name.rfind("/") else -1
+        start = if cut < 0 then "." else if cut == 0 then "/" else f.name[0..cut]
+    }
+    let r = bore.canonical(start, bore.existing())
+    if !r.ok {
+        return "?"
+    }
+    var here = r.path
+    let own = fs_stat(here) else |_| {
+        return "?"
+    }
+    let dev = bore.rec_dev(own)
+    while here != "/" {
+        let up = bore.parent_of(here)
+        let above = fs_stat(up) else |_| {
+            return here
+        }
+        if bore.rec_dev(above) != dev {
+            return here
+        }
+        here = up
+    }
+    here
+}
+
+/// One directive, by its letter (and for `%H…`/`%L…` its second).
+fn directive(mut out: List[byte], letter: int, second: int, sp: Spec, f: File, cx: Ctx) {
+    if letter == 72 || letter == 76 {
+        let word = if second == 100 then bore.rec_dev(f.rec) else bore.rec_rdev(f.rec)
+        let part = if letter == 72 {
+            bore.dev_major(word, cx.linux)
+        } else {
+            bore.dev_minor(word, cx.linux)
+        }
+        put_number(mut out, part, 10, sp)
+    } else if letter == 97 {
+        put_number(mut out, bore.rec_mode(f.rec), 8, sp)
+    } else if letter == 65 {
+        put_text(mut out, bore.mode_text(bore.rec_kind(f.rec), bore.rec_mode(f.rec)), sp)
+    } else if letter == 98 {
+        put_number(mut out, bore.rec_blocks(f.rec), 10, sp)
+    } else if letter == 66 {
+        put_number(mut out, 512, 10, sp)
+    } else if letter == 100 {
+        put_number(mut out, bore.rec_dev(f.rec), 10, sp)
+    } else if letter == 68 {
+        put_number(mut out, bore.rec_dev(f.rec), 16, sp)
+    } else if letter == 102 {
+        put_number(mut out, type_bits(bore.rec_kind(f.rec)) + bore.rec_mode(f.rec), 16, sp)
+    } else if letter == 70 {
+        put_text(mut out, type_words(f.rec), sp)
+    } else if letter == 103 {
+        put_number(mut out, bore.rec_gid(f.rec), 10, sp)
+    } else if letter == 71 {
+        let name = bore.group_name(cx.names, bore.rec_gid(f.rec))
+        put_text(mut out, if name.len > 0 then name else "UNKNOWN", sp)
+    } else if letter == 104 {
+        put_number(mut out, bore.rec_nlink(f.rec), 10, sp)
+    } else if letter == 105 {
+        put_number(mut out, bore.rec_ino(f.rec), 10, sp)
+    } else if letter == 109 {
+        put_text(mut out, mount_point(f), sp)
+    } else if letter == 110 {
+        put_text(mut out, f.name, sp)
+    } else if letter == 78 {
+        if sp.any {
+            put_text(mut out, f.name, sp)
+            if f.link {
+                push_text(mut out, " -> ")
+                put_text(mut out, f.target, sp)
+            }
+        } else {
+            push_text(mut out, bore.quote_always(f.name))
+            if f.link {
+                push_text(mut out, " -> ")
+                push_text(mut out, bore.quote_always(f.target))
+            }
+        }
+    } else if letter == 111 {
+        // The preferred I/O block size is not in the record
+        // (wolf-lang#684): `?`, never a guessed 4096.
+        put_text(mut out, "?", sp)
+    } else if letter == 115 {
+        put_number(mut out, bore.rec_size(f.rec), 10, sp)
+    } else if letter == 114 {
+        put_number(mut out, bore.rec_rdev(f.rec), 10, sp)
+    } else if letter == 82 {
+        put_number(mut out, bore.rec_rdev(f.rec), 16, sp)
+    } else if letter == 116 {
+        put_number(mut out, bore.dev_major(bore.rec_rdev(f.rec), cx.linux), 16, sp)
+    } else if letter == 84 {
+        put_number(mut out, bore.dev_minor(bore.rec_rdev(f.rec), cx.linux), 16, sp)
+    } else if letter == 117 {
+        put_number(mut out, bore.rec_uid(f.rec), 10, sp)
+    } else if letter == 85 {
+        let name = bore.user_name(cx.names, bore.rec_uid(f.rec))
+        put_text(mut out, if name.len > 0 then name else "UNKNOWN", sp)
+    } else if letter == 119 {
+        put_text(mut out, stamp(f.rec, 3, cx), sp)
+    } else if letter == 120 {
+        put_text(mut out, stamp(f.rec, 1, cx), sp)
+    } else if letter == 121 {
+        put_text(mut out, stamp(f.rec, 0, cx), sp)
+    } else if letter == 122 {
+        put_text(mut out, stamp(f.rec, 2, cx), sp)
+    } else if letter == 87 {
+        if bore.rec_has_time(f.rec, 3) {
+            put_seconds(mut out, bore.rec_secs(f.rec, 3), bore.rec_nanos(f.rec, 3), sp)
+        } else {
+            put_seconds(mut out, 0, 0, sp)
+        }
+    } else if letter == 88 {
+        put_seconds(mut out, bore.rec_secs(f.rec, 1), bore.rec_nanos(f.rec, 1), sp)
+    } else if letter == 89 {
+        put_seconds(mut out, bore.rec_secs(f.rec, 0), bore.rec_nanos(f.rec, 0), sp)
+    } else if letter == 90 {
+        put_seconds(mut out, bore.rec_secs(f.rec, 2), bore.rec_nanos(f.rec, 2), sp)
+    } else {
+        (mut out).push(63 as byte)
+    }
+}
+
+fn options() -> List[bore.Opt] {
+    var s = List[bore.Opt]()
+    (mut s).push(bore.flag("L", "dereference"))
+    (mut s).push(bore.flag("f", "file-system"))
+    (mut s).push(bore.takes("", "cached"))
+    (mut s).push(bore.takes("c", "format"))
+    (mut s).push(bore.takes("", "printf"))
+    (mut s).push(bore.flag("t", "terse"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    s
+}
+
+fn cached_words() -> List[str] {
+    var s = List[str]()
+    (mut s).push("default")
+    (mut s).push("never")
+    (mut s).push("always")
+    s
+}
+
+fn cached_meanings() -> List[int] {
+    var s = List[int]()
+    (mut s).push(0)
+    (mut s).push(1)
+    (mut s).push(2)
+    s
+}
+
+fn help() -> str {
+    """
+    Usage: stat [OPTION]... FILE...
+    Print the status of each FILE.
+
+      -L, --dereference     follow a link: the status of what it names
+      -c, --format=FORMAT   print FORMAT for each FILE, then a newline
+          --printf=FORMAT   the same with no newline, reading backslash
+                            escapes
+      -t, --terse           one line of numbers for each FILE
+          --cached=MODE     accepted (default, never, always)
+          --help            print this help and exit
+          --version         print the version and exit
+
+    FORMAT's directives (flags, a width and a .precision may precede
+    the letter):
+
+      %a  the mode in octal            %A  the mode as ls -l prints it
+      %b  blocks allocated             %B  the size of one, 512
+      %d  the device in decimal        %D  in hex
+      %Hd %Ld  its major and minor     %f  the raw mode in hex
+      %F  the type in words            %h  the link count
+      %g %G  the group's number and name
+      %u %U  the owner's number and name
+      %i  the inode number             %m  the mount point
+      %n  the name                     %N  the name quoted, and a link's
+                                           target
+      %s  the size in bytes
+      %r %R  a device file's own number, decimal and hex
+      %Hr %Lr  its major and minor     %t %T  the same in hex
+      %w %x %y %z  the times of birth, access, modification and status
+                   change
+      %W %X %Y %Z  the same in seconds from the epoch
+
+    Not here: -f (a file system's status), %o and the default format's
+    IO Block (printed as ?), %C, and - for standard input: wolf cannot
+    read them yet. Owners and groups are named from /etc/passwd and
+    /etc/group only.
+
+    The status is 1 when a FILE could not be reached.
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}

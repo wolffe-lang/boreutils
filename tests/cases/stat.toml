@@ -1,0 +1,962 @@
+# stat — GNU coreutils 9.11, black-box, on linux x86-64 and macOS arm64
+# (bu20, wolf 0.2.27: s218's twenty-word record).
+#
+# Every case stands in a scratch tree. A status-change time, a birth
+# time, an inode and a device number cannot be given to a tree, so the
+# cases that print one keep ONE tree for both sides (`scratch_keep`).
+# A case that prints an owner's NAME is `accounts` (a skip on a host
+# whose accounts are not in /etc/passwd), and has a numeric twin.
+#
+# What this stat cannot match is named, never imitated:
+#   wolf-lang#684  no I/O block size: %o and the default format's
+#                  `IO Block:` print `?`. The default and terse cases
+#                  compare every other byte through a `mask` on that
+#                  one field.
+#   wolf-lang#686  no file-system record: -f is refused (skips)
+#   wolf-lang#536  no record of an open handle: `-` is refused (skips)
+#   wolf-lang#685  no extended attribute: %C is refused (skip)
+# The help and version TEXT is ours, so those compare the exit only.
+
+
+[tree.kinds]
+cwd = "t"
+scratch_dirs = ["t", "t/dir", "t/dir/sub", "t/tdir"]
+scratch = { "t/a" = "12345", "t/bb" = "x", "t/exe" = "#!/bin/sh\n", "t/empty" = "", "t/.hidden" = "hh", "t/dir/inner" = "i", "t/suid" = "s", "t/sgid" = "g", "t/with space" = "ab", "t/new\nline" = "n" }
+scratch_sizes = { "t/big" = 5000, "t/huge" = 123456789012 }
+scratch_fifos = ["t/fifo"]
+scratch_sockets = ["t/sock"]
+scratch_links = { "t/link" = "a", "t/dlink" = "dir", "t/dangle" = "nope", "t/splink" = "with space", "t/nllink" = "new\nline" }
+scratch_hardlinks = { "t/hard" = "t/a" }
+scratch_modes = { "t/exe" = 0o755, "t/suid" = 0o4755, "t/sgid" = 0o2755, "t/tdir" = 0o1777, "t/bb" = 0o600, "t/dir" = 0o750 }
+scratch_time_all = 1600000000
+scratch_times = { "t/bb" = 1500000000, "t/big" = 1700000000, "t/dir" = 1650000000, "t/link" = 1550000000, "t/huge" = -1 }
+scratch_atimes = { "t/bb" = 1500000123, "t/big" = 1700000456 }
+
+
+# Instants before the epoch, with a fraction, and far away.
+[tree.instants]
+cwd = "t"
+scratch_dirs = ["t"]
+scratch = { "t/y1900" = "", "t/y1969" = "", "t/y2020s" = "", "t/y2023w" = "", "t/y2100" = "", "t/y10000" = "" }
+scratch_time_all = 1600000000
+scratch_times = { "t/y1900" = -2208988800, "t/y1969" = -1, "t/y2020s" = 1600000000, "t/y2023w" = 1700000000, "t/y2100" = 4102444800, "t/y10000" = 253402300800 }
+
+# --- the default format, every kind (one tree for both sides)
+[[case]]
+name = "a regular file"
+tree = "kinds"
+args = ["a"]
+scratch_keep = true
+accounts = true
+mask = ["IO Block: [0-9?]+ +"]
+
+[[case]]
+name = "an empty file"
+tree = "kinds"
+args = ["empty"]
+scratch_keep = true
+accounts = true
+mask = ["IO Block: [0-9?]+ +"]
+
+[[case]]
+name = "a directory"
+tree = "kinds"
+args = ["dir"]
+scratch_keep = true
+accounts = true
+mask = ["IO Block: [0-9?]+ +"]
+
+[[case]]
+name = "a sticky directory"
+tree = "kinds"
+args = ["tdir"]
+scratch_keep = true
+accounts = true
+mask = ["IO Block: [0-9?]+ +"]
+
+[[case]]
+name = "a link is itself"
+tree = "kinds"
+args = ["link"]
+scratch_keep = true
+accounts = true
+mask = ["IO Block: [0-9?]+ +"]
+
+[[case]]
+name = "a dangling link"
+tree = "kinds"
+args = ["dangle"]
+scratch_keep = true
+accounts = true
+mask = ["IO Block: [0-9?]+ +"]
+
+[[case]]
+name = "a link to a directory"
+tree = "kinds"
+args = ["dlink"]
+scratch_keep = true
+accounts = true
+mask = ["IO Block: [0-9?]+ +"]
+
+[[case]]
+name = "a pipe"
+tree = "kinds"
+args = ["fifo"]
+scratch_keep = true
+accounts = true
+mask = ["IO Block: [0-9?]+ +"]
+
+[[case]]
+name = "a socket"
+tree = "kinds"
+args = ["sock"]
+scratch_keep = true
+accounts = true
+mask = ["IO Block: [0-9?]+ +"]
+
+[[case]]
+name = "a set-user-id file"
+tree = "kinds"
+args = ["suid"]
+scratch_keep = true
+accounts = true
+mask = ["IO Block: [0-9?]+ +"]
+
+[[case]]
+name = "a set-group-id file"
+tree = "kinds"
+args = ["sgid"]
+scratch_keep = true
+accounts = true
+mask = ["IO Block: [0-9?]+ +"]
+
+[[case]]
+name = "an executable"
+tree = "kinds"
+args = ["exe"]
+scratch_keep = true
+accounts = true
+mask = ["IO Block: [0-9?]+ +"]
+
+[[case]]
+name = "a private file"
+tree = "kinds"
+args = ["bb"]
+scratch_keep = true
+accounts = true
+mask = ["IO Block: [0-9?]+ +"]
+
+[[case]]
+name = "a hole"
+tree = "kinds"
+args = ["big"]
+scratch_keep = true
+accounts = true
+mask = ["IO Block: [0-9?]+ +"]
+
+[[case]]
+name = "a very large hole, modified before the epoch"
+tree = "kinds"
+args = ["huge"]
+scratch_keep = true
+accounts = true
+mask = ["IO Block: [0-9?]+ +"]
+
+[[case]]
+name = "a hidden file"
+tree = "kinds"
+args = [".hidden"]
+scratch_keep = true
+accounts = true
+mask = ["IO Block: [0-9?]+ +"]
+
+[[case]]
+name = "a name with a space is printed as it is"
+tree = "kinds"
+args = ["with space"]
+scratch_keep = true
+accounts = true
+mask = ["IO Block: [0-9?]+ +"]
+
+[[case]]
+name = "a name with a newline is printed as it is"
+tree = "kinds"
+args = ["new\nline"]
+scratch_keep = true
+accounts = true
+mask = ["IO Block: [0-9?]+ +"]
+
+[[case]]
+name = "a link to a name with a space"
+tree = "kinds"
+args = ["splink"]
+scratch_keep = true
+accounts = true
+mask = ["IO Block: [0-9?]+ +"]
+
+[[case]]
+name = "a file with two names"
+tree = "kinds"
+args = ["a", "hard"]
+scratch_keep = true
+accounts = true
+mask = ["IO Block: [0-9?]+ +"]
+
+[[case]]
+name = "several operands"
+tree = "kinds"
+args = ["a", "dir", "link", "fifo"]
+scratch_keep = true
+accounts = true
+mask = ["IO Block: [0-9?]+ +"]
+
+[[case]]
+name = "the working directory"
+tree = "kinds"
+args = ["."]
+scratch_keep = true
+accounts = true
+mask = ["IO Block: [0-9?]+ +"]
+
+[[case]]
+name = "-L follows a link"
+tree = "kinds"
+args = ["-L", "link"]
+scratch_keep = true
+accounts = true
+mask = ["IO Block: [0-9?]+ +"]
+
+[[case]]
+name = "-L follows a link to a directory"
+tree = "kinds"
+args = ["-L", "dlink"]
+scratch_keep = true
+accounts = true
+mask = ["IO Block: [0-9?]+ +"]
+
+[[case]]
+name = "--dereference"
+tree = "kinds"
+args = ["--dereference", "link"]
+scratch_keep = true
+accounts = true
+mask = ["IO Block: [0-9?]+ +"]
+
+[[case]]
+name = "-L of a file that is no link"
+tree = "kinds"
+args = ["-L", "a"]
+scratch_keep = true
+accounts = true
+mask = ["IO Block: [0-9?]+ +"]
+
+[[case]]
+name = "-L cannot follow a dangling link"
+tree = "kinds"
+args = ["-L", "dangle"]
+
+[[case]]
+name = "-L of a dangling link beside a file"
+tree = "kinds"
+args = ["-L", "dangle", "a"]
+scratch_keep = true
+accounts = true
+mask = ["IO Block: [0-9?]+ +"]
+
+[[case]]
+name = "a character device"
+args = ["/dev/null"]
+requires = "/dev/null"
+accounts = true
+mask = ["IO Block: [0-9?]+ +"]
+
+[[case]]
+name = "a block device (nvme)"
+args = ["/dev/nvme0n1"]
+requires = "/dev/nvme0n1"
+accounts = true
+mask = ["IO Block: [0-9?]+ +"]
+
+[[case]]
+name = "a block device (scsi)"
+args = ["/dev/sda"]
+requires = "/dev/sda"
+accounts = true
+mask = ["IO Block: [0-9?]+ +"]
+
+[[case]]
+name = "a block device (loop)"
+args = ["/dev/loop0"]
+requires = "/dev/loop0"
+accounts = true
+mask = ["IO Block: [0-9?]+ +"]
+
+[[case]]
+name = "the root directory"
+args = ["/"]
+accounts = true
+mask = ["IO Block: [0-9?]+ +"]
+
+# --- the terse format
+[[case]]
+name = "-t of a file"
+tree = "kinds"
+args = ["-t", "a"]
+scratch_keep = true
+mask = ["(?m) [0-9?]+$"]
+
+[[case]]
+name = "-t of every kind"
+tree = "kinds"
+args = ["-t", "a", "dir", "link", "dangle", "fifo", "sock", "suid", "empty"]
+scratch_keep = true
+mask = ["(?m) [0-9?]+$"]
+
+[[case]]
+name = "-t with -L"
+tree = "kinds"
+args = ["-tL", "link", "dlink"]
+scratch_keep = true
+mask = ["(?m) [0-9?]+$"]
+
+[[case]]
+name = "--terse"
+tree = "kinds"
+args = ["--terse", "big"]
+scratch_keep = true
+mask = ["(?m) [0-9?]+$"]
+
+[[case]]
+name = "-t of a name with a space"
+tree = "kinds"
+args = ["-t", "with space"]
+scratch_keep = true
+mask = ["(?m) [0-9?]+$"]
+
+[[case]]
+name = "-t of a character device"
+args = ["-t", "/dev/null"]
+requires = "/dev/null"
+mask = ["(?m) [0-9?]+$"]
+
+# --- the directives, one family at a time
+[[case]]
+name = "%a %A: the mode"
+tree = "kinds"
+args = ["-c", "%a %A %n", "a", "dir", "tdir", "link", "dangle", "fifo", "sock", "suid", "sgid", "exe", "bb", "empty", "big"]
+
+[[case]]
+name = "%f: the raw mode in hex"
+tree = "kinds"
+args = ["-c", "%f %n", "a", "dir", "tdir", "link", "dangle", "fifo", "sock", "suid", "sgid", "exe", "bb", "empty", "big"]
+
+[[case]]
+name = "%F: the type in words"
+tree = "kinds"
+args = ["-c", "%F|%n", "a", "dir", "tdir", "link", "dangle", "fifo", "sock", "suid", "sgid", "exe", "bb", "empty", "big"]
+
+[[case]]
+name = "%s %b %B: size and blocks"
+tree = "kinds"
+args = ["-c", "%s %b %B %n", "a", "dir", "tdir", "link", "dangle", "fifo", "sock", "suid", "sgid", "exe", "bb", "empty", "big"]
+
+[[case]]
+name = "%h: links"
+tree = "kinds"
+args = ["-c", "%h %n", "a", "dir", "tdir", "link", "dangle", "fifo", "sock", "suid", "sgid", "exe", "bb", "empty", "big"]
+
+[[case]]
+name = "%u %g: the ids"
+tree = "kinds"
+args = ["-c", "%u %g", "a", "dir", "tdir", "link", "dangle", "fifo", "sock", "suid", "sgid", "exe", "bb", "empty", "big"]
+
+[[case]]
+name = "%U %G: the names"
+tree = "kinds"
+args = ["-c", "%U %G", "a", "dir", "tdir", "link", "dangle", "fifo", "sock", "suid", "sgid", "exe", "bb", "empty", "big"]
+accounts = true
+
+[[case]]
+name = "%i: the inode"
+tree = "kinds"
+args = ["-c", "%i %n", "a", "dir", "tdir", "link", "dangle", "fifo", "sock", "suid", "sgid", "exe", "bb", "empty", "big"]
+scratch_keep = true
+
+[[case]]
+name = "%d %D %Hd %Ld: the device"
+tree = "kinds"
+args = ["-c", "%d %D %Hd %Ld", "a", "dir", "tdir", "link", "dangle", "fifo", "sock", "suid", "sgid", "exe", "bb", "empty", "big"]
+scratch_keep = true
+
+[[case]]
+name = "%r %R %t %T %Hr %Lr of files that are no device"
+tree = "kinds"
+args = ["-c", "%r %R %t %T %Hr %Lr", "a", "dir", "tdir", "link", "dangle", "fifo", "sock", "suid", "sgid", "exe", "bb", "empty", "big"]
+
+[[case]]
+name = "%n and %N"
+tree = "kinds"
+args = ["-c", "%n|%N", "a", "dir", "tdir", "link", "dangle", "fifo", "sock", "suid", "sgid", "exe", "bb", "empty", "big"]
+
+[[case]]
+name = "%x %y: access and modification"
+tree = "kinds"
+args = ["-c", "%x|%y", "a", "dir", "tdir", "link", "dangle", "fifo", "sock", "suid", "sgid", "exe", "bb", "empty", "big"]
+
+[[case]]
+name = "%X %Y: the same in seconds"
+tree = "kinds"
+args = ["-c", "%X %Y", "a", "dir", "tdir", "link", "dangle", "fifo", "sock", "suid", "sgid", "exe", "bb", "empty", "big"]
+
+[[case]]
+name = "%z %Z: status change"
+tree = "kinds"
+args = ["-c", "%z|%Z", "a", "dir", "tdir", "link", "dangle", "fifo", "sock", "suid", "sgid", "exe", "bb", "empty", "big"]
+scratch_keep = true
+
+[[case]]
+name = "%w %W: birth"
+tree = "kinds"
+args = ["-c", "%w|%W", "a", "dir", "tdir", "link", "dangle", "fifo", "sock", "suid", "sgid", "exe", "bb", "empty", "big"]
+scratch_keep = true
+
+[[case]]
+name = "%m: the mount point"
+tree = "kinds"
+args = ["-c", "%m", "a", "dir", "tdir", "link", "dangle", "fifo", "sock", "suid", "sgid", "exe", "bb", "empty", "big"]
+
+[[case]]
+name = "%N of names a shell would have to quote"
+tree = "kinds"
+args = ["-c", "%N", "with space", "new\nline", "splink", "nllink"]
+
+[[case]]
+name = "%N under -L has no arrow"
+tree = "kinds"
+args = ["-L", "-c", "%N %F", "link", "dlink"]
+
+[[case]]
+name = "%m under -L"
+tree = "kinds"
+args = ["-L", "-c", "%m", "link", "dlink"]
+
+[[case]]
+name = "%m of the root directory"
+args = ["-c", "%m", "/"]
+
+[[case]]
+name = "device numbers of a character device"
+args = ["-c", "%t %T %r %R %Hr %Lr %F %a %A", "/dev/null"]
+requires = "/dev/null"
+
+[[case]]
+name = "device numbers of /dev/zero"
+args = ["-c", "%t,%T %Hr,%Lr", "/dev/zero"]
+requires = "/dev/zero"
+
+[[case]]
+name = "device numbers of a block device (nvme)"
+args = ["-c", "%t %T %r %R %Hr %Lr %F", "/dev/nvme0n1"]
+requires = "/dev/nvme0n1"
+
+[[case]]
+name = "device numbers of a block device (scsi)"
+args = ["-c", "%t %T %r %R %Hr %Lr %F", "/dev/sda"]
+requires = "/dev/sda"
+
+[[case]]
+name = "device numbers of a block device (loop)"
+args = ["-c", "%t %T %r %R %Hr %Lr %F", "/dev/loop0"]
+requires = "/dev/loop0"
+
+[[case]]
+name = "a mac's block device"
+args = ["-c", "%t %T %r %R %Hr %Lr %F", "/dev/disk0"]
+requires = "/dev/disk0"
+
+[[case]]
+name = "%U %G of root's files"
+args = ["-c", "%U %G %u %g", "/"]
+
+# --- flags, width and precision
+[[case]]
+name = "a width on a number"
+tree = "kinds"
+args = ["-c", "[%10s] [%-10s] [%010s] [%1s]", "big"]
+
+[[case]]
+name = "+ and space do nothing to a number"
+tree = "kinds"
+args = ["-c", "[%+5s] [% 5s] [%+s]", "big"]
+
+[[case]]
+name = "a precision is the least digits"
+tree = "kinds"
+args = ["-c", "[%.3s] [%.6s] [%10.6s] [%-10.6s|]", "big"]
+
+[[case]]
+name = "- beats 0"
+tree = "kinds"
+args = ["-c", "[%-08s|]", "big"]
+
+[[case]]
+name = "the quote flag is accepted"
+tree = "kinds"
+args = ["-c", "[%'s]", "big"]
+
+[[case]]
+name = "# on octal and hex"
+tree = "kinds"
+args = ["-c", "[%#a] [%#f] [%#D] [%#t] [%#R]", "big"]
+
+[[case]]
+name = "# on decimal does nothing"
+tree = "kinds"
+args = ["-c", "[%#h] [%#u] [%#s]", "big"]
+
+[[case]]
+name = "the mode in widths"
+tree = "kinds"
+args = ["-c", "[%05a] [%-5a] [%5a] [%+a] [%.5a]", "big", "suid"]
+
+[[case]]
+name = "a width and a precision on a string"
+tree = "kinds"
+args = ["-c", "[%10n] [%-10n] [%.2n] [%5.1n]", "big"]
+
+[[case]]
+name = "the mode string in widths"
+tree = "kinds"
+args = ["-c", "[%12A] [%-12A] [%.3A]", "big"]
+
+[[case]]
+name = "a width on %F"
+tree = "kinds"
+args = ["-c", "[%20F] [%-20F|] [%.7F]", "big", "dir", "fifo"]
+
+[[case]]
+name = "the ids in widths"
+tree = "kinds"
+args = ["-c", "[%5u] [%05u] [%-5g|] [%.6u]", "big"]
+
+[[case]]
+name = "a time string is a string"
+tree = "kinds"
+args = ["-c", "[%y] [%.3y] [%.0y] [%.10y] [%40y] [%-40y|]", "a"]
+
+[[case]]
+name = "a time in seconds takes a precision"
+tree = "kinds"
+args = ["-c", "[%Y] [%.3Y] [%.0Y] [%.9Y] [%.12Y]", "a"]
+
+[[case]]
+name = "a time in seconds in a width"
+tree = "kinds"
+args = ["-c", "[%20.3Y] [%-20.3Y|] [%020.3Y] [%015Y] [%-15Y|]", "a"]
+
+[[case]]
+name = "+ and space on a time in seconds"
+tree = "kinds"
+args = ["-c", "[%+Y] [% Y] [%+.2Y]", "a"]
+
+[[case]]
+name = "the access time, which differs"
+tree = "kinds"
+args = ["-c", "[%X] [%.3X] [%x]", "bb", "big"]
+
+[[case]]
+name = "a time before the epoch"
+tree = "kinds"
+args = ["-c", "[%Y] [%.3Y] [%.2Y] [%y]", "huge"]
+
+[[case]]
+name = "+ on a time before the epoch"
+tree = "kinds"
+args = ["-c", "[%+Y] [% Y] [%010Y]", "huge"]
+
+[[case]]
+name = "%N with a width is not quoted"
+tree = "kinds"
+args = ["-c", "[%.3N] [%12N] [%-12N|]", "a"]
+
+[[case]]
+name = "%N of a link with a width lays each part"
+tree = "kinds"
+args = ["-c", "[%12N] [%-12N|] [%.2N]", "link"]
+
+[[case]]
+name = "%Hd in widths"
+tree = "kinds"
+args = ["-c", "%5Hr|%-5Lr|%05Hr|", "a"]
+
+# --- what is not a directive
+[[case]]
+name = "an unknown letter is ?"
+tree = "kinds"
+args = ["-c", "%q", "a"]
+
+[[case]]
+name = "an unknown letter after flags is ?"
+tree = "kinds"
+args = ["-c", "[%5q] [%.2q] [%-q]", "a"]
+
+[[case]]
+name = "a % that ends the format is itself"
+tree = "kinds"
+args = ["-c", "a%", "a"]
+
+[[case]]
+name = "% alone"
+tree = "kinds"
+args = ["-c", "%", "a"]
+
+[[case]]
+name = "%% is a percent sign"
+tree = "kinds"
+args = ["-c", "%%%n%%", "a"]
+
+[[case]]
+name = "a width before % is invalid, after what was printed"
+tree = "kinds"
+args = ["-c", "x%%y %5% z", "a"]
+
+[[case]]
+name = "- before % is invalid"
+tree = "kinds"
+args = ["-c", "%-%", "a"]
+
+[[case]]
+name = ". before % is invalid"
+tree = "kinds"
+args = ["-c", "%.%", "a"]
+
+[[case]]
+name = "0 before % is invalid"
+tree = "kinds"
+args = ["-c", "%0%", "a"]
+
+[[case]]
+name = "# before % is invalid"
+tree = "kinds"
+args = ["-c", "%#%", "a"]
+
+[[case]]
+name = "a width that ends the format is invalid"
+tree = "kinds"
+args = ["-c", "%5", "a"]
+
+[[case]]
+name = "a precision that ends the format is invalid"
+tree = "kinds"
+args = ["-c", "%.", "a"]
+
+[[case]]
+name = "%H alone is ?"
+tree = "kinds"
+args = ["-c", "%H", "a"]
+
+[[case]]
+name = "%L alone is ?"
+tree = "kinds"
+args = ["-c", "%L", "a"]
+
+[[case]]
+name = "%H and a letter that is not d or r"
+tree = "kinds"
+args = ["-c", "%Hx|%Lq", "a"]
+
+[[case]]
+name = "-c reads no backslash"
+tree = "kinds"
+args = ["-c", "\\n\\t\\\\%n\\n", "a"]
+
+[[case]]
+name = "an empty format is a newline"
+tree = "kinds"
+args = ["-c", "", "a"]
+
+[[case]]
+name = "a newline in the format"
+tree = "kinds"
+args = ["-c", "%s\n%n", "a"]
+
+[[case]]
+name = "-c= is an equals sign"
+tree = "kinds"
+args = ["-c", "=%s", "a"]
+
+[[case]]
+name = "an invalid directive stops before the second file"
+tree = "kinds"
+args = ["-c", "%n %5%", "a", "bb"]
+
+# --- --printf: no newline, and escapes
+[[case]]
+name = "--printf ends with nothing"
+tree = "kinds"
+args = ["--printf=%n", "a"]
+
+[[case]]
+name = "--printf of two files runs them together"
+tree = "kinds"
+args = ["--printf=%s", "a", "bb"]
+
+[[case]]
+name = "the named escapes"
+tree = "kinds"
+args = ["--printf=%n\\t%s\\n", "a", "bb"]
+
+[[case]]
+name = "every named escape"
+tree = "kinds"
+args = ["--printf=\\a\\b\\e\\f\\n\\r\\t\\v\\\"\\\\\\n", "a"]
+
+[[case]]
+name = "octal escapes of one to three digits"
+tree = "kinds"
+args = ["--printf=\\101\\7\\0333\\1234\\n", "a"]
+
+[[case]]
+name = "an octal escape past a byte wraps"
+tree = "kinds"
+args = ["--printf=\\400|\\777\\n", "a"]
+
+[[case]]
+name = "hex escapes of one or two digits"
+tree = "kinds"
+args = ["--printf=\\x41\\x414\\x9\\n", "a"]
+
+[[case]]
+name = "a NUL"
+tree = "kinds"
+args = ["--printf=a\\0b\\n", "a"]
+
+[[case]]
+name = "an unknown escape is a warning and the letter"
+tree = "kinds"
+args = ["--printf=\\q\\n", "a"]
+
+[[case]]
+name = "an unknown escape is warned of for every file"
+tree = "kinds"
+args = ["--printf=\\q%n\\n", "a", "bb"]
+
+[[case]]
+name = "\\8 is no octal digit"
+tree = "kinds"
+args = ["--printf=\\8\\9\\n", "a"]
+
+[[case]]
+name = "\\x with no digit"
+tree = "kinds"
+args = ["--printf=\\xZ\\n", "a"]
+
+[[case]]
+name = "\\c is not an escape here"
+tree = "kinds"
+args = ["--printf=\\c%n\\n", "a"]
+
+[[case]]
+name = "a backslash that ends the format"
+tree = "kinds"
+args = ["--printf=%n\\", "a"]
+
+[[case]]
+name = "an empty --printf prints nothing"
+tree = "kinds"
+args = ["--printf=", "a"]
+
+[[case]]
+name = "a directive after an escape"
+tree = "kinds"
+args = ["--printf=\\t%n\\t%s\\n", "a"]
+
+[[case]]
+name = "--printf as two words"
+tree = "kinds"
+args = ["--printf", "%s\\n", "a"]
+
+# --- which format wins
+[[case]]
+name = "--printf after -c"
+tree = "kinds"
+args = ["-c", "%n", "--printf=%s\\n", "a"]
+
+[[case]]
+name = "-c after --printf"
+tree = "kinds"
+args = ["--printf=%s\\n", "-c", "%n", "a"]
+
+[[case]]
+name = "--format twice: the last"
+tree = "kinds"
+args = ["--format=%s", "--format=%n", "a"]
+
+[[case]]
+name = "-c beats -t before it"
+tree = "kinds"
+args = ["-t", "-c", "%n", "a"]
+
+[[case]]
+name = "-c beats -t after it"
+tree = "kinds"
+args = ["-c", "%n", "-t", "a"]
+
+[[case]]
+name = "--cached is accepted"
+tree = "kinds"
+args = ["--cached=never", "-c", "%n", "a"]
+
+[[case]]
+name = "--cached=always"
+tree = "kinds"
+args = ["--cached=always", "-c", "%n", "a"]
+
+[[case]]
+name = "--cached=def abbreviates"
+tree = "kinds"
+args = ["--cached=def", "-c", "%n", "a"]
+
+[[case]]
+name = "--cached=bogus is refused"
+tree = "kinds"
+args = ["--cached=bogus", "a"]
+
+# --- what cannot be reached, and usage
+[[case]]
+name = "a missing file, and the next still prints"
+tree = "kinds"
+args = ["-c", "%n", "nope", "a"]
+
+[[case]]
+name = "an empty operand"
+tree = "kinds"
+args = ["-c", "%n", ""]
+
+[[case]]
+name = "an operand under a file"
+tree = "kinds"
+args = ["-c", "%n", "a/b"]
+
+[[case]]
+name = "only missing files"
+tree = "kinds"
+args = ["nope", "nada"]
+
+[[case]]
+name = "a name that starts with a dash, after --"
+tree = "kinds"
+args = ["-c", "%s %n", "--", "-x", "a"]
+
+[[case]]
+name = "no operand"
+args = []
+
+[[case]]
+name = "no operand after a format"
+args = ["-c", "%n"]
+
+[[case]]
+name = "-c needs an argument"
+args = ["-c"]
+
+[[case]]
+name = "--format needs an argument"
+args = ["--format"]
+
+[[case]]
+name = "--format with only its argument has no operand"
+tree = "kinds"
+args = ["--format", "a"]
+
+[[case]]
+name = "an unknown option"
+args = ["-x"]
+
+[[case]]
+name = "an unknown long option"
+args = ["--nope"]
+
+[[case]]
+name = "--help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "--version"
+args = ["--version"]
+compare = ["exit"]
+
+# --- the time zone
+[[case]]
+name = "%y in TZ=UTC0"
+tree = "instants"
+args = ["-c", "%y %n", "y1900", "y1969", "y2020s", "y2023w", "y2100", "y10000"]
+env = { "TZ" = "UTC0" }
+
+[[case]]
+name = "%y in TZ=America/New_York"
+tree = "instants"
+args = ["-c", "%y %n", "y1900", "y1969", "y2020s", "y2023w", "y2100", "y10000"]
+env = { "TZ" = "America/New_York" }
+requires = "/usr/share/zoneinfo/America/New_York"
+
+[[case]]
+name = "%y in TZ=Asia/Kolkata"
+tree = "instants"
+args = ["-c", "%y %n", "y1900", "y1969", "y2020s", "y2023w", "y2100", "y10000"]
+env = { "TZ" = "Asia/Kolkata" }
+requires = "/usr/share/zoneinfo/Asia/Kolkata"
+
+[[case]]
+name = "%y in TZ=Australia/Lord_Howe"
+tree = "instants"
+args = ["-c", "%y %n", "y1900", "y1969", "y2020s", "y2023w", "y2100", "y10000"]
+env = { "TZ" = "Australia/Lord_Howe" }
+requires = "/usr/share/zoneinfo/Australia/Lord_Howe"
+
+[[case]]
+name = "%y in TZ=Europe/Dublin"
+tree = "instants"
+args = ["-c", "%y %n", "y1900", "y1969", "y2020s", "y2023w", "y2100", "y10000"]
+env = { "TZ" = "Europe/Dublin" }
+requires = "/usr/share/zoneinfo/Europe/Dublin"
+
+[[case]]
+name = "%y under a rule"
+tree = "instants"
+args = ["-c", "%y", "y1969", "y2020s", "y2023w"]
+env = { "TZ" = "CET-1CEST,M3.5.0,M10.5.0/3" }
+
+[[case]]
+name = "%Y does not move with the zone"
+tree = "instants"
+args = ["-c", "%Y", "y1969", "y2020s"]
+env = { "TZ" = "Asia/Tokyo" }
+
+# --- refused by name: what wolf cannot read yet
+[[case]]
+name = "-f: a file system's status"
+args = ["-f", "."]
+skip = "no file-system record in wolf 0.2.27 (statfs, wolf-lang#686): refused by name, status 1"
+
+[[case]]
+name = "-f with a format"
+args = ["-f", "-c", "%T", "."]
+skip = "no file-system record in wolf 0.2.27 (statfs, wolf-lang#686): refused by name, status 1"
+
+[[case]]
+name = "-: standard input"
+args = ["-c", "%F", "-"]
+skip = "the record of an open handle is fs_fstat's three words (wolf-lang#536): refused by name, status 1"
+
+[[case]]
+name = "%C: the security context"
+args = ["-c", "%C", "."]
+skip = "a security context is an extended attribute, which wolf cannot read (wolf-lang#685): refused by name, status 1"
+
+[[case]]
+name = "%o: the I/O block size"
+args = ["-c", "%o", "."]
+skip = "the record has no I/O block size (wolf-lang#684): prints ? where GNU prints a number"
+
