@@ -1,0 +1,23 @@
+# stat — start-up on one file, in the default format (which reads the
+# account tables and the zone) and in a format that reads neither; then
+# every file of `tree`'s flat/ as operands, one stat each.
+
+[[bench]]
+name = "one directory, the default format"
+command = "{prog} {input} > /dev/null"
+input = "tree"
+
+[[bench]]
+name = "one directory, -c '%s %Y'"
+command = "{prog} -c '%s %Y' {input} > /dev/null"
+input = "tree"
+
+[[bench]]
+name = "every file of flat/, -c '%s %n'"
+command = "{prog} -c '%s %n' {input}/flat/* > /dev/null"
+input = "tree"
+
+[[bench]]
+name = "every file of flat/, the terse format"
+command = "{prog} -t {input}/flat/* > /dev/null"
+input = "tree"

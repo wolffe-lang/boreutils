@@ -1,0 +1,15 @@
+# readlink — start-up: one readlink, or one walk of a path (an lstat a
+# component; GNU's walk is the C library's).
+
+[[bench]]
+name = "one link"
+command = "{prog} /etc/localtime > /dev/null"
+
+[[bench]]
+name = "-f of a path with .. in it"
+command = "{prog} -f {input}/flat/../deep/.. > /dev/null"
+input = "tree"
+
+[[bench]]
+name = "-m of a path that is not there"
+command = "{prog} -m /nonexistent/a/b/../c > /dev/null"
