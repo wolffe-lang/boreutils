@@ -13,6 +13,10 @@
 #                        hand transcript in the lane's note.
 #   -u -b -S --debug     not written yet (skips)
 #   --exchange           wolf-lang#706 (skip)
+#
+# A case that says gnu_min = "9.11" is one the field's GNU 9.4 answers
+# differently (CI's `field` leg, run 38123623741): there it is skipped,
+# which keeps that leg's list a record of the field and not of this file.
 
 # --- operands
 [[case]]
@@ -97,6 +101,7 @@ scratch = { "a" = "A\n", "b" = "B\n" }
 name = "an empty destination"
 args = ["a", ""]
 scratch = { "a" = "A\n", "b" = "B\n" }
+gnu_min = "9.11"
 
 [[case]]
 name = "a directory to an empty destination"
@@ -155,12 +160,14 @@ scratch = { "a" = "A\n", "b" = "B\n", "d/c" = "c\n", "d/sub/s" = "s\n" }
 name = "a file over a directory by name"
 args = ["a", "d"]
 scratch = { "a" = "A\n", "d/a/x" = "x\n" }
+gnu_min = "9.11"
 
 [[case]]
 name = "a file over an empty directory by name"
 args = ["a", "d"]
 scratch = { "a" = "A\n" }
 scratch_dirs = ["d/a"]
+gnu_min = "9.11"
 
 [[case]]
 name = "a directory into itself"
@@ -447,6 +454,7 @@ stdin = "n\n"
 name = "-n"
 args = ["-n", "a", "b"]
 scratch = { "a" = "A\n", "b" = "B\n" }
+gnu_min = "9.11"
 
 [[case]]
 name = "-n: nothing there"
@@ -457,22 +465,26 @@ scratch = { "a" = "A\n", "b" = "B\n" }
 name = "-nv"
 args = ["-nv", "a", "b"]
 scratch = { "a" = "A\n", "b" = "B\n" }
+gnu_min = "9.11"
 
 [[case]]
 name = "-n: into a directory"
 args = ["-n", "a", "b", "d"]
 scratch = { "a" = "A\n", "b" = "B\n", "d/a" = "old\n" }
+gnu_min = "9.11"
 
 [[case]]
 name = "--no-clobber"
 args = ["--no-clobber", "a", "b"]
 scratch = { "a" = "A\n", "b" = "B\n" }
+gnu_min = "9.11"
 
 [[case]]
 name = "-n: a directory over an empty directory"
 args = ["-nT", "d", "e"]
 scratch = { "d/c" = "c\n", "d/sub/s" = "s\n" }
 scratch_dirs = ["e"]
+gnu_min = "9.11"
 
 [[case]]
 name = "-n: a missing source"
@@ -483,12 +495,14 @@ scratch = { "a" = "A\n", "b" = "B\n" }
 name = "-n: a name onto itself"
 args = ["-n", "a", "a"]
 scratch = { "a" = "A\n", "b" = "B\n" }
+gnu_min = "9.11"
 
 [[case]]
 name = "-i -n: the last wins"
 args = ["-i", "-n", "a", "b"]
 scratch = { "a" = "A\n", "b" = "B\n" }
 stdin = "y\n"
+gnu_min = "9.11"
 
 [[case]]
 name = "-n -i: the last wins"
@@ -517,6 +531,7 @@ scratch = { "a" = "A\n", "b" = "B\n" }
 name = "-f -n"
 args = ["-f", "-n", "a", "b"]
 scratch = { "a" = "A\n", "b" = "B\n" }
+gnu_min = "9.11"
 
 # --- -t, -T, --strip-trailing-slashes
 [[case]]
@@ -585,12 +600,14 @@ scratch = { "a" = "A\n", "b" = "B\n" }
 name = "-T: a file over a directory"
 args = ["-T", "a", "d"]
 scratch = { "a" = "A\n", "b" = "B\n", "d/c" = "c\n", "d/sub/s" = "s\n" }
+gnu_min = "9.11"
 
 [[case]]
 name = "-T: a file over an empty directory"
 args = ["-T", "a", "e"]
 scratch = { "a" = "A\n", "b" = "B\n" }
 scratch_dirs = ["e"]
+gnu_min = "9.11"
 
 [[case]]
 name = "-T: a directory over an empty directory"

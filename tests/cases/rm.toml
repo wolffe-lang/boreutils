@@ -17,6 +17,10 @@
 #   --no-preserve-root   refused by name: this rm does not remove `/`
 #   --preserve-root=all  not written yet
 #   wolf-lang#633        "may I write it?" is the owner's write bit
+#
+# A case that says gnu_min = "9.11" is one the field's GNU 9.4 answers
+# differently (CI's `field` leg, run 38123623741): there it is skipped,
+# which keeps that leg's list a record of the field and not of this file.
 
 # --- files
 [[case]]
@@ -300,6 +304,7 @@ scratch_dirs = ["e"]
 [[case]]
 name = "-d: the working directory"
 args = ["-d", "."]
+gnu_min = "9.11"
 
 [[case]]
 name = "-d: a directory with no permissions, empty"
@@ -312,6 +317,7 @@ name = "-d: a directory with no permissions, not empty"
 args = ["-d", "ne"]
 scratch_dirs = ["ne/x"]
 scratch_modes = { "ne" = 0o000 }
+gnu_min = "9.11"
 
 [[case]]
 name = "-d: a link to an empty directory"
@@ -785,6 +791,7 @@ name = "-di: a directory that is not empty"
 args = ["-di", "d"]
 scratch = { "d/a" = "a\n", "d/sub/b" = "b\n", "d/sub/deep/c" = "c\n" }
 stdin = "y\n"
+gnu_min = "9.11"
 
 [[case]]
 name = "-div"

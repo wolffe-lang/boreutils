@@ -16,6 +16,10 @@
 #   wolf-lang#699  -l      #705  a fifo or a device under -r
 #   wolf-lang#700, #701    -p, --preserve, -a
 #   wolf-lang#703  --sparse and --reflink other than auto
+#
+# A case that says gnu_min = "9.11" is one the field's GNU 9.4 answers
+# differently (CI's `field` leg, run 38123623741): there it is skipped,
+# which keeps that leg's list a record of the field and not of this file.
 
 # --- operands
 [[case]]
@@ -167,6 +171,7 @@ scratch = { "q'x" = "" }
 name = "a file over a directory by name"
 args = ["a", "d"]
 scratch = { "a" = "A\n", "d/a/x" = "x\n" }
+gnu_min = "9.11"
 
 [[case]]
 name = "a directory without -r"
@@ -488,6 +493,7 @@ scratch = { "a" = "A\n", "b" = "B\n", "d/c" = "c\n", "d/sub/s" = "s\n", "d/sub/d
 name = "-r: a file in the tree over a directory in the destination"
 args = ["-r", "d", "e"]
 scratch = { "d/c" = "c\n", "e/d/c/x" = "x\n" }
+gnu_min = "9.11"
 
 [[case]]
 name = "-r: a directory in the tree over a file in the destination"
@@ -813,43 +819,51 @@ stdin = "n\n"
 name = "-n"
 args = ["-n", "a", "b"]
 scratch = { "a" = "A\n", "b" = "B\n" }
+gnu_min = "9.11"
 
 [[case]]
 name = "-n: nothing there"
 args = ["-n", "a", "new"]
 scratch = { "a" = "A\n", "b" = "B\n" }
+gnu_min = "9.11"
 
 [[case]]
 name = "-nv"
 args = ["-nv", "a", "b"]
 scratch = { "a" = "A\n", "b" = "B\n" }
+gnu_min = "9.11"
 
 [[case]]
 name = "-n: into a directory"
 args = ["-n", "a", "b", "d"]
 scratch = { "a" = "A\n", "b" = "B\n", "d/a" = "old\n" }
+gnu_min = "9.11"
 
 [[case]]
 name = "--no-clobber"
 args = ["--no-clobber", "a", "b"]
 scratch = { "a" = "A\n", "b" = "B\n" }
+gnu_min = "9.11"
 
 [[case]]
 name = "-rn: a tree over a tree"
 args = ["-rnT", "d", "e"]
 scratch = { "d/c" = "new\n", "d/x" = "new\n", "e/c" = "old\n" }
+gnu_min = "9.11"
 
 [[case]]
 name = "-i -n"
 args = ["-i", "-n", "a", "b"]
 scratch = { "a" = "A\n", "b" = "B\n" }
 stdin = "y\n"
+gnu_min = "9.11"
 
 [[case]]
 name = "-n -i"
 args = ["-n", "-i", "a", "b"]
 scratch = { "a" = "A\n", "b" = "B\n" }
 stdin = "y\n"
+gnu_min = "9.11"
 
 [[case]]
 name = "-f -i"
@@ -867,11 +881,13 @@ stdin = "n\n"
 name = "-n -f"
 args = ["-n", "-f", "a", "b"]
 scratch = { "a" = "A\n", "b" = "B\n" }
+gnu_min = "9.11"
 
 [[case]]
 name = "-f -n"
 args = ["-f", "-n", "a", "b"]
 scratch = { "a" = "A\n", "b" = "B\n" }
+gnu_min = "9.11"
 
 [[case]]
 name = "--remove-destination"
@@ -943,6 +959,7 @@ scratch = { "a" = "A\n", "b" = "B\n" }
 name = "-T: a file over a directory"
 args = ["-T", "a", "d"]
 scratch = { "a" = "A\n", "b" = "B\n", "d/c" = "c\n", "d/sub/s" = "s\n", "d/sub/deep/z" = "z\n" }
+gnu_min = "9.11"
 
 [[case]]
 name = "-T: three operands"
