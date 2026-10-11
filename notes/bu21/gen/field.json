@@ -1,0 +1,37 @@
+{
+ "cp": [
+  "a file over a directory by name",
+  "-r: a file in the tree over a directory in the destination",
+  "-n",
+  "-n: nothing there",
+  "-nv",
+  "-n: into a directory",
+  "--no-clobber",
+  "-rn: a tree over a tree",
+  "-i -n",
+  "-n -i",
+  "-n -f",
+  "-f -n",
+  "-T: a file over a directory"
+ ],
+ "mv": [
+  "an empty destination",
+  "a file over a directory by name",
+  "a file over an empty directory by name",
+  "-n",
+  "-nv",
+  "-n: into a directory",
+  "--no-clobber",
+  "-n: a directory over an empty directory",
+  "-n: a name onto itself",
+  "-i -n: the last wins",
+  "-f -n",
+  "-T: a file over a directory",
+  "-T: a file over an empty directory"
+ ],
+ "rm": [
+  "-d: the working directory",
+  "-d: a directory with no permissions, not empty",
+  "-di: a directory that is not empty"
+ ]
+}
