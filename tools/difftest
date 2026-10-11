@@ -153,6 +153,13 @@ Case file (TOML, one file per utility, any number of [[case]] tables):
                                  #   the harness refuses the case when
                                  #   the first side left the tree
                                  #   different.
+  umask = 0o077                  # optional (bu21): the mask each side runs
+                                 #   under. The harness itself runs at
+                                 #   022, whatever its caller's was, so a
+                                 #   mode a case sees is the same on
+                                 #   every host; this is how what `mkdir`
+                                 #   and `cp` do under another mask is
+                                 #   seen.
   accounts = true                # optional (bu20): the case prints an
                                  #   owner's or a group's NAME. boreutils
                                  #   reads names from /etc/passwd and
@@ -189,6 +196,35 @@ Case file (TOML, one file per utility, any number of [[case]] tables):
                                  #   one) how `wc -w` treats a byte that is
                                  #   not printable. A case outside the
                                  #   range is reported as a SKIP.
+
+THE SCRATCH ROOT, AND THE UTILITIES THAT CHANGE THE FILE SYSTEM (bu21).
+Every scratch directory is made under ONE root, `$BORE_SCRATCH_ROOT` or
+else the host's temporary directory, as `bore-scratch.XXXXXXXX/s`. The
+root is refused when it is `/` or a home directory, and immediately
+before EACH side of each case runs the harness checks again that the
+directory it is about to stand a program in is a real directory, not a
+link, whose resolved path is under that root with that prefix: a
+program that removes and overwrites is never started anywhere else.
+
+`mkdir`, `rmdir`, `rm`, `mv`, `cp` (and `touch`, `ln`, `chmod`, when
+they exist) are CHANGERS. A changer's case always gets a scratch
+directory, named or not, and the harness refuses the whole RUN (status
+2, before any case of any utility has run) when one of its arguments —
+an operand, an option's attached or `=` value — is `/`, begins with
+`~`, has a `..` component, or is absolute and does not begin with
+`{scratch}`. `rm -r ..` is refused here even though it would only reach
+the scratch directory's own parent: the rule is the lane's, and the
+refusal of `.` and `..` by the programs themselves is tested with `.`
+and by unit tests. tests/refuse/ holds one plant per rule and
+tools/difftest-selftest is the gate.
+
+A scratch case compares a fifth field by default, `tree` (bu21): for
+every entry the run left — the top included — its kind, its permission
+bits, its link count (not a directory's, which is the file system's
+business), a regular file's size, and its modification time WHEN THAT
+IS OLDER THAN THE CASE (a time some side or the fixture set, since a
+time of "just now" differs between the two sides by the clock). `files`
+sees names and bytes; `tree` sees what `ls -l` would.
 
 The environment is built from scratch for every run: PATH, then
 `[oracle.env]` from gnu-oracle.toml, then the case's env (which may
@@ -242,7 +278,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CASES = os.path.join(ROOT, "tests", "cases")
 FIXTURES = os.path.join(ROOT, "tests", "fixtures")
 ALL = ("stdout", "stderr", "exit")
-FIELDS = ALL + ("files", "offset")
+FIELDS = ALL + ("files", "offset", "tree")
+# The utilities that change the file system (bu21): see the docstring.
+CHANGERS = ("mkdir", "rmdir", "rm", "mv", "cp", "touch", "ln", "chmod")
 KEYS = {"name", "args", "stdin", "stdin_file", "stdin_offset", "requires",
         "stdin_repeat", "env",
         "compare", "stdout_bytes", "stdout_closed", "stdout_file", "skip",
@@ -250,7 +288,7 @@ KEYS = {"name", "args", "stdin", "stdin_file", "stdin_offset", "requires",
         "scratch_dirs", "scratch_links", "scratch_modes", "scratch_times",
         "cwd", "tree", "tty", "scratch_fifos", "scratch_sockets",
         "scratch_hardlinks", "scratch_atimes", "scratch_time_all",
-        "scratch_keep", "mask", "scratch_sizes", "accounts"}
+        "scratch_keep", "mask", "scratch_sizes", "accounts", "umask"}
 # Naming any of these gives a case a scratch directory and a `files` field.
 SCRATCH = ("scratch", "scratch_dirs", "scratch_links", "scratch_modes",
            "scratch_times", "cwd", "scratch_fifos", "scratch_sockets",
@@ -403,7 +441,67 @@ def accounts_in_files():
 
 
 def has_scratch(case):
-    return any(k in case for k in SCRATCH)
+    return bool(case.get("_changer")) or any(k in case for k in SCRATCH)
+
+
+def scratch_root():
+    """The one directory every scratch directory is made under, resolved,
+    and refused when a mistake in it could reach anything that matters."""
+    named = os.environ.get("BORE_SCRATCH_ROOT")
+    root = os.path.realpath(named if named else tempfile.gettempdir())
+    home = os.path.realpath(os.path.expanduser("~"))
+    if root == os.sep or root == home or root == os.path.dirname(home):
+        die(f"refusing the scratch root {root!r}: it is the file system's "
+            f"root or a home directory")
+    if not os.path.isdir(root):
+        die(f"the scratch root {root!r} is not a directory")
+    return root
+
+
+def guard(top, root):
+    """Refuse to start a program anywhere but a scratch directory this
+    harness made: a real directory, no link, under the root by prefix.
+    Called immediately before each side of each scratch case runs."""
+    want = os.path.join(root, "bore-scratch.")
+    real = os.path.realpath(top)
+    holder = os.path.dirname(top)
+    if (os.path.islink(top) or os.path.islink(holder)
+            or not os.path.isdir(top)
+            or real != top
+            or not real.startswith(want)
+            or os.path.basename(real) != "s"
+            or os.path.dirname(holder) != root):
+        die(f"refusing to run in {top!r}: it is not a scratch directory "
+            f"under {root!r}")
+
+
+def paths_named(arg):
+    """What in one argument could be a path: the argument itself, or an
+    option's `=` value, or the tail of a short option that holds a `/`,
+    a `~` or a `..`. Conservative: a mode string or a date is checked as
+    if it were a path, and passes because it stays inside."""
+    if not arg.startswith("-") or arg == "-":
+        return [arg]
+    if arg.startswith("--"):
+        return [arg.split("=", 1)[1]] if "=" in arg else []
+    at = [i for i in (arg.find("/"), arg.find("~"), arg.find("..")) if i >= 0]
+    return [arg[min(at):]] if at else []
+
+
+def unsafe(arg):
+    """Why a changer may not be handed `arg`, or None. Judged on the
+    argument AS WRITTEN in the case file, `{scratch}` not yet replaced,
+    so a whole run is refused before any of it starts."""
+    for path in paths_named(arg):
+        if path.startswith("~"):
+            return f"{arg!r} begins with ~"
+        if ".." in path.split("/"):
+            return f"{arg!r} has a .. component"
+        if path.startswith("/") or path.startswith("{scratch}"):
+            inside = path.startswith("{scratch}/") or path == "{scratch}"
+            if not inside:
+                return f"{arg!r} is absolute and outside the scratch directory"
+    return None
 
 
 def unlock(top):
@@ -548,6 +646,36 @@ def snapshot(top):
     return sorted(seen)
 
 
+def tree(top, now):
+    """What `ls -l` would say of what a run left, the top included: kind,
+    permission bits, link count (not a directory's), a file's size, and a
+    modification time older than the case. Never follows a link."""
+    def entry(path, rel):
+        try:
+            st = os.lstat(path)
+        except OSError as e:
+            # Listed by a directory that may be read and not searched.
+            return (rel, "unseen", e.errno, None, None, None)
+        kind = ("dir" if stat.S_ISDIR(st.st_mode) else
+                "link" if stat.S_ISLNK(st.st_mode) else
+                "file" if stat.S_ISREG(st.st_mode) else
+                "fifo" if stat.S_ISFIFO(st.st_mode) else
+                "socket" if stat.S_ISSOCK(st.st_mode) else "other")
+        links = None if kind == "dir" else st.st_nlink
+        size = st.st_size if kind == "file" else None
+        # A link's own mode is the host's whim (0777 on linux, the
+        # umask's on macOS) and nothing can set it.
+        mode = None if kind == "link" else stat.S_IMODE(st.st_mode)
+        old = st.st_mtime_ns if st.st_mtime < now - 600 else None
+        return (rel, kind, mode, links, size, old)
+    seen = [entry(top, ".")]
+    for root, dirs, files in os.walk(top):
+        for n in dirs + files:
+            path = os.path.join(root, n)
+            seen.append(entry(path, os.path.relpath(path, top)))
+    return sorted(seen)
+
+
 def substitute(value, top):
     return value if top is None else value.replace("{scratch}", top)
 
@@ -561,6 +689,18 @@ def run(exe, argv0, case, base_env, top=None, now=0, fresh=True):
         if fresh:
             populate(case, top, now)
         cwd = os.path.join(top, case.get("cwd", "."))
+        # The last thing before a program is started (bu21).
+        guard(top, case["_root"])
+        if not os.path.realpath(cwd).startswith(top):
+            die(f"refusing to run in {cwd!r}: it resolves outside {top!r}")
+    mask = case.get("umask")
+    closing = bool(case.get("stdout_closed"))
+
+    def before():
+        if mask is not None:
+            os.umask(int(mask))
+        if closing:
+            os.close(1)
     stdin = subprocess.DEVNULL
     data = None
     if "stdin" in case:
@@ -576,7 +716,7 @@ def run(exe, argv0, case, base_env, top=None, now=0, fresh=True):
     timeout = case.get("timeout", 10)
     tty = case.get("tty")
     if tty is not None:
-        return run_tty(exe, argv0, case, env, cwd, stdin, data, timeout, int(tty), top)
+        return run_tty(exe, argv0, case, env, cwd, stdin, data, timeout, int(tty), top, now)
     if sink is not None:
         stdout = open(sink, "wb", buffering=0)
     elif closed:
@@ -590,7 +730,7 @@ def run(exe, argv0, case, base_env, top=None, now=0, fresh=True):
         # `prog >&-`: the child reaches main with descriptor 1 closed.
         # Nothing but a fork hook can produce that, because Popen's
         # stdout= can only REDIRECT a descriptor, never leave it shut.
-        preexec_fn=(lambda: os.close(1)) if closed else None,
+        preexec_fn=before if (closed or mask is not None) else None,
         # Every case runs from the repository root, so a case naming a
         # file operand writes it as tests/fixtures/NAME and means the
         # same thing however difftest itself was invoked — unless it
@@ -639,10 +779,11 @@ def run(exe, argv0, case, base_env, top=None, now=0, fresh=True):
         result["offset"] = offset
     if top is not None:
         result["files"] = snapshot(top)
+        result["tree"] = tree(top, now)
     return result
 
 
-def run_tty(exe, argv0, case, env, cwd, stdin, data, timeout, cols, top):
+def run_tty(exe, argv0, case, env, cwd, stdin, data, timeout, cols, top, now=0):
     """`run` with standard output on a pseudo-terminal `cols` wide.
 
     The pty is made here and its size set before the child starts, so a
@@ -693,6 +834,7 @@ def run_tty(exe, argv0, case, env, cwd, stdin, data, timeout, cols, top):
               "exit": status(proc.returncode)}
     if top is not None:
         result["files"] = snapshot(top)
+        result["tree"] = tree(top, now)
     return result
 
 
@@ -764,7 +906,7 @@ def planted(case, trees, path):
     return merged
 
 
-def load(path):
+def load(path, util=None):
     try:
         with open(path, "rb") as fh:
             doc = tomllib.load(fh)
@@ -773,8 +915,17 @@ def load(path):
     trees = doc.get("tree", {})
     cases = [planted(c, trees, path) for c in doc.get("case", [])]
     seen = set()
+    changer = util in CHANGERS
     for c in cases:
-        extra = set(c) - KEYS
+        if changer:
+            c["_changer"] = True
+            for a in list(c.get("args", [])) + [c.get("cwd", "")]:
+                why = unsafe(str(a))
+                if why is not None:
+                    die(f"{path}: refusing case {c.get('name', '?')!r}: {why} "
+                        f"({util} changes the file system)")
+    for c in cases:
+        extra = set(c) - KEYS - {"_changer"}
         if "name" not in c or extra:
             die(f"{path}: case {c.get('name', '?')!r} is malformed "
                 f"(unknown keys {sorted(extra)})" if extra else
@@ -812,8 +963,8 @@ def load(path):
             if f == "offset" and "stdin_offset" not in c:
                 die(f"{path}: case {c['name']!r} compares the offset and "
                     f"sets none")
-            if f == "files" and not has_scratch(c):
-                die(f"{path}: case {c['name']!r} compares files and has "
+            if f in ("files", "tree") and not has_scratch(c):
+                die(f"{path}: case {c['name']!r} compares {f} and has "
                     f"no scratch directory")
     return cases
 
@@ -878,9 +1029,20 @@ def main(argv):
     # The build profile, asserted — and on the `field` leg, reported.
     assert_probe(table, prefix, base_env, loose)
 
+    # One mask for the harness and so for every tree it lays out and
+    # every child that names none (bu21): a mode is the same on every
+    # host, whatever the caller's shell had.
+    os.umask(0o022)
+    root = scratch_root()
+    print(f"difftest: scratch root {root}")
+    # Every case file is read, and every changer's argument judged,
+    # BEFORE anything runs: a refused operand stops the run, not the case.
+    loaded = {util: load(os.path.join(cases, util + ".toml"), util)
+              for util in utils}
+
     passed = failed = skipped = 0
     for util in utils:
-        entries = load(os.path.join(cases, util + ".toml"))
+        entries = loaded[util]
         bore = os.path.join(bindir, util)
         if not os.access(bore, os.X_OK):
             die(f"no boreutils binary at {bore} (run tools/build)")
@@ -933,10 +1095,10 @@ def main(argv):
             top = None
             if has_scratch(case):
                 if "compare" not in case:
-                    fields = tuple(fields) + ("files",)
+                    fields = tuple(fields) + ("files", "tree")
                 # One path for both sides, emptied between them, so a
                 # path either one prints is the same path.
-                holder = tempfile.mkdtemp(prefix="bore-scratch.")
+                holder = tempfile.mkdtemp(prefix="bore-scratch.", dir=root)
                 top = os.path.join(holder, "s")
             # One instant per case, for both sides ("now-N", bu20).
             now = int(time.time())
@@ -944,6 +1106,7 @@ def main(argv):
             # The bare name, for `normalize` (see there).
             case = dict(case)
             case["_util"] = oracle
+            case["_root"] = root
             try:
                 if keep:
                     populate(case, top, now)
