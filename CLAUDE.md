@@ -82,6 +82,8 @@ against GNU. The short form for a new utility:
     tools/check-test           wolf test (the *_test.lu unit tests)
     tools/difftest [util...]   the differential suite against GNU
     tools/difftest-selftest    prove the harness can still see a difference
+    tools/roottest             rm, mv and cp handed `/`, each case in a
+                               throwaway container (docker or podman)
     tools/bench [--scale F]    hyperfine against GNU on generated inputs
                                (`prepare`, `{work}` and `--input` for
                                the programs that change what they run on)
@@ -136,10 +138,14 @@ against GNU. The short form for a new utility:
   The harness refuses the whole run when a case of one of them names
   `/`, a `~`, a `..` component or an absolute path outside `{scratch}`
   (`tests/refuse/` holds a plant per rule). **No test runs any `rm` on
-  `/`**, this one or GNU's: the refusal is `bore.rm_verdict`, a
-  function, unit-tested in `src/change_test.lu`. By hand, the same
+  a HOST's `/`**, this one or GNU's. The refusal is `bore.rm_verdict`,
+  a function, unit-tested in `src/change_test.lu`, and it is run as a
+  program by `tools/roottest` and nowhere else: one throwaway container
+  a case, no mount, no network, as a user and as root inside, both
+  tiers beside GNU 9.11, a sentinel tree summed before and after
+  (`tests/root/cases.toml`; CI's ubuntu leg, docker). By hand, the same
   rule: a fresh directory, its path checked, never a variable that
-  could be empty.
+  could be empty — and `/` only through that tool.
 - A scratch case compares `tree` beside `files` (bu21): every entry's
   kind, permission bits, link count and size, and a time older than the
   case. `umask = 0o077` runs both sides under a mask; the harness

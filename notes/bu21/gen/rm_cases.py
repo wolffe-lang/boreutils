@@ -281,9 +281,11 @@ head = '''# rm — GNU coreutils 9.11, black-box, on linux x86-64 and macOS arm6
 # under its root and checked by prefix immediately before each side
 # starts (tools/difftest, bu21), and the harness refuses the whole run
 # when any case names `/`, a `~`, a `..` component or an absolute path
-# outside `{scratch}`. NO CASE RUNS ANY rm ON THE ROOT: the refusal of
-# `/` is a function, unit-tested in src/change_test.lu. A link in a
-# fixture points inside the scratch directory or at nothing.
+# outside `{scratch}`. NO CASE HERE RUNS ANY rm ON THE ROOT: the refusal
+# of `/` is a function, unit-tested in src/change_test.lu, and is run as
+# a program only by tools/roottest, in a throwaway container
+# (tests/root/cases.toml). A link in a fixture points inside the scratch
+# directory or at nothing.
 #
 # What each side leaves is compared as `files` (names, kinds, bytes)
 # and `tree` (modes, link counts): a removal that reached further than
