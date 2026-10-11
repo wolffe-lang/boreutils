@@ -156,8 +156,9 @@ kasumi (linux x86-64) at this pin answers **3,788 passed, 0 failed, 67
 skipped**, the same list on the release and the dev tier, and CI's
 macOS leg skips the `/dev/full` and `/proc` cases besides, because
 macOS has neither, and the cases that print an owner's NAME, because a
-Mac's accounts are not in `/etc/passwd` (bu20's figures and run ids are
-in `notes/bu20-the-long-format.md`). (The previous edition of this
+Mac's accounts are not in `/etc/passwd`: run 38116093735 answers 3,789
+and 66 skipped on ubuntu and 3,649 and 206 skipped on macOS, none
+failed (bu20's figures are in `notes/bu20-the-long-format.md`). (The previous edition of this
 sentence, before bu20's long format and its three utilities, said 3,077
 cases, 3,017 and 60 on kasumi; before bu19, 3,048 cases, 2,986 and 62; before
 bu18's `ls` it said 2,674 cases, 2,642 and 32 on kasumi, and 2,618 and 56

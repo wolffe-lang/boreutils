@@ -202,14 +202,14 @@ place, by line.
 | 10 | of bu18's 30 skips, 28 become cases and pass; the 2 for #643 stay | 27 pass; `-f` is skipped again under #692 (line 8); the 2 for #643 stay | wrong by one |
 | 11 | at least 250 new `ls` cases, the corpus past 3,400; a name that is not UTF-8 listed byte-identically where no stat is needed | 418 new; 3,855 in the corpus. A name that is not UTF-8 is NOT listed in any format: this program's names are `str`s end to end, so it is reported and skipped, status 1 (wolf-lang#687). No case holds one: a TOML string cannot spell the name | right on the counts, wrong on the name |
 | 12 | the refusals named | as named, less `--time-style`: `full-iso`, `long-iso`, `iso` and `locale` are served (with `TIME_STYLE`), only `+FORMAT` is refused | better than predicted |
-| 13 | names from the two files; zones from TZif and its rule | 31 `TZ=` cases pass on kasumi and ubuntu, a rule in Julian days and Dublin's negative daylight time among them | right on linux; macOS in §4 |
+| 13 | names from the two files; zones from TZif and its rule | 31 `TZ=` cases pass on kasumi and ubuntu, a rule in Julian days and Dublin's negative daylight time among them. On macOS two failed first (run 38115826824): for a rule written in `TZ` itself its C library applies daylight time only from 1970 on, and `clock` now does the same there (`232890c`); `TZDIR` is glibc's variable and is read on linux only (`aa26df0`) | right on linux; on macOS wrong twice, then fixed |
 | 14 | `stat`: the default and terse formats and thirty-odd directives; `%o` printed `?` behind a mask; `%m` and `%C` and `-f` refused; at least 120 cases | 160 cases, 152 pass and 8 skip on kasumi. `%m` is SERVED (the walk `readlink -f` needed serves it). **Not predicted:** `-` is refused too, because `fs_fstat` answers three words (wolf-lang#536's other half) | right, with one refusal I did not see coming and one I did not need |
 | 15 | `readlink`: at least 60 cases, no skip | 97, none skipped | right |
 | 16 | `env`: at least 70 cases; a file with no `#!` line 126 unless `os_error` tells `ENOEXEC` apart | 103 cases, 90 pass and 13 skip. `os_error` does not tell (the os family leaves no number, wolf-lang#682); `env` reads the file's first four bytes itself and re-runs it under `/bin/sh` as GNU's `execvp` does, and the three cases pass. **Not predicted:** `=VALUE` (an empty name) is refused by `os_exec`, and an empty `PATH` component runs `./name` where `execvp` runs `name` (wolf-lang#689) | right on the count; two partings I did not predict |
 | 17 | `ls -l` at 100,000 names 0.5–0.9x GNU, falsified outside 0.3x–1.0x; one `statx` a name on both sides; `stat` and `readlink` start within 1.5x, `env true` within 2x | **1.22x** at the head (196.5 against 239.7 ms). The first cut was 0.70x and in the band (`bench-first-cut.log`); after the records moved to one flat list it is past it — and GNU makes a second call per name, 99,998 `llistxattr`, that this `ls` cannot make (wolf-lang#685). `statx`: 99,998 GNU, 100,003 here. Start-up: `stat` 1.29x, `readlink` 1.30x, `env true` 1.29x slower | wrong on `ls -l`, in the direction nobody complains about and for a reason that is partly a missing feature; right on the floor and the start-ups |
 | 18 | the static binaries make no system call outside the list | every name each makes is on it (§4); none of `rt_sigaction`, `sigaltstack`, `poll`, `futex`, `lseek`, `clock_gettime` or `sched_getaffinity` was made at all | right |
 | 19 | CI green on both hosts; the field leg reports new divergences in the long format | green (§4). The field's 9.4 differs on ten new cases and none is the long format: `env -a` (four; 9.4 has no `-a`), `ls --sort=name` and `--time=mtime` (four), `readlink` under `POSIXLY_CORRECT` (two). Each names 9.11 now, and the field leg is back at trunk's fifteen | right on green, wrong on where |
-| 20 | one thing here is wrong in a way this list does not name | four. (a) The first `ls` was 34% SLOWER than trunk on a plain listing and half its speed under `-S` (`bench-first-cut.log`): a listing that needs records is read in the directory's own order, so the sort does every comparison, and each reached through two 150-byte entries. (b) CI's ext4 holds no time past 2446 or before 1901 and no file past 16 TiB, and the harness died on each (runs 38113933764, 38114708822) — with status 1, which is its word for "a case differs", so the field leg read a dead harness as an advisory. It exits 2 now (`83b64e0`). (c) An `0o…` literal compiles under `wolf test` and not under `wolf build` (wolf-lang#688), so a green unit test said nothing about the program. (d) I wrote, and committed, that reading a field of a list's element copies the element — a guess from a profile. A witness said no (kasumi `~/lanes/bu20/wit/copy/`: two million reads in 1 ms either way), and `fff90ae` says what was measured | — |
+| 20 | one thing here is wrong in a way this list does not name | four. (a) The first `ls` was 34% SLOWER than trunk on a plain listing and half its speed under `-S` (`bench-first-cut.log`): a listing that needs records is read in the directory's own order, so the sort does every comparison, and each reached through two 150-byte entries. (b) CI's ext4 holds no time past 2446 or before 1901 and no file past 16 TiB, and the harness died on each (runs 38113933764, 38114708822) — with status 1, which is its word for "a case differs", so the field leg read a dead harness as an advisory. It exits 2 now (`83b64e0`). (c) An `0o…` literal compiles under `wolf test` and not under `wolf build` (wolf-lang#688), so a green unit test said nothing about the program. (d) I wrote, and committed, that reading a field of a list's element copies the element — a guess from a profile. A witness said no (kasumi `~/lanes/bu20/wit/copy/`: two million reads in 1 ms either way), and `fff90ae` says what was measured. (e) macOS, three ways: GNU's `env -i A=1 B=2` prints `B=2` FIRST there, because its C library puts a new variable in front (`f52a734` does the same when built for macOS); APFS holds no time past 2262, which killed the harness a third time; and GNU run as `gstat` says `gstat: cannot stat 'x'`, which the harness read as a different message from `stat: cannot stat 'x'` until it made the bare name PROG as well (`a90a14d`) | — |
 
 ## 4. Evidence index
 
@@ -236,19 +236,39 @@ characters follow each.
 
 ### The move table
 
-| | base `f054aaf` (0.2.26) | pin `bdae32b` | head `9633593` |
+| | base `f054aaf` (0.2.26) | pin `bdae32b` | the code's head `232890c` |
 |---|---|---|---|
 | utilities built, release and dev | 28 | 28 | 31 |
 | diagnostics | 0 | 0 | 0 |
 | kasumi verdicts, release = dev | 3017 / 0 / 60 | 3017 / 0 / 60 | **3788 / 0 / 67** |
-| verdict list | `591bf0fc…` | `591bf0fc…` | `d278de5c…` |
+| verdict list | `591bf0fc…` | `591bf0fc…` | `2dcd655b…` |
 | `libwolf_rt.a` | `679d77e1…` | `ab575b27…` | `ab575b27…` |
 | binaries differing from base, stripped | — | 28 of 28 | — |
 
-The head gauntlet is `gauntlet-head-9633593.log` (`ea56163e9f7c…`), from
-a clean tree at that commit.
+The head gauntlet is `gauntlet-head-232890c.log` (`7ede5e658888…`), from
+a clean tree at that commit; the commits after it on this branch change
+this note and the README only. (`gauntlet-head-9633593.log`,
+`ea56163e9f7c…`, is the same suite four commits earlier, where the
+bench was taken: 3788 / 0 / 67, list `d278de5c…`.)
 
-### Differential counts, per utility (kasumi, release, at `9633593`)
+### CI
+
+- Run 38116093735 at `232890c`, green on all three jobs: ubuntu (job
+  114401163614) 3789 passed, 0 failed, 66 skipped; macOS (job
+  114401163570) 3649 / 0 / 206; the field's GNU 9.4 (job 114401163495)
+  3713 / 15 / 127, the fifteen being trunk's (`expand` 3, `fold` 10,
+  `unexpand` 2, as in trunk's run 37996012670).
+- macOS skips 139 more than kasumi: 82 cases that print an account's
+  name (its users are not in `/etc/passwd`), and the `/proc`, `/sys`,
+  `/dev/full` and linux-device cases.
+- The reds on the way, each fixed before the head: run 38113933764
+  (ubuntu: `ls -f` on ext4, and the harness dead on a year-10000 time),
+  38114708822 (ubuntu: the harness dead on a 5 PiB hole), 38115337070
+  (macOS: `env`'s order, and the harness dead on a year-2400 time),
+  38115826824 (macOS: two rule zones before 1970, and six `stat`
+  messages the harness misread).
+
+### Differential counts, per utility (kasumi, release, at `232890c`)
 
 | utility | cases | passed | skipped | the skips |
 |---|---:|---:|---:|---|
@@ -271,9 +291,12 @@ a clean tree at that commit.
   from the two files), `clock` (TZif and the POSIX rule), `paths` (the
   canonical walk); the host decided at compile time.
 - `0e39469`, `c5d574f`, `fff90ae`, `c8b2ccb`, `4bd40b4` — `ls`.
-- `0b904f2` — `stat`. `9dc4f07`, `fe4f78d` — `readlink`. `6cb30e8` —
-  `env`.
-- `92e30f2` — the bench rows. `da9dafc`, `1dfec0b` — CLAUDE and README.
+- `0b904f2` — `stat`. `9dc4f07`, `fe4f78d` — `readlink`. `6cb30e8`,
+  `f52a734` — `env`. `aa26df0`, `232890c` — `clock` on macOS.
+  `0b3100d` — cases inside what APFS holds. `a90a14d` — the harness's
+  PROG.
+- `92e30f2` — the bench rows. `da9dafc`, `1dfec0b`, `c55da03` — CLAUDE
+  and README. `4638b65` — this note's second half.
 
 ### The planted break
 
@@ -292,7 +315,9 @@ a clean tree at that commit.
 
 `bench.log` (`f342b7fe6521…`), `bench-startup.log` (`e1c541bb9972…`), and a
 JSON per row beside them. The load was 2.3 at the start and 8 at the
-end; the README states it over the table.
+end; the README states it over the table. Four commits of code follow
+it (`env`'s order and `clock`'s two rules on macOS, cases, the harness):
+none is on a path these rows time on linux.
 
 | ls, 100,000 names | 0.2.26 | 0.2.27, same source | head | GNU | GNU / head |
 |---|---:|---:|---:|---:|---:|
@@ -320,18 +345,19 @@ against 13.3; `readlink` of one link 275 µs against 211; `env true` 438
 
 ### The static binaries, and what PAX's kernel must answer
 
-Built at `9633593` in px12's Ubuntu 24.04 container (glibc 2.39, never
+Built at `232890c` in px12's Ubuntu 24.04 container (glibc 2.39, never
 kasumi's own), by pax's `tools/mkboreutils` recipe (wolf's release build
 through a `cc` that adds `-static`): ET_EXEC, no PT_INTERP, each
 answering the dynamic binary's bytes on the probes. `static.log`
-(`ba828af2da30…`), the traces in `ev/strace/`.
+(`04ff23261ac7…`), the traces in `ev/strace/`, the binaries in kasumi
+`~/lanes/bu20/static/`.
 
 | binary | sha256 | bytes |
 |---|---|---:|
-| `ls` | `2bcd252c…` | 13,034,680 |
-| `stat` | `6df81de1…` | 12,946,816 |
-| `readlink` | `0871f02c…` | 12,905,624 |
-| `env` | `f9321cc9…` | 12,945,456 |
+| `ls` | `3a08cf52…` | 13,034,368 |
+| `stat` | `0022e40b…` | 12,946,880 |
+| `readlink` | `003661e3…` | 12,905,624 |
+| `env` | `08064e56…` | 12,945,424 |
 
 Every binary, before `main`: `execve`, `brk`, `arch_prctl`
 (`ARCH_SET_FS`), `set_tid_address`, `set_robust_list`, `rseq`,
@@ -375,7 +401,9 @@ lupin and `wolf test`), #689 (`os_exec` runs `./name` for an empty
 
 - Branch `bu20` on origin, PR wolffe-lang/boreutils#25 open and unmerged,
   five sections by name, commit shas as bullets, a test checklist.
-- CI green at the head on ubuntu and macOS (run ids in the PR body).
+- CI green at the head on ubuntu and macOS (run 38116093735 at the
+  code's head, above; the run at the branch's last commit is in the PR
+  body).
 - `lane-audit.sh boreutils bu20 25` run from the org directory, exit
   status read directly.
 - kasumi: the pin worktree removed (`bench.sh` removes it as soon as its
