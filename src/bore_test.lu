@@ -201,21 +201,21 @@ fn main() {
     // bu20: a stat record's words as `ls -l` and `stat` print them. Each
     // expectation was read off GNU 9.11 (`ls -l`, `ls -lh`, `ls -l --si`,
     // `ls --full-time`, kasumi `~/lanes/bu20/probe/`).
-    same(bore.mode_text(0, 0o644), "-rw-r--r--")
+    same(bore.mode_text(0, octal("644")), "-rw-r--r--")
     same(bore.mode_text(0, 0), "----------")
-    same(bore.mode_text(0, 0o4755), "-rwsr-xr-x")
-    same(bore.mode_text(0, 0o4644), "-rwSr--r--")
-    same(bore.mode_text(0, 0o2755), "-rwxr-sr-x")
-    same(bore.mode_text(0, 0o2644), "-rw-r-Sr--")
-    same(bore.mode_text(0, 0o1644), "-rw-r--r-T")
-    same(bore.mode_text(1, 0o1777), "drwxrwxrwt")
-    same(bore.mode_text(1, 0o1776), "drwxrwxrwT")
-    same(bore.mode_text(3, 0o777), "lrwxrwxrwx")
-    same(bore.mode_text(4, 0o644), "prw-r--r--")
-    same(bore.mode_text(5, 0o755), "srwxr-xr-x")
-    same(bore.mode_text(6, 0o666), "crw-rw-rw-")
-    same(bore.mode_text(7, 0o660), "brw-rw----")
-    same(bore.mode_text(2, 0o600), "?rw-------")
+    same(bore.mode_text(0, octal("4755")), "-rwsr-xr-x")
+    same(bore.mode_text(0, octal("4644")), "-rwSr--r--")
+    same(bore.mode_text(0, octal("2755")), "-rwxr-sr-x")
+    same(bore.mode_text(0, octal("2644")), "-rw-r-Sr--")
+    same(bore.mode_text(0, octal("1644")), "-rw-r--r-T")
+    same(bore.mode_text(1, octal("1777")), "drwxrwxrwt")
+    same(bore.mode_text(1, octal("1776")), "drwxrwxrwT")
+    same(bore.mode_text(3, octal("777")), "lrwxrwxrwx")
+    same(bore.mode_text(4, octal("644")), "prw-r--r--")
+    same(bore.mode_text(5, octal("755")), "srwxr-xr-x")
+    same(bore.mode_text(6, octal("666")), "crw-rw-rw-")
+    same(bore.mode_text(7, octal("660")), "brw-rw----")
+    same(bore.mode_text(2, octal("600")), "?rw-------")
     same(bore.human(0, false), "0")
     same(bore.human(1023, false), "1023")
     same(bore.human(1024, false), "1.0K")
@@ -231,8 +231,9 @@ fn main() {
     same(bore.human(10240, true), "11k")
     same(bore.human(999999, true), "1.0M")
     same(bore.human(123456789012, true), "124G")
-    same("{bore.dev_major(259)}, {bore.dev_minor(259)}", "1, 3")
-    same("{bore.dev_major(66304)}, {bore.dev_minor(66304)}", "259, 0")
+    same("{bore.dev_major(259, true)}, {bore.dev_minor(259, true)}", "1, 3")
+    same("{bore.dev_major(66304, true)}, {bore.dev_minor(66304, true)}", "259, 0")
+    same("{bore.dev_major(50331650, false)}, {bore.dev_minor(50331650, false)}", "3, 2")
     same(bore.full_stamp(bore.civil(1600000000, 0), 0), "2020-09-13 12:26:40.000000000 +0000")
     same(bore.full_stamp(bore.civil(1600000000, -14400), 5), "2020-09-13 08:26:40.000000005 -0400")
     same(bore.full_stamp(bore.civil(-1, 0), 999999999), "1969-12-31 23:59:59.999999999 +0000")
@@ -243,6 +244,17 @@ fn main() {
     same(bore.offset_text(45900), "+1245")
     same(bore.month_name(1) + bore.month_name(12) + bore.month_name(13), "JanDec???")
     same("{bore.zone_offset(bore.utc(), 1600000000)}", "0")
+}
+
+/// A mode written in octal, as every manual writes one. An `0o…`
+/// literal is refused by the native and release tiers at wolf 0.2.27
+/// (wolf-lang#688), so the digits are read here.
+fn octal(digits: str) -> int {
+    var n = 0
+    for b in digits.bytes() {
+        n = n * 8 + (b as int - 48)
+    }
+    n
 }
 
 fn same(got: str, want: str) {

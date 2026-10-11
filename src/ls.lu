@@ -94,7 +94,8 @@
 //!   (wolf-lang#685), so neither is ever printed.
 //! - **A name that is not UTF-8** is listed by the directory but cannot
 //!   be named to any path call (ruling #60: a byte-path family is a
-//!   later lane), and this program holds names as `str`: such a name is
+//!   later lane; wolf-lang#687), and this program holds names as `str`:
+//!   such a name is
 //!   reported and skipped, status 1, where bu18 failed the whole
 //!   directory.
 //! - `-v`, `--sort=width`, the quoting styles but `-N` (`-b -Q
@@ -151,6 +152,7 @@ struct Ctx {
     now: int,
     now_nanos: int,
     posix: bool,
+    linux: bool,
 }
 
 /// One name to list: what it is called, the directory it was listed
@@ -439,6 +441,7 @@ fn main() -> int {
         now: 0,
         now_nanos: 0,
         posix: false,
+        linux: fs_is_dir("/proc/self/fd"),
     }
     if o.format == long_format() {
         if !o.numeric {
@@ -1707,8 +1710,8 @@ fn widen(mut c: Cols, rec: List[int], o: Opts, cx: Ctx) {
         }
     }
     if is_device(rec) {
-        let ma = count_text(bore.dev_major(bore.rec_rdev(rec))).len
-        let mi = count_text(bore.dev_minor(bore.rec_rdev(rec))).len
+        let ma = count_text(bore.dev_major(bore.rec_rdev(rec), cx.linux)).len
+        let mi = count_text(bore.dev_minor(bore.rec_rdev(rec), cx.linux)).len
         if ma > c.major {
             c.major = ma
         }
@@ -1833,9 +1836,17 @@ fn print_long(
         (mut bytes).push(32 as byte)
         if is_device(es[at].rec) {
             push_spaces(mut bytes, size_w - (major_w + 2 + minor_w))
-            push_right(mut bytes, count_text(bore.dev_major(bore.rec_rdev(es[at].rec))), major_w)
+            push_right(
+                mut bytes,
+                count_text(bore.dev_major(bore.rec_rdev(es[at].rec), cx.linux)),
+                major_w,
+            )
             push_text(mut bytes, ", ")
-            push_right(mut bytes, count_text(bore.dev_minor(bore.rec_rdev(es[at].rec))), minor_w)
+            push_right(
+                mut bytes,
+                count_text(bore.dev_minor(bore.rec_rdev(es[at].rec), cx.linux)),
+                minor_w,
+            )
         } else {
             push_right(mut bytes, size_text(es[at].rec, o), size_w)
         }

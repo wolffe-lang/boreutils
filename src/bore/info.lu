@@ -210,18 +210,26 @@ pub fn mode_text(kind: int, mode: int) -> str {
     str_from_utf8(out) else "??????????"
 }
 
-/// A device number's major part, as linux packs one in 64 bits
-/// (`makedev`: twelve low major bits at bit 8, the rest at bit 32).
-pub fn dev_major(dev: int) -> int {
+/// A device number's major part. linux packs one in 64 bits
+/// (`makedev`: twelve low major bits at bit 8, the rest at bit 32);
+/// macOS in 32, the major in the top eight.
+pub fn dev_major(dev: int, linux: bool) -> int {
     let d: wrapping[u64] = dev as wrapping[u64]
+    if !linux {
+        return (d >> 24 & 0xff) as int
+    }
     let hi = d >> 32 & 0xfffff000
     let lo = d >> 8 & 0xfff
     (hi | lo) as int
 }
 
-/// A device number's minor part (eight low bits, the rest at bit 12).
-pub fn dev_minor(dev: int) -> int {
+/// A device number's minor part (linux: eight low bits, the rest at bit
+/// 12; macOS: the low twenty-four).
+pub fn dev_minor(dev: int, linux: bool) -> int {
     let d: wrapping[u64] = dev as wrapping[u64]
+    if !linux {
+        return (d & 0xffffff) as int
+    }
     let hi = d >> 12 & 0xffffff00
     let lo = d & 0xff
     (hi | lo) as int
