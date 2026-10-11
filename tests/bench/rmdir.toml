@@ -1,0 +1,8 @@
+# rmdir — `-p` of a path {path:100} components deep, made afresh under
+# {work} before every run by the host's `mkdir -p`. The path is typed
+# relative to {work}, so the walk up stops there.
+
+[[bench]]
+name = "-p, a hundred deep"
+command = "cd {work} && {prog} -p {path:100}"
+prepare = "rm -rf {work} && mkdir -p {work}/{path:100}"

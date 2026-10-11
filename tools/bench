@@ -15,6 +15,22 @@ Placeholders: {prog} is the program under test (the boreutils binary or
 GNU's), {input} the generated input file's path, {bytes:N} the integer
 N times --scale (at least 1).
 
+For the utilities that change the file system (bu21) a bench may also
+carry
+
+  prepare = "rm -rf {work}"   # run before EVERY timed run of both sides
+                              #   (hyperfine --prepare): what the run
+                              #   consumes or creates is put back first
+
+and two more placeholders: {work}, a path that does not exist until a
+bench makes it, inside a directory THIS TOOL made (`bore-bench-work.*`
+under the scratch directory) and checks by prefix before every
+hyperfine call — a program that removes is never pointed anywhere
+else; and {path:N}, N times --scale components `d/d/d/…` (at least
+one), for a path that deep. `--input NAME` runs only the benches whose
+input is NAME (`none` for those with no input), since one --scale does
+not suit a 1 GiB file and a 100,000-file tree alike.
+
 Named inputs, generated deterministically (a fixed seed; the same bytes
 on every host and every run) into a scratch directory, never committed,
 and deleted when the run ends unless --keep:
@@ -33,7 +49,7 @@ Output: a markdown table per utility, headed by the host, the GNU
 version and the build tier.
 
 usage: tools/bench [--scale F] [--runs N] [--keep] [--dir D] [--bin DIR]
-                   [--out FILE] [util ...]
+                   [--out FILE] [--input NAME] [util ...]
 """
 
 import json
@@ -113,24 +129,49 @@ def gnu_prefix():
     return "g" if platform.system() == "Darwin" else ""
 
 
-def expand(command, prog, inp, scale):
+def expand(command, prog, inp, scale, work=""):
     out = command.replace("{prog}", prog).replace("{input}", inp or "")
+    out = out.replace("{work}", work)
     while "{bytes:" in out:
         i = out.index("{bytes:")
         j = out.index("}", i)
         n = max(1, int(int(out[i + 7:j]) * scale))
         out = out[:i] + str(n) + out[j + 1:]
+    while "{path:" in out:
+        i = out.index("{path:")
+        j = out.index("}", i)
+        n = max(1, int(int(out[i + 6:j]) * scale))
+        out = out[:i] + "/".join(["d"] * n) + out[j + 1:]
     return out
+
+
+def work_path(scratch):
+    """A path for a bench to create, remove and re-create: inside a
+    directory made here, under `scratch`, and nowhere else."""
+    holder = tempfile.mkdtemp(prefix="bore-bench-work.", dir=scratch)
+    return holder, os.path.join(holder, "w")
+
+
+def guard_work(work, scratch):
+    """Refuse to hand a remover a path that is not this tool's own."""
+    real = os.path.realpath(os.path.dirname(work))
+    root = os.path.realpath(scratch)
+    home = os.path.realpath(os.path.expanduser("~"))
+    if (root in (os.sep, home) or os.path.islink(os.path.dirname(work))
+            or not real.startswith(os.path.join(root, "bore-bench-work."))
+            or os.path.basename(work) != "w"):
+        die(f"refusing the work path {work!r}: not under {root!r}")
 
 
 def main(argv):
     scale, runs, keep, scratch, out_path = 1.0, 10, False, None, None
+    only_input = None
     bindir = os.path.join(ROOT, "target", "release")
     utils = []
     i = 0
     while i < len(argv):
         a = argv[i]
-        if a in ("--scale", "--runs", "--dir", "--bin", "--out"):
+        if a in ("--scale", "--runs", "--dir", "--bin", "--out", "--input"):
             if i + 1 >= len(argv):
                 die(f"{a} needs a value")
             v = argv[i + 1]
@@ -143,6 +184,8 @@ def main(argv):
                 scratch = v
             elif a == "--bin":
                 bindir = os.path.abspath(v)
+            elif a == "--input":
+                only_input = v
             else:
                 out_path = v
         elif a == "--keep":
@@ -172,6 +215,7 @@ def main(argv):
     os.makedirs(scratch, exist_ok=True)
     report = []
     generated = {}
+    holder, work = work_path(scratch)
     try:
         for util in utils:
             with open(os.path.join(BENCH, util + ".toml"), "rb") as fh:
@@ -190,6 +234,8 @@ def main(argv):
             report.append("| bench | boreutils (ms) | GNU (ms) | GNU / boreutils |")
             report.append("|---|---:|---:|---:|")
             for b in benches:
+                if only_input is not None and (b.get("input") or "none") != only_input:
+                    continue
                 inp = None
                 if b.get("input"):
                     name = b["input"]
@@ -204,12 +250,24 @@ def main(argv):
                         os.sync()
                         generated[name] = True
                 export = os.path.join(scratch, "hyperfine.json")
-                cmds = [expand(b["command"], p, inp, scale) for p in (bore, gnu)]
+                cmds = [expand(b["command"], p, inp, scale, work) for p in (bore, gnu)]
+                extra = []
+                if "prepare" in b:
+                    extra = ["--prepare", expand(b["prepare"], "", inp, scale, work)]
+                if "{work}" in b["command"] or "prepare" in b:
+                    guard_work(work, scratch)
                 subprocess.run(
                     ["hyperfine", "--style", "none", "--warmup", "1",
-                     "--runs", str(runs), "--export-json", export,
-                     "-n", "boreutils", cmds[0], "-n", "gnu", cmds[1]],
+                     "--runs", str(runs), "--export-json", export] + extra +
+                    ["-n", "boreutils", cmds[0], "-n", "gnu", cmds[1]],
                     check=True, stdout=subprocess.DEVNULL)
+                # What a bench left in the work path is not the next one's.
+                if os.path.lexists(work):
+                    guard_work(work, scratch)
+                    if os.path.isdir(work) and not os.path.islink(work):
+                        shutil.rmtree(work, ignore_errors=True)
+                    else:
+                        os.unlink(work)
                 with open(export) as fh:
                     res = {r["command"]: r for r in json.load(fh)["results"]}
                 bm = res["boreutils"]["mean"] * 1000
@@ -223,6 +281,7 @@ def main(argv):
                               f"{gm:.1f} ± {gs:.1f} | {ratio} |")
             report.append("")
     finally:
+        shutil.rmtree(holder, ignore_errors=True)
         if made and not keep:
             shutil.rmtree(scratch, ignore_errors=True)
     text = "\n".join(report)

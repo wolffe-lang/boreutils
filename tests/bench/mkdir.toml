@@ -1,0 +1,14 @@
+# mkdir — `-p` of a path {path:1000} components deep (1,000 at --scale
+# 1), under {work}, which is removed before every run. This mkdir makes
+# one `mkdir(2)` per prefix of the path, so the kernel resolves 1 + 2 +
+# … + N components; GNU changes directory as it goes.
+
+[[bench]]
+name = "-p, a thousand deep"
+command = "{prog} -p {work}/{path:1000}"
+prepare = "rm -rf {work}"
+
+[[bench]]
+name = "-p of what is already there"
+command = "{prog} -p {work}/{path:100} && {prog} -p {work}/{path:100}"
+prepare = "rm -rf {work}"

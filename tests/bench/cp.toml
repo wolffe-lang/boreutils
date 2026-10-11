@@ -1,0 +1,36 @@
+# cp — `big` (1 GiB at --scale 1) for one file, and `tree` (bu18:
+# flat/, 10,000 files in one directory, and deep/, 100 directories of
+# 100, at --scale 1; ten times that at --scale 10) for -r. Run the two
+# apart: `tools/bench --input big cp` and `tools/bench --scale 10
+# --input tree cp`.
+#
+# Both sides hand the bytes to the kernel (`fs_copy_chunk` is
+# `copy_file_range` on linux; GNU asks for a clone first). On a file
+# system that shares extents (btrfs) the one-file row is the cost of
+# asking; on one that does not it is the disk's.
+#
+# Every row writes into {work}, a path inside a directory tools/bench
+# made and checks before each call, removed again before each run.
+
+[[bench]]
+name = "one file"
+command = "{prog} {input} {work}"
+prepare = "rm -rf {work}"
+input = "big"
+
+[[bench]]
+name = "-r of deep/"
+command = "{prog} -r {input}/deep {work}"
+prepare = "rm -rf {work}"
+input = "tree"
+
+[[bench]]
+name = "-r of flat/"
+command = "{prog} -r {input}/flat {work}"
+prepare = "rm -rf {work}"
+input = "tree"
+
+[[bench]]
+name = "start-up: one empty file"
+command = "{prog} {work}/a {work}/b"
+prepare = "rm -rf {work} && mkdir {work} && : > {work}/a"

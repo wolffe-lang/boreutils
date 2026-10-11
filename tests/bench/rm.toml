@@ -1,0 +1,27 @@
+# rm — `tree` (see cp.toml), copied afresh into {work} before every
+# timed run by whatever `cp` the host has, then removed by the program
+# under test. At --scale 10 deep/ is 316 directories of 316 files and
+# flat/ 100,000 files in one directory.
+#
+# GNU names each entry relative to its open directory and unlinks it
+# unseen; this rm names whole paths, and reads a record only for an
+# entry the directory calls a directory or a link (wolf-lang#707).
+#
+# {work} is a path inside a directory tools/bench made and checks by
+# prefix before each call: no bench removes anything else.
+
+[[bench]]
+name = "-r of a copy of deep/"
+command = "{prog} -r {work}"
+prepare = "cp -r {input}/deep {work}"
+input = "tree"
+
+[[bench]]
+name = "-r of a copy of flat/"
+command = "{prog} -r {work}"
+prepare = "cp -r {input}/flat {work}"
+input = "tree"
+
+[[bench]]
+name = "-rf of a name that is not there"
+command = "{prog} -rf {work}"

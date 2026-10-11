@@ -1,0 +1,12 @@
+# mv — a rename is one system call on both sides, so these rows are
+# start-up and the checks before it. {work} is put back before each run.
+
+[[bench]]
+name = "one file to a new name"
+command = "{prog} {work}/a {work}/b"
+prepare = "rm -rf {work} && mkdir {work} && : > {work}/a"
+
+[[bench]]
+name = "a hundred files into a directory"
+command = "{prog} {work}/f* {work}/d"
+prepare = "rm -rf {work} && mkdir -p {work}/d && for i in 0 1 2 3 4 5 6 7 8 9; do for j in 0 1 2 3 4 5 6 7 8 9; do : > {work}/f$i$j; done; done"
