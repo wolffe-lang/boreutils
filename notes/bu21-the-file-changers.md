@@ -283,8 +283,7 @@ characters follow each. **Verified** means run by this lane and read;
 - `c45a83b` — `mkdir`. `310a606` — `rmdir`.
 - `ee6ca2b` — `src/bore/change.lu` and `src/change_test.lu`: the root
   and dot refusals as functions, unit-tested, **before any `rm`
-  exists** (`rm` is `3b4a9bf`, eight commits of history later than the
-  prediction and one after this).
+  exists** (`rm` is `3b4a9bf`, the commit after it).
 - `3b4a9bf` — `rm`. `ef9cf67` — `mv`. `4db0522`, `c8247e1`, `384b532`
   — `cp` (and `mv`'s two macOS rules).
 - `c2d463d` — `tools/bench` and the five bench files.
