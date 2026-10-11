@@ -978,10 +978,24 @@ if __name__ == "__main__":
     # nothing left to report to. Exit 141 then, deliberately and by the
     # shell's spelling, with the descriptor swapped for /dev/null so the
     # interpreter's own flush at exit cannot raise a second time.
+    #
+    # ANY OTHER DEATH OF THE HARNESS IS STATUS 2, NEVER 1 (bu20). Python
+    # ends an uncaught exception with status 1, which is this tool's
+    # word for "a case differs" — and on the `field` leg a difference is
+    # an advisory, so a harness that died laying out a scratch tree (run
+    # 38114708822: a file too large for ext4) was read as a divergence
+    # and nobody was told that half the suite had not run. 2 is "the
+    # harness itself cannot run", and `tools/field-verdict` reds on it.
     try:
         code = main(sys.argv[1:])
         sys.stdout.flush()
     except BrokenPipeError:
         os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
         code = 128 + signal.SIGPIPE
+    except Exception:
+        import traceback
+        sys.stdout.flush()
+        traceback.print_exc()
+        print("difftest: the harness died; no verdict", file=sys.stderr)
+        code = 2
     sys.exit(code)
