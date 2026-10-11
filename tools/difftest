@@ -633,7 +633,7 @@ def run(exe, argv0, case, base_env, top=None, now=0, fresh=True):
             stdin.close()
         if hasattr(stdout, "close"):
             stdout.close()
-    result = {"stdout": masked(out, case), "stderr": masked(normalize(err, argv0), case),
+    result = {"stdout": masked(out, case), "stderr": masked(normalize(err, argv0, case.get("_util")), case),
               "exit": status(proc.returncode)}
     if "stdin_offset" in case:
         result["offset"] = offset
@@ -689,7 +689,7 @@ def run_tty(exe, argv0, case, env, cwd, stdin, data, timeout, cols, top):
         os.close(master)
         if hasattr(stdin, "close"):
             stdin.close()
-    result = {"stdout": masked(out, case), "stderr": masked(normalize(err, argv0), case),
+    result = {"stdout": masked(out, case), "stderr": masked(normalize(err, argv0, case.get("_util")), case),
               "exit": status(proc.returncode)}
     if top is not None:
         result["files"] = snapshot(top)
@@ -703,9 +703,20 @@ def masked(data, case):
     return data
 
 
-def normalize(err, argv0):
-    return re.sub(rb"(?<![\w-])" + re.escape(argv0.encode()) + rb"(?![\w-])",
-                  b"PROG", err)
+def normalize(err, argv0, util=None):
+    """`err` with the program's name as it was run made PROG — and, when
+    GNU was run under a prefixed name (`gstat`), the bare utility name
+    too: `stat: cannot stat 'x'` names itself twice on our side and
+    `gstat: cannot stat 'x'` once on GNU's, and a harness that replaced
+    only what each was RUN as read the same message as two (bu20, the
+    macOS leg of run 38115826824)."""
+    names = [argv0]
+    if util is not None and util != argv0:
+        names.append(util)
+    for name in names:
+        err = re.sub(rb"(?<![\w-])" + re.escape(name.encode()) + rb"(?![\w-])",
+                     b"PROG", err)
+    return err
 
 
 def show(side, result, fields):
@@ -930,6 +941,9 @@ def main(argv):
             # One instant per case, for both sides ("now-N", bu20).
             now = int(time.time())
             keep = bool(case.get("scratch_keep"))
+            # The bare name, for `normalize` (see there).
+            case = dict(case)
+            case["_util"] = oracle
             try:
                 if keep:
                     populate(case, top, now)
