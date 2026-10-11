@@ -25,12 +25,14 @@ fi
 # there is more than one plant, because the others could be passing.
 # The `files` plants (bu14) are the gate on the scratch directory, and
 # the `offset` plant (bu15) the gate on a shared standard input, and the
-# `tty` plant (bu19) the gate on reading a pseudo-terminal at all.
+# `tty` plant (bu19) the gate on reading a pseudo-terminal at all, and
+# the `mask` plant (bu20) the gate on a mask hiding only its match.
 for planted in "true: true is not false" \
                "tee: a file one side writes" \
                "tee: a file whose bytes differ" \
                "head: an offset one side moves" \
-               "echo: what a terminal received"; do
+               "echo: what a terminal received" \
+               "echo: a mask hides only what it names"; do
     if ! echo "$out" | grep -qF "FAIL $planted"; then
         echo "difftest-selftest: REFUSED — the plant '$planted' did not fail:"
         echo "$out"

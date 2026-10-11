@@ -11,3 +11,15 @@ args = ["x"]
 gnu_util = "true"
 tty = 80
 compare = ["stdout"]
+
+# A planted difference OUTSIDE a mask (`mask`, bu20): boreutils `echo`
+# prints `n=5 tail` and a newline, GNU `printf` the same text and no
+# newline. The mask covers `n=5` on both sides, so the harness passes
+# this file only by failing the case on the one byte the mask does not
+# name: a mask that swallowed more than its match would pass it.
+[[case]]
+name = "a mask hides only what it names"
+args = ["n=5 tail"]
+gnu_util = "printf"
+mask = ["n=[0-9]+"]
+compare = ["stdout"]
