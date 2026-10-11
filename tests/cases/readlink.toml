@@ -183,12 +183,14 @@ name = "POSIXLY_CORRECT says why"
 tree = "links"
 args = ["f"]
 env = { "POSIXLY_CORRECT" = "1" }
+gnu_min = "9.11"
 
 [[case]]
 name = "POSIXLY_CORRECT ends the options at an operand"
 tree = "links"
 args = ["l", "-n"]
 env = { "POSIXLY_CORRECT" = "1" }
+gnu_min = "9.11"
 
 # --- -f: the canonical path, the last component free to be missing
 [[case]]
