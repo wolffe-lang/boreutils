@@ -13,6 +13,8 @@
 # A behaviour this ls cannot match is a SKIP naming why:
 #   wolf-lang#643  a terminal's own width (GNU asks TIOCGWINSZ)
 #   wolf-lang#685  no extended attribute: -Z, and the + and . after a mode
+#   wolf-lang#692  -f and -aU: where . and .. stand in the directory's
+#                  own order
 #   and what is not written yet (--author, --block-size, the quoting
 #   styles, --time-style=+FORMAT), each refused by name.
 # Until wolf 0.2.27 the long format, -s, -i, -u, -c and the unsorted
@@ -1337,7 +1339,7 @@ scratch_keep = true
 name = "-f"
 tree = "plain"
 args = ["-f"]
-scratch_keep = true
+skip = "where . and .. stand in the directory's own order is not something fs_read_dir_entries says (it leaves them out, wolf-lang#692): this ls puts them first, which is right on btrfs, tmpfs and APFS and not on ext4"
 
 [[case]]
 name = "--sort=none"
@@ -1759,14 +1761,16 @@ scratch_time_all = 1600000000
 scratch_times = { "t/just-recent" = "now-15778416", "t/just-old" = "now-15778536", "t/minute-ago" = "now-60", "t/minute-ahead" = "now+60", "t/hour-ahead" = "now+3600", "t/month-ago" = "now-2592000", "t/year-ago" = "now-31556952", "t/right-now" = "now" }
 scratch_atimes = { "t/just-recent" = "now-15778536", "t/just-old" = "now-15778416", "t/minute-ago" = "now+60", "t/minute-ahead" = "now-60", "t/hour-ahead" = "now-3600", "t/month-ago" = "now-31556952", "t/year-ago" = "now-2592000", "t/right-now" = "now" }
 
-# Instants in winter and in summer, before the epoch, past 2038 and in
-# the year 10000, for the time zones.
+# Instants in winter and in summer, before the epoch and past 2038, for
+# the time zones. Between 1902 and 2400: ext4, which CI's scratch
+# directory is on, holds no time outside 1901..2446 (a year of five
+# digits is in src/bore_test.lu instead).
 [tree.instants]
 cwd = "t"
 scratch_dirs = ["t"]
-scratch = { "t/y1900" = "", "t/y1969" = "", "t/y1987w" = "", "t/y2020s" = "", "t/y2023w" = "", "t/y2024leap" = "", "t/y2040s" = "", "t/y2100" = "", "t/y10000" = "" }
+scratch = { "t/y1902" = "", "t/y1969" = "", "t/y1987w" = "", "t/y2020s" = "", "t/y2023w" = "", "t/y2024leap" = "", "t/y2040s" = "", "t/y2100" = "", "t/y2400" = "" }
 scratch_time_all = 1600000000
-scratch_times = { "t/y1900" = -2208988800, "t/y1969" = -1, "t/y1987w" = 536500800, "t/y2020s" = 1600000000, "t/y2023w" = 1700000000, "t/y2024leap" = 1709210096, "t/y2040s" = 2226000000, "t/y2100" = 4102444800, "t/y10000" = 253402300800 }
+scratch_times = { "t/y1902" = -2145916800, "t/y1969" = -1, "t/y1987w" = 536500800, "t/y2020s" = 1600000000, "t/y2023w" = 1700000000, "t/y2024leap" = 1709210096, "t/y2040s" = 2226000000, "t/y2100" = 4102444800, "t/y2400" = 13569465600 }
 
 # Link counts and sizes of different widths: one file with eleven names.
 [tree.widths]
@@ -3043,7 +3047,7 @@ args = ["-n", "--full-time"]
 env = { "TZ" = "America/New_York", "TZDIR" = "/nonexistent" }
 
 [[case]]
-name = "a year past 9999 and one before 1970, short style"
+name = "a year past 2038 and one before 1970, short style"
 tree = "instants"
 args = ["-n"]
 env = { "TZ" = "UTC0" }
@@ -3869,13 +3873,13 @@ scratch_keep = true
 name = "-U with -a puts . and .. first"
 tree = "kinds"
 args = ["-aU"]
-scratch_keep = true
+skip = "where . and .. stand in the directory's own order is not something fs_read_dir_entries says (it leaves them out, wolf-lang#692): this ls puts them first, which is right on btrfs, tmpfs and APFS and not on ext4"
 
 [[case]]
 name = "-f is -a and -U"
 tree = "kinds"
 args = ["-f"]
-scratch_keep = true
+skip = "where . and .. stand in the directory's own order is not something fs_read_dir_entries says (it leaves them out, wolf-lang#692): this ls puts them first, which is right on btrfs, tmpfs and APFS and not on ext4"
 
 [[case]]
 name = "--sort=none (kinds)"
@@ -3893,13 +3897,13 @@ scratch_keep = true
 name = "-f with -l"
 tree = "kinds"
 args = ["-nf"]
-scratch_keep = true
+skip = "where . and .. stand in the directory's own order is not something fs_read_dir_entries says (it leaves them out, wolf-lang#692): this ls puts them first, which is right on btrfs, tmpfs and APFS and not on ext4"
 
 [[case]]
 name = "-l and then -f stays long"
 tree = "kinds"
 args = ["-n", "-f"]
-scratch_keep = true
+skip = "where . and .. stand in the directory's own order is not something fs_read_dir_entries says (it leaves them out, wolf-lang#692): this ls puts them first, which is right on btrfs, tmpfs and APFS and not on ext4"
 
 [[case]]
 name = "-U with -r is not reversed"
@@ -3965,7 +3969,7 @@ scratch_keep = true
 name = "-t and then -f"
 tree = "kinds"
 args = ["-t", "-f"]
-scratch_keep = true
+skip = "where . and .. stand in the directory's own order is not something fs_read_dir_entries says (it leaves them out, wolf-lang#692): this ls puts them first, which is right on btrfs, tmpfs and APFS and not on ext4"
 
 [[case]]
 name = "-U with --group-directories-first"

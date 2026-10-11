@@ -40,7 +40,10 @@
 //!   newest first, `-X` by the text after the last `.`; every tie falls
 //!   to the name, and `-r` reverses the whole order. `-U` and
 //!   `--sort=none` keep the directory's own order
-//!   (`fs_read_dir_entries`, wolf 0.2.27), and `-f` is `-a -U`.
+//!   (`fs_read_dir_entries`, wolf 0.2.27), and `-f` is `-a -U`. That
+//!   call leaves `.` and `..` out, so under `-a` they are put FIRST,
+//!   which is where btrfs, tmpfs and APFS have them and not always
+//!   where ext4 does (wolf-lang#692).
 //!   `--group-directories-first` puts directories (a link to one
 //!   included) first, and `-r` does not move them.
 //! - **The long format** (`-l`, and `-g`, `-n`, `-o`, `--full-time`,
