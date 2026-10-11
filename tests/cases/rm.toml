@@ -499,13 +499,6 @@ scratch = { "t/in" = "x\n", "outside/keep" = "kept\n" }
 scratch_links = { "t/link" = "../outside" }
 
 [[case]]
-name = "-r: an absolute link out of the tree"
-args = ["-r", "t"]
-scratch = { "t/in" = "x\n", "outside/keep" = "kept\n" }
-scratch_links = { "t/link" = "{scratch}/outside" }
-skip = "the harness does not expand {scratch} in a link's target; the relative link beside this case covers it"
-
-[[case]]
 name = "-r: links up, across and to nothing"
 args = ["-rv", "m"]
 scratch = { "m/a/b/c/d/f" = "x\n", "side/keep" = "k\n" }
