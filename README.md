@@ -268,7 +268,13 @@ met under `-r`, #698), one a hard link (`-l`, #699), one a fifo (#705);
 five for `--sparse` and `--reflink` with anything but `auto` (#703);
 and five options not written yet. Every one is REFUSED BY NAME, status
 1, with the issue in the message, and leaves nothing behind: a copy
-with the wrong mode is not made and then apologised for. `touch`, `ln`
+with the wrong mode is not made and then apologised for. **And `rm -r
+/` is refused as GNU refuses it, which is run, not read:**
+`tools/roottest` hands `/` and its spellings to both tiers of `rm` in
+a throwaway container — no mount, no network, as a user and as root
+inside — beside GNU 9.11, thirty cases with `mv`'s and `cp`'s, a
+sentinel tree summed before and after (`tests/root/cases.toml`; CI's
+ubuntu leg). `touch`, `ln`
 and `chmod` are not in the table at all: the one operation each exists
 for has no builtin (#700; #698 and #699; #346).
 

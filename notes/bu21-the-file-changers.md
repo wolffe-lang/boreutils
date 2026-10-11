@@ -318,7 +318,8 @@ terminal probes, the refusals, a link out of a tree), `hand-mv.log`
 (`f04d76d9a6ae…`: another file system, `--no-copy`, three terminal
 probes), `hand-cp.log` (`784ea561d18e…`: every refusal, three terminal
 probes, a copy across subvolumes). **Verified by hand; no case holds
-them.** GNU's two lines for `rm -r /` are **inferred, never run**.
+them.** GNU's two lines for `rm -r /` were inferred when this section
+was first written; they are measured now, in a container (§6).
 
 ### CI
 
@@ -457,6 +458,79 @@ the ids); wolf-interp#235 (lupin's `os_error()` 0 after two rows).
 - Nothing closed. To close at the merge, by whoever merges: none.
   Every issue this lane filed stays open: each is a builtin that does
   not exist yet.
+
+## 6. Sent back: the root, run as a program
+
+The first report said the refusal of `/` was unit-tested as a function,
+that its wiring into `rm` had no end-to-end test, and that GNU's words
+for it were remembered. The orchestrator sent the lane back for that
+one path, with a rule that replaces §1's for it: `/` may be handed to
+`rm` where `/` is DISPOSABLE — a throwaway container whose whole root
+file system is scratch, nothing of a host mounted in it, no network —
+and nowhere else.
+
+- **`tools/roottest`** (`8ca04d6`, `5426568`) builds `rm`, `mv` and
+  `cp` static on both tiers, copies them and a GNU 9.11 into an image
+  (no mount), and runs each case of `tests/root/cases.toml` in a fresh
+  container, as an unprivileged user and as root inside it. A script in
+  the image sums a sentinel tree, `/etc`'s and `/usr/bin`'s entry
+  counts and the programs before and after; a root that was removed
+  cannot run the second sum, so a failed guard is a missing line. CI
+  runs it on the ubuntu leg with docker (`ab16a1a`); macOS has no
+  container engine and the programs are linux binaries.
+- **GNU's answers are measured** (`tools/roottest --record`; kasumi,
+  px12's Ubuntu 24.04 image, the oracle's tarball by digest built in
+  that image, `root-gnu-record.log`, `66c5a48c9c62…`), and asserted of
+  GNU again on every run. `rm -r /`, `-rf /`, `-rf -- /`, `-r ///` and
+  `-r --preserve-root /`: `it is dangerous to operate recursively on
+  '/'`, then `use --no-preserve-root to override this failsafe`,
+  status 1. `-rf //`, `-rf link-to-root/` and the link by its whole
+  path: the same with `on 'NAME' (same as '/')`. `-rf /.`, `/..`,
+  `/../`, `.`, `..`, `./..`: `refusing to remove '.' or '..'
+  directory: skipping 'NAME'`. `-rf / other` and `-rf other /`: the
+  root refused and **`other` removed, in either order**, status 1.
+  `-rf link-to-root`: the link removed, status 0. `-rf ""`: nothing,
+  status 0. `rm /`: `Is a directory`; `rm -d /`: `Device or resource
+  busy`. The remembered message was right for `/` and for the
+  `(same as '/')` form; **what was wrong was `//`**, which this `rm`
+  had folded to `/` and GNU names as typed (`296e2e2`).
+- **Thirty cases, 178 runs, none failed**: kasumi with podman at
+  `5426568` (`roottest-5426568.log`), and CI's ubuntu leg with docker
+  (run 38126188058 and the head's). Every `rm` case matches GNU 9.11
+  in status, standard error and what is left, as a user and as root,
+  on both tiers, the sentinel intact — but two, by design:
+  `--no-preserve-root /` is never handed to GNU, and this `rm` refuses
+  it by name and removes nothing; `--no-preserve-root other` removes
+  `other` in GNU and is refused here the same way.
+- **`mv` and `cp` have no root rule of their own, and need none; they
+  answer as GNU does**: `mv / x2` is `Device or resource busy`; `mv x
+  /` and `cp x /` are `Permission denied` for a user and put `/x`
+  there for root; `-T x /` is `cannot overwrite directory '/' with
+  non-directory 'x'`; `mv / /` is `'/' and '/' are the same file`
+  (this `mv` said `'//'`, fixed in `296e2e2`); `cp / x2` is `-r not
+  specified; omitting directory '/'`; `cp -r other /` copies the tree
+  into `/` for root. `cp -r /` itself is not a case: GNU copies a
+  whole file system there, and so would this.
+- **The planted break**, on a branch made for it and deleted after
+  (`bu21-plant-root`; its workflow ran the container test and nothing
+  else, so the planted program ran nowhere but in containers). With
+  the OPERAND's verdict no longer acted on, the test stayed green —
+  run 38126496783, 178 passed — because the walk's own fence
+  (`bore.record_is_root`) refuses the same directory in the same
+  words: two fences, and the first plant showed the second. With both
+  out, run 38126834896 went red: **40 failed, 138 passed**, the forty
+  being the ten spellings of the root, as a user and as root, on both
+  tiers, each with the sentinel gone (`intact=False`, megabytes of
+  `cannot remove`), and every other case — the dots, the link without
+  a slash, `--no-preserve-root`, `mv`, `cp` — still green. The log is
+  nomad-1 `~/lanes/bu21/ev/ci-plant2-38126834896.log`
+  (`efa5adbbd099…`). A first take of that plant, run 38126625157, was
+  red with one FAIL line and no more: the tool printed three megabytes
+  of standard error on one line and the report ended there; it shows a
+  failing case's standard error by its head now (`5426568`).
+- **Not run, by name:** `rm -rf /*` (the shell expands it; `rm` sees
+  ordinary directories); GNU with `--no-preserve-root /`; any of this
+  on macOS.
 
 ## What the next boreutils lane inherits
 
