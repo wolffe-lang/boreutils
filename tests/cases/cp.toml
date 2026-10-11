@@ -1059,6 +1059,16 @@ name = "-Z is accepted"
 args = ["-Z", "a", "new"]
 scratch = { "a" = "A\n", "b" = "B\n" }
 
+[[case]]
+name = "--context alone is accepted"
+args = ["--context", "a", "new"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "--context=CTX warns and carries on"
+args = ["--context=foo", "a", "new"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
 # --- options
 [[case]]
 name = "-- ends the options"

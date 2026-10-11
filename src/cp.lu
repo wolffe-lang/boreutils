@@ -124,6 +124,7 @@ fn main() -> int {
     var no_target = false
     var strip = false
     var refused = ""
+    var context = false
     var i = 0
     while i < p.keys.len {
         let k = p.keys[i]
@@ -164,8 +165,12 @@ fn main() -> int {
             no_target = true
         } else if k == "strip-trailing-slashes" {
             strip = true
-        } else if k == "Z" || k == "context" {
+        } else if k == "Z" {
             // No security context to set on this host.
+        } else if k == "context" {
+            if p.given[i] {
+                context = true
+            }
         } else if k == "no-preserve" {
             let r = no_preserve(p.values[i])
             if r == -1 {
@@ -190,6 +195,9 @@ fn main() -> int {
     if refused.len > 0 {
         bore.warn("cp", refused)
         return 1
+    }
+    if context {
+        bore.warn("cp", "warning: ignoring --context; it requires an SELinux-enabled kernel")
     }
     if c.follow < 0 {
         c.follow = if c.recursive then 0 else 2
@@ -754,7 +762,8 @@ fn options() -> List[bore.Opt] {
     (mut s).push(bore.flag("u", ""))
     (mut s).push(bore.flag("v", "verbose"))
     (mut s).push(bore.flag("x", "one-file-system"))
-    (mut s).push(bore.flag("Z", "context"))
+    (mut s).push(bore.flag("Z", ""))
+    (mut s).push(bore.optional("", "context"))
     (mut s).push(bore.flag("", "help"))
     (mut s).push(bore.flag("", "version"))
     s
