@@ -1,0 +1,795 @@
+# mv — GNU coreutils 9.11, black-box, on linux x86-64 and macOS arm64.
+# Written by ~/lanes/bu21/gen/mv_cases.py; this file is the record.
+#
+# mv renames and replaces, so every case runs in a scratch directory the
+# harness made and checked (tools/difftest, bu21), and names no path
+# outside it. What each side leaves is compared as `files` and `tree`:
+# a moved file keeps its bytes, its mode, its link count and its time.
+#
+# What this mv cannot match is named, never imitated:
+#   another file system  refused by name (a copy would lose the mode,
+#                        the times, the owner and the links). No case
+#                        can stage two file systems; the refusal is a
+#                        hand transcript in the lane's note.
+#   -u -b -S --debug     not written yet (skips)
+#   --exchange           wolf-lang#706 (skip)
+
+# --- operands
+[[case]]
+name = "no operand"
+args = []
+
+[[case]]
+name = "one operand"
+args = ["a"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "a file to a new name"
+args = ["a", "new"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "a file over a file"
+args = ["a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "a missing source"
+args = ["missing", "z"]
+
+[[case]]
+name = "a missing source over a file"
+args = ["missing", "b"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "into a missing directory"
+args = ["a", "nodir/a"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "a file into a directory"
+args = ["a", "d"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/c" = "c\n", "d/sub/s" = "s\n" }
+
+[[case]]
+name = "two files into a directory"
+args = ["a", "b", "d"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/c" = "c\n", "d/sub/s" = "s\n" }
+
+[[case]]
+name = "three operands, the last missing"
+args = ["a", "b", "c"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "three operands, the last missing, with a slash"
+args = ["a", "b", "missing/"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "three operands, the last a file"
+args = ["a", "b", "f"]
+scratch = { "a" = "A\n", "b" = "B\n", "f" = "F\n" }
+
+[[case]]
+name = "two operands, the last missing, with a slash"
+args = ["a", "x/"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "a source with a slash that is a file"
+args = ["a/", "x"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "a missing source among good ones"
+args = ["a", "missing", "b", "d"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/c" = "c\n", "d/sub/s" = "s\n" }
+
+[[case]]
+name = "an empty source"
+args = ["", "x"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "an empty destination"
+args = ["a", ""]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "a directory to an empty destination"
+args = ["d", ""]
+scratch = { "d/c" = "c\n", "d/sub/s" = "s\n" }
+
+[[case]]
+name = "a missing source to an empty destination"
+args = ["missing", ""]
+
+[[case]]
+name = "a file into a directory, replacing one there"
+args = ["a", "d"]
+scratch = { "a" = "new\n", "d/a" = "old\n" }
+
+[[case]]
+name = "the cwd is a subdirectory"
+args = ["c", "sub"]
+scratch = { "d/c" = "c\n", "d/sub/s" = "s\n" }
+cwd = "d"
+
+[[case]]
+name = "absolute paths"
+args = ["{scratch}/a", "{scratch}/d"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/c" = "c\n", "d/sub/s" = "s\n" }
+
+# --- directories
+[[case]]
+name = "a directory to a new name"
+args = ["d", "e"]
+scratch = { "d/c" = "c\n", "d/sub/s" = "s\n" }
+
+[[case]]
+name = "a directory into a directory"
+args = ["d", "e"]
+scratch = { "d/c" = "c\n", "d/sub/s" = "s\n" }
+scratch_dirs = ["e"]
+
+[[case]]
+name = "a directory into a directory that holds that name, empty"
+args = ["d", "e"]
+scratch = { "d/c" = "c\n", "d/sub/s" = "s\n" }
+scratch_dirs = ["e/d"]
+
+[[case]]
+name = "a directory into a directory that holds that name, not empty"
+args = ["d", "e"]
+scratch = { "d/c" = "c\n", "d/sub/s" = "s\n", "e/d/keep" = "k\n" }
+
+[[case]]
+name = "a directory over a file"
+args = ["d", "a"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/c" = "c\n", "d/sub/s" = "s\n" }
+
+[[case]]
+name = "a file over a directory by name"
+args = ["a", "d"]
+scratch = { "a" = "A\n", "d/a/x" = "x\n" }
+
+[[case]]
+name = "a file over an empty directory by name"
+args = ["a", "d"]
+scratch = { "a" = "A\n" }
+scratch_dirs = ["d/a"]
+
+[[case]]
+name = "a directory into itself"
+args = ["d", "d"]
+scratch = { "d/c" = "c\n", "d/sub/s" = "s\n" }
+
+[[case]]
+name = "a directory into its own subdirectory"
+args = ["d", "d/sub"]
+scratch = { "d/c" = "c\n", "d/sub/s" = "s\n" }
+
+[[case]]
+name = "a directory into itself, with a slash"
+args = ["d", "d/"]
+scratch = { "d/c" = "c\n", "d/sub/s" = "s\n" }
+
+[[case]]
+name = "a directory with a slash to a new name"
+args = ["d/", "x"]
+scratch = { "d/c" = "c\n", "d/sub/s" = "s\n" }
+
+[[case]]
+name = "a directory to a new name with a slash"
+args = ["d", "y/"]
+scratch = { "d/c" = "c\n", "d/sub/s" = "s\n" }
+
+[[case]]
+name = "the working directory"
+args = [".", "d"]
+scratch = { "d/c" = "c\n", "d/sub/s" = "s\n" }
+
+[[case]]
+name = "a directory that may not be written, renamed"
+args = ["ro", "x"]
+scratch = { "ro/f" = "x\n" }
+scratch_modes = { "ro" = 0o555 }
+
+[[case]]
+name = "out of a directory that may not be written"
+args = ["ro/f", "x"]
+scratch = { "ro/f" = "x\n" }
+scratch_modes = { "ro" = 0o555 }
+
+[[case]]
+name = "into a directory that may not be written"
+args = ["a", "ro"]
+scratch = { "a" = "A\n" }
+scratch_dirs = ["ro"]
+scratch_modes = { "ro" = 0o555 }
+
+# --- the same file
+[[case]]
+name = "a name onto itself"
+args = ["a", "a"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "a name onto itself, spelled two ways"
+args = ["a", "./a"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "a file into the directory it is in"
+args = ["d/c", "d"]
+scratch = { "d/c" = "c\n", "d/sub/s" = "s\n" }
+
+[[case]]
+name = "one hard link onto another"
+args = ["one", "two"]
+scratch = { "one" = "x\n" }
+scratch_hardlinks = { "two" = "one" }
+
+[[case]]
+name = "-v: one hard link onto another"
+args = ["-v", "one", "two"]
+scratch = { "one" = "x\n" }
+scratch_hardlinks = { "two" = "one" }
+
+[[case]]
+name = "a link onto the file it names"
+args = ["l", "a"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+scratch_links = { "l" = "a" }
+
+[[case]]
+name = "a file onto a link that names it"
+args = ["a", "l"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+scratch_links = { "l" = "a" }
+
+# --- links
+[[case]]
+name = "a link is renamed, not followed"
+args = ["l", "newlink"]
+scratch = { "d/c" = "c\n", "d/sub/s" = "s\n" }
+scratch_links = { "l" = "d" }
+
+[[case]]
+name = "a dangling link is renamed"
+args = ["dang", "x"]
+scratch_links = { "dang" = "nowhere" }
+
+[[case]]
+name = "a dangling link into a directory"
+args = ["dang", "d"]
+scratch = { "d/c" = "c\n", "d/sub/s" = "s\n" }
+scratch_links = { "dang" = "nowhere" }
+
+[[case]]
+name = "a file through a link to a directory"
+args = ["a", "l"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/c" = "c\n", "d/sub/s" = "s\n" }
+scratch_links = { "l" = "d" }
+
+[[case]]
+name = "a file through a link to a directory, with a slash"
+args = ["a", "l/"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/c" = "c\n", "d/sub/s" = "s\n" }
+scratch_links = { "l" = "d" }
+
+[[case]]
+name = "a file over a link to a file"
+args = ["a", "l"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+scratch_links = { "l" = "b" }
+
+[[case]]
+name = "a file over a dangling link"
+args = ["a", "l"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+scratch_links = { "l" = "nowhere" }
+
+[[case]]
+name = "a directory over a link to a file"
+args = ["d", "l"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/c" = "c\n", "d/sub/s" = "s\n" }
+scratch_links = { "l" = "a" }
+
+[[case]]
+name = "a link to a directory, with a slash"
+args = ["l/", "x"]
+scratch = { "d/c" = "c\n", "d/sub/s" = "s\n" }
+scratch_links = { "l" = "d" }
+
+[[case]]
+name = "-T: a file over a link to a directory"
+args = ["-T", "a", "l"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/c" = "c\n", "d/sub/s" = "s\n" }
+scratch_links = { "l" = "d" }
+
+# --- -v
+[[case]]
+name = "-v: a file"
+args = ["-v", "a", "new"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "-v: into a directory"
+args = ["-v", "a", "b", "d"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/c" = "c\n", "d/sub/s" = "s\n" }
+
+[[case]]
+name = "-v: into the working directory"
+args = ["-v", "d/c", "."]
+scratch = { "d/c" = "c\n", "d/sub/s" = "s\n" }
+
+[[case]]
+name = "-v: into a directory named with a slash"
+args = ["-v", "a", "d/"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/c" = "c\n", "d/sub/s" = "s\n" }
+
+[[case]]
+name = "-v: a source with a slash"
+args = ["-v", "d/sub/", "e"]
+scratch = { "d/c" = "c\n", "d/sub/s" = "s\n" }
+scratch_dirs = ["e"]
+
+[[case]]
+name = "-v: names that need quoting"
+args = ["-v", "q'x", "new\nline"]
+scratch = { "q'x" = "" }
+
+[[case]]
+name = "-v: a failure says nothing on stdout"
+args = ["-v", "missing", "a", "d"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/c" = "c\n", "d/sub/s" = "s\n" }
+
+[[case]]
+name = "names that need quoting, failing"
+args = ["q'x", "sp x/y"]
+scratch = { "q'x" = "" }
+
+[[case]]
+name = "--verbose"
+args = ["--verbose", "a", "new"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+# --- -f, -i, -n
+[[case]]
+name = "-f"
+args = ["-f", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "-f: a destination nobody may write"
+args = ["-f", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+scratch_modes = { "b" = 0o444 }
+
+[[case]]
+name = "a destination nobody may write, no terminal"
+args = ["a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+scratch_modes = { "b" = 0o444 }
+
+[[case]]
+name = "-i: yes"
+args = ["-i", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+stdin = "y\n"
+
+[[case]]
+name = "-i: no"
+args = ["-i", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+stdin = "n\n"
+
+[[case]]
+name = "-i: the end of input"
+args = ["-i", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "-i: nothing to replace, nothing asked"
+args = ["-i", "a", "new"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+stdin = "n\n"
+
+[[case]]
+name = "-i: a destination nobody may write"
+args = ["-i", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+scratch_modes = { "b" = 0o444 }
+stdin = "n\n"
+
+[[case]]
+name = "-i: into a directory, one there"
+args = ["-i", "a", "b", "d"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/a" = "old\n" }
+stdin = "n\n"
+
+[[case]]
+name = "-i: two questions"
+args = ["-i", "a", "b", "d"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/a" = "old\n", "d/b" = "old\n" }
+stdin = "y\nn\n"
+
+[[case]]
+name = "-iv"
+args = ["-iv", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+stdin = "y\n"
+
+[[case]]
+name = "-i: a directory over an empty directory"
+args = ["-iT", "d", "e"]
+scratch = { "d/c" = "c\n", "d/sub/s" = "s\n" }
+scratch_dirs = ["e"]
+stdin = "y\n"
+
+[[case]]
+name = "-i: a name that needs quoting"
+args = ["-i", "a", "q'x"]
+scratch = { "a" = "", "q'x" = "" }
+stdin = "n\n"
+
+[[case]]
+name = "--interactive"
+args = ["--interactive", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+stdin = "n\n"
+
+[[case]]
+name = "-n"
+args = ["-n", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "-n: nothing there"
+args = ["-n", "a", "new"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "-nv"
+args = ["-nv", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "-n: into a directory"
+args = ["-n", "a", "b", "d"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/a" = "old\n" }
+
+[[case]]
+name = "--no-clobber"
+args = ["--no-clobber", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "-n: a directory over an empty directory"
+args = ["-nT", "d", "e"]
+scratch = { "d/c" = "c\n", "d/sub/s" = "s\n" }
+scratch_dirs = ["e"]
+
+[[case]]
+name = "-n: a missing source"
+args = ["-n", "missing", "b"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "-n: a name onto itself"
+args = ["-n", "a", "a"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "-i -n: the last wins"
+args = ["-i", "-n", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+stdin = "y\n"
+
+[[case]]
+name = "-n -i: the last wins"
+args = ["-n", "-i", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+stdin = "y\n"
+
+[[case]]
+name = "-f -i"
+args = ["-f", "-i", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+stdin = "n\n"
+
+[[case]]
+name = "-i -f"
+args = ["-i", "-f", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+stdin = "n\n"
+
+[[case]]
+name = "-n -f"
+args = ["-n", "-f", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "-f -n"
+args = ["-f", "-n", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+# --- -t, -T, --strip-trailing-slashes
+[[case]]
+name = "-t"
+args = ["-t", "d", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/c" = "c\n", "d/sub/s" = "s\n" }
+
+[[case]]
+name = "-t attached"
+args = ["-td", "a"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/c" = "c\n", "d/sub/s" = "s\n" }
+
+[[case]]
+name = "--target-directory="
+args = ["--target-directory=d", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/c" = "c\n", "d/sub/s" = "s\n" }
+
+[[case]]
+name = "-t: a missing directory"
+args = ["-t", "nodir", "a"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "-t: a file"
+args = ["-t", "b", "a"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "-t: no source"
+args = ["-t", "d"]
+scratch = { "d/c" = "c\n", "d/sub/s" = "s\n" }
+
+[[case]]
+name = "-t: a link to a directory"
+args = ["-t", "l", "a"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/c" = "c\n", "d/sub/s" = "s\n" }
+scratch_links = { "l" = "d" }
+
+[[case]]
+name = "-t twice"
+args = ["-t", "d", "-t", "e", "a"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/c" = "c\n", "d/sub/s" = "s\n" }
+scratch_dirs = ["e"]
+
+[[case]]
+name = "-t with -T"
+args = ["-T", "-t", "d", "a"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/c" = "c\n", "d/sub/s" = "s\n" }
+
+[[case]]
+name = "-vt"
+args = ["-vt", "d", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/c" = "c\n", "d/sub/s" = "s\n" }
+
+[[case]]
+name = "-T: a file to a new name"
+args = ["-T", "a", "new"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "-T: a file over a file"
+args = ["-T", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "-T: a file over a directory"
+args = ["-T", "a", "d"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/c" = "c\n", "d/sub/s" = "s\n" }
+
+[[case]]
+name = "-T: a file over an empty directory"
+args = ["-T", "a", "e"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+scratch_dirs = ["e"]
+
+[[case]]
+name = "-T: a directory over an empty directory"
+args = ["-T", "d", "e"]
+scratch = { "d/c" = "c\n", "d/sub/s" = "s\n" }
+scratch_dirs = ["e"]
+
+[[case]]
+name = "-T: a directory over a directory that is not empty"
+args = ["-T", "d", "full"]
+scratch = { "d/c" = "c\n", "d/sub/s" = "s\n", "full/x" = "x\n" }
+
+[[case]]
+name = "-T: three operands"
+args = ["-T", "a", "b", "c"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "-T: one operand"
+args = ["-T", "a"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "--no-target-directory"
+args = ["--no-target-directory", "d", "e"]
+scratch = { "d/c" = "c\n", "d/sub/s" = "s\n" }
+scratch_dirs = ["e"]
+
+[[case]]
+name = "--strip-trailing-slashes"
+args = ["--strip-trailing-slashes", "d/", "x"]
+scratch = { "d/c" = "c\n", "d/sub/s" = "s\n" }
+
+[[case]]
+name = "--strip-trailing-slashes: a link to a directory"
+args = ["--strip-trailing-slashes", "l/", "x"]
+scratch = { "d/c" = "c\n", "d/sub/s" = "s\n" }
+scratch_links = { "l" = "d" }
+
+[[case]]
+name = "--strip-trailing-slashes: a file"
+args = ["--strip-trailing-slashes", "a//", "x"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "--strip-trailing-slashes: into a directory"
+args = ["--strip-trailing-slashes", "d/sub/", "a/", "e"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/c" = "c\n", "d/sub/s" = "s\n" }
+scratch_dirs = ["e"]
+
+[[case]]
+name = "--strip-trailing-slashes: a destination with its own slash"
+args = ["--strip-trailing-slashes", "d/", "x/"]
+scratch = { "d/c" = "c\n", "d/sub/s" = "s\n" }
+
+[[case]]
+name = "--strip-trailing-slashes -v"
+args = ["--strip-trailing-slashes", "-v", "d//", "x"]
+scratch = { "d/c" = "c\n", "d/sub/s" = "s\n" }
+
+[[case]]
+name = "--strip abbreviates"
+args = ["--strip", "d/", "x"]
+scratch = { "d/c" = "c\n", "d/sub/s" = "s\n" }
+
+# --- what this mv refuses by name, and what it lets pass
+[[case]]
+name = "--no-copy on one file system"
+args = ["--no-copy", "a", "new"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "-Z is accepted"
+args = ["-Z", "a", "new"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "--context is accepted"
+args = ["--context", "a", "new"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "-u: the source is newer"
+args = ["-u", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+scratch_times = { "a" = 2000000000, "b" = 1000000000 }
+skip = "-u (--update) is not written yet: refused by name, status 1"
+
+[[case]]
+name = "-u: the source is older"
+args = ["-u", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+scratch_times = { "a" = 1000000000, "b" = 2000000000 }
+skip = "-u (--update) is not written yet: refused by name, status 1"
+
+[[case]]
+name = "--update=none"
+args = ["--update=none", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+skip = "-u (--update) is not written yet: refused by name, status 1"
+
+[[case]]
+name = "-b"
+args = ["-b", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+skip = "-b (--backup, -S) is not written yet: refused by name, status 1"
+
+[[case]]
+name = "--backup=numbered"
+args = ["--backup=numbered", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+skip = "-b (--backup, -S) is not written yet: refused by name, status 1"
+
+[[case]]
+name = "-S"
+args = ["-b", "-S", ".bak", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+skip = "-b (--backup, -S) is not written yet: refused by name, status 1"
+
+[[case]]
+name = "--exchange"
+args = ["--exchange", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+skip = "wolf 0.2.27 cannot swap two names (renameat2, wolf-lang#706): refused by name, status 1"
+
+[[case]]
+name = "--debug"
+args = ["--debug", "a", "new"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+skip = "--debug is not written yet: refused by name, status 1"
+
+# --- options
+[[case]]
+name = "-- ends the options"
+args = ["--", "-f", "x"]
+scratch = { "-f" = "" }
+
+[[case]]
+name = "a bad option"
+args = ["-x", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "an unknown long option"
+args = ["--bogus", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "-t with no argument"
+args = ["-t"]
+
+[[case]]
+name = "--v is ambiguous"
+args = ["--v", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+
+[[case]]
+name = "POSIXLY_CORRECT: the first operand ends the options"
+args = ["a", "-v"]
+scratch = { "a" = "" }
+env = { "POSIXLY_CORRECT" = "1" }
+
+[[case]]
+name = "--help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "--version"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "--help wins over a later bad option"
+args = ["--help", "--bogus"]
+compare = ["exit"]
+
+[[case]]
+name = "stdout closed, nothing to write"
+args = ["a", "new"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+stdout_closed = true
+
+[[case]]
+name = "stdout closed under -v"
+args = ["-v", "a", "new"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+stdout_closed = true
+
+[[case]]
+name = "a file's time and mode survive the move"
+args = ["a", "new"]
+scratch = { "a" = "A\n", "b" = "B\n" }
+scratch_times = { "a" = 1500000000 }
+scratch_modes = { "a" = 0o640 }
+
+[[case]]
+name = "a tree's times and modes survive the move"
+args = ["d", "e"]
+scratch = { "d/c" = "c\n", "d/sub/s" = "s\n" }
+scratch_time_all = 1400000000
+scratch_modes = { "d/c" = 0o600, "d/sub" = 0o750 }

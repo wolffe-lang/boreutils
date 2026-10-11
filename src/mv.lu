@@ -1,0 +1,405 @@
+//! member: false
+//!
+//! mv — rename files, or move them into a directory.
+//!
+//! References consulted: POSIX.1-2024 `mv`; GNU coreutils 9.11
+//! `mv --help`, the info manual's `mv invocation` node, and black-box
+//! runs of the GNU binary on linux x86-64, every one inside a scratch
+//! directory (kasumi `~/lanes/bu21/gx.sh` and the differential
+//! harness), under `LC_ALL=C`. Never GNU source, nor any other
+//! implementation's.
+//!
+//! GNU's rules, each measured against 9.11:
+//!
+//! - `mv SOURCE DEST` is one `rename(2)` (`fs_rename`): atomic, and it
+//!   replaces a DEST that is there. When DEST is a directory (through a
+//!   link or not) and `-T` is not given, or there are several SOURCEs,
+//!   or `-t DIR` names it, each SOURCE goes INTO it under its own last
+//!   name.
+//! - A SOURCE that cannot be described is `cannot stat 'NAME'`; a
+//!   rename the host refuses is `cannot move 'A' to 'B': reason`. A
+//!   directory may not replace a file (`cannot overwrite non-directory
+//!   'B' with directory 'A'`) nor a file a directory, a name may not
+//!   move onto itself (`'A' and 'B' are the same file`), and a
+//!   directory may not move into itself.
+//! - `-i` asks `mv: overwrite 'B'? ` before replacing (`replace 'B',
+//!   overriding mode 0444 (r--r--r--)? ` when B is write-protected),
+//!   and a line that does not begin `y` or `Y` leaves both alone and
+//!   makes the status 1 with nothing more said. `-n` leaves an existing
+//!   DEST alone, says nothing, and is no failure. `-f` asks nothing.
+//!   The last of the three wins.
+//! - `-v` prints `renamed 'A' -> 'B'`.
+//!
+//! **What this program cannot do, and does not pretend to.**
+//!
+//! - **A move to another file system is refused by name**, status 1,
+//!   and both names are left as they were. GNU copies and then removes;
+//!   that copy must keep the mode, the times, the owner and every hard
+//!   link, and wolf 0.2.27 can set none of them (wolf-lang#346, #700,
+//!   #701, #699) nor re-create a link (#698). `fs_rename` tells the
+//!   case by its own row, `cross_device`. With `--no-copy` this is
+//!   GNU's behaviour too, and its message.
+//! - **`-n` is a look and then a rename**, not one call
+//!   (wolf-lang#706): a DEST that appears between the two is replaced.
+//! - **"May I write it?" is the owner's write bit** (wolf-lang#633), as
+//!   in `rm`: at a terminal, without `-f`, a DEST its owner may not
+//!   write is asked about, in GNU's words.
+//! - `-u`/`--update`, `-b`/`--backup`/`-S`, `--exchange` (#706) and
+//!   `--debug` are not written yet, and are refused by name. `-Z` does
+//!   nothing on a host without SELinux, as GNU's does there.
+
+use bore
+
+struct Cfg {
+    /// 0 replace without asking unless a terminal and a protected DEST
+    /// say otherwise (the default), 1 never ask (`-f`), 2 always ask
+    /// (`-i`), 3 never replace (`-n`).
+    over: int,
+    verbose: bool,
+    no_copy: bool,
+    tty: bool,
+}
+
+fn main() -> int {
+    let p = bore.parse(options(), env_args(), bore.permute())
+    var out = bore.stdout()
+    var c = Cfg { over: 0, verbose: false, no_copy: false, tty: false }
+    var target = ""
+    var into = false
+    var no_target = false
+    var strip = false
+    var refused = ""
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i]
+        if k == "help" {
+            bore.put(mut out, help()) else |_| {}
+            return bore.finish(mut out, "mv", 0)
+        }
+        if k == "version" {
+            bore.put(mut out, bore.version_text("mv")) else |_| {}
+            return bore.finish(mut out, "mv", 0)
+        }
+        if k == "force" {
+            c.over = 1
+        } else if k == "interactive" {
+            c.over = 2
+        } else if k == "no-clobber" {
+            c.over = 3
+        } else if k == "verbose" {
+            c.verbose = true
+        } else if k == "no-copy" {
+            c.no_copy = true
+        } else if k == "target-directory" {
+            if into {
+                bore.warn("mv", "multiple target directories specified")
+                return 1
+            }
+            target = p.values[i]
+            into = true
+        } else if k == "no-target-directory" {
+            no_target = true
+        } else if k == "strip-trailing-slashes" {
+            strip = true
+        } else if k == "Z" || k == "context" {
+            // No security context to set on this host.
+        } else if refused.len == 0 {
+            if k == "update" || k == "u" {
+                refused = "-u (--update) is not written yet"
+            } else if k == "backup" || k == "b" || k == "suffix" {
+                refused = "-b (--backup, -S) is not written yet"
+            } else if k == "exchange" {
+                refused = "--exchange is not supported: wolf 0.2.27 cannot swap two names (wolf-lang#706)"
+            } else if k == "debug" {
+                refused = "--debug is not written yet"
+            }
+        }
+        i += 1
+    }
+    if !bore.ok(p) {
+        return bore.usage_error("mv", p.error)
+    }
+    if refused.len > 0 {
+        bore.warn("mv", refused)
+        return 1
+    }
+    var names = List[str]()
+    // Whether a SOURCE lost trailing slashes to
+    // `--strip-trailing-slashes`: renamed to a DEST (not moved into a
+    // directory) it must still be a directory, so the DEST is handed
+    // to the host with a slash (measured: `mv --strip-trailing-slashes
+    // file/ x` is `cannot move 'file' to 'x': Not a directory`).
+    var slashed = List[bool]()
+    for n in p.operands {
+        if strip {
+            let bare = bore.without_slashes(n)
+            (mut names).push(bare)
+            (mut slashed).push(bare.len < n.len)
+        } else {
+            (mut names).push(n)
+            (mut slashed).push(false)
+        }
+    }
+    if names.len == 0 {
+        return bore.usage_error("mv", "missing file operand")
+    }
+    if into && no_target {
+        bore.warn("mv", "cannot combine --target-directory (-t) and --no-target-directory (-T)")
+        return 1
+    }
+    if !into {
+        if names.len == 1 {
+            return bore.usage_error(
+                "mv",
+                "missing destination file operand after {bore.quote_always(names[0])}",
+            )
+        }
+        if no_target {
+            if names.len > 2 {
+                return bore.usage_error("mv", "extra operand {bore.quote_always(names[2])}")
+            }
+        } else if names.len > 2 || is_directory(names[names.len - 1]) {
+            target = names[names.len - 1]
+            let _ = (mut names).pop() else ""
+            into = true
+            if !is_directory(target) {
+                return not_a_target(target, "target")
+            }
+        }
+    } else if !is_directory(target) {
+        return not_a_target(target, "target directory")
+    }
+    if c.over == 0 {
+        c.tty = os_isatty(0) else false
+    }
+    var status = 0
+    if into {
+        for n in names {
+            let dest = bore.join_name(target, bore.last_name(n))
+            if !rename_one(mut out, c, n, dest, false) {
+                status = 1
+            }
+        }
+    } else if !rename_one(mut out, c, names[0], names[1], slashed[0]) {
+        status = 1
+    }
+    bore.finish(mut out, "mv", status)
+}
+
+/// Report a target that is not a directory: `WHAT 'NAME': reason`,
+/// the reason being the host's when it cannot describe the name and
+/// `Not a directory` when it can.
+fn not_a_target(target: str, what: str) -> int {
+    var why = "Not a directory"
+    let _ = fs_stat(target) else |_| {
+        why = bore.io_error()
+        List[int]()
+    }
+    bore.warn("mv", "{what} {bore.quote_always(target)}: {why}")
+    1
+}
+
+/// Whether `path` names a directory, through a link or not.
+fn is_directory(path: str) -> bool {
+    let r = fs_stat(path) else |_| {
+        return false
+    }
+    bore.rec_kind(r) == bore.kind_dir()
+}
+
+/// The nine permission letters of `mode`, as `ls -l` writes them.
+fn letters(mode: int) -> str {
+    let all = bore.mode_text(bore.kind_file(), mode)
+    all[1..]
+}
+
+/// `mode` in four octal digits.
+fn octal4(mode: int) -> str {
+    let d = "01234567"
+    let a = mode / 512 % 8
+    let b = mode / 64 % 8
+    let e = mode / 8 % 8
+    let f = mode % 8
+    "{d[a..a + 1]}{d[b..b + 1]}{d[e..e + 1]}{d[f..f + 1]}"
+}
+
+/// Whether `src`, a symbolic link, names the very file `to` describes.
+/// Moving a link onto what it points at would leave a link to itself.
+fn link_to(src: str, to: List[int]) -> bool {
+    let through = fs_stat(src) else |_| {
+        return false
+    }
+    bore.same_file(through, to)
+}
+
+/// Ask a question on standard error and answer whether the reply was
+/// a yes; what `-v` has said so far is written first.
+fn confirm(mut out: bore.Out, question: str) -> bool {
+    bore.flush(mut out) else |_| {}
+    eprint_raw("mv: {question}? ")
+    bore.said_yes()
+}
+
+/// Move `src` to `dst`. Answers false on a failure — and a move the
+/// user declined IS one to GNU's `mv` (status 1, nothing more said),
+/// where one `-n` declined is not. `as_dir` says `src` was typed with
+/// a trailing slash that `--strip-trailing-slashes` took.
+fn rename_one(mut out: bore.Out, c: Cfg, src: str, dst: str, as_dir: bool) -> bool {
+    var why = ""
+    let from = fs_lstat(src) else |_| {
+        why = bore.io_error()
+        List[int]()
+    }
+    if why.len > 0 {
+        bore.warn("mv", "cannot stat {bore.quote_always(src)}: {why}")
+        return false
+    }
+    let from_dir = bore.rec_kind(from) == bore.kind_dir()
+    // Measured: an empty DEST is the working directory to GNU, under
+    // its empty name (`cannot overwrite directory '' with
+    // non-directory 'a'`; a directory moved there is `Device or
+    // resource busy`).
+    var handed = dst
+    if dst.len == 0 {
+        handed = "."
+    } else if as_dir && !dst.ends_with("/") {
+        handed = "{dst}/"
+    }
+    var there = true
+    let to = fs_lstat(if dst.len == 0 then "." else dst) else |_| {
+        there = false
+        List[int]()
+    }
+    if there {
+        if c.over == 3 {
+            return true
+        }
+        if bore.same_file(from, to) || bore.rec_kind(from) == bore.kind_link() && link_to(src, to) {
+            bore.warn(
+                "mv",
+                "{bore.quote_always(src)} and {bore.quote_always(dst)} are the same file",
+            )
+            return false
+        }
+        let to_dir = bore.rec_kind(to) == bore.kind_dir()
+        if !from_dir && to_dir {
+            bore.warn(
+                "mv",
+                "cannot overwrite directory {bore.quote_always(dst)} with non-directory {bore.quote_always(src)}",
+            )
+            return false
+        }
+        if from_dir && !to_dir {
+            bore.warn(
+                "mv",
+                "cannot overwrite non-directory {bore.quote_always(dst)} with directory {bore.quote_always(src)}",
+            )
+            return false
+        }
+        // "May I write it?" is the owner's write bit (wolf-lang#633).
+        let guarded = bore.rec_kind(to) != bore.kind_link() && bore.rec_mode(to) / 128 % 2 == 0
+        if c.over == 2 || c.over == 0 && c.tty && guarded {
+            var question = "overwrite {bore.quote_always(dst)}"
+            if guarded {
+                let m = bore.rec_mode(to)
+                question = "replace {bore.quote_always(dst)}, overriding mode {octal4(m)} ({letters(m)})"
+            }
+            if !confirm(mut out, question) {
+                return false
+            }
+        }
+    }
+    var code = 0
+    var across = false
+    var ok = true
+    fs_rename(src, handed) else |e| {
+        code = bore.host_code()
+        ok = false
+        match e {
+            cross_device => { across = true },
+            denied => {},
+            exists => {},
+            io => {},
+            not_found => {},
+        }
+    }
+    if !ok {
+        let pair = "{bore.quote_always(src)} to {bore.quote_always(dst)}"
+        let reason = bore.reason_of(code)
+        if across && !c.no_copy {
+            bore.warn(
+                "mv",
+                "cannot move {pair}: they are on different file systems, and wolf 0.2.27 cannot copy a mode, a time, an owner or a link across (wolf-lang#346, #700, #701, #698)",
+            )
+        } else if reason == "Invalid argument" && from_dir {
+            bore.warn(
+                "mv",
+                "cannot move {bore.quote_always(src)} to a subdirectory of itself, {bore.quote_always(dst)}",
+            )
+        } else if there && reason == "Directory not empty" {
+            bore.warn("mv", "cannot overwrite {bore.quote_always(dst)}: {reason}")
+        } else {
+            bore.warn("mv", "cannot move {pair}: {reason}")
+        }
+        return false
+    }
+    if c.verbose {
+        bore.put(
+            mut out,
+            "renamed {bore.quote_always(src)} -> {bore.quote_always(dst)}\n",
+        ) else |_| {}
+    }
+    true
+}
+
+fn options() -> List[bore.Opt] {
+    var s = List[bore.Opt]()
+    (mut s).push(bore.optional("", "backup"))
+    (mut s).push(bore.flag("b", ""))
+    (mut s).push(bore.flag("", "debug"))
+    (mut s).push(bore.flag("", "exchange"))
+    (mut s).push(bore.flag("f", "force"))
+    (mut s).push(bore.flag("i", "interactive"))
+    (mut s).push(bore.flag("n", "no-clobber"))
+    (mut s).push(bore.flag("", "no-copy"))
+    (mut s).push(bore.flag("", "strip-trailing-slashes"))
+    (mut s).push(bore.takes("S", "suffix"))
+    (mut s).push(bore.takes("t", "target-directory"))
+    (mut s).push(bore.flag("T", "no-target-directory"))
+    (mut s).push(bore.optional("", "update"))
+    (mut s).push(bore.flag("u", ""))
+    (mut s).push(bore.flag("v", "verbose"))
+    (mut s).push(bore.flag("Z", "context"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    s
+}
+
+fn help() -> str {
+    """
+    Usage: mv [OPTION]... [-T] SOURCE DEST
+      or:  mv [OPTION]... SOURCE... DIRECTORY
+      or:  mv [OPTION]... -t DIRECTORY SOURCE...
+    Rename SOURCE to DEST, or move each SOURCE into DIRECTORY.
+
+      -f, --force           never ask before replacing
+      -i, --interactive     ask before replacing
+      -n, --no-clobber      never replace a file that is there
+                            (of -f, -i and -n the last one wins)
+          --no-copy         when a rename fails, do not fall back to a
+                            copy (this mv never does)
+          --strip-trailing-slashes  drop trailing slashes from each SOURCE
+      -t, --target-directory=DIRECTORY  move every SOURCE into DIRECTORY
+      -T, --no-target-directory  DEST is never a directory to move into
+      -v, --verbose         say what was renamed
+      -Z, --context         accepted; there is no security context to set
+          --help            print this help and exit
+          --version         print the version and exit
+
+    A move to another file system is refused: it would be a copy, and
+    wolf cannot yet copy a file's mode, times, owner or links.
+    Not here yet, and refused by name: -u, -b, -S, --exchange, --debug.
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}
