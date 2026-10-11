@@ -129,6 +129,17 @@ jobs:
       - name: a death on the field leg is loud (B98)
         run: tools/field-verdict-selftest
 
+      # bu21. `rm -r /` must be refused, and the refusal is run as a
+      # program only where `/` is disposable: one throwaway container a
+      # case, nothing mounted, no network, as a user and as root INSIDE
+      # the container, both tiers built static, GNU 9.11 beside them, a
+      # sentinel tree summed before and after. Linux only: the programs
+      # are linux binaries and macOS runners have no container engine.
+      # tools/difftest refuses these operands everywhere else.
+      - name: rm, mv and cp where / is disposable (a throwaway container)
+        if: runner.os == 'Linux'
+        run: tools/roottest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin
+
       - name: smoke bench
         run: tools/bench --scale 0.0005 --runs 3
 
