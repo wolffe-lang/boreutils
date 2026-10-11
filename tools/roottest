@@ -267,8 +267,13 @@ def main(argv):
                     else:
                         failed += 1
                         print(f"FAIL {label}  args={c['args']!r}")
+                        # A program that was NOT stopped says a line per file it
+                        # could not remove: megabytes. The report keeps its head.
+                        said = got["stderr"]
+                        if len(said) > 400:
+                            said = said[:400] + f"...({len(got['stderr'])} bytes)"
                         print(f"    got : exit={got['exit']!r} intact={got['intact']} "
-                              f"state={got['state']!r} stderr={got['stderr']!r}")
+                              f"state={got['state']!r} stderr={said!r}")
                         print(f"    want: exit={exp['exit']!r} intact=True "
                               f"state={exp['state']!r} stderr={exp['stderr']!r}")
     finally:
@@ -281,4 +286,12 @@ def main(argv):
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(line_buffering=True)
-    sys.exit(main(sys.argv[1:]))
+    try:
+        code = main(sys.argv[1:])
+    except Exception:
+        import traceback
+        sys.stdout.flush()
+        traceback.print_exc()
+        print("roottest: the tool died; no verdict", file=sys.stderr)
+        code = 2
+    sys.exit(code)
