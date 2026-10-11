@@ -1,0 +1,101 @@
+//! The refusals that keep `rm` from the root and from `.` (bu21), as
+//! functions: no test runs any `rm` on `/`. Each `names_root` line costs
+//! one `lstat` of the path it names and changes nothing.
+
+use bore
+
+fn main() {
+    // The root, however it is spelled.
+    assert(bore.names_root("/"), "/ is the root")
+    assert(bore.names_root("//"), "// is the root")
+    assert(bore.names_root("///"), "/// is the root")
+    assert(bore.names_root("/."), "/. is the root")
+    assert(bore.names_root("/./"), "/./ is the root")
+    assert(bore.names_root("/.."), "/.. is the root")
+    assert(bore.names_root("/dev/.."), "/dev/.. is the root")
+    assert(bore.names_root("/dev/../"), "/dev/../ is the root")
+    assert(bore.names_root("/dev/../dev/.."), "/dev/../dev/.. is the root")
+    // And what is not.
+    assert(!bore.names_root("."), "the working directory is not the root")
+    assert(!bore.names_root("/dev"), "/dev is not the root")
+    assert(!bore.names_root("/dev/"), "/dev/ is not the root")
+    assert(!bore.names_root("/dev/null"), "/dev/null is not the root")
+    assert(!bore.names_root("/nonexistent-bore-change-test"), "a missing path is not the root")
+    assert(!bore.names_root(""), "an empty path is not the root")
+    assert(!bore.names_root("src"), "a relative directory is not the root")
+
+    // `.` and `..` as a last component.
+    assert(bore.dot_name("."), ".")
+    assert(bore.dot_name(".."), "..")
+    assert(bore.dot_name("./"), "./")
+    assert(bore.dot_name("../"), "../")
+    assert(bore.dot_name(".//"), ".//")
+    assert(bore.dot_name("a/."), "a/.")
+    assert(bore.dot_name("a/.."), "a/..")
+    assert(bore.dot_name("a/../"), "a/../")
+    assert(bore.dot_name("a/.///"), "a/.///")
+    assert(bore.dot_name("/."), "/.")
+    assert(bore.dot_name("/.."), "/..")
+    assert(!bore.dot_name("a"), "a")
+    assert(!bore.dot_name("..."), "...")
+    assert(!bore.dot_name(".a"), ".a")
+    assert(!bore.dot_name("a/.b"), "a/.b")
+    assert(!bore.dot_name("a./"), "a./")
+    assert(!bore.dot_name(""), "the empty name")
+    assert(!bore.dot_name("/"), "/")
+    assert(!bore.dot_name("../a"), "../a")
+
+    // rm's decision for an operand. Recursive and preserving, the root
+    // is refused under every spelling; `.` and `..` are refused first.
+    assert(bore.rm_verdict("/", true, true) == bore.rm_refuse_root(), "rm -r /")
+    assert(bore.rm_verdict("//", true, true) == bore.rm_refuse_root(), "rm -r //")
+    assert(bore.rm_verdict("///", true, true) == bore.rm_refuse_root(), "rm -r ///")
+    // A root spelled through `..` is stopped a step earlier, as a dot.
+    assert(bore.rm_verdict("/dev/../", true, true) == bore.rm_refuse_dot(), "rm -r /dev/../")
+    assert(
+        bore.rm_verdict("/dev/../", true, false) == bore.rm_refuse_dot(),
+        "rm -r /dev/../, not preserving",
+    )
+    assert(bore.rm_verdict("/.", true, true) == bore.rm_refuse_dot(), "rm -r /.")
+    assert(bore.rm_verdict("/..", true, true) == bore.rm_refuse_dot(), "rm -r /..")
+    assert(bore.rm_verdict(".", true, true) == bore.rm_refuse_dot(), "rm -r .")
+    assert(bore.rm_verdict("..", true, true) == bore.rm_refuse_dot(), "rm -r ..")
+    assert(bore.rm_verdict("a/..", true, true) == bore.rm_refuse_dot(), "rm -r a/..")
+    assert(bore.rm_verdict("src", true, true) == bore.rm_go(), "rm -r src")
+    assert(
+        bore.rm_verdict("/dev", true, true) == bore.rm_go(),
+        "rm -r /dev is not this function's to stop",
+    )
+    // Not recursive: the host refuses a directory by itself.
+    assert(bore.rm_verdict("/", false, true) == bore.rm_go(), "rm / is the host's to refuse")
+    assert(bore.rm_verdict(".", false, true) == bore.rm_go(), "rm . is the host's to refuse")
+    // The root's own record is recognised by the walk's fence too.
+    let root = fs_lstat("/") else |_| {
+        assert(false, "lstat /")
+        return
+    }
+    assert(bore.record_is_root(root), "the root's record is the root's")
+    let here = fs_lstat(".") else |_| {
+        assert(false, "lstat .")
+        return
+    }
+    assert(!bore.record_is_root(here), "the working directory's record is not the root's")
+
+    // Names.
+    assert(bore.join_name("d", "x") == "d/x", "d + x")
+    assert(bore.join_name("d/", "x") == "d/x", "d/ + x")
+    assert(bore.join_name("d//", "x") == "d//x", "d// + x")
+    assert(bore.join_name("/", "x") == "/x", "/ + x")
+    assert(bore.without_slashes("a/b//") == "a/b", "a/b//")
+    assert(bore.without_slashes("/") == "/", "/")
+    assert(bore.without_slashes("//") == "/", "//")
+    assert(bore.without_slashes("") == "", "empty")
+    assert(bore.last_name("a/b/") == "b", "a/b/")
+    assert(bore.last_name("a/b") == "b", "a/b")
+    assert(bore.last_name("b") == "b", "b")
+    assert(bore.last_name("/") == "/", "/")
+    assert(bore.last_name(".") == ".", ".")
+    assert(bore.last_name("a/..") == "..", "a/..")
+    assert(bore.last_name("/x") == "x", "/x")
+    print("change: the root and dot refusals hold")
+}
