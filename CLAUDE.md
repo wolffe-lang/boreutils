@@ -115,10 +115,12 @@ against GNU. The short form for a new utility:
   reason for an fs failure is `bore.io_error()` (`os_error_text`, wolf
   0.2.26): ask it before any other fs call, which clears it, or keep
   `bore.host_code()` and ask `bore.reason_of` later.
-- No exec, no environment unset or clear, and a spawned child's stdin is
-  the null device (wolf-lang#534); `env_vars()` lists the environment
-  only sorted (wolf-lang#535); no file identity, so two names or
-  descriptors for one file cannot be recognised (wolf-lang#536).
+- A program can become another (`os_exec`) and remove a variable
+  (`env_unset`) since wolf 0.2.27 (s225); `env` does. Two things are
+  still missing there: `env_vars()` lists the environment only sorted
+  and without an entry that is not UTF-8 (wolf-lang#535), and the os
+  family leaves no error number behind, so a failed exec or `chdir` has
+  a row and no reason (wolf-lang#682).
 - `wrapping[u64]` interpolates its top-bit values as signed and cannot
   be divided on the native tier (wolf-lang#538): use `bore.u64_text`
   and `bore.u64_radix`.
@@ -127,8 +129,33 @@ against GNU. The short form for a new utility:
   (`scratch`, `scratch_dirs`, `scratch_links`, `scratch_modes`,
   `scratch_times`, `cwd`, `{scratch}`); its `files` field is gated by
   `tests/selftest/tee.toml`. A tree many cases share is a `[tree.NAME]`
-  table in the case file and `tree = "NAME"` in each case (bu18).
-- No `lstat`, no `readlink`, and nothing in a stat past kind, size and
-  modification time: every path call follows a link (wolf-lang#625).
-  `fs_read_dir` sorts its names, fails on one that is not UTF-8, and
-  gives no entry type (wolf-lang#626).
+  table in the case file and `tree = "NAME"` in each case (bu18). Since
+  bu20 a tree can hold pipes, sockets, hard links and holes
+  (`scratch_fifos`, `scratch_sockets`, `scratch_hardlinks`,
+  `scratch_sizes`), access times and times relative to "now"
+  (`scratch_atimes`, `scratch_time_all`, `"now-N"`), and can be laid
+  out ONCE for both sides (`scratch_keep`) where the answer is an inode
+  or a status-change time; `mask` hides one named field on both sides.
+- A file's whole record is `fs_stat`/`fs_lstat`'s twenty words since
+  wolf 0.2.27 (s218); `src/bore/info.lu` names them, and `ls -l`,
+  `stat` and `readlink` stand on them, with `fs_read_link` and
+  `fs_read_dir_entries` (the directory's own order, each entry's type).
+  What the record does NOT hold, each filed: the I/O block size
+  (wolf-lang#684), any extended attribute, so no ACL or context mark
+  (#685), the file system's own record (#686), and the record of an
+  open handle past three words (#536's other half: `cat f >> f`,
+  `stat -`). A name that is not UTF-8 can be listed and nothing else
+  (#687), and the listing leaves out `.` and `..`, so `ls -f` cannot
+  place them (#692).
+- Owner and group NAMES come from `/etc/passwd` and `/etc/group`
+  (`src/bore/ids.lu`): wolf has no account lookup. A case that prints
+  one is `accounts = true` and has a numeric twin, because macOS keeps
+  its users elsewhere.
+- Local time is read from the zone's TZif file and its POSIX rule
+  (`src/bore/clock.lu`); a canonical path is walked a component at a
+  time (`src/bore/paths.lu`). Neither is a builtin.
+- An `0o…` or `0b…` literal is refused by the native and release tiers
+  (wolf-lang#688) though `wolf test` runs it: write decimal.
+- The host is decided when a program is compiled:
+  `bore.built_for_linux()` (`#[cfg(target = "…")]`), never by looking
+  for `/proc`.
