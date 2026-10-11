@@ -151,13 +151,15 @@ derives no boreutils code from GPL source.
 
 Every utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus, except where a case says otherwise and is
-skipped with its reason. The corpus holds **3,077 cases**; a run on
-kasumi (linux x86-64) at this pin answers **3,017 passed, 0 failed, 60
+skipped with its reason. The corpus holds **3,855 cases**; a run on
+kasumi (linux x86-64) at this pin answers **3,788 passed, 0 failed, 67
 skipped**, the same list on the release and the dev tier, and CI's
 macOS leg skips the `/dev/full` and `/proc` cases besides, because
-macOS has neither (bu19's figures and run ids are in
-`notes/bu19-the-byte-surface.md`). (The previous edition of this
-sentence, before bu19, said 3,048 cases, 2,986 and 62 on kasumi; before
+macOS has neither, and the cases that print an owner's NAME, because a
+Mac's accounts are not in `/etc/passwd` (bu20's figures and run ids are
+in `notes/bu20-the-long-format.md`). (The previous edition of this
+sentence, before bu20's long format and its three utilities, said 3,077
+cases, 3,017 and 60 on kasumi; before bu19, 3,048 cases, 2,986 and 62; before
 bu18's `ls` it said 2,674 cases, 2,642 and 32 on kasumi, and 2,618 and 56
 on macOS, run 37060771131; before bu14's six utilities it said 2,114
 cases, 2,094 and 20 on kasumi, and 2,077 and 37 on macOS, run
@@ -215,20 +217,33 @@ of the working directory (no file identity, wolf-lang#536), and `tee`'s
 seven — five broken-pipe branches of `-p` and `--output-error`, and
 `-i` twice, all of which need a signal ignored (wolf-lang#423).
 
-**`ls` adds thirty skips, and every one is wolf's.** Twenty-three need a
-link's own identity or the rest of a stat record — the long format and
-the options that imply it, `-s`, `-u`, `-c`, `--time=birth`, and `-F`,
-`-p`, `-S`, `-t` and `-R` meeting a link that resolves (wolf 0.2.25
-follows every link and has no `lstat`, no `readlink`, no mode, owner or
-link count: wolf-lang#625); three need the directory's own order
-(`-U`, `-f`, `--sort=none`: `fs_read_dir` sorts, wolf-lang#626); one
-needs an inode (`-i`, wolf-lang#536) and one an inode and `lstat` both
-(`-L -R` meeting a loop); two are a terminal whose own width is not 80,
-which GNU asks and wolf cannot (wolf-lang#643). Each is refused by name,
-status 2, where this program cannot answer; none is ignored. (bu19
-cleared two: `Permission denied` through an unreadable directory is the
-host's reason now, and the terminal defaults are taken through
-`os_isatty`, with 24 cases run on a pseudo-terminal.)
+**`ls` had thirty skips, every one wolf's, and wolf 0.2.27 answered
+twenty-eight of them** (bu20). s218's `fs_stat`, `fs_lstat`,
+`fs_read_link` and `fs_read_dir_entries` give a file's whole record, a
+link's own identity and target, and the directory's own order, so the
+long format and what implies it, `-s`, `-i`, `-u`, `-c`, `--time`,
+`-U`, and every option that must tell a link from its target are
+ordinary cases now: the file holds 710, and kasumi answers 694 and 16
+skips. Six of the sixteen are `-f` and `-aU`, where `.` and `..` stand
+in the directory's own order and the listing call leaves them out
+(wolf-lang#692: right on btrfs, tmpfs and APFS, wrong on ext4); two are
+a terminal whose own width is not 80 (wolf-lang#643); one is `-Z`, a
+security context (no extended attribute, wolf-lang#685); four are
+options not written yet (`--author`, `--block-size`,
+`--time-style=+FORMAT`, `-Q`), each refused by name; and three are
+block devices this host does not have.
+
+**`stat`, `readlink` and `env` add twenty-one skips, and none is a C
+library's** (bu20). `stat`'s eight: `-f` twice (no file-system record,
+wolf-lang#686), `-` (no record of an open handle, #536), `%o` (no I/O
+block size, #684 — the default and terse formats run, with that one
+field masked on both sides), `%C` (#685), and three block devices this
+host lacks. `readlink` has none. `env`'s thirteen: five listings that
+start from the inherited environment, which wolf lists only sorted
+(#535); an entry with an empty name, which `os_exec` refuses; a script
+found through an empty `PATH` component, which sees `./name` where
+GNU's sees `name` (#689); and six options not written yet (`-S`, `-v`,
+the four signal options), refused by name.
 
 "vs GNU" is wall-clock from `tools/bench`, GNU's time divided by ours,
 so above 1.00 is faster than GNU. It is a measurement on a stated host,
@@ -900,6 +915,55 @@ so this program must ask of every entry whether it is a directory
 directory, so a walk keeps only the directories it is inside (the first
 draft held every listing it had made, 70 MB).
 
+**The long format, and what else a record buys (bu20, wolf 0.2.27).**
+kasumi at load 6 (other lanes were building), release tier, GNU 9.11,
+`hyperfine -N`, 15 runs, every side of a row in one call
+(`~/lanes/bu20/bench.sh`; the trees are `tools/bench --scale 10`'s).
+"0.2.26" is trunk's `ls` before this lane.
+
+| ls, 100,000 names | 0.2.26 | this `ls` | GNU | GNU / this |
+|---|---:|---:|---:|---:|
+| `flat/`, one per line | 44.6 ms | **32.6 ms** | 60.0 ms | **1.84x** |
+| `flat/`, `-C` | 50.6 ms | **38.9 ms** | 85.8 ms | **2.20x** |
+| `flat/`, `-S` | 142.3 ms | 155.7 ms | 138.8 ms | 0.89x |
+| `flat/`, `-t` | 151.7 ms | 131.9 ms | 86.7 ms | 0.66x |
+| `-R` of `deep/` | 92.2 ms | **26.7 ms** | 26.4 ms | 0.99x |
+| `flat/`, `-l` | refused | 185.9 ms | 245.9 ms | **1.32x** |
+| `flat/`, `-n` | refused | 179.7 ms | 249.4 ms | **1.39x** |
+| `flat/`, `-s` | refused | 158.3 ms | 128.9 ms | 0.81x |
+| `flat/`, `-i` | refused | 171.2 ms | 120.9 ms | 0.71x |
+| `flat/`, `-F` | a link taken for its target | 153.3 ms | 112.1 ms | 0.73x |
+| `flat/`, `-U` | refused | 25.8 ms | 15.8 ms | 0.61x |
+| `flat/`, `-lU` | refused | 144.2 ms | 196.4 ms | **1.36x** |
+| `-lR` of `deep/` | refused | 118.4 ms | 211.2 ms | **1.78x** |
+
+Read the `-l` rows with their floor beside them. **The floor of a long
+listing is one stat per name, and both sides are on it:** `strace -c`
+counts 99,998 `statx` for GNU and 100,003 for this `ls` over the same
+99,998 names. But GNU makes a SECOND call per name, 99,998
+`llistxattr`, to decide the `+` it prints after a mode for an ACL, and
+that call is 54% of its system-call time. This `ls` cannot make it
+(wolf-lang#685), so part of the 1.32x is work not done, not work done
+faster; where GNU has no such second call (`-s`, `-i`, `-F`) this `ls`
+is 0.71x to 0.81x. `-R` went from 0.29x to level because a directory
+is known from the type the listing hands back, and a plain listing got
+faster because names `fs_read_dir` already sorted are no longer sorted
+again. `-S` lost a little to 0.2.26: it reads the whole record where it
+used to ask for the size alone, and in exchange sorts a link by the
+link's own size, as GNU does. Peak RSS for `-l` of the 100,000 names is
+**174 MB against GNU's 28 MB**: every list in a listing's region grows
+by doubling and nothing is given back until the listing ends, and no
+call can reserve a list's room (wolf-lang#416). A plain listing holds
+33 MB (0.2.26: 37 MB; GNU: 28 MB).
+
+| start-up and small work (kasumi, load 6) | boreutils | GNU | GNU / boreutils |
+|---|---:|---:|---:|
+| `stat -c %s` of one file (`hyperfine -N`, 300 runs) | 265 µs | 202 µs | 0.76x |
+| `stat -c '%s %n'` of 10,000 files | 19.8 ms | 13.6 ms | 0.69x |
+| `stat -t` of 10,000 files | 29.7 ms | 22.3 ms | 0.75x |
+| `readlink` of one link (300 runs) | 299 µs | 191 µs | 0.64x |
+| `env true` (300 runs) | 456 µs | 365 µs | 0.80x |
+
 | utility | status | vs GNU |
 |---|---|---|
 | `true` | done | start-up only |
@@ -929,8 +993,10 @@ draft held every listing it had made, 70 MB).
 | `pwd` | done; `-L` without an inode (wolf-lang#536) | start-up 0.80x (linux) |
 | `sleep` | done, to the millisecond | start-up 0.88x; `sleep 0.1` 1.00x (linux) |
 | `nproc` | done; a fractional cgroup quota rounds down (wolf-lang#537) | start-up 0.80x (linux) |
-| `ls` | done for names: the formats, sorting, `-F`/`-p`, `-q`, `-N`, `-R`, `-L`/`-H`, and GNU's terminal defaults (bu19); the long format, `-i`, `-s`, `-u`, `-c`, `-U` refused (wolf-lang#625, #626, #536), a link that resolves taken for its target, and a terminal's own width not asked (wolf-lang#643) | **2.27x** listing, 0.41x to 0.96x stat'ing (linux) |
-| `env` | not shipped: no exec (wolf-lang#534) | — |
+| `ls` | done: the formats, the long format and its family (`-l -g -n -o -G --full-time --time-style`), `-s`, `-i`, `-u`, `-c`, `--time`, sorting and the unsorted orders, every mark of `-F`, `-q`, `-N`, `-R`, `-L`/`-H`, GNU's terminal defaults; not the `+`/`.` after a mode (wolf-lang#685), a terminal's own width (#643), or where `.` and `..` stand under `-f` (#692) | **1.32x to 2.20x** plain, in columns and long; 0.61x to 0.89x where each name is stat'ed and GNU asks nothing more (linux) |
+| `stat` | done: the default and terse formats, `-c`/`--printf` with every directive but `%o` and `%C`, `-L`; not `-f` (wolf-lang#686) or `-` (#536) | start-up 0.76x; 10,000 operands 0.69x to 0.75x (linux) |
+| `readlink` | done: the target, and `-f`, `-e`, `-m` by a walk written here | start-up 0.64x (linux) |
+| `env` | done by exec: `-i`, `-u`, `NAME=VALUE`, `-C`, `-a`, `-0`, 125/126/127; the inherited environment in sorted order (wolf-lang#535); not `-S`, `-v` or the signal options | `env true` 0.80x (linux) |
 
 ## Drop-in readiness
 
@@ -983,11 +1049,14 @@ table answers it per utility, from the evidence and from nothing else.
 | `pwd` | 4 / 4 | 44 / 1 | start-up 0.80x | drop-in for scripts that avoid `-L` with a `$PWD` naming a same-time twin of the working directory (wolf-lang#536) |
 | `sleep` | 2 / 2 | 61 / 0 | start-up 0.88x, `sleep 0.1` 1.00x | drop-in |
 | `nproc` | 4 / 4 | 78 / 0 | start-up 0.80x | drop-in outside a fractional cgroup cpu quota (wolf-lang#537) |
-| `ls` | 33 / 60 | 262 / 30 | 0.41x to 2.48x; start-up a tie | drop-in for scripts that read NAMES and avoid the long format and what implies it (`-l -g -n -o --full-time`), `-i`, `-s`, `-u`, `-c`, `-U`/`-f`, `-v`, the quoting styles but `-N`, the colour and filtering options (each refused by name), and do not need `-F`, `-p`, `-S`, `-t` or `-R` to tell a link that resolves from its target (wolf-lang#625, #626, #536); on a terminal, one 80 wide or reporting no size (wolf-lang#643) |
-| `env` | 0 / 14 | not shipped | — | not yet: no exec (wolf-lang#534) |
+| `ls` | 46 / 60 | 694 / 16 | 0.61x to 2.20x; the long format 1.32x beside a GNU that also asks for each name's ACL | drop-in for scripts that avoid `-v`, the quoting styles but `-N`, `--author`, `--block-size`, `--time-style=+FORMAT`, `-Z`, the colour and filtering options (each refused by name), do not list files with ACLs in the long format (no `+`, wolf-lang#685), and do not need `.` and `..` placed by `-f` on ext4 (#692); owners named from `/etc/passwd` and `/etc/group` only; on a terminal, one 80 wide or reporting no size (#643) |
+| `stat` | 7 / 8 | 152 / 8 | start-up 0.76x; 0.69x to 0.75x over many operands | drop-in for scripts that avoid `-f` (wolf-lang#686), `-` (#536), `%C`, and `%o` or the default format's `IO Block:` field, which prints `?` (#684) |
+| `readlink` | 10 / 10 | 97 / 0 | start-up 0.64x | drop-in |
+| `env` | 8 / 14 | 90 / 13 | `env true` 0.80x | drop-in for scripts that avoid `-S`, `-v` and the signal options (each refused by name), and do not read the ORDER of the environment they did not start from `-i` (wolf-lang#535) |
 
-**16 drop-in, 12 drop-in for scripts that avoid a named thing, 1 not
-yet** (`wc` became drop-in at bu19, when the host's reason arrived). The same evidence read across: no shipped utility fails a case,
+**17 drop-in, 14 drop-in for scripts that avoid a named thing, none not
+yet** (`readlink` arrived drop-in at bu20; `env`, the one "not yet",
+shipped; `wc` became drop-in at bu19, when the host's reason arrived). The same evidence read across: no shipped utility fails a case,
 and every skip that is this program's own names the wolf issue behind
 it.
 
@@ -995,9 +1064,9 @@ it.
 **103 utilities** (its info manual's `invocation` nodes, the four SHA-2
 sums counted as one and `[` as `test`; Arch's build installs 102
 binaries and leaves out `arch`, `chcon`, `runcon`, `hostname`, `kill`
-and `uptime`). boreutils ships **28 of them, 27%**, and `env` is the
-29th row above. Effort is not what blocks most of the other 76: wolf
-0.2.26 has no surface for them, and each gap boreutils has met is filed
+and `uptime`). boreutils ships **31 of them, 30%**. Effort is not what
+blocks most of the other 72: wolf
+0.2.27 has no surface for them, and each gap boreutils has met is filed
 upstream with its witness. The OS surface lane's first cut, s199's
 wolf-lang#426 and #424 (seek, tell, the positional read, and the
 standard descriptors), shipped in 0.2.22, and `tail`, `head` and `wc`
@@ -1035,27 +1104,44 @@ use it (bu15).
   `tail`, `head` and `wc` use them (bu15). `tac` does not yet; `dd
   skip=`/`seek=` could; `truncate` and `shred` need a truncate call
   that does not exist.
-- **#534**, no exec and no inherited stdin for a child: `env`, `nice`,
-  `nohup`, `timeout`, `chroot`, `stdbuf`.
+- **#534** (closed, wolf 0.2.27): `os_exec` and `env_unset`; `env`
+  runs its command by them (bu20). `nice`, `nohup`, `timeout`,
+  `chroot` and `stdbuf` each need one more call than an exec.
 - **#535**, the environment listed only sorted: `printenv` and `env`.
-- **#536**, no file identity: `cp`/`mv`/`ln`'s same-file refusals,
-  `du`'s hard links, `ls -i`, `stat`, `pwd -L`.
+- **#536**, file identity: by PATH it is `fs_stat`'s device and inode
+  since 0.2.27 (`ls -i`, `ls -RL`'s loops, `stat`); from an open HANDLE
+  there is still none, so `cat f >> f` is not refused and `stat -`
+  cannot be written.
 - **#537**, `os_cpus` rounds a fractional quota down: `nproc`.
 - **#538**, `wrapping[u64]` prints signed and cannot be divided
   natively: worked around in `src/bore/u64.lu`.
-- **#625**, no `lstat`, no `readlink`, and no stat record past kind,
-  size and modification time (mode, link count, owner, group, blocks,
-  atime, ctime): `ls -l` and every `ls` option that must tell a link
-  from its target, `stat`, `readlink`, `realpath`, `du`, `find`-shaped
-  walks, `cp -P`, `test -h`.
-- **#626**, `fs_read_dir` sorts, fails on one name that is not UTF-8,
-  and gives no entry type: `ls -U`/`-f`, and every walk pays a stat per
-  entry (`ls -R` is 0.41x for it).
+- **#625** and **#626** (answered by wolf 0.2.27's s218): `fs_stat`,
+  `fs_lstat`, `fs_read_link`, `fs_read_dir_entries`. `ls -l` and its
+  family, `stat` and `readlink` are written on them (bu20), and `ls -R`
+  went from 0.29x to level with GNU. `realpath`, `du`, `test -h` and a
+  `find`-shaped walk can be.
+- **#684**, the record has no I/O block size: `stat`'s `%o` and
+  `IO Block:`.
+- **#685**, no extended attribute: the `+` and `.` `ls -l` prints after
+  a mode, `ls -Z`, `stat %C`; `getfacl`, `cp -a`'s attributes beyond.
+- **#686**, no file-system record: `stat -f`, `df`.
+- **#687**, a name that is not UTF-8 is listable and nothing else: `ls`
+  reports and skips it; `rm`, `cp` and `mv` will meet it with data at
+  stake.
+- **#688**, an `0o…` or `0b…` literal is refused by the native and
+  release tiers and run by `wolf test`: written in decimal here.
+- **#689** and **#682**, `os_exec` runs `./name` for an empty `PATH`
+  component, and says nothing of why an exec failed: `env`.
+- **#692**, the listing leaves out `.` and `..`: `ls -f` and `-aU`
+  cannot place them where ext4 has them.
 
-Beyond those, the host builtin table at 0.2.25 has no call that creates
+Beyond those, the host builtin table at 0.2.27 has no call that creates
 a link (`ln`, `link`), changes a mode, an owner or a time (`chmod`,
 `chown`, `chgrp`, `touch`), names a user or a group (`id`, `whoami`,
-`groups`, `logname`, `users`, `who`, `pinky`), formats calendar time
-(`date`), or asks a terminal its name or settings (`tty`, `stty`;
+`groups`, `logname`, `users`, `who`, `pinky`: `ls -l` and `stat` read
+`/etc/passwd` and `/etc/group` themselves, `src/bore/ids.lu`), formats
+calendar time (`date`: the zone arithmetic it needs is
+`src/bore/clock.lu` since bu20), or asks a terminal its name or
+settings (`tty`, `stty`;
 `os_isatty` exists since 0.2.26). Those are not filed yet; each will be, with
 its witness, by the lane whose utility meets it first (B6, the census).
