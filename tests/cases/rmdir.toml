@@ -1,0 +1,368 @@
+# rmdir — GNU coreutils 9.11, black-box, on linux x86-64 and macOS arm64.
+# Written by ~/lanes/bu21/gen/rmdir_cases.py; this file is the record.
+#
+# rmdir changes the file system, so every case runs in a scratch
+# directory (tools/difftest, bu21) and what each side leaves is compared
+# as `files` and `tree`. No case names a path outside it, and none
+# gives -p an absolute path: its walk up would not stop at the scratch
+# directory's own top.
+
+[[case]]
+name = "no operand"
+args = []
+
+[[case]]
+name = "an empty directory"
+args = ["e"]
+scratch_dirs = ["e"]
+
+[[case]]
+name = "two"
+args = ["e", "g"]
+scratch_dirs = ["e", "g"]
+
+[[case]]
+name = "a missing name"
+args = ["missing"]
+
+[[case]]
+name = "a directory that is not empty"
+args = ["full"]
+scratch = { "full/x" = "x\n" }
+
+[[case]]
+name = "a directory that holds a directory"
+args = ["full"]
+scratch_dirs = ["full/x"]
+
+[[case]]
+name = "a file"
+args = ["f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "a link to a directory"
+args = ["l"]
+scratch_dirs = ["e"]
+scratch_links = { "l" = "e" }
+
+[[case]]
+name = "a link to a directory, with a slash"
+args = ["l/"]
+scratch_dirs = ["e"]
+scratch_links = { "l" = "e" }
+
+[[case]]
+name = "a dangling link"
+args = ["l"]
+scratch_links = { "l" = "nowhere" }
+
+[[case]]
+name = "a dangling link, with a slash"
+args = ["l/"]
+scratch_links = { "l" = "nowhere" }
+
+[[case]]
+name = "a link to a file"
+args = ["l"]
+scratch = { "f" = "x\n" }
+scratch_links = { "l" = "f" }
+
+[[case]]
+name = "a link to a file, with a slash"
+args = ["l/"]
+scratch = { "f" = "x\n" }
+scratch_links = { "l" = "f" }
+
+[[case]]
+name = "a file, with a slash"
+args = ["f/"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "an empty name"
+args = [""]
+
+[[case]]
+name = "the working directory"
+args = ["."]
+
+[[case]]
+name = "a trailing slash"
+args = ["a/b/c/"]
+scratch_dirs = ["a/b/c"]
+
+[[case]]
+name = "a final dot"
+args = ["a/."]
+scratch_dirs = ["a"]
+
+[[case]]
+name = "the rest are still tried"
+args = ["g1", "g2", "g3"]
+scratch_dirs = ["g1", "g3"]
+scratch = { "g2/f" = "x\n" }
+
+[[case]]
+name = "names that need quoting, missing"
+args = ["q'x", "tab\tx", "sp ace", "new\nline", "\u00e9", "a\"b", "back\\slash", ""]
+
+[[case]]
+name = "names that need quoting, removed"
+args = ["q'x", "tab\tx", "sp ace", "new\nline"]
+scratch_dirs = ["q'x", "tab\tx", "sp ace", "new\nline"]
+
+[[case]]
+name = "in a directory that may not be written"
+args = ["ro/in"]
+scratch_dirs = ["ro/in"]
+scratch_modes = { "ro" = 0o555 }
+
+[[case]]
+name = "in a directory that may not be searched"
+args = ["no/in"]
+scratch_dirs = ["no/in"]
+scratch_modes = { "no" = 0o000 }
+
+[[case]]
+name = "a directory with no permissions at all, empty"
+args = ["z"]
+scratch_dirs = ["z"]
+scratch_modes = { "z" = 0o000 }
+
+[[case]]
+name = "-- ends the options"
+args = ["--", "-p"]
+scratch_dirs = ["-p"]
+
+[[case]]
+name = "a bad option"
+args = ["-x"]
+
+[[case]]
+name = "POSIXLY_CORRECT: the first operand ends the options"
+args = ["e", "-v"]
+scratch_dirs = ["e", "-v"]
+env = { "POSIXLY_CORRECT" = "1" }
+
+[[case]]
+name = "an absolute path"
+args = ["{scratch}/e"]
+scratch_dirs = ["e", "keep"]
+
+[[case]]
+name = "the cwd is a subdirectory"
+args = ["x"]
+scratch_dirs = ["d/x"]
+cwd = "d"
+
+[[case]]
+name = "-v"
+args = ["-v", "a/b"]
+scratch_dirs = ["a/b"]
+
+[[case]]
+name = "-v names a failure before it fails"
+args = ["-v", "e", "missing", "full"]
+scratch_dirs = ["e"]
+scratch = { "full/x" = "x\n" }
+
+[[case]]
+name = "-v quotes as a shell would"
+args = ["-v", "q'u", "sp ace", "new\nline", "a\"b", "c'd\"e", "#h", "\u00e9"]
+scratch_dirs = ["q'u", "sp ace", "new\nline", "a\"b", "c'd\"e", "#h", "\u00e9"]
+
+[[case]]
+name = "--verbose"
+args = ["--verbose", "e"]
+scratch_dirs = ["e"]
+
+[[case]]
+name = "--verb abbreviates"
+args = ["--verb", "e"]
+scratch_dirs = ["e"]
+
+[[case]]
+name = "--v is ambiguous"
+args = ["--v", "e"]
+scratch_dirs = ["e"]
+
+[[case]]
+name = "--verbose=1 takes no argument"
+args = ["--verbose=1", "e"]
+scratch_dirs = ["e"]
+
+[[case]]
+name = "-p: three levels"
+args = ["-p", "p/q/r"]
+scratch_dirs = ["p/q/r"]
+
+[[case]]
+name = "-p: a parent that is not empty stops it"
+args = ["-p", "p/q/r"]
+scratch_dirs = ["p/q/r", "p/keep"]
+
+[[case]]
+name = "-pv: the same, said"
+args = ["-pv", "p/q/r"]
+scratch_dirs = ["p/q/r", "p/keep"]
+
+[[case]]
+name = "-p: a trailing slash"
+args = ["-p", "p/q/r/"]
+scratch_dirs = ["p/q/r"]
+
+[[case]]
+name = "-pv: a trailing slash"
+args = ["-pv", "u/v/w/"]
+scratch_dirs = ["u/v/w"]
+
+[[case]]
+name = "-pv: doubled slashes"
+args = ["-pv", "u//v///w//"]
+scratch_dirs = ["u/v/w"]
+
+[[case]]
+name = "-pv: a leading ./ reaches the working directory"
+args = ["-pv", "./u/v/w"]
+scratch_dirs = ["u/v/w"]
+
+[[case]]
+name = "-pv: a dot in the middle"
+args = ["-pv", "u/./v/w"]
+scratch_dirs = ["u/v/w"]
+
+[[case]]
+name = "-pv: a final dot"
+args = ["-pv", "u/v/w/."]
+scratch_dirs = ["u/v/w"]
+
+[[case]]
+name = "-p: the operand is missing"
+args = ["-p", "missing/x"]
+
+[[case]]
+name = "-p: the operand is not empty"
+args = ["-p", "full/x"]
+scratch = { "full/x/f" = "x\n" }
+
+[[case]]
+name = "-p: one component"
+args = ["-pv", "a"]
+scratch_dirs = ["a"]
+
+[[case]]
+name = "-p: two operands share a parent"
+args = ["-pv", "a/b", "a/c"]
+scratch_dirs = ["a/b", "a/c"]
+
+[[case]]
+name = "-p: a parent may not be written"
+args = ["-p", "ro/a/b"]
+scratch_dirs = ["ro/a/b"]
+scratch_modes = { "ro" = 0o555 }
+
+[[case]]
+name = "-p: through a link"
+args = ["-pv", "l/x"]
+scratch_dirs = ["d/x"]
+scratch_links = { "l" = "d" }
+
+[[case]]
+name = "-p: no operand"
+args = ["-p"]
+
+[[case]]
+name = "--parents"
+args = ["--parents", "p/q"]
+scratch_dirs = ["p/q"]
+
+[[case]]
+name = "--p abbreviates"
+args = ["--p", "p/q"]
+scratch_dirs = ["p/q"]
+
+[[case]]
+name = "--ignore-fail-on-non-empty"
+args = ["--ignore-fail-on-non-empty", "full"]
+scratch = { "full/x" = "x\n" }
+
+[[case]]
+name = "--ignore-fail-on-non-empty still removes an empty one"
+args = ["--ignore-fail-on-non-empty", "e", "full"]
+scratch_dirs = ["e"]
+scratch = { "full/x" = "x\n" }
+
+[[case]]
+name = "--ignore-fail-on-non-empty -p: a parent that is not empty"
+args = ["--ignore-fail-on-non-empty", "-p", "full/x"]
+scratch_dirs = ["full/x"]
+scratch = { "full/file" = "x\n" }
+
+[[case]]
+name = "--ignore-fail-on-non-empty -pv"
+args = ["--ignore-fail-on-non-empty", "-pv", "full/x"]
+scratch_dirs = ["full/x"]
+scratch = { "full/file" = "x\n" }
+
+[[case]]
+name = "--ignore-fail-on-non-empty forgives nothing else"
+args = ["--ignore-fail-on-non-empty", "missing", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "--ignore-fail-on-non-empty -v"
+args = ["-v", "--ignore-fail-on-non-empty", "g2"]
+scratch = { "g2/f" = "x\n" }
+
+[[case]]
+name = "--ignore abbreviates"
+args = ["--ignore", "full"]
+scratch = { "full/x" = "x\n" }
+
+[[case]]
+name = "--i abbreviates"
+args = ["--i", "full"]
+scratch = { "full/x" = "x\n" }
+
+[[case]]
+name = "--ignore-fail-on-non-empty in a directory that may not be written"
+args = ["--ignore-fail-on-non-empty", "ro/in"]
+scratch_dirs = ["ro/in"]
+scratch_modes = { "ro" = 0o555 }
+
+[[case]]
+name = "--ignore-fail-on-non-empty=1 takes no argument"
+args = ["--ignore-fail-on-non-empty=1", "e"]
+scratch_dirs = ["e"]
+
+[[case]]
+name = "--help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "--version"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "--help wins over a later bad option"
+args = ["--help", "--bogus"]
+compare = ["exit"]
+
+[[case]]
+name = "a bad option before --help"
+args = ["--bogus", "--help"]
+
+[[case]]
+name = "stdout closed, nothing to write"
+args = ["e"]
+scratch_dirs = ["e"]
+stdout_closed = true
+
+[[case]]
+name = "stdout closed under -v"
+args = ["-v", "e"]
+scratch_dirs = ["e"]
+stdout_closed = true

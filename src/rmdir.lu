@@ -1,0 +1,230 @@
+//! member: false
+//!
+//! rmdir — remove empty directories.
+//!
+//! References consulted: POSIX.1-2024 `rmdir`; GNU coreutils 9.11
+//! `rmdir --help`, the info manual's `rmdir invocation` node, and
+//! black-box runs of the GNU binary on linux x86-64 in scratch
+//! directories (kasumi `~/lanes/bu21/gx.sh`), under `LC_ALL=C`. Never GNU
+//! source, nor any other implementation's.
+//!
+//! GNU's rules, each measured against 9.11:
+//!
+//! - Each DIRECTORY is one `rmdir(2)` (`fs_remove_dir`), which removes
+//!   it only when it is empty. A failure is `rmdir: failed to remove
+//!   'NAME': reason` with the host's reason, status 1, and the other
+//!   operands are still tried. The name is quoted in the shell-escape
+//!   style (`"q'x"`, `'tab'$'\t''x'`), as typed.
+//! - A link to a directory is not a directory. Named with a trailing
+//!   slash, a link to a directory or to nothing is `Symbolic link not
+//!   followed`, GNU's own words where the host says `Not a directory`;
+//!   a link to a file keeps the host's.
+//! - `-p` then removes each parent the operand names, nearest first:
+//!   `a//b/c/` is `a//b`, then `a`. It stops at the first parent that
+//!   will not go, which is `failed to remove directory 'NAME': reason`
+//!   (the word `directory` is in a parent's message and not the
+//!   operand's — unless the parent is `Not a directory`). `./a` reaches
+//!   `.`, which the host refuses.
+//! - `--ignore-fail-on-non-empty` makes `Directory not empty` no
+//!   failure, for the operand and for a parent: nothing is said, the
+//!   status is not touched, and under `-p` the walk still stops there.
+//! - `-v` prints `rmdir: removing directory, 'NAME'` on standard output
+//!   BEFORE each attempt, the failed ones included.
+//! - No operand is a usage error, status 1.
+//!
+//! **What this program cannot do, and does not pretend to.** GNU's
+//! `--ignore-fail-on-non-empty` also forgives a directory the host
+//! refuses for another reason (a read-only file system, say) when the
+//! directory turns out to hold something. This one forgives the host's
+//! `Directory not empty` and nothing else.
+
+use bore
+
+fn main() -> int {
+    let p = bore.parse(options(), env_args(), bore.permute())
+    var out = bore.stdout()
+    var parents = false
+    var verbose = false
+    var forgive = false
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i]
+        if k == "help" {
+            bore.put(mut out, help()) else |_| {}
+            return bore.finish(mut out, "rmdir", 0)
+        }
+        if k == "version" {
+            bore.put(mut out, bore.version_text("rmdir")) else |_| {}
+            return bore.finish(mut out, "rmdir", 0)
+        }
+        if k == "parents" {
+            parents = true
+        } else if k == "verbose" {
+            verbose = true
+        } else if k == "ignore-fail-on-non-empty" {
+            forgive = true
+        }
+        i += 1
+    }
+    if !bore.ok(p) {
+        return bore.usage_error("rmdir", p.error)
+    }
+    if p.operands.len == 0 {
+        return bore.usage_error("rmdir", "missing operand")
+    }
+    var status = 0
+    for name in p.operands {
+        if !remove(mut out, name, "", verbose, forgive) {
+            status = 1
+            continue
+        }
+        if parents && !remove_parents(mut out, name, verbose, forgive) {
+            status = 1
+        }
+    }
+    bore.finish(mut out, "rmdir", status)
+}
+
+/// The host's words for a directory that still holds something.
+fn not_empty() -> str {
+    "Directory not empty"
+}
+
+/// `name` without its trailing slashes (but never all of it).
+fn unslashed(name: str) -> str {
+    var end = name.len
+    while end > 1 && name[end - 1..end] == "/" {
+        end -= 1
+    }
+    name[0..end]
+}
+
+/// Whether `name` is a symbolic link named with a trailing slash that
+/// GNU reports in its own words: one whose target is a directory, or
+/// is missing. A link to a FILE keeps the host's `Not a directory`.
+fn slashed_link(name: str) -> bool {
+    if !name.ends_with("/") {
+        return false
+    }
+    let bare = unslashed(name)
+    let r = fs_lstat(bare) else |_| {
+        return false
+    }
+    if bore.rec_kind(r) != bore.kind_link() {
+        return false
+    }
+    let t = fs_stat(bare) else |_| {
+        return true
+    }
+    bore.rec_kind(t) == bore.kind_dir()
+}
+
+/// Remove the one directory `name`. `what` is `""` for an operand and
+/// `" directory"` for a parent, which is how GNU's two messages differ.
+/// Answers false when the walk must stop here; `forgive` makes a
+/// directory that is not empty a quiet stop that is no failure, which
+/// the caller tells apart by the status it keeps — so this answers
+/// through `Gone`.
+fn remove(mut out: bore.Out, name: str, what: str, verbose: bool, forgive: bool) -> bool {
+    attempt(mut out, name, what, verbose, forgive) != failed()
+}
+
+/// The three ends of one attempt.
+fn gone() -> int {
+    0
+}
+
+fn forgiven() -> int {
+    1
+}
+
+fn failed() -> int {
+    2
+}
+
+fn attempt(mut out: bore.Out, name: str, what: str, verbose: bool, forgive: bool) -> int {
+    if verbose {
+        bore.put(mut out, "rmdir: removing directory, {bore.quote_always(name)}\n") else |_| {}
+    }
+    var why = ""
+    fs_remove_dir(name) else |_| {
+        why = bore.io_error()
+    }
+    if why.len == 0 {
+        return gone()
+    }
+    if forgive && why == not_empty() {
+        return forgiven()
+    }
+    var word = what
+    if why == "Not a directory" {
+        // A parent that is not a directory at all is not called one.
+        word = ""
+        if slashed_link(name) {
+            why = "Symbolic link not followed"
+        }
+    }
+    bore.warn("rmdir", "failed to remove{word} {bore.quote_always(name)}: {why}")
+    failed()
+}
+
+/// The parent `name` names, as GNU spells it: the trailing slashes
+/// dropped, then the last component and the slashes before it. `""`
+/// when there is none left to name (`a`, `/a`).
+fn parent_named(name: str) -> str {
+    var end = name.len
+    while end > 0 && name[end - 1..end] == "/" {
+        end -= 1
+    }
+    while end > 0 && name[end - 1..end] != "/" {
+        end -= 1
+    }
+    while end > 0 && name[end - 1..end] == "/" {
+        end -= 1
+    }
+    name[0..end]
+}
+
+/// `rmdir -p`'s second half: each parent of `name`, nearest first,
+/// until one will not go. Answers false when that one is a failure.
+fn remove_parents(mut out: bore.Out, name: str, verbose: bool, forgive: bool) -> bool {
+    var at = parent_named(name)
+    while at.len > 0 {
+        let end = attempt(mut out, at, " directory", verbose, forgive)
+        if end == failed() {
+            return false
+        }
+        if end == forgiven() {
+            return true
+        }
+        at = parent_named(at)
+    }
+    true
+}
+
+fn options() -> List[bore.Opt] {
+    var s = List[bore.Opt]()
+    (mut s).push(bore.flag("p", "parents"))
+    (mut s).push(bore.flag("v", "verbose"))
+    (mut s).push(bore.flag("", "ignore-fail-on-non-empty"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    s
+}
+
+fn help() -> str {
+    """
+    Usage: rmdir [OPTION]... DIRECTORY...
+    Remove each DIRECTORY, if it is empty.
+
+      -p, --parents     then remove each parent the name spells, nearest
+                        first: 'rmdir -p a/b/c' is 'rmdir a/b/c a/b a'
+      -v, --verbose     say which directory is about to be removed
+          --ignore-fail-on-non-empty
+                        a directory that is not empty is no failure
+          --help        print this help and exit
+          --version     print the version and exit
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}
