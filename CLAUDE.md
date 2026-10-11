@@ -83,6 +83,8 @@ against GNU. The short form for a new utility:
     tools/difftest [util...]   the differential suite against GNU
     tools/difftest-selftest    prove the harness can still see a difference
     tools/bench [--scale F]    hyperfine against GNU on generated inputs
+                               (`prepare`, `{work}` and `--input` for
+                               the programs that change what they run on)
 
 ## Hard rules
 
@@ -111,6 +113,39 @@ against GNU. The short form for a new utility:
   (wolf-lang#406), so no utility can handle one yet.
 - `print`/`print_raw` discard write errors and are one `write(2)` per
   call (wolf-lang#408): use `bore.Out`.
+- **The file system can be changed in six ways and no more** (bu21's
+  census, `notes/bu21/census/`, probed on four machines): make a
+  directory (`fs_create_dir`), remove an empty one (`fs_remove_dir`),
+  unlink (`fs_remove`), rename (`fs_rename`, which names another file
+  system by its own row, `cross_device`), create or truncate-to-zero
+  and write (`fs_open_mode`), and copy bytes in the kernel
+  (`fs_copy_chunk`). `mkdir`, `rmdir`, `rm`, `mv` and `cp` stand on
+  those. NOTHING sets a mode, a time or an owner, makes a link, a fifo
+  or a device, truncates to a length, finds a hole, reads the umask, or
+  names an entry relative to an open directory — each filed
+  (wolf-lang#346, #698–#707, #633) — so `touch`, `ln` and `chmod` are
+  NOT here, and `mkdir -m`, `cp -p`, a `cp` of an executable and a `mv`
+  to another file system refuse BY NAME rather than do it wrong. A
+  utility whose core operation is missing is left out, never faked.
+  `fs_remove_dir_all` is never called: a recursive removal is `rm`'s
+  own walk.
+- **`rm`, `mv`, `cp`, `rmdir` and `mkdir` delete and overwrite, so they
+  are run only where `tools/difftest` stands them**: a scratch
+  directory it made under its root (`$BORE_SCRATCH_ROOT`, else the temp
+  directory) and checked by prefix immediately before each side starts.
+  The harness refuses the whole run when a case of one of them names
+  `/`, a `~`, a `..` component or an absolute path outside `{scratch}`
+  (`tests/refuse/` holds a plant per rule). **No test runs any `rm` on
+  `/`**, this one or GNU's: the refusal is `bore.rm_verdict`, a
+  function, unit-tested in `src/change_test.lu`. By hand, the same
+  rule: a fresh directory, its path checked, never a variable that
+  could be empty.
+- A scratch case compares `tree` beside `files` (bu21): every entry's
+  kind, permission bits, link count and size, and a time older than the
+  case. `umask = 0o077` runs both sides under a mask; the harness
+  itself runs at 022. A changer's own name at the start of a line of
+  standard output is `PROG` (`mkdir -v` says `mkdir: created …`, and
+  GNU on macOS is `gmkdir`).
 - No permissions (wolf-lang#346), no pids (wolf-lang#141). The host's
   reason for an fs failure is `bore.io_error()` (`os_error_text`, wolf
   0.2.26): ask it before any other fs call, which clears it, or keep
