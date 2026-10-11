@@ -168,7 +168,7 @@ fn main() -> int {
         )
         return 1
     }
-    var cx = Ctx { names: bore.no_names(), zone: bore.utc(), linux: fs_is_dir("/proc/self/fd") }
+    var cx = Ctx { names: bore.no_names(), zone: bore.utc(), linux: bore.built_for_linux() }
     // The account tables and the zone are read only for a format that
     // prints a name or a time.
     let default_format_asked = !chosen && !terse

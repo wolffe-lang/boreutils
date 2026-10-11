@@ -484,7 +484,7 @@ fn main() -> int {
         now: 0,
         now_nanos: 0,
         posix: false,
-        linux: fs_is_dir("/proc/self/fd"),
+        linux: bore.built_for_linux(),
     }
     if o.format == long_format() {
         if !o.numeric {
