@@ -19,3 +19,54 @@ stdin = "new\n"
 gnu_util = "cat"
 scratch = { "a" = "old\n" }
 compare = ["files"]
+
+# The `tree` field (bu21): GNU `ln a b` leaves the same two names with
+# the same bytes that `tee a b` leaves, so `files` cannot tell them
+# apart; what differs is that GNU's are ONE file with two links. This
+# case passes the harness only by failing on that.
+[[case]]
+name = "two names of one file"
+args = ["a", "b"]
+stdin = "x\n"
+gnu_util = "ln"
+scratch = { "a" = "x\n" }
+compare = ["tree"]
+
+# And the control that makes the plant above mean something: the same
+# run compared on `files` alone must PASS, or the plant is failing for
+# some other reason.
+[[case]]
+name = "two names of one file, by bytes alone"
+args = ["a", "b"]
+stdin = "x\n"
+gnu_util = "ln"
+scratch = { "a" = "x\n" }
+compare = ["files"]
+
+# The `umask` key (bu21). No plant can show a mask by FAILING, since
+# both sides honour one alike; these two CONTROLS show it by passing.
+# GNU `cp a b` gives `b` the mode of `a` less the mask; `tee a b` gives
+# it 666 less the mask. With `a` at 600 and a mask of 066 they agree
+# (600) only if the mask reached OUR side — at the harness's own 022
+# `tee` would leave 644. With `a` at 666 they agree (600) only if it
+# reached both sides or neither. Together: both. The self-test demands
+# an `ok` line for each by name.
+[[case]]
+name = "a mask reaches our side"
+args = ["a", "b"]
+stdin = "x\n"
+gnu_util = "cp"
+umask = 0o066
+scratch = { "a" = "x\n" }
+scratch_modes = { "a" = 0o600 }
+compare = ["tree"]
+
+[[case]]
+name = "a mask reaches both sides or neither"
+args = ["a", "b"]
+stdin = "x\n"
+gnu_util = "cp"
+umask = 0o066
+scratch = { "a" = "x\n" }
+scratch_modes = { "a" = 0o666 }
+compare = ["tree"]

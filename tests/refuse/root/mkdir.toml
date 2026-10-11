@@ -1,0 +1,6 @@
+# bu21: a changer handed `/`. The harness must refuse the RUN (status 2)
+# before anything starts. `mkdir` is the stand-in for every changer: were
+# the refusal ever broken, `mkdir /` fails and harms nothing.
+[[case]]
+name = "the root"
+args = ["/"]

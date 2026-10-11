@@ -32,12 +32,59 @@ for planted in "true: true is not false" \
                "tee: a file whose bytes differ" \
                "head: an offset one side moves" \
                "echo: what a terminal received" \
-               "echo: a mask hides only what it names"; do
+               "echo: a mask hides only what it names" \
+               "tee: two names of one file"; do
     if ! echo "$out" | grep -qF "FAIL $planted"; then
         echo "difftest-selftest: REFUSED — the plant '$planted' did not fail:"
         echo "$out"
         exit 1
     fi
 done
+# The controls (bu21): cases that must PASS for a plant beside them, or
+# a key of the harness, to mean anything. The `tree` plant above fails
+# on a link count; its twin compared on bytes alone must not fail. And
+# the two `umask` controls pass only when the mask reached both sides.
+for control in "tee: two names of one file, by bytes alone" \
+               "tee: a mask reaches our side" \
+               "tee: a mask reaches both sides or neither"; do
+    if ! echo "$out" | grep -qxF "ok   $control"; then
+        echo "difftest-selftest: REFUSED — the control '$control' did not pass:"
+        echo "$out"
+        exit 1
+    fi
+done
 echo "$out" | grep -E '^(FAIL|difftest:)'
 echo "difftest-selftest: the harness saw every planted difference"
+
+# THE REFUSALS (bu21). A utility that changes the file system is never
+# started on an operand that could reach outside its scratch directory:
+# the harness refuses the whole run, status 2, before any case has run.
+# One plant per rule under tests/refuse/, each a `mkdir` case (were a
+# refusal ever broken, `mkdir /` fails and harms nothing — which is why
+# no plant here names `rm`). And the scratch root itself is refused when
+# it is `/` or a home directory.
+for plant in tests/refuse/*/; do
+    name=$(basename "$plant")
+    out=$(tools/difftest --cases "$plant" 2>&1) && status=0 || status=$?
+    if [ "$status" -ne 2 ] || ! echo "$out" | grep -q 'difftest: .*refusing case'; then
+        echo "difftest-selftest: REFUSED — the plant refuse/$name was not refused (status $status):"
+        echo "$out"
+        exit 1
+    fi
+    if echo "$out" | grep -qE '^(ok  |FAIL|SKIP) '; then
+        echo "difftest-selftest: REFUSED — a case ran before refuse/$name was refused:"
+        echo "$out"
+        exit 1
+    fi
+    echo "$out" | grep 'refusing case'
+done
+for bad in / "$HOME"; do
+    out=$(BORE_SCRATCH_ROOT="$bad" BORE_SELFTEST=1 tools/difftest --cases tests/selftest true 2>&1) && status=0 || status=$?
+    if [ "$status" -ne 2 ] || ! echo "$out" | grep -q 'refusing the scratch root'; then
+        echo "difftest-selftest: REFUSED — the scratch root $bad was accepted (status $status):"
+        echo "$out"
+        exit 1
+    fi
+    echo "$out" | grep 'refusing the scratch root'
+done
+echo "difftest-selftest: the harness refused every unsafe operand and root"
