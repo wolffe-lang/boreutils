@@ -11,11 +11,14 @@
 #
 # The help and version TEXT is ours, so those compare the exit only.
 # A behaviour this ls cannot match is a SKIP naming why:
-#   wolf-lang#625  no lstat/readlink/full stat: the long format, -s, -u,
-#                  -c, and every case that needs a link's OWN identity
-#   wolf-lang#626  fs_read_dir sorts: -U, -f, --sort=none
-#   wolf-lang#536  no inode: -i
 #   wolf-lang#643  a terminal's own width (GNU asks TIOCGWINSZ)
+#   wolf-lang#685  no extended attribute: -Z, and the + and . after a mode
+#   and what is not written yet (--author, --block-size, the quoting
+#   styles, --time-style=+FORMAT), each refused by name.
+# Until wolf 0.2.27 the long format, -s, -i, -u, -c and the unsorted
+# orders were skips here (wolf-lang#625, #626, #536); s218's
+# fs_stat/fs_lstat/fs_read_link/fs_read_dir_entries answer them, and
+# those cases run now, beside the bu20 section at the end of the file.
 
 # ------------------------------------------------------------- the trees
 
@@ -446,7 +449,8 @@ args = ["-o", "-m"]
 name = "-g and then -1: -1 does not undo the long format"
 tree = "greek"
 args = ["-g", "-1"]
-skip = "the long format: no mode, link count or group (wolf-lang#625)"
+accounts = true
+scratch_time_all = 1600000000
 
 # ----------------------------------------------------- widths and tabs
 
@@ -1193,7 +1197,6 @@ args = ["-R"]
 name = "-R does not descend through a link out of the walk"
 tree = "loop"
 args = ["-R", "d"]
-skip = "d/e/back -> ../.. is a link to a directory OUTSIDE the walk: GNU lists it and stops, this ls descends once and stops at the ancestors it then meets; no lstat (wolf-lang#625)"
 
 # What only a link's OWN identity can answer (wolf-lang#625).
 
@@ -1201,61 +1204,51 @@ skip = "d/e/back -> ../.. is a link to a directory OUTSIDE the walk: GNU lists i
 name = "-F marks a link that resolves with @"
 tree = "links"
 args = ["-F"]
-skip = "a link that resolves is taken for its target: no lstat (wolf-lang#625)"
 
 [[case]]
 name = "-p leaves a link to a directory unmarked"
 tree = "links"
 args = ["-p"]
-skip = "a link that resolves is taken for its target: no lstat (wolf-lang#625)"
 
 [[case]]
 name = "-S sorts a link by its own size"
 tree = "links"
 args = ["-S"]
-skip = "a link's own size needs lstat (wolf-lang#625)"
 
 [[case]]
 name = "-t sorts a link by its own time"
 tree = "links"
 args = ["-t"]
-skip = "a link's own time needs lstat (wolf-lang#625)"
 
 [[case]]
 name = "-R does not descend through a link to a directory"
 tree = "links"
 args = ["-R"]
-skip = "a link to a directory is taken for the directory: no lstat (wolf-lang#625)"
 
 [[case]]
 name = "-F of a link to a directory as an operand is the link"
 tree = "links"
 args = ["-F", "lnd"]
-skip = "a link that resolves is taken for its target: no lstat (wolf-lang#625)"
 
 [[case]]
 name = "-d -F of link operands"
 tree = "links"
 args = ["-dF", "ln", "lnd", "dangling"]
-skip = "a link that resolves is taken for its target: no lstat (wolf-lang#625)"
 
 [[case]]
 name = "-S of a dangling link uses the link's size"
 tree = "dangle"
 args = ["-S"]
-skip = "a link's own size needs lstat (wolf-lang#625)"
 
 [[case]]
 name = "-t of a dangling link uses the link's time"
 tree = "dangle"
 args = ["-t"]
-skip = "a link's own time needs lstat (wolf-lang#625)"
 
 [[case]]
 name = "-L -R meets a link to an ancestor"
 tree = "links"
 args = ["-LR"]
-skip = "GNU names the loop by inode ('not listing already-listed directory'); no inode (wolf-lang#536) and no lstat (wolf-lang#625)"
 
 # --------------------------------------------- the deferred: long format
 
@@ -1263,97 +1256,94 @@ skip = "GNU names the loop by inode ('not listing already-listed directory'); no
 name = "-l"
 tree = "plain"
 args = ["-l"]
-skip = "the long format: no mode, link count, owner or group (wolf-lang#625)"
+accounts = true
 
 [[case]]
 name = "-l of links shows their targets"
 tree = "links"
 args = ["-l"]
-skip = "the long format: no mode, link count, owner, group or readlink (wolf-lang#625)"
+accounts = true
 
 [[case]]
 name = "-g"
 tree = "plain"
 args = ["-g"]
-skip = "the long format: no mode, link count or group (wolf-lang#625)"
+accounts = true
 
 [[case]]
 name = "-n"
 tree = "plain"
 args = ["-n"]
-skip = "the long format: no mode, link count, uid or gid (wolf-lang#625)"
 
 [[case]]
 name = "-o"
 tree = "plain"
 args = ["-o"]
-skip = "the long format: no mode, link count or owner (wolf-lang#625)"
+accounts = true
 
 [[case]]
 name = "--full-time"
 tree = "plain"
 args = ["--full-time"]
-skip = "the long format: no mode, link count, owner or group (wolf-lang#625)"
+accounts = true
 
 [[case]]
 name = "--format=long"
 tree = "plain"
 args = ["--format=long"]
-skip = "the long format: no mode, link count, owner or group (wolf-lang#625)"
+accounts = true
 
 [[case]]
 name = "-lh"
 tree = "plain"
 args = ["-lh"]
-skip = "the long format: no mode, link count, owner or group (wolf-lang#625)"
+accounts = true
 
 [[case]]
 name = "-s"
 tree = "plain"
 args = ["-s"]
-skip = "no block count (wolf-lang#625)"
 
 [[case]]
 name = "-i"
 tree = "plain"
 args = ["-i"]
-skip = "no inode number (wolf-lang#536)"
+scratch_keep = true
 
 [[case]]
 name = "-u sorts by access time"
 tree = "plain"
 args = ["-u"]
-skip = "no access time (wolf-lang#625)"
 
 [[case]]
 name = "-c sorts by status-change time"
 tree = "plain"
 args = ["-c"]
-skip = "no status-change time (wolf-lang#625)"
+scratch_keep = true
 
 [[case]]
 name = "--time=birth"
 tree = "plain"
 args = ["--time=birth", "-t"]
-skip = "no birth time (wolf-lang#625)"
+scratch_keep = true
 
 [[case]]
 name = "-U in directory order"
 tree = "plain"
 args = ["-U"]
-skip = "fs_read_dir sorts, so the directory's order is lost (wolf-lang#626)"
+scratch_keep = true
 
 [[case]]
 name = "-f"
 tree = "plain"
 args = ["-f"]
-skip = "fs_read_dir sorts, so the directory's order is lost (wolf-lang#626)"
+scratch_keep = true
 
 [[case]]
 name = "--sort=none"
 tree = "plain"
 args = ["--sort=none"]
-skip = "fs_read_dir sorts, so the directory's order is lost (wolf-lang#626)"
+scratch_keep = true
 
 # ---------------------------------------------------------- on a terminal
 #
@@ -1697,3 +1687,2422 @@ name = "a write error on a live descriptor"
 tree = "plain"
 stdout_file = "/dev/full"
 compare = ["stderr", "exit"]
+
+# ======================================================================
+# The long format and its family (bu20, wolf 0.2.27): -l -g -n -o -G
+# --full-time --time-style, -s, -i, -u, -c, --time, -U, -f, the marks of
+# -F on every kind of file, -L and -H. Black-box against GNU 9.11.
+#
+# What a fresh tree cannot hold still is held still by the harness:
+#   scratch_time_all   every entry's modification and access time
+#   "now-N"            a time relative to one instant per case, for the
+#                      six-month rule
+#   scratch_keep       ONE tree for both sides, where the answer is an
+#                      inode number, a status-change or birth time, or
+#                      the directory's own order
+#   accounts           the case prints an owner's NAME: skipped where
+#                      this account is not in /etc/passwd (macOS), and
+#                      its `-n` twin runs everywhere
+# ======================================================================
+
+# Every kind of file a user can make: regular files (one executable, one
+# nobody may read, one hidden), a directory, the sticky directories, a
+# pipe, a socket, links to a file, an executable, a directory, a pipe
+# and nothing, a file with two names, and set-user-id and set-group-id
+# with and without the execute bit under them.
+[tree.kinds]
+cwd = "t"
+scratch_dirs = ["t", "t/dir", "t/dir/sub", "t/tdir", "t/tdirnox"]
+scratch = { "t/a" = "12345", "t/bb" = "x", "t/exe" = "#!/bin/sh\n", "t/secret" = "", "t/.hidden" = "hh", "t/dir/inner" = "i", "t/suid" = "s", "t/sgid" = "g", "t/suidnox" = "s", "t/sgidnox" = "g", "t/with space" = "ab" }
+scratch_sizes = { "t/big" = 5000 }
+scratch_fifos = ["t/fifo"]
+scratch_sockets = ["t/sock"]
+scratch_links = { "t/link" = "a", "t/xlink" = "exe", "t/dlink" = "dir", "t/flink" = "fifo", "t/dangle" = "nope" }
+scratch_hardlinks = { "t/hard" = "t/a" }
+scratch_modes = { "t/exe" = 0o755, "t/secret" = 0o000, "t/suid" = 0o4755, "t/sgid" = 0o2755, "t/suidnox" = 0o4644, "t/sgidnox" = 0o2644, "t/tdir" = 0o1777, "t/tdirnox" = 0o1776, "t/bb" = 0o600, "t/dir" = 0o750 }
+scratch_time_all = 1600000000
+scratch_times = { "t/bb" = 1500000000, "t/big" = 1700000000, "t/dir" = 1650000000, "t/link" = 1550000000 }
+
+# The sticky bit on a FILE, which only linux lets an ordinary user set.
+[tree.sticky]
+cwd = "t"
+scratch_dirs = ["t"]
+scratch = { "t/sticky" = "t", "t/stickyx" = "t" }
+scratch_modes = { "t/sticky" = 0o1644, "t/stickyx" = 0o1755 }
+scratch_time_all = 1600000000
+
+# Sizes on both sides of every unit, as holes: no bytes are written.
+[tree.sizes]
+cwd = "t"
+scratch_dirs = ["t"]
+scratch_sizes = { "t/s0" = 0, "t/s1" = 1, "t/s999" = 999, "t/s1000" = 1000, "t/s1001" = 1001, "t/s1023" = 1023, "t/s1024" = 1024, "t/s1025" = 1025, "t/s9999" = 9999, "t/s10239" = 10239, "t/s10240" = 10240, "t/s10241" = 10241, "t/s999999" = 999999, "t/s1048575" = 1048575, "t/s1048576" = 1048576, "t/s1048577" = 1048577, "t/s9G" = 10736344498, "t/huge" = 123456789012, "t/s1T" = 1099511627776, "t/s5P" = 5629499534213120 }
+scratch_time_all = 1600000000
+
+# Distinct modification and access times, in different orders.
+[tree.times]
+cwd = "t"
+scratch_dirs = ["t"]
+scratch = { "t/a" = "1", "t/b" = "22", "t/c" = "333", "t/d" = "4444" }
+scratch_links = { "t/l" = "a" }
+scratch_time_all = 1600000000
+scratch_times = { "t/a" = 1600000100, "t/b" = 1600000400, "t/c" = 1600000200, "t/d" = 1600000300, "t/l" = 1600000250 }
+scratch_atimes = { "t/a" = 1600000900, "t/b" = 1600000600, "t/c" = 1600000800, "t/d" = 1600000700, "t/l" = 1600000750 }
+
+# Ages on both sides of the six-month rule (15,778,476 seconds), a
+# minute each way, and a time in the future, each against one instant
+# the harness takes once per case.
+[tree.ages]
+cwd = "t"
+scratch_dirs = ["t"]
+scratch = { "t/just-recent" = "", "t/just-old" = "", "t/minute-ago" = "", "t/minute-ahead" = "", "t/hour-ahead" = "", "t/month-ago" = "", "t/year-ago" = "", "t/right-now" = "" }
+scratch_time_all = 1600000000
+scratch_times = { "t/just-recent" = "now-15778416", "t/just-old" = "now-15778536", "t/minute-ago" = "now-60", "t/minute-ahead" = "now+60", "t/hour-ahead" = "now+3600", "t/month-ago" = "now-2592000", "t/year-ago" = "now-31556952", "t/right-now" = "now" }
+scratch_atimes = { "t/just-recent" = "now-15778536", "t/just-old" = "now-15778416", "t/minute-ago" = "now+60", "t/minute-ahead" = "now-60", "t/hour-ahead" = "now-3600", "t/month-ago" = "now-31556952", "t/year-ago" = "now-2592000", "t/right-now" = "now" }
+
+# Instants in winter and in summer, before the epoch, past 2038 and in
+# the year 10000, for the time zones.
+[tree.instants]
+cwd = "t"
+scratch_dirs = ["t"]
+scratch = { "t/y1900" = "", "t/y1969" = "", "t/y1987w" = "", "t/y2020s" = "", "t/y2023w" = "", "t/y2024leap" = "", "t/y2040s" = "", "t/y2100" = "", "t/y10000" = "" }
+scratch_time_all = 1600000000
+scratch_times = { "t/y1900" = -2208988800, "t/y1969" = -1, "t/y1987w" = 536500800, "t/y2020s" = 1600000000, "t/y2023w" = 1700000000, "t/y2024leap" = 1709210096, "t/y2040s" = 2226000000, "t/y2100" = 4102444800, "t/y10000" = 253402300800 }
+
+# Link counts and sizes of different widths: one file with eleven names.
+[tree.widths]
+cwd = "t"
+scratch_dirs = ["t", "t/d"]
+scratch = { "t/one" = "1", "t/many" = "0123456789", "t/d/in" = "" }
+scratch_sizes = { "t/wide" = 123456789 }
+scratch_hardlinks = { "t/m01" = "t/many", "t/m02" = "t/many", "t/m03" = "t/many", "t/m04" = "t/many", "t/m05" = "t/many", "t/m06" = "t/many", "t/m07" = "t/many", "t/m08" = "t/many", "t/m09" = "t/many", "t/m10" = "t/many" }
+scratch_time_all = 1600000000
+
+# A directory that can be read and not searched: its names are listed
+# and nothing about them can be asked.
+[tree.unsearchable]
+cwd = "t"
+scratch_dirs = ["t", "t/locked", "t/locked/d"]
+scratch = { "t/locked/in" = "x", "t/f" = "" }
+scratch_links = { "t/locked/l" = "in" }
+scratch_modes = { "t/locked" = 0o600 }
+scratch_time_all = 1600000000
+
+# Links that lead back up, for -R under -L.
+[tree.backlinks]
+cwd = "t"
+scratch_dirs = ["t", "t/loop", "t/loop/sub"]
+scratch = { "t/loop/f" = "" }
+scratch_links = { "t/loop/self" = "../loop", "t/loop/sub/up" = "..", "t/loop/dangle" = "nope" }
+scratch_time_all = 1600000000
+
+# --- the long format: every column, every kind
+[[case]]
+name = "-l of every kind"
+tree = "kinds"
+args = ["-l"]
+accounts = true
+
+[[case]]
+name = "-l of every kind, by number"
+tree = "kinds"
+args = ["-n", "-l"]
+
+[[case]]
+name = "-la"
+tree = "kinds"
+args = ["-la"]
+accounts = true
+
+[[case]]
+name = "-la, by number"
+tree = "kinds"
+args = ["-n", "-la"]
+
+[[case]]
+name = "-lA"
+tree = "kinds"
+args = ["-lA"]
+accounts = true
+
+[[case]]
+name = "-lA, by number"
+tree = "kinds"
+args = ["-n", "-lA"]
+
+[[case]]
+name = "-l reversed"
+tree = "kinds"
+args = ["-lr"]
+accounts = true
+
+[[case]]
+name = "-l reversed, by number"
+tree = "kinds"
+args = ["-n", "-lr"]
+
+[[case]]
+name = "-l by size"
+tree = "kinds"
+args = ["-lS"]
+accounts = true
+
+[[case]]
+name = "-l by size, by number"
+tree = "kinds"
+args = ["-n", "-lS"]
+
+[[case]]
+name = "-l by size, reversed"
+tree = "kinds"
+args = ["-lSr"]
+accounts = true
+
+[[case]]
+name = "-l by size, reversed, by number"
+tree = "kinds"
+args = ["-n", "-lSr"]
+
+[[case]]
+name = "-l by time"
+tree = "kinds"
+args = ["-lt"]
+accounts = true
+
+[[case]]
+name = "-l by time, by number"
+tree = "kinds"
+args = ["-n", "-lt"]
+
+[[case]]
+name = "-l by time, reversed"
+tree = "kinds"
+args = ["-ltr"]
+accounts = true
+
+[[case]]
+name = "-l by time, reversed, by number"
+tree = "kinds"
+args = ["-n", "-ltr"]
+
+[[case]]
+name = "-l by extension"
+tree = "kinds"
+args = ["-lX"]
+accounts = true
+
+[[case]]
+name = "-l by extension, by number"
+tree = "kinds"
+args = ["-n", "-lX"]
+
+[[case]]
+name = "-l with -h"
+tree = "kinds"
+args = ["-lh"]
+accounts = true
+
+[[case]]
+name = "-l with -h, by number"
+tree = "kinds"
+args = ["-n", "-lh"]
+
+[[case]]
+name = "-l with --si"
+tree = "kinds"
+args = ["-l", "--si"]
+accounts = true
+
+[[case]]
+name = "-l with --si, by number"
+tree = "kinds"
+args = ["-n", "-l", "--si"]
+
+[[case]]
+name = "-l with -k"
+tree = "kinds"
+args = ["-lk"]
+accounts = true
+
+[[case]]
+name = "-l with -k, by number"
+tree = "kinds"
+args = ["-n", "-lk"]
+
+[[case]]
+name = "-l with -F marks every kind, and a link's target"
+tree = "kinds"
+args = ["-lF"]
+accounts = true
+
+[[case]]
+name = "-l with -F marks every kind, and a link's target, by number"
+tree = "kinds"
+args = ["-n", "-lF"]
+
+[[case]]
+name = "-l with -p marks directories only"
+tree = "kinds"
+args = ["-lp"]
+accounts = true
+
+[[case]]
+name = "-l with -p marks directories only, by number"
+tree = "kinds"
+args = ["-n", "-lp"]
+
+[[case]]
+name = "-l with --file-type marks no executable"
+tree = "kinds"
+args = ["-l", "--file-type"]
+accounts = true
+
+[[case]]
+name = "-l with --file-type marks no executable, by number"
+tree = "kinds"
+args = ["-n", "-l", "--file-type"]
+
+[[case]]
+name = "-l with --indicator-style=classify"
+tree = "kinds"
+args = ["-l", "--indicator-style=classify"]
+accounts = true
+
+[[case]]
+name = "-l with --indicator-style=classify, by number"
+tree = "kinds"
+args = ["-n", "-l", "--indicator-style=classify"]
+
+[[case]]
+name = "-l with --indicator-style=none after -F"
+tree = "kinds"
+args = ["-lF", "--indicator-style=none"]
+accounts = true
+
+[[case]]
+name = "-l with --indicator-style=none after -F, by number"
+tree = "kinds"
+args = ["-n", "-lF", "--indicator-style=none"]
+
+[[case]]
+name = "-l with -L follows every link, and a dangling one is a row of ?"
+tree = "kinds"
+args = ["-lL"]
+accounts = true
+
+[[case]]
+name = "-l with -L follows every link, and a dangling one is a row of ?, by number"
+tree = "kinds"
+args = ["-n", "-lL"]
+
+[[case]]
+name = "-l with -L and -F"
+tree = "kinds"
+args = ["-lLF"]
+accounts = true
+
+[[case]]
+name = "-l with -L and -F, by number"
+tree = "kinds"
+args = ["-n", "-lLF"]
+
+[[case]]
+name = "-l with -H changes no entry of a directory"
+tree = "kinds"
+args = ["-lH"]
+accounts = true
+
+[[case]]
+name = "-l with -H changes no entry of a directory, by number"
+tree = "kinds"
+args = ["-n", "-lH"]
+
+[[case]]
+name = "-l with -d is the directory itself"
+tree = "kinds"
+args = ["-ld"]
+accounts = true
+
+[[case]]
+name = "-l with -d is the directory itself, by number"
+tree = "kinds"
+args = ["-n", "-ld"]
+
+[[case]]
+name = "-l with -q"
+tree = "kinds"
+args = ["-l", "-q"]
+accounts = true
+
+[[case]]
+name = "-l with -q, by number"
+tree = "kinds"
+args = ["-n", "-l", "-q"]
+
+[[case]]
+name = "-l with -s"
+tree = "kinds"
+args = ["-ls"]
+accounts = true
+
+[[case]]
+name = "-l with -s, by number"
+tree = "kinds"
+args = ["-n", "-ls"]
+
+[[case]]
+name = "-l with -s and -h"
+tree = "kinds"
+args = ["-lsh"]
+accounts = true
+
+[[case]]
+name = "-l with -s and -h, by number"
+tree = "kinds"
+args = ["-n", "-lsh"]
+
+[[case]]
+name = "-l with -s and --si"
+tree = "kinds"
+args = ["-ls", "--si"]
+accounts = true
+
+[[case]]
+name = "-l with -s and --si, by number"
+tree = "kinds"
+args = ["-n", "-ls", "--si"]
+
+[[case]]
+name = "-l with -s and -k"
+tree = "kinds"
+args = ["-lsk"]
+accounts = true
+
+[[case]]
+name = "-l with -s and -k, by number"
+tree = "kinds"
+args = ["-n", "-lsk"]
+
+[[case]]
+name = "--format=verbose"
+tree = "kinds"
+args = ["--format=verbose"]
+accounts = true
+
+[[case]]
+name = "--format=verbose, by number"
+tree = "kinds"
+args = ["-n", "--format=verbose"]
+
+[[case]]
+name = "--format=lo is long"
+tree = "kinds"
+args = ["--format=lo"]
+accounts = true
+
+[[case]]
+name = "--format=lo is long, by number"
+tree = "kinds"
+args = ["-n", "--format=lo"]
+
+[[case]]
+name = "-l and then -1 stays long"
+tree = "kinds"
+args = ["-l", "-1"]
+accounts = true
+
+[[case]]
+name = "-l and then -1 stays long, by number"
+tree = "kinds"
+args = ["-n", "-l", "-1"]
+
+[[case]]
+name = "-1 and then -l"
+tree = "kinds"
+args = ["-1", "-l"]
+accounts = true
+
+[[case]]
+name = "-1 and then -l, by number"
+tree = "kinds"
+args = ["-n", "-1", "-l"]
+
+[[case]]
+name = "-l with --group-directories-first counts a link to a directory"
+tree = "kinds"
+args = ["-l", "--group-directories-first"]
+accounts = true
+
+[[case]]
+name = "-l with --group-directories-first counts a link to a directory, by number"
+tree = "kinds"
+args = ["-n", "-l", "--group-directories-first"]
+
+[[case]]
+name = "-l with --group-directories-first, reversed"
+tree = "kinds"
+args = ["-lr", "--group-directories-first"]
+accounts = true
+
+[[case]]
+name = "-l with --group-directories-first, reversed, by number"
+tree = "kinds"
+args = ["-n", "-lr", "--group-directories-first"]
+
+[[case]]
+name = "-l with -R"
+tree = "kinds"
+args = ["-lR"]
+accounts = true
+
+[[case]]
+name = "-l with -R, by number"
+tree = "kinds"
+args = ["-n", "-lR"]
+
+[[case]]
+name = "-l with -R and -a"
+tree = "kinds"
+args = ["-lRa"]
+accounts = true
+
+[[case]]
+name = "-l with -R and -a, by number"
+tree = "kinds"
+args = ["-n", "-lRa"]
+
+[[case]]
+name = "-l with -w is not a width for it"
+tree = "kinds"
+args = ["-l", "-w", "5"]
+accounts = true
+
+[[case]]
+name = "-l with -w is not a width for it, by number"
+tree = "kinds"
+args = ["-n", "-l", "-w", "5"]
+
+[[case]]
+name = "-l twice"
+tree = "kinds"
+args = ["-ll"]
+accounts = true
+
+[[case]]
+name = "-l twice, by number"
+tree = "kinds"
+args = ["-n", "-ll"]
+
+[[case]]
+name = "-l of the hidden names alone"
+tree = "kinds"
+args = ["-ld", ".hidden", "."]
+accounts = true
+
+[[case]]
+name = "-l of the hidden names alone, by number"
+tree = "kinds"
+args = ["-n", "-ld", ".hidden", "."]
+
+[[case]]
+name = "-g drops the owner"
+tree = "kinds"
+args = ["-g"]
+accounts = true
+
+[[case]]
+name = "-g drops the owner, by number"
+tree = "kinds"
+args = ["-n", "-g"]
+
+[[case]]
+name = "-o drops the group"
+tree = "kinds"
+args = ["-o"]
+accounts = true
+
+[[case]]
+name = "-o drops the group, by number"
+tree = "kinds"
+args = ["-n", "-o"]
+
+[[case]]
+name = "-g and -o leave neither"
+tree = "kinds"
+args = ["-go"]
+accounts = true
+
+[[case]]
+name = "-g and -o leave neither, by number"
+tree = "kinds"
+args = ["-n", "-go"]
+
+[[case]]
+name = "-G with -l drops the group"
+tree = "kinds"
+args = ["-lG"]
+accounts = true
+
+[[case]]
+name = "-G with -l drops the group, by number"
+tree = "kinds"
+args = ["-n", "-lG"]
+
+[[case]]
+name = "-g with -G"
+tree = "kinds"
+args = ["-gG"]
+accounts = true
+
+[[case]]
+name = "-g with -G, by number"
+tree = "kinds"
+args = ["-n", "-gG"]
+
+[[case]]
+name = "-g with -F"
+tree = "kinds"
+args = ["-gF"]
+accounts = true
+
+[[case]]
+name = "-g with -F, by number"
+tree = "kinds"
+args = ["-n", "-gF"]
+
+[[case]]
+name = "-o with -h"
+tree = "kinds"
+args = ["-oh"]
+accounts = true
+
+[[case]]
+name = "-o with -h, by number"
+tree = "kinds"
+args = ["-n", "-oh"]
+
+[[case]]
+name = "-g with -a"
+tree = "kinds"
+args = ["-ga"]
+accounts = true
+
+[[case]]
+name = "-g with -a, by number"
+tree = "kinds"
+args = ["-n", "-ga"]
+
+[[case]]
+name = "-n (kinds)"
+tree = "kinds"
+args = ["-n"]
+
+[[case]]
+name = "-n with -g prints the group's number"
+tree = "kinds"
+args = ["-n", "-g"]
+
+[[case]]
+name = "-n with -o prints the owner's number"
+tree = "kinds"
+args = ["-n", "-o"]
+
+[[case]]
+name = "-n with -G"
+tree = "kinds"
+args = ["-nG"]
+
+[[case]]
+name = "-n and then -l is still numeric"
+tree = "kinds"
+args = ["-n", "-l"]
+
+[[case]]
+name = "-l and then -n"
+tree = "kinds"
+args = ["-l", "-n"]
+
+[[case]]
+name = "--numeric-uid-gid"
+tree = "kinds"
+args = ["--numeric-uid-gid"]
+
+[[case]]
+name = "-G without -l changes nothing"
+tree = "kinds"
+args = ["-G"]
+
+[[case]]
+name = "-go with -n"
+tree = "kinds"
+args = ["-gon"]
+
+[[case]]
+name = "-l and then -C is columns"
+tree = "kinds"
+args = ["-l", "-C"]
+
+[[case]]
+name = "-C and then -l is long"
+tree = "kinds"
+args = ["-C", "-n"]
+
+[[case]]
+name = "-l and then -m is commas"
+tree = "kinds"
+args = ["-l", "-m"]
+
+[[case]]
+name = "-m and then -g is long"
+tree = "kinds"
+args = ["-m", "-g", "-n"]
+
+[[case]]
+name = "-l and then -x is across"
+tree = "kinds"
+args = ["-l", "-x"]
+
+[[case]]
+name = "-l and then --format=single-column is one per line"
+tree = "kinds"
+args = ["-l", "--format=single-column"]
+
+[[case]]
+name = "--format=long and then --format=commas"
+tree = "kinds"
+args = ["--format=long", "--format=commas"]
+
+# --- the sticky bit on a file (linux lets a user set it)
+[[case]]
+name = "-n of sticky files"
+tree = "sticky"
+args = ["-n"]
+requires = "/proc/version"
+
+[[case]]
+name = "-nF of sticky files"
+tree = "sticky"
+args = ["-nF"]
+requires = "/proc/version"
+
+# --- the time column: the styles
+[[case]]
+name = "--full-time, by number"
+tree = "kinds"
+args = ["-n", "--full-time"]
+
+[[case]]
+name = "--full-time with -a, by number"
+tree = "kinds"
+args = ["-n", "--full-time", "-a"]
+
+[[case]]
+name = "--time-style=full-iso, by number"
+tree = "kinds"
+args = ["-n", "-l", "--time-style=full-iso"]
+
+[[case]]
+name = "--time-style=long-iso, by number"
+tree = "kinds"
+args = ["-n", "-l", "--time-style=long-iso"]
+
+[[case]]
+name = "--time-style=iso, by number"
+tree = "kinds"
+args = ["-n", "-l", "--time-style=iso"]
+
+[[case]]
+name = "--time-style=locale, by number"
+tree = "kinds"
+args = ["-n", "-l", "--time-style=locale"]
+
+[[case]]
+name = "--time-style=posix-iso is the locale's in the C locale, by number"
+tree = "kinds"
+args = ["-n", "-l", "--time-style=posix-iso"]
+
+[[case]]
+name = "--time-style=posix-long-iso, by number"
+tree = "kinds"
+args = ["-n", "-l", "--time-style=posix-long-iso"]
+
+[[case]]
+name = "--time-style=posix-full-iso, by number"
+tree = "kinds"
+args = ["-n", "-l", "--time-style=posix-full-iso"]
+
+[[case]]
+name = "--time-style=posix- alone is accepted, by number"
+tree = "kinds"
+args = ["-n", "-l", "--time-style=posix-"]
+
+[[case]]
+name = "--time-style=long abbreviates, by number"
+tree = "kinds"
+args = ["-n", "-l", "--time-style=long"]
+
+[[case]]
+name = "--time-style=f abbreviates, by number"
+tree = "kinds"
+args = ["-n", "-l", "--time-style=f"]
+
+[[case]]
+name = "--full-time and then --time-style=iso, by number"
+tree = "kinds"
+args = ["-n", "--full-time", "--time-style=iso"]
+
+[[case]]
+name = "--time-style=iso and then --full-time, by number"
+tree = "kinds"
+args = ["-n", "-l", "--time-style=iso", "--full-time"]
+
+[[case]]
+name = "--time-style twice: the last, by number"
+tree = "kinds"
+args = ["-n", "-l", "--time-style=iso", "--time-style=long-iso"]
+
+[[case]]
+name = "--time-style=bogus is refused in GNU's own shape"
+tree = "kinds"
+args = ["-l", "--time-style=bogus"]
+
+[[case]]
+name = "--time-style= is ambiguous"
+tree = "kinds"
+args = ["-l", "--time-style="]
+
+[[case]]
+name = "--time-style=l is ambiguous"
+tree = "kinds"
+args = ["-l", "--time-style=l"]
+
+[[case]]
+name = "--time-style=bogus without -l is never read"
+tree = "kinds"
+args = ["--time-style=bogus"]
+
+[[case]]
+name = "--time-style needs an argument"
+tree = "kinds"
+args = ["--time-style"]
+
+[[case]]
+name = "TIME_STYLE=long-iso"
+tree = "kinds"
+args = ["-n"]
+env = { "TIME_STYLE" = "long-iso" }
+
+[[case]]
+name = "TIME_STYLE=iso"
+tree = "kinds"
+args = ["-n"]
+env = { "TIME_STYLE" = "iso" }
+
+[[case]]
+name = "TIME_STYLE=full-iso"
+tree = "kinds"
+args = ["-n"]
+env = { "TIME_STYLE" = "full-iso" }
+
+[[case]]
+name = "TIME_STYLE=posix-iso"
+tree = "kinds"
+args = ["-n"]
+env = { "TIME_STYLE" = "posix-iso" }
+
+[[case]]
+name = "TIME_STYLE=bogus is refused"
+tree = "kinds"
+args = ["-n"]
+env = { "TIME_STYLE" = "bogus" }
+
+[[case]]
+name = "TIME_STYLE=bogus without -l is never read"
+tree = "kinds"
+args = []
+env = { "TIME_STYLE" = "bogus" }
+
+[[case]]
+name = "TIME_STYLE loses to --time-style"
+tree = "kinds"
+args = ["-n", "--time-style=locale"]
+env = { "TIME_STYLE" = "iso" }
+
+[[case]]
+name = "TIME_STYLE loses to --full-time"
+tree = "kinds"
+args = ["-n", "--full-time"]
+env = { "TIME_STYLE" = "iso" }
+
+[[case]]
+name = "TIME_STYLE set and empty is ambiguous"
+tree = "kinds"
+args = ["-n"]
+env = { "TIME_STYLE" = "" }
+
+# --- the six-month rule, from both sides
+[[case]]
+name = "the six-month rule"
+tree = "ages"
+args = ["-n"]
+
+[[case]]
+name = "the six-month rule by time"
+tree = "ages"
+args = ["-nt"]
+
+[[case]]
+name = "the six-month rule on access times"
+tree = "ages"
+args = ["-nu"]
+
+[[case]]
+name = "the six-month rule on access times, by time"
+tree = "ages"
+args = ["-ntu"]
+
+[[case]]
+name = "the six-month rule in --time-style=iso"
+tree = "ages"
+args = ["-n", "--time-style=iso"]
+
+[[case]]
+name = "the six-month rule in --time-style=long-iso"
+tree = "ages"
+args = ["-n", "--time-style=long-iso"]
+
+[[case]]
+name = "the six-month rule in --full-time"
+tree = "ages"
+args = ["-n", "--full-time"]
+
+[[case]]
+name = "the six-month rule under -g"
+tree = "ages"
+args = ["-gn"]
+
+[[case]]
+name = "the six-month rule in New York"
+tree = "ages"
+args = ["-n"]
+env = { "TZ" = "America/New_York" }
+requires = "/usr/share/zoneinfo/America/New_York"
+
+# --- which time: -u, -c, --time
+[[case]]
+name = "-t is newest first"
+tree = "times"
+args = ["-t"]
+
+[[case]]
+name = "-tr"
+tree = "times"
+args = ["-tr"]
+
+[[case]]
+name = "-u without -l sorts by access time"
+tree = "times"
+args = ["-u"]
+
+[[case]]
+name = "-u with -1 sorts by access time"
+tree = "times"
+args = ["-u", "-1"]
+
+[[case]]
+name = "-u with -C sorts by access time"
+tree = "times"
+args = ["-u", "-C"]
+
+[[case]]
+name = "-u with -r"
+tree = "times"
+args = ["-ur"]
+
+[[case]]
+name = "-ut"
+tree = "times"
+args = ["-ut"]
+
+[[case]]
+name = "-tu"
+tree = "times"
+args = ["-tu"]
+
+[[case]]
+name = "-u with -S sorts by size"
+tree = "times"
+args = ["-uS"]
+
+[[case]]
+name = "-u with --sort=name sorts by name"
+tree = "times"
+args = ["-u", "--sort=name"]
+
+[[case]]
+name = "-u with -X"
+tree = "times"
+args = ["-uX"]
+
+[[case]]
+name = "--time=atime sorts by it"
+tree = "times"
+args = ["--time=atime"]
+
+[[case]]
+name = "--time=access"
+tree = "times"
+args = ["--time=access"]
+
+[[case]]
+name = "--time=use with -t"
+tree = "times"
+args = ["--time=use", "-t"]
+
+[[case]]
+name = "--time=mtime sorts by it"
+tree = "times"
+args = ["--time=mtime"]
+
+[[case]]
+name = "--time=modification"
+tree = "times"
+args = ["--time=modification"]
+
+[[case]]
+name = "--time=a abbreviates"
+tree = "times"
+args = ["--time=a"]
+
+[[case]]
+name = "--time=x is refused"
+tree = "times"
+args = ["--time=x"]
+
+[[case]]
+name = "--time= is ambiguous (times)"
+tree = "times"
+args = ["--time="]
+
+[[case]]
+name = "--time=c is ambiguous"
+tree = "times"
+args = ["--time=c"]
+
+[[case]]
+name = "-u and then --time=mtime"
+tree = "times"
+args = ["-u", "--time=mtime"]
+
+[[case]]
+name = "--time=mtime and then -u"
+tree = "times"
+args = ["--time=mtime", "-u"]
+
+[[case]]
+name = "-lu shows access times and sorts by name"
+tree = "times"
+args = ["-nu"]
+
+[[case]]
+name = "-lut shows and sorts by access times"
+tree = "times"
+args = ["-nut"]
+
+[[case]]
+name = "-lutr"
+tree = "times"
+args = ["-nutr"]
+
+[[case]]
+name = "-l with --time=atime"
+tree = "times"
+args = ["-n", "--time=atime"]
+
+[[case]]
+name = "-l with --time=atime and -t"
+tree = "times"
+args = ["-nt", "--time=atime"]
+
+[[case]]
+name = "--full-time with -u"
+tree = "times"
+args = ["-n", "--full-time", "-u"]
+
+[[case]]
+name = "-lu and then -C sorts by access time"
+tree = "times"
+args = ["-nu", "-C"]
+
+[[case]]
+name = "-u with -m"
+tree = "times"
+args = ["-u", "-m"]
+
+[[case]]
+name = "-U with -u is the directory's order"
+tree = "times"
+args = ["-U", "-u"]
+scratch_keep = true
+
+# --- the times a tree cannot be given: status change and birth. One
+# tree for both sides (scratch_keep), so both read the same instants.
+[[case]]
+name = "-c without -l sorts by status change"
+tree = "times"
+args = ["-c"]
+scratch_keep = true
+
+[[case]]
+name = "-ct"
+tree = "times"
+args = ["-ct"]
+scratch_keep = true
+
+[[case]]
+name = "-lc shows status-change times"
+tree = "times"
+args = ["-nc"]
+scratch_keep = true
+
+[[case]]
+name = "-lct"
+tree = "times"
+args = ["-nct"]
+scratch_keep = true
+
+[[case]]
+name = "-l with --time=ctime"
+tree = "times"
+args = ["-n", "--time=ctime"]
+scratch_keep = true
+
+[[case]]
+name = "--time=status"
+tree = "times"
+args = ["--time=status"]
+scratch_keep = true
+
+[[case]]
+name = "--full-time with -c"
+tree = "times"
+args = ["-n", "--full-time", "-c"]
+scratch_keep = true
+
+[[case]]
+name = "--time=birth with -l"
+tree = "times"
+args = ["-n", "--time=birth"]
+scratch_keep = true
+
+[[case]]
+name = "--time=creation with -lt"
+tree = "times"
+args = ["-nt", "--time=creation"]
+scratch_keep = true
+
+[[case]]
+name = "--time=birth sorts by it"
+tree = "times"
+args = ["--time=birth"]
+scratch_keep = true
+
+[[case]]
+name = "--full-time with --time=birth"
+tree = "times"
+args = ["-n", "--full-time", "--time=birth"]
+scratch_keep = true
+
+[[case]]
+name = "-u and then -c: the last"
+tree = "times"
+args = ["-n", "-u", "-c"]
+scratch_keep = true
+
+[[case]]
+name = "-c and then -u: the last"
+tree = "times"
+args = ["-n", "-c", "-u"]
+scratch_keep = true
+
+# --- the time zone: TZ names a file, a rule, or nothing
+[[case]]
+name = "TZ=UTC0"
+tree = "instants"
+args = ["-n", "--full-time"]
+env = { "TZ" = "UTC0" }
+
+[[case]]
+name = "TZ=America/New_York"
+tree = "instants"
+args = ["-n", "--full-time"]
+env = { "TZ" = "America/New_York" }
+requires = "/usr/share/zoneinfo/America/New_York"
+
+[[case]]
+name = "TZ=Europe/London"
+tree = "instants"
+args = ["-n", "--full-time"]
+env = { "TZ" = "Europe/London" }
+requires = "/usr/share/zoneinfo/Europe/London"
+
+[[case]]
+name = "TZ=Europe/Dublin"
+tree = "instants"
+args = ["-n", "--full-time"]
+env = { "TZ" = "Europe/Dublin" }
+requires = "/usr/share/zoneinfo/Europe/Dublin"
+
+[[case]]
+name = "TZ=Asia/Kolkata"
+tree = "instants"
+args = ["-n", "--full-time"]
+env = { "TZ" = "Asia/Kolkata" }
+requires = "/usr/share/zoneinfo/Asia/Kolkata"
+
+[[case]]
+name = "TZ=Asia/Kathmandu"
+tree = "instants"
+args = ["-n", "--full-time"]
+env = { "TZ" = "Asia/Kathmandu" }
+requires = "/usr/share/zoneinfo/Asia/Kathmandu"
+
+[[case]]
+name = "TZ=Asia/Tokyo"
+tree = "instants"
+args = ["-n", "--full-time"]
+env = { "TZ" = "Asia/Tokyo" }
+requires = "/usr/share/zoneinfo/Asia/Tokyo"
+
+[[case]]
+name = "TZ=Australia/Sydney"
+tree = "instants"
+args = ["-n", "--full-time"]
+env = { "TZ" = "Australia/Sydney" }
+requires = "/usr/share/zoneinfo/Australia/Sydney"
+
+[[case]]
+name = "TZ=Australia/Lord_Howe"
+tree = "instants"
+args = ["-n", "--full-time"]
+env = { "TZ" = "Australia/Lord_Howe" }
+requires = "/usr/share/zoneinfo/Australia/Lord_Howe"
+
+[[case]]
+name = "TZ=Pacific/Chatham"
+tree = "instants"
+args = ["-n", "--full-time"]
+env = { "TZ" = "Pacific/Chatham" }
+requires = "/usr/share/zoneinfo/Pacific/Chatham"
+
+[[case]]
+name = "TZ=America/Sao_Paulo"
+tree = "instants"
+args = ["-n", "--full-time"]
+env = { "TZ" = "America/Sao_Paulo" }
+requires = "/usr/share/zoneinfo/America/Sao_Paulo"
+
+[[case]]
+name = "TZ=Africa/Casablanca"
+tree = "instants"
+args = ["-n", "--full-time"]
+env = { "TZ" = "Africa/Casablanca" }
+requires = "/usr/share/zoneinfo/Africa/Casablanca"
+
+[[case]]
+name = "TZ=America/St_Johns"
+tree = "instants"
+args = ["-n", "--full-time"]
+env = { "TZ" = "America/St_Johns" }
+requires = "/usr/share/zoneinfo/America/St_Johns"
+
+[[case]]
+name = "TZ=Pacific/Kiritimati"
+tree = "instants"
+args = ["-n", "--full-time"]
+env = { "TZ" = "Pacific/Kiritimati" }
+requires = "/usr/share/zoneinfo/Pacific/Kiritimati"
+
+[[case]]
+name = "TZ=EST5EDT"
+tree = "instants"
+args = ["-n", "--full-time"]
+env = { "TZ" = "EST5EDT" }
+requires = "/usr/share/zoneinfo/EST5EDT"
+
+[[case]]
+name = "TZ=PST8PDT"
+tree = "instants"
+args = ["-n", "--full-time"]
+env = { "TZ" = "PST8PDT" }
+requires = "/usr/share/zoneinfo/PST8PDT"
+
+[[case]]
+name = "TZ=CET"
+tree = "instants"
+args = ["-n", "--full-time"]
+env = { "TZ" = "CET" }
+requires = "/usr/share/zoneinfo/CET"
+
+[[case]]
+name = "TZ: empty is UTC"
+tree = "instants"
+args = ["-n", "--full-time"]
+env = { "TZ" = "" }
+
+[[case]]
+name = "TZ: a leading colon"
+tree = "instants"
+args = ["-n", "--full-time"]
+env = { "TZ" = ":Asia/Tokyo" }
+requires = "/usr/share/zoneinfo/Asia/Tokyo"
+
+[[case]]
+name = "TZ: no such zone is UTC"
+tree = "instants"
+args = ["-n", "--full-time"]
+env = { "TZ" = "Nope/Nope" }
+
+[[case]]
+name = "TZ: a rule with a quoted name"
+tree = "instants"
+args = ["-n", "--full-time"]
+env = { "TZ" = "<+0330>-3:30" }
+
+[[case]]
+name = "TZ: a rule with dates"
+tree = "instants"
+args = ["-n", "--full-time"]
+env = { "TZ" = "CET-1CEST,M3.5.0,M10.5.0/3" }
+
+[[case]]
+name = "TZ: the United States' rule spelled out"
+tree = "instants"
+args = ["-n", "--full-time"]
+env = { "TZ" = "EST5EDT,M3.2.0,M11.1.0" }
+
+[[case]]
+name = "TZ: a southern rule"
+tree = "instants"
+args = ["-n", "--full-time"]
+env = { "TZ" = "AEST-10AEDT,M10.1.0,M4.1.0/3" }
+
+[[case]]
+name = "TZ: a rule with minutes"
+tree = "instants"
+args = ["-n", "--full-time"]
+env = { "TZ" = "XYZ-5:45" }
+
+[[case]]
+name = "TZ: a rule west of UTC"
+tree = "instants"
+args = ["-n", "--full-time"]
+env = { "TZ" = "ABC+3" }
+
+[[case]]
+name = "TZ: a rule with negative times"
+tree = "instants"
+args = ["-n", "--full-time"]
+env = { "TZ" = "WGT3WGST,M3.5.0/-2,M10.5.0/-1" }
+
+[[case]]
+name = "TZ: a rule whose daylight time is the earlier one"
+tree = "instants"
+args = ["-n", "--full-time"]
+env = { "TZ" = "IST-1GMT0,M10.5.0,M3.5.0/1" }
+
+[[case]]
+name = "TZ: a rule in Julian days"
+tree = "instants"
+args = ["-n", "--full-time"]
+env = { "TZ" = "NST3:30NDT,J60,J300" }
+
+[[case]]
+name = "TZ: UTC"
+tree = "instants"
+args = ["-n", "--full-time"]
+env = { "TZ" = "UTC" }
+
+[[case]]
+name = "TZ=America/New_York in the short style"
+tree = "instants"
+args = ["-n"]
+env = { "TZ" = "America/New_York" }
+requires = "/usr/share/zoneinfo/America/New_York"
+
+[[case]]
+name = "TZ=Asia/Kolkata in --time-style=long-iso"
+tree = "instants"
+args = ["-n", "--time-style=long-iso"]
+env = { "TZ" = "Asia/Kolkata" }
+requires = "/usr/share/zoneinfo/Asia/Kolkata"
+
+[[case]]
+name = "TZDIR names another directory, which has no zones"
+tree = "instants"
+args = ["-n", "--full-time"]
+env = { "TZ" = "America/New_York", "TZDIR" = "/nonexistent" }
+
+[[case]]
+name = "a year past 9999 and one before 1970, short style"
+tree = "instants"
+args = ["-n"]
+env = { "TZ" = "UTC0" }
+
+# --- sizes: every unit, rounded up
+[[case]]
+name = "-l of sizes"
+tree = "sizes"
+args = ["-n"]
+
+[[case]]
+name = "-lh of sizes"
+tree = "sizes"
+args = ["-nh"]
+
+[[case]]
+name = "-l --si of sizes"
+tree = "sizes"
+args = ["-n", "--si"]
+
+[[case]]
+name = "-h and then --si"
+tree = "sizes"
+args = ["-nh", "--si"]
+
+[[case]]
+name = "--si and then -h"
+tree = "sizes"
+args = ["-n", "--si", "-h"]
+
+[[case]]
+name = "-lS of sizes"
+tree = "sizes"
+args = ["-nS"]
+
+[[case]]
+name = "-lSr of sizes"
+tree = "sizes"
+args = ["-nSr"]
+
+[[case]]
+name = "-S of sizes"
+tree = "sizes"
+args = ["-S"]
+
+[[case]]
+name = "-lhS"
+tree = "sizes"
+args = ["-nhS"]
+
+[[case]]
+name = "-s of holes"
+tree = "sizes"
+args = ["-s"]
+
+[[case]]
+name = "-sh of holes"
+tree = "sizes"
+args = ["-sh"]
+
+[[case]]
+name = "-lk leaves sizes in bytes"
+tree = "sizes"
+args = ["-nk"]
+
+[[case]]
+name = "-gh"
+tree = "sizes"
+args = ["-gnh"]
+
+# --- widths: a link count of two digits, and operands
+[[case]]
+name = "the link-count column widens"
+tree = "widths"
+args = ["-n"]
+
+[[case]]
+name = "the columns of file operands"
+tree = "widths"
+args = ["-n", "one", "many", "wide"]
+
+[[case]]
+name = "a directory operand widens the files' columns"
+tree = "widths"
+args = ["-n", "one", "d"]
+
+[[case]]
+name = "the working directory widens the files' columns"
+tree = "widths"
+args = ["-n", "one", "."]
+
+[[case]]
+name = "two directory operands, two totals"
+tree = "widths"
+args = ["-n", "d", "."]
+
+[[case]]
+name = "-d of two directories"
+tree = "widths"
+args = ["-nd", ".", "d"]
+
+[[case]]
+name = "-d of . and .."
+tree = "widths"
+args = ["-nd", ".", ".."]
+
+[[case]]
+name = "a missing operand beside a file"
+tree = "widths"
+args = ["-n", "nope", "one"]
+
+[[case]]
+name = "an empty operand"
+tree = "widths"
+args = ["-n", ""]
+
+[[case]]
+name = "an operand under a file"
+tree = "widths"
+args = ["-n", "one/x"]
+
+[[case]]
+name = "an operand in a missing directory"
+tree = "widths"
+args = ["-n", "nope/x"]
+
+[[case]]
+name = "only missing operands"
+tree = "widths"
+args = ["-n", "nope", "nada"]
+
+[[case]]
+name = "-s of file operands has no total"
+tree = "widths"
+args = ["-s", "one", "many", "d"]
+
+[[case]]
+name = "-ls of file operands"
+tree = "widths"
+args = ["-ns", "one", "wide", "d"]
+
+[[case]]
+name = "-s of a directory operand"
+tree = "widths"
+args = ["-s", "d"]
+
+[[case]]
+name = "-l of an empty directory is its total"
+tree = "widths"
+args = ["-n", "d/.."]
+
+[[case]]
+name = "-l of a directory with nothing in it"
+args = ["-n", "e"]
+scratch_dirs = ["e"]
+scratch_time_all = 1600000000
+
+[[case]]
+name = "-ls of a directory with nothing in it"
+args = ["-ns", "e"]
+scratch_dirs = ["e"]
+scratch_time_all = 1600000000
+
+[[case]]
+name = "-la of a directory with nothing in it"
+args = ["-na", "e"]
+scratch_dirs = ["e"]
+scratch_time_all = 1600000000
+
+# --- -s: the blocks, in every format
+[[case]]
+name = "-s (kinds)"
+tree = "kinds"
+args = ["-s"]
+
+[[case]]
+name = "-s with -1"
+tree = "kinds"
+args = ["-s", "-1"]
+
+[[case]]
+name = "-s with -a"
+tree = "kinds"
+args = ["-sa"]
+
+[[case]]
+name = "-s with -C"
+tree = "kinds"
+args = ["-s", "-C", "-w", "60"]
+
+[[case]]
+name = "-s with -x"
+tree = "kinds"
+args = ["-s", "-x", "-w", "50"]
+
+[[case]]
+name = "-s with -m"
+tree = "kinds"
+args = ["-s", "-m"]
+
+[[case]]
+name = "-s with -m in a narrow line"
+tree = "kinds"
+args = ["-s", "-m", "-w", "30"]
+
+[[case]]
+name = "-s with -h"
+tree = "kinds"
+args = ["-sh"]
+
+[[case]]
+name = "-s with --si"
+tree = "kinds"
+args = ["-s", "--si"]
+
+[[case]]
+name = "-s with -k"
+tree = "kinds"
+args = ["-sk"]
+
+[[case]]
+name = "-s with -F"
+tree = "kinds"
+args = ["-sF"]
+
+[[case]]
+name = "-s with -p"
+tree = "kinds"
+args = ["-sp"]
+
+[[case]]
+name = "-s with -S"
+tree = "kinds"
+args = ["-sS"]
+
+[[case]]
+name = "-s with -t"
+tree = "kinds"
+args = ["-st"]
+
+[[case]]
+name = "-s with -r"
+tree = "kinds"
+args = ["-sr"]
+
+[[case]]
+name = "-s with -L"
+tree = "kinds"
+args = ["-sL"]
+
+[[case]]
+name = "-s with -R"
+tree = "kinds"
+args = ["-sR"]
+
+[[case]]
+name = "-s with -d"
+tree = "kinds"
+args = ["-sd", "a", "dir", "link"]
+
+[[case]]
+name = "--size"
+tree = "kinds"
+args = ["--size"]
+
+[[case]]
+name = "-s with -q"
+tree = "kinds"
+args = ["-sq"]
+
+[[case]]
+name = "-s with --group-directories-first"
+tree = "kinds"
+args = ["-s", "--group-directories-first"]
+
+[[case]]
+name = "POSIXLY_CORRECT counts blocks of 512"
+tree = "kinds"
+args = ["-s"]
+env = { "POSIXLY_CORRECT" = "1" }
+
+[[case]]
+name = "POSIXLY_CORRECT with -k is 1024 again"
+tree = "kinds"
+args = ["-sk"]
+env = { "POSIXLY_CORRECT" = "1" }
+
+[[case]]
+name = "POSIXLY_CORRECT in the long format's total"
+tree = "kinds"
+args = ["-ns"]
+env = { "POSIXLY_CORRECT" = "1" }
+
+[[case]]
+name = "POSIXLY_CORRECT with -h"
+tree = "kinds"
+args = ["-sh"]
+env = { "POSIXLY_CORRECT" = "1" }
+
+[[case]]
+name = "POSIXLY_CORRECT leaves -l's sizes alone"
+tree = "kinds"
+args = ["-n"]
+env = { "POSIXLY_CORRECT" = "1" }
+
+# --- -i: the inode numbers (one tree for both sides)
+[[case]]
+name = "-i (kinds)"
+tree = "kinds"
+args = ["-i"]
+scratch_keep = true
+
+[[case]]
+name = "-i with -1"
+tree = "kinds"
+args = ["-i", "-1"]
+scratch_keep = true
+
+[[case]]
+name = "-i with -a"
+tree = "kinds"
+args = ["-ia"]
+scratch_keep = true
+
+[[case]]
+name = "-i with -C"
+tree = "kinds"
+args = ["-i", "-C", "-w", "70"]
+scratch_keep = true
+
+[[case]]
+name = "-i with -x"
+tree = "kinds"
+args = ["-i", "-x", "-w", "60"]
+scratch_keep = true
+
+[[case]]
+name = "-i with -m"
+tree = "kinds"
+args = ["-i", "-m"]
+scratch_keep = true
+
+[[case]]
+name = "-i with -s"
+tree = "kinds"
+args = ["-is"]
+scratch_keep = true
+
+[[case]]
+name = "-i with -F"
+tree = "kinds"
+args = ["-iF"]
+scratch_keep = true
+
+[[case]]
+name = "-i with -l"
+tree = "kinds"
+args = ["-ni"]
+scratch_keep = true
+
+[[case]]
+name = "-i with -l and -s"
+tree = "kinds"
+args = ["-nis"]
+scratch_keep = true
+
+[[case]]
+name = "-i with -L is the target's"
+tree = "kinds"
+args = ["-iL"]
+scratch_keep = true
+
+[[case]]
+name = "-i of a file's two names is one number"
+tree = "kinds"
+args = ["-i", "a", "hard"]
+scratch_keep = true
+
+[[case]]
+name = "-i of link operands"
+tree = "kinds"
+args = ["-i", "link", "dangle", "dlink"]
+scratch_keep = true
+
+[[case]]
+name = "-di of a link to a directory"
+tree = "kinds"
+args = ["-di", "dlink", "dir"]
+scratch_keep = true
+
+[[case]]
+name = "-iH of a link operand is the target's"
+tree = "kinds"
+args = ["-iH", "link", "a"]
+scratch_keep = true
+
+[[case]]
+name = "--inode"
+tree = "kinds"
+args = ["--inode"]
+scratch_keep = true
+
+[[case]]
+name = "-i with -R"
+tree = "kinds"
+args = ["-iR"]
+scratch_keep = true
+
+[[case]]
+name = "-i with -t"
+tree = "kinds"
+args = ["-it"]
+scratch_keep = true
+
+# --- the marks: -F, --file-type, -p on every kind
+[[case]]
+name = "-F marks every kind"
+tree = "kinds"
+args = ["-F"]
+
+[[case]]
+name = "-F with -a"
+tree = "kinds"
+args = ["-Fa"]
+
+[[case]]
+name = "-F with -C"
+tree = "kinds"
+args = ["-F", "-C", "-w", "60"]
+
+[[case]]
+name = "-F with -x"
+tree = "kinds"
+args = ["-F", "-x", "-w", "60"]
+
+[[case]]
+name = "-F with -m"
+tree = "kinds"
+args = ["-F", "-m"]
+
+[[case]]
+name = "--file-type marks no executable"
+tree = "kinds"
+args = ["--file-type"]
+
+[[case]]
+name = "-p marks directories only"
+tree = "kinds"
+args = ["-p"]
+
+[[case]]
+name = "--indicator-style=slash (kinds)"
+tree = "kinds"
+args = ["--indicator-style=slash"]
+
+[[case]]
+name = "--indicator-style=file-type (kinds)"
+tree = "kinds"
+args = ["--indicator-style=file-type"]
+
+[[case]]
+name = "--indicator-style=classify (kinds)"
+tree = "kinds"
+args = ["--indicator-style=classify"]
+
+[[case]]
+name = "--indicator-style=none"
+tree = "kinds"
+args = ["-F", "--indicator-style=none"]
+
+[[case]]
+name = "--classify=always (kinds)"
+tree = "kinds"
+args = ["--classify=always"]
+
+[[case]]
+name = "--classify=never after -p"
+tree = "kinds"
+args = ["-p", "--classify=never"]
+
+[[case]]
+name = "-F and then -p"
+tree = "kinds"
+args = ["-F", "-p"]
+
+[[case]]
+name = "-p and then --file-type"
+tree = "kinds"
+args = ["-p", "--file-type"]
+
+[[case]]
+name = "-F under -L marks what a link leads to"
+tree = "kinds"
+args = ["-LF"]
+
+[[case]]
+name = "-p under -L"
+tree = "kinds"
+args = ["-Lp"]
+
+[[case]]
+name = "--file-type under -L"
+tree = "kinds"
+args = ["-L", "--file-type"]
+
+[[case]]
+name = "-L alone asks nothing of a dangling link"
+tree = "kinds"
+args = ["-L"]
+
+[[case]]
+name = "-F with -R does not descend a link"
+tree = "kinds"
+args = ["-FR"]
+
+[[case]]
+name = "-p with -R"
+tree = "kinds"
+args = ["-pR"]
+
+[[case]]
+name = "-R under -L descends a link to a directory"
+tree = "kinds"
+args = ["-RL"]
+
+[[case]]
+name = "-F with --group-directories-first"
+tree = "kinds"
+args = ["-F", "--group-directories-first"]
+
+[[case]]
+name = "--group-directories-first counts a link to a directory (kinds)"
+tree = "kinds"
+args = ["--group-directories-first"]
+
+[[case]]
+name = "--group-directories-first, reversed"
+tree = "kinds"
+args = ["-r", "--group-directories-first"]
+
+[[case]]
+name = "-F with -S"
+tree = "kinds"
+args = ["-FS"]
+
+[[case]]
+name = "-F with -t"
+tree = "kinds"
+args = ["-Ft"]
+
+# --- links as operands: which are followed
+[[case]]
+name = "a link to a directory is followed"
+tree = "kinds"
+args = ["dlink"]
+
+[[case]]
+name = "-d does not follow it"
+tree = "kinds"
+args = ["-d", "dlink"]
+
+[[case]]
+name = "-F does not follow it"
+tree = "kinds"
+args = ["-F", "dlink"]
+
+[[case]]
+name = "-p follows it"
+tree = "kinds"
+args = ["-p", "dlink"]
+
+[[case]]
+name = "--file-type follows it"
+tree = "kinds"
+args = ["--file-type", "dlink"]
+
+[[case]]
+name = "--indicator-style=classify does not follow it"
+tree = "kinds"
+args = ["--indicator-style=classify", "dlink"]
+
+[[case]]
+name = "-l does not follow it"
+tree = "kinds"
+args = ["-n", "dlink"]
+
+[[case]]
+name = "a trailing slash follows it under -l"
+tree = "kinds"
+args = ["-n", "dlink/"]
+
+[[case]]
+name = "-H follows it under -l"
+tree = "kinds"
+args = ["-nH", "dlink"]
+
+[[case]]
+name = "-L follows it under -l"
+tree = "kinds"
+args = ["-nL", "dlink"]
+
+[[case]]
+name = "--dereference-command-line-symlink-to-dir under -l"
+tree = "kinds"
+args = ["-n", "--dereference-command-line-symlink-to-dir", "dlink", "link"]
+
+[[case]]
+name = "-H under -F"
+tree = "kinds"
+args = ["-FH", "dlink", "link"]
+
+[[case]]
+name = "-H follows a link to a file"
+tree = "kinds"
+args = ["-nH", "link", "xlink"]
+
+[[case]]
+name = "-H does not reach a dangling link"
+tree = "kinds"
+args = ["-nH", "link", "dangle"]
+
+[[case]]
+name = "-L does not reach a dangling link"
+tree = "kinds"
+args = ["-L", "dangle"]
+
+[[case]]
+name = "a dangling link is itself"
+tree = "kinds"
+args = ["dangle"]
+
+[[case]]
+name = "a dangling link under -l"
+tree = "kinds"
+args = ["-n", "dangle"]
+
+[[case]]
+name = "every link under -l"
+tree = "kinds"
+args = ["-n", "link", "xlink", "dlink", "flink", "dangle"]
+
+[[case]]
+name = "every link under -lF: the target's mark"
+tree = "kinds"
+args = ["-nF", "link", "xlink", "dlink", "flink", "dangle"]
+
+[[case]]
+name = "every link under -l --file-type"
+tree = "kinds"
+args = ["-n", "--file-type", "link", "xlink", "dlink", "flink", "dangle"]
+
+[[case]]
+name = "every link under -lp: no mark"
+tree = "kinds"
+args = ["-np", "link", "xlink", "dlink", "flink"]
+
+[[case]]
+name = "every link under -F: @"
+tree = "kinds"
+args = ["-dF", "link", "xlink", "dlink", "flink", "dangle"]
+
+[[case]]
+name = "every link under -LF"
+tree = "kinds"
+args = ["-dLF", "link", "xlink", "dlink", "flink"]
+
+[[case]]
+name = "-S sorts a link by its own size (kinds)"
+tree = "kinds"
+args = ["-S", "-d", "link", "xlink", "dlink", "a", "bb"]
+
+[[case]]
+name = "-LS sorts a link by its target's"
+tree = "kinds"
+args = ["-LS", "-d", "link", "xlink", "a", "bb", "big"]
+
+[[case]]
+name = "-t sorts a link by its own time (kinds)"
+tree = "kinds"
+args = ["-t", "-d", "link", "a", "bb", "big"]
+
+[[case]]
+name = "-Lt sorts a link by its target's"
+tree = "kinds"
+args = ["-Lt", "-d", "link", "a", "bb", "big"]
+
+# --- a directory that can be read and not searched (one tree)
+[[case]]
+name = "its names are still listed"
+tree = "unsearchable"
+args = ["locked"]
+scratch_keep = true
+
+[[case]]
+name = "-l of it is a row of ? for each, status 1"
+tree = "unsearchable"
+args = ["-n", "locked"]
+scratch_keep = true
+
+[[case]]
+name = "-lF of it marks by the directory's word"
+tree = "unsearchable"
+args = ["-nF", "locked"]
+scratch_keep = true
+
+[[case]]
+name = "-F of it asks only about the file"
+tree = "unsearchable"
+args = ["-F", "locked"]
+scratch_keep = true
+
+[[case]]
+name = "-p of it asks nothing"
+tree = "unsearchable"
+args = ["-p", "locked"]
+scratch_keep = true
+
+[[case]]
+name = "--file-type of it asks nothing"
+tree = "unsearchable"
+args = ["--file-type", "locked"]
+scratch_keep = true
+
+[[case]]
+name = "-s of it"
+tree = "unsearchable"
+args = ["-s", "locked"]
+scratch_keep = true
+
+[[case]]
+name = "-i of it"
+tree = "unsearchable"
+args = ["-i", "locked"]
+scratch_keep = true
+
+[[case]]
+name = "-t of it"
+tree = "unsearchable"
+args = ["-t", "locked"]
+scratch_keep = true
+
+[[case]]
+name = "-S of it"
+tree = "unsearchable"
+args = ["-S", "locked"]
+scratch_keep = true
+
+[[case]]
+name = "-lL of it"
+tree = "unsearchable"
+args = ["-nL", "locked"]
+scratch_keep = true
+
+[[case]]
+name = "-LF of it"
+tree = "unsearchable"
+args = ["-LF", "locked"]
+scratch_keep = true
+
+[[case]]
+name = "-R of it cannot open what is inside"
+tree = "unsearchable"
+args = ["-R", "locked"]
+scratch_keep = true
+
+[[case]]
+name = "-g of it"
+tree = "unsearchable"
+args = ["-gn", "locked"]
+scratch_keep = true
+
+[[case]]
+name = "--full-time of it"
+tree = "unsearchable"
+args = ["-n", "--full-time", "locked"]
+scratch_keep = true
+
+[[case]]
+name = "-l of it beside a file"
+tree = "unsearchable"
+args = ["-n", "f", "locked"]
+scratch_keep = true
+
+# --- -R under -L: a directory it is already inside
+[[case]]
+name = "-RL names the loop and goes on, status 2"
+tree = "backlinks"
+args = ["-RL", "loop"]
+
+[[case]]
+name = "-RL from the working directory"
+tree = "backlinks"
+args = ["-RL"]
+
+[[case]]
+name = "-R alone descends no link"
+tree = "backlinks"
+args = ["-R", "loop"]
+
+[[case]]
+name = "-lRL"
+tree = "backlinks"
+args = ["-nRL", "loop"]
+
+[[case]]
+name = "-RLF"
+tree = "backlinks"
+args = ["-RLF", "loop"]
+
+[[case]]
+name = "-L of the looping directory"
+tree = "backlinks"
+args = ["-nL", "loop"]
+
+# --- the directory's own order (one tree for both sides)
+[[case]]
+name = "-U"
+tree = "kinds"
+args = ["-U"]
+scratch_keep = true
+
+[[case]]
+name = "-U with -a puts . and .. first"
+tree = "kinds"
+args = ["-aU"]
+scratch_keep = true
+
+[[case]]
+name = "-f is -a and -U"
+tree = "kinds"
+args = ["-f"]
+scratch_keep = true
+
+[[case]]
+name = "--sort=none (kinds)"
+tree = "kinds"
+args = ["--sort=none"]
+scratch_keep = true
+
+[[case]]
+name = "-U with -l"
+tree = "kinds"
+args = ["-nU"]
+scratch_keep = true
+
+[[case]]
+name = "-f with -l"
+tree = "kinds"
+args = ["-nf"]
+scratch_keep = true
+
+[[case]]
+name = "-l and then -f stays long"
+tree = "kinds"
+args = ["-n", "-f"]
+scratch_keep = true
+
+[[case]]
+name = "-U with -r is not reversed"
+tree = "kinds"
+args = ["-Ur"]
+scratch_keep = true
+
+[[case]]
+name = "-U with -F"
+tree = "kinds"
+args = ["-UF"]
+scratch_keep = true
+
+[[case]]
+name = "-U with -p"
+tree = "kinds"
+args = ["-Up"]
+scratch_keep = true
+
+[[case]]
+name = "-U with -s"
+tree = "kinds"
+args = ["-Us"]
+scratch_keep = true
+
+[[case]]
+name = "-U with -C"
+tree = "kinds"
+args = ["-U", "-C", "-w", "60"]
+scratch_keep = true
+
+[[case]]
+name = "-U with -m"
+tree = "kinds"
+args = ["-U", "-m"]
+scratch_keep = true
+
+[[case]]
+name = "-U with -R"
+tree = "kinds"
+args = ["-UR"]
+scratch_keep = true
+
+[[case]]
+name = "-f and then -A hides . and .."
+tree = "kinds"
+args = ["-f", "-A"]
+scratch_keep = true
+
+[[case]]
+name = "-U and then -S sorts by size"
+tree = "kinds"
+args = ["-U", "-S"]
+scratch_keep = true
+
+[[case]]
+name = "-S and then -U is unsorted"
+tree = "kinds"
+args = ["-S", "-U"]
+scratch_keep = true
+
+[[case]]
+name = "-t and then -f"
+tree = "kinds"
+args = ["-t", "-f"]
+scratch_keep = true
+
+[[case]]
+name = "-U with --group-directories-first"
+tree = "kinds"
+args = ["-U", "--group-directories-first"]
+scratch_keep = true
+
+[[case]]
+name = "-U of operands keeps their order"
+tree = "kinds"
+args = ["-Ud", "sock", "a", "dir", "bb"]
+scratch_keep = true
+
+# --- device files: the host's own, so each case names the one it
+# needs and is a skip where the host has none.
+[[case]]
+name = "character devices: major and minor"
+args = ["-n", "/dev/null", "/dev/zero"]
+requires = "/dev/zero"
+
+[[case]]
+name = "character devices by name"
+args = ["-l", "/dev/null", "/dev/zero"]
+requires = "/dev/zero"
+accounts = true
+
+[[case]]
+name = "a device beside a large file: the size column"
+args = ["-n", "/dev/null", "big"]
+scratch_sizes = { "big" = 123456789012 }
+scratch_time_all = 1600000000
+
+[[case]]
+name = "a device beside a small file"
+args = ["-n", "/dev/null", "a"]
+scratch = { "a" = "1" }
+scratch_time_all = 1600000000
+
+[[case]]
+name = "a device under -h"
+args = ["-nh", "/dev/null", "big"]
+scratch_sizes = { "big" = 123456789012 }
+scratch_time_all = 1600000000
+
+[[case]]
+name = "a device under -s and -i"
+args = ["-nsi", "/dev/null"]
+requires = "/dev/null"
+
+[[case]]
+name = "a device under -F has no mark"
+args = ["-F", "/dev/null"]
+requires = "/dev/null"
+
+[[case]]
+name = "--full-time of a device"
+args = ["-n", "--full-time", "/dev/null"]
+requires = "/dev/null"
+
+[[case]]
+name = "a block device (an nvme disk)"
+args = ["-n", "/dev/nvme0n1"]
+requires = "/dev/nvme0n1"
+
+[[case]]
+name = "a block device (a scsi disk)"
+args = ["-n", "/dev/sda"]
+requires = "/dev/sda"
+
+[[case]]
+name = "a block device (a loop device)"
+args = ["-n", "/dev/loop0"]
+requires = "/dev/loop0"
+
+[[case]]
+name = "a block device beside a character device"
+args = ["-n", "/dev/null", "/dev/loop0"]
+requires = "/dev/loop0"
+
+[[case]]
+name = "a block device (a mac's disk)"
+args = ["-n", "/dev/disk0"]
+requires = "/dev/disk0"
+
+# --- the long format on a terminal: quoted names, no columns
+[[case]]
+name = "-l on a terminal quotes a name that needs it"
+tree = "kinds"
+args = ["-n"]
+tty = 80
+
+[[case]]
+name = "-l on a terminal with -N"
+tree = "kinds"
+args = ["-nN"]
+tty = 80
+
+[[case]]
+name = "-s on a terminal is columns"
+tree = "kinds"
+args = ["-s"]
+tty = 80
+
+[[case]]
+name = "-g on a terminal"
+tree = "kinds"
+args = ["-gn"]
+tty = 80
+
+# --- what is still refused by name: the exit status is the claim
+[[case]]
+name = "--author"
+tree = "kinds"
+args = ["-l", "--author"]
+skip = "--author (a fourth name column) is not written yet: refused by name, status 2"
+
+[[case]]
+name = "--block-size"
+tree = "kinds"
+args = ["-l", "--block-size=1"]
+skip = "--block-size, and the LS_BLOCK_SIZE, BLOCK_SIZE and BLOCKSIZE variables, are not written yet: refused by name, status 2"
+
+[[case]]
+name = "--time-style=+FORMAT"
+tree = "kinds"
+args = ["-l", "--time-style=+%Y"]
+skip = "--time-style=+FORMAT needs date's format language, not written yet: refused by name, status 2"
+
+[[case]]
+name = "-Z"
+tree = "kinds"
+args = ["-lZ"]
+skip = "a security context is an extended attribute, which wolf cannot read (wolf-lang#685): refused by name, status 2"
+
+[[case]]
+name = "-Q under -l"
+tree = "kinds"
+args = ["-lQ"]
+skip = "the quoting styles but -N are not written yet: refused by name, status 2"
+
