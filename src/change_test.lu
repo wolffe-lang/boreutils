@@ -1,6 +1,7 @@
 //! The refusals that keep `rm` from the root and from `.` (bu21), as
-//! functions: no test runs any `rm` on `/`. Each `names_root` line costs
-//! one `lstat` of the path it names and changes nothing.
+//! functions: no test runs any `rm` on a host's `/` (`tools/roottest`
+//! runs the program on a container's). Each `names_root` line costs one
+//! `lstat` of the path it names and changes nothing.
 
 use bore
 
@@ -86,6 +87,7 @@ fn main() {
     assert(bore.join_name("d/", "x") == "d/x", "d/ + x")
     assert(bore.join_name("d//", "x") == "d//x", "d// + x")
     assert(bore.join_name("/", "x") == "/x", "/ + x")
+    assert(bore.join_name("/", "/") == "/", "/ + /")
     assert(bore.without_slashes("a/b//") == "a/b", "a/b//")
     assert(bore.without_slashes("/") == "/", "/")
     assert(bore.without_slashes("//") == "/", "//")

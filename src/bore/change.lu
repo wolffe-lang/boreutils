@@ -9,13 +9,16 @@
 //! manual (`rm invocation`, "Treating / specially") and black-box runs
 //! of its `rm`, `mv` and `cp` in scratch directories. Never GNU source.
 //!
-//! **The root rule is a function, and is tested as one.** No test in
-//! this repository runs any `rm`, this one or GNU's, on `/`: the lane
-//! that wrote it (bu21) forbade it, and a test of a refusal whose
-//! failure is the loss of the machine is not a test anyone should run.
-//! `names_root` and `rm_verdict` are exercised by `src/change_test.lu`
-//! on `/`, `//`, `/.` and `/usr/..`, which costs one `lstat` each; `rm`
-//! itself is run on `.` only.
+//! **The root rule is a function, tested as one — and run as a
+//! program only where `/` is disposable.** No test in this repository
+//! runs any `rm`, this one or GNU's, on a HOST's `/`: a test of a
+//! refusal whose failure is the loss of the machine is not a test
+//! anyone should run. `names_root` and `rm_verdict` are exercised by
+//! `src/change_test.lu` on `/`, `//`, `/.` and `/dev/..`, which costs
+//! one `lstat` each; and `tools/roottest` runs the built `rm` on `/`
+//! itself, on both tiers, in a throwaway container with no mount and
+//! no network, as a user and as root inside it, beside GNU's
+//! (`tests/root/cases.toml`).
 
 /// Whether two stat records describe one file: the same device and the
 /// same inode (`[os.fs.stat]`, words 9 and 10).
@@ -105,6 +108,12 @@ pub fn rm_verdict(path: str, recursive: bool, preserve: bool) -> int {
 /// `name` inside the directory `dir`, as GNU spells it in a message:
 /// one slash between them unless `dir` already ends in one.
 pub fn join_name(dir: str, name: str) -> str {
+    if name == "/" && dir.ends_with("/") {
+        // The root moved or copied into a directory named with a slash
+        // is that directory (measured in a container: `mv / /` is `'/'
+        // and '/' are the same file`).
+        return dir
+    }
     if dir.ends_with("/") {
         return "{dir}{name}"
     }

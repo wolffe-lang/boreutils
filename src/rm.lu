@@ -42,13 +42,16 @@
 //! **The root.** `rm -r` refuses an operand that IS the root directory,
 //! whatever it is spelled (`bore.rm_verdict`: the operand's device and
 //! inode are `/`'s), and the walk refuses to enter any directory whose
-//! record is the root's. GNU's words for it — `it is dangerous to
-//! operate recursively on '/'` and `use --no-preserve-root to override
-//! this failsafe` — are NOT measured: no `rm` is ever run on `/` by
-//! this project, GNU's included. They are written from the manual's
-//! description and from memory of the message, and are the one
-//! diagnostic in this file no case compares. The refusal itself is
-//! unit-tested (`src/change_test.lu`).
+//! record is the root's. GNU's words for it are measured, not
+//! remembered: `it is dangerous to operate recursively on '/'` — or
+//! `on 'NAME' (same as '/')` for any other spelling, `//` and a link
+//! to the root named with a slash among them — and then `use
+//! --no-preserve-root to override this failsafe`, status 1, the other
+//! operands still removed. No `rm` is ever run on a HOST's `/`: the
+//! refusal is run as a program by `tools/roottest`, in a throwaway
+//! container whose whole root file system is scratch, as a user and as
+//! root inside it, GNU 9.11 beside both tiers (`tests/root/cases.toml`),
+//! and as a function by `src/change_test.lu`.
 //!
 //! **What this program cannot do, and does not pretend to.**
 //!
@@ -307,7 +310,9 @@ fn cannot(name: str, why: str) {
 /// An operand as GNU shows and uses it: a run of trailing slashes is
 /// one slash (`d//` is `d/`).
 fn shown(name: str) -> str {
-    if !name.ends_with("//") {
+    if !name.ends_with("//") || name == "//" {
+        // `//` stays itself (measured in a container: GNU says `'//'
+        // (same as '/')`, and `'/'` for three slashes or more).
         return name
     }
     let bare = bore.without_slashes(name)
