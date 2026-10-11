@@ -167,11 +167,12 @@ struct Ctx {
 /// where its stat record sits in the listing's `recs`, -1 when it has
 /// none.
 ///
-/// Scalars and `str`s only, on purpose: `es[i].name` copies the entry
-/// it reads from, so an entry that held its own record (a `List`) made
-/// every name comparison of a sort copy twenty words and a list
-/// (measured, bu20: `ls -S` of 100,000 names spent 67% of its time
-/// there).
+/// Small on purpose. A listing that needs records reads the directory
+/// in ITS order, so the sort then does all n log n comparisons, each
+/// reaching for two entries; with the record held in the entry (bu20's
+/// first cut, 150 bytes an entry) `ls -S` of 100,000 names spent 67% of
+/// its time in `compare`. The records moved to `Dir.recs` and the sort
+/// to `Keys`, and it is 14%.
 struct Entry {
     name: str,
     dir: str,
@@ -1396,11 +1397,11 @@ fn stat_all(mut d: Dir, o: Opts) -> int {
 // -------------------------------------------------------------- sorting
 
 /// What a sort compares, read out of the entries ONCE, one value an
-/// entry, so that the merge compares flat lists of numbers and reaches
-/// for a name only on a tie: `first` and `second` are the size or the
-/// time `-S` and `-t` sort by, `front` whether the entry is a directory
-/// for `--group-directories-first`, and `lead` the name's first seven
-/// bytes as one number, which orders as the bytes do.
+/// entry, so that the merge walks flat lists of numbers and reaches for
+/// a name only on a tie: `first` and `second` are the size or the time
+/// `-S` and `-t` sort by, `front` whether the entry is a directory for
+/// `--group-directories-first`, and `lead` the name's first seven bytes
+/// as one number, which orders as the bytes do.
 struct Keys {
     first: List[int],
     second: List[int],
