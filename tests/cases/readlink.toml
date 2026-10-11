@@ -1,0 +1,507 @@
+# readlink — GNU coreutils 9.11, black-box, on linux x86-64 and macOS
+# arm64 (bu20, wolf 0.2.27: fs_read_link, and the walk in
+# bore/paths.lu on fs_lstat).
+#
+# Every case stands in a scratch tree, at one path for both sides, so a
+# canonical path either side prints is the same path.
+# The help and version TEXT is ours, so those compare the exit only.
+
+[tree.links]
+cwd = "t"
+scratch_dirs = ["t", "t/d", "t/d/e"]
+scratch = { "t/f" = "x", "t/with space" = "", "t/new\nline" = "" }
+scratch_links = { "t/l" = "f", "t/dl" = "d", "t/dang" = "nope", "t/ll" = "l", "t/abs" = "/", "t/loopa" = "loopb", "t/loopb" = "loopa", "t/d/up" = "../f", "t/deep" = "d/e", "t/sp" = "with space", "t/nl" = "new\nline", "t/dot" = ".", "t/dotdot" = "..", "t/chain" = "dl/e", "t/under" = "f/x", "t/self" = "self", "t/absdang" = "/nonexistent/x", "t/trail" = "d/" }
+
+# --- a link's own target
+[[case]]
+name = "a link"
+tree = "links"
+args = ["l"]
+
+[[case]]
+name = "three links"
+tree = "links"
+args = ["l", "dl", "dang"]
+
+[[case]]
+name = "a link to a link is not resolved"
+tree = "links"
+args = ["ll"]
+
+[[case]]
+name = "an absolute target"
+tree = "links"
+args = ["abs"]
+
+[[case]]
+name = "a target with a space"
+tree = "links"
+args = ["sp"]
+
+[[case]]
+name = "a target with a newline"
+tree = "links"
+args = ["nl"]
+
+[[case]]
+name = "a link in a loop is still a link"
+tree = "links"
+args = ["loopa", "self"]
+
+[[case]]
+name = "a file is not a link: nothing, status 1"
+tree = "links"
+args = ["f"]
+
+[[case]]
+name = "a directory is not a link"
+tree = "links"
+args = ["d"]
+
+[[case]]
+name = "a missing name: nothing, status 1"
+tree = "links"
+args = ["nope"]
+
+[[case]]
+name = "an empty operand"
+tree = "links"
+args = [""]
+
+[[case]]
+name = "a link and a file: the link still prints"
+tree = "links"
+args = ["l", "f", "dl"]
+
+[[case]]
+name = "-v says why a file is refused"
+tree = "links"
+args = ["-v", "f"]
+
+[[case]]
+name = "-v says why a missing name is refused"
+tree = "links"
+args = ["-v", "nope"]
+
+[[case]]
+name = "-v of several"
+tree = "links"
+args = ["-v", "l", "f", "dang", "nope"]
+
+[[case]]
+name = "--verbose"
+tree = "links"
+args = ["--verbose", "f"]
+
+[[case]]
+name = "-q"
+tree = "links"
+args = ["-q", "f"]
+
+[[case]]
+name = "-s"
+tree = "links"
+args = ["-s", "f"]
+
+[[case]]
+name = "--quiet"
+tree = "links"
+args = ["--quiet", "f"]
+
+[[case]]
+name = "--silent"
+tree = "links"
+args = ["--silent", "f"]
+
+[[case]]
+name = "-v and then -q"
+tree = "links"
+args = ["-vq", "f"]
+
+[[case]]
+name = "-q and then -v"
+tree = "links"
+args = ["-qv", "f"]
+
+[[case]]
+name = "-v of an empty operand"
+tree = "links"
+args = ["-v", ""]
+
+[[case]]
+name = "-v of a directory"
+tree = "links"
+args = ["-v", "d"]
+
+[[case]]
+name = "-n leaves the newline off"
+tree = "links"
+args = ["-n", "l"]
+
+[[case]]
+name = "--no-newline"
+tree = "links"
+args = ["--no-newline", "l"]
+
+[[case]]
+name = "-n with two operands is ignored, and said"
+tree = "links"
+args = ["-n", "l", "dl"]
+
+[[case]]
+name = "-z ends with NUL"
+tree = "links"
+args = ["-z", "l", "dl"]
+
+[[case]]
+name = "--zero"
+tree = "links"
+args = ["--zero", "l"]
+
+[[case]]
+name = "-n and -z of one"
+tree = "links"
+args = ["-nz", "l"]
+
+[[case]]
+name = "-n and -z of two"
+tree = "links"
+args = ["-nz", "l", "dl"]
+
+[[case]]
+name = "a dash name after --"
+tree = "links"
+args = ["--", "-n"]
+
+[[case]]
+name = "a link with a trailing slash in its target"
+tree = "links"
+args = ["trail"]
+
+[[case]]
+name = "POSIXLY_CORRECT says why"
+tree = "links"
+args = ["f"]
+env = { "POSIXLY_CORRECT" = "1" }
+
+[[case]]
+name = "POSIXLY_CORRECT ends the options at an operand"
+tree = "links"
+args = ["l", "-n"]
+env = { "POSIXLY_CORRECT" = "1" }
+
+# --- -f: the canonical path, the last component free to be missing
+[[case]]
+name = "-f of a link"
+tree = "links"
+args = ["-f", "l"]
+
+[[case]]
+name = "-f follows a chain"
+tree = "links"
+args = ["-f", "ll", "chain", "deep"]
+
+[[case]]
+name = "-f of a file and a directory"
+tree = "links"
+args = ["-f", "f", "d", "d/"]
+
+[[case]]
+name = "-f of . and .."
+tree = "links"
+args = ["-f", ".", "..", "../t"]
+
+[[case]]
+name = "-f of the root, however many slashes"
+tree = "links"
+args = ["-f", "/", "//", "///"]
+
+[[case]]
+name = "-f of a dangling link is where it points"
+tree = "links"
+args = ["-f", "dang", "absdang"]
+
+[[case]]
+name = "-f of a missing last component"
+tree = "links"
+args = ["-f", "nope"]
+
+[[case]]
+name = "-f of a missing last component with a slash"
+tree = "links"
+args = ["-f", "nope/"]
+
+[[case]]
+name = "-f of a missing middle component fails"
+tree = "links"
+args = ["-f", "nope/x"]
+
+[[case]]
+name = "-f of a file with a slash fails"
+tree = "links"
+args = ["-f", "f/"]
+
+[[case]]
+name = "-f of a name under a file fails"
+tree = "links"
+args = ["-f", "f/x"]
+
+[[case]]
+name = "-f through a link to a name under a file fails"
+tree = "links"
+args = ["-f", "under"]
+
+[[case]]
+name = "-f removes . and .."
+tree = "links"
+args = ["-f", "d/up", "d/e/..", "d/e/../../f", "./f", "d/./e//"]
+
+[[case]]
+name = "-f through a link to a directory"
+tree = "links"
+args = ["-f", "dl/e", "dl/e/..", "dl/.."]
+
+[[case]]
+name = "-f through . and .. links"
+tree = "links"
+args = ["-f", "dot", "dotdot", "dot/f", "dotdot/t"]
+
+[[case]]
+name = "-f of a loop fails"
+tree = "links"
+args = ["-f", "loopa"]
+
+[[case]]
+name = "-f of a link to itself fails"
+tree = "links"
+args = ["-f", "self"]
+
+[[case]]
+name = "-f of an empty operand fails"
+tree = "links"
+args = ["-f", ""]
+
+[[case]]
+name = "-f to an absolute target"
+tree = "links"
+args = ["-f", "abs"]
+
+[[case]]
+name = "-fv says why"
+tree = "links"
+args = ["-fv", "nope/x", "f/x", "loopa", "under", ""]
+
+[[case]]
+name = "-fq says nothing"
+tree = "links"
+args = ["-fq", "nope/x"]
+
+[[case]]
+name = "-fn"
+tree = "links"
+args = ["-fn", "l"]
+
+[[case]]
+name = "-fn with two"
+tree = "links"
+args = ["-fn", "l", "dl"]
+
+[[case]]
+name = "-fz"
+tree = "links"
+args = ["-fz", "l", "dl"]
+
+[[case]]
+name = "--canonicalize"
+tree = "links"
+args = ["--canonicalize", "l"]
+
+[[case]]
+name = "--canon abbreviates to it"
+tree = "links"
+args = ["--canon", "l"]
+
+[[case]]
+name = "-f from inside a directory"
+tree = "links"
+args = ["-f", "../../f", ".", "..", "../..", "../up"]
+cwd = "t/d/e"
+
+[[case]]
+name = "-f of a name with a space"
+tree = "links"
+args = ["-f", "sp", "with space"]
+
+[[case]]
+name = "-f of a trailing-slash target"
+tree = "links"
+args = ["-f", "trail", "trail/e"]
+
+# --- -e: everything must exist
+[[case]]
+name = "-e of what exists"
+tree = "links"
+args = ["-e", "l", "ll", "dl", "d/", "f"]
+
+[[case]]
+name = "-e of a dangling link fails"
+tree = "links"
+args = ["-e", "dang"]
+
+[[case]]
+name = "-e of a missing name fails"
+tree = "links"
+args = ["-e", "nope"]
+
+[[case]]
+name = "-e of a file with a slash fails"
+tree = "links"
+args = ["-e", "f/"]
+
+[[case]]
+name = "-e of a missing name in a directory fails"
+tree = "links"
+args = ["-e", "d/nope"]
+
+[[case]]
+name = "-e of a loop fails"
+tree = "links"
+args = ["-e", "loopa"]
+
+[[case]]
+name = "-e of an empty operand fails"
+tree = "links"
+args = ["-e", ""]
+
+[[case]]
+name = "-e: the good ones still print"
+tree = "links"
+args = ["-e", "l", "dang", "dl", "nope", "f"]
+
+[[case]]
+name = "-ev says why"
+tree = "links"
+args = ["-ev", "dang", "f/", "d/nope", "loopa"]
+
+[[case]]
+name = "--canonicalize-existing"
+tree = "links"
+args = ["--canonicalize-existing", "l"]
+
+# --- -m: nothing need exist
+[[case]]
+name = "-m of what exists"
+tree = "links"
+args = ["-m", "l", "dl", "f"]
+
+[[case]]
+name = "-m of a dangling link is where it points"
+tree = "links"
+args = ["-m", "dang", "dang/x"]
+
+[[case]]
+name = "-m of missing names"
+tree = "links"
+args = ["-m", "nope", "nope/x", "nope/x/../y"]
+
+[[case]]
+name = "-m under a file"
+tree = "links"
+args = ["-m", "f/x", "f/"]
+
+[[case]]
+name = "-m of a loop is the name"
+tree = "links"
+args = ["-m", "loopa", "self"]
+
+[[case]]
+name = "-m removes .. as written"
+tree = "links"
+args = ["-m", "a/b/../../c", "/nope/../x", "/a/b/c/../../d"]
+
+[[case]]
+name = "-m of .. past the root"
+tree = "links"
+args = ["-m", "/..", "/../.."]
+
+[[case]]
+name = "-m of slashes"
+tree = "links"
+args = ["-m", "///x//y/"]
+
+[[case]]
+name = "-m of an empty operand fails"
+tree = "links"
+args = ["-m", ""]
+
+[[case]]
+name = "-mv of an empty operand"
+tree = "links"
+args = ["-mv", ""]
+
+[[case]]
+name = "--canonicalize-missing"
+tree = "links"
+args = ["--canonicalize-missing", "nope/x"]
+
+# --- the last mode wins; usage
+[[case]]
+name = "-f and then -e"
+tree = "links"
+args = ["-f", "-e", "nope"]
+
+[[case]]
+name = "-e and then -f"
+tree = "links"
+args = ["-e", "-f", "nope"]
+
+[[case]]
+name = "-m and then -e"
+tree = "links"
+args = ["-m", "-e", "nope"]
+
+[[case]]
+name = "-e and then -m"
+tree = "links"
+args = ["-e", "-m", "nope/x"]
+
+[[case]]
+name = "-f and then -m"
+tree = "links"
+args = ["-fm", "nope/x"]
+
+[[case]]
+name = "-m and then -f"
+tree = "links"
+args = ["-mf", "nope/x"]
+
+[[case]]
+name = "no operand"
+tree = "links"
+args = []
+
+[[case]]
+name = "no operand after an option"
+tree = "links"
+args = ["-n"]
+
+[[case]]
+name = "an unknown option"
+tree = "links"
+args = ["-x"]
+
+[[case]]
+name = "an unknown long option"
+tree = "links"
+args = ["--nope"]
+
+[[case]]
+name = "--help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "--version"
+args = ["--version"]
+compare = ["exit"]
+

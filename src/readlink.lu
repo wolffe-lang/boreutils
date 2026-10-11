@@ -1,0 +1,159 @@
+//! member: false
+//!
+//! readlink — print where a symbolic link points, or a canonical path.
+//!
+//! References consulted: POSIX.1-2024 `readlink`; GNU coreutils 9.11
+//! `readlink --help`, the info manual's `readlink invocation` node, and
+//! black-box runs of the GNU binary on linux x86-64 and macOS arm64
+//! (Homebrew `greadlink`), under `LC_ALL=C` (kasumi
+//! `~/lanes/bu20/probe6.sh`). Never GNU source.
+//!
+//! GNU's rules, each measured against 9.11:
+//!
+//! - With no mode, each FILE must be a symbolic link, and what it
+//!   stores is printed as stored (`fs_read_link`, wolf 0.2.27): not
+//!   resolved, not made absolute.
+//! - `-f`, `-e` and `-m` print FILE's canonical path instead — absolute,
+//!   every link followed, no `.` or `..` — and differ in what must
+//!   exist: for `-f` every component but the last, for `-e` every one,
+//!   for `-m` none. The last of the three given wins. The walk is
+//!   `bore/paths.lu`'s.
+//! - Each answer ends in a newline, or a NUL under `-z`. `-n` leaves
+//!   the end off, for ONE operand only: with more it is ignored, and
+//!   said so.
+//! - A FILE that cannot be answered prints nothing and makes the status
+//!   1; the others are still answered. The reason is printed only under
+//!   `-v` — or always when `POSIXLY_CORRECT` is set — and `-q` and `-s`
+//!   take `-v` back. A file that is not a link is `Invalid argument`.
+//! - No operand is a usage error, status 1.
+//!
+//! **What wolf cannot see, named:** a link target that is not UTF-8 is
+//! printed as stored in the plain mode (it is bytes end to end), but
+//! cannot be walked through by `-f`, `-e` or `-m` (wolf-lang#687).
+
+use bore
+
+fn main() -> int {
+    let p = bore.parse(options(), env_args(), bore.permute())
+    var out = bore.stdout()
+    var mode = -1
+    var zero = false
+    var bare = false
+    var verbose = !bore.permute()
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i]
+        if k == "help" {
+            bore.put(mut out, help()) else |_| {}
+            return bore.finish(mut out, "readlink", 0)
+        }
+        if k == "version" {
+            bore.put(mut out, bore.version_text("readlink")) else |_| {}
+            return bore.finish(mut out, "readlink", 0)
+        }
+        if k == "canonicalize" {
+            mode = bore.all_but_last()
+        } else if k == "canonicalize-existing" {
+            mode = bore.existing()
+        } else if k == "canonicalize-missing" {
+            mode = bore.missing()
+        } else if k == "no-newline" {
+            bare = true
+        } else if k == "zero" {
+            zero = true
+        } else if k == "verbose" {
+            verbose = true
+        } else if k == "quiet" || k == "silent" {
+            verbose = false
+        }
+        i += 1
+    }
+    if !bore.ok(p) {
+        return bore.usage_error("readlink", p.error)
+    }
+    if p.operands.len == 0 {
+        return bore.usage_error("readlink", "missing operand")
+    }
+    if bare && p.operands.len > 1 {
+        bore.warn("readlink", "ignoring --no-newline with multiple arguments")
+        bare = false
+    }
+    var status = 0
+    for name in p.operands {
+        var why = ""
+        var bytes = List[byte]()
+        if mode < 0 {
+            bytes = fs_read_link(name) else |_| {
+                why = bore.io_error()
+                List[byte]()
+            }
+        } else {
+            let r = bore.canonical(name, mode)
+            if r.ok {
+                for b in r.path.bytes() {
+                    (mut bytes).push(b)
+                }
+            } else {
+                why = r.why
+            }
+        }
+        if why.len > 0 {
+            if verbose {
+                bore.input_error("readlink", name, why)
+            }
+            status = 1
+            continue
+        }
+        for b in bytes {
+            bore.put_byte(mut out, b) else |_| {}
+        }
+        if zero {
+            if !bare {
+                bore.put_byte(mut out, 0 as byte) else |_| {}
+            }
+        } else if !bare {
+            bore.put_byte(mut out, 10 as byte) else |_| {}
+        }
+    }
+    bore.finish(mut out, "readlink", status)
+}
+
+fn options() -> List[bore.Opt] {
+    var s = List[bore.Opt]()
+    (mut s).push(bore.flag("f", "canonicalize"))
+    (mut s).push(bore.flag("e", "canonicalize-existing"))
+    (mut s).push(bore.flag("m", "canonicalize-missing"))
+    (mut s).push(bore.flag("n", "no-newline"))
+    (mut s).push(bore.flag("q", "quiet"))
+    (mut s).push(bore.flag("s", "silent"))
+    (mut s).push(bore.flag("v", "verbose"))
+    (mut s).push(bore.flag("z", "zero"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    s
+}
+
+fn help() -> str {
+    """
+    Usage: readlink [OPTION]... FILE...
+    Print where each symbolic link FILE points, or with -f, -e or -m the
+    canonical path of each FILE.
+
+      -f, --canonicalize            the canonical path: absolute, every
+                                    link followed; all but the last
+                                    component must exist
+      -e, --canonicalize-existing   the same; every component must exist
+      -m, --canonicalize-missing    the same; none need exist
+      -n, --no-newline              no newline after the one answer
+      -q, --quiet
+      -s, --silent                  say nothing about a failure (the default)
+      -v, --verbose                 say why a FILE could not be answered
+      -z, --zero                    end each answer with NUL, not newline
+          --help                    print this help and exit
+          --version                 print the version and exit
+
+    The status is 1 when a FILE could not be answered.
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}
