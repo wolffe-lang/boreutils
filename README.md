@@ -916,53 +916,57 @@ directory, so a walk keeps only the directories it is inside (the first
 draft held every listing it had made, 70 MB).
 
 **The long format, and what else a record buys (bu20, wolf 0.2.27).**
-kasumi at load 6 (other lanes were building), release tier, GNU 9.11,
-`hyperfine -N`, 15 runs, every side of a row in one call
-(`~/lanes/bu20/bench.sh`; the trees are `tools/bench --scale 10`'s).
-"0.2.26" is trunk's `ls` before this lane.
+kasumi, release tier, GNU 9.11, `hyperfine -N`, 15 runs, every side of
+a row in one call, at this branch's head `9633593` from a clean tree
+(`~/lanes/bu20/bench.sh`, log `~/lanes/bu20/ev/bench.log`; the trees are
+`tools/bench --scale 10`'s). The load was NOT quiet — 2.3 when the run
+began and 8 when it ended, other lanes building — so the σ of the later
+rows is wide and a difference under 10% is not a finding. "0.2.26" is
+trunk's `ls` before this lane.
 
 | ls, 100,000 names | 0.2.26 | this `ls` | GNU | GNU / this |
 |---|---:|---:|---:|---:|
-| `flat/`, one per line | 44.6 ms | **32.6 ms** | 60.0 ms | **1.84x** |
-| `flat/`, `-C` | 50.6 ms | **38.9 ms** | 85.8 ms | **2.20x** |
-| `flat/`, `-S` | 142.3 ms | 155.7 ms | 138.8 ms | 0.89x |
-| `flat/`, `-t` | 151.7 ms | 131.9 ms | 86.7 ms | 0.66x |
-| `-R` of `deep/` | 92.2 ms | **26.7 ms** | 26.4 ms | 0.99x |
-| `flat/`, `-l` | refused | 185.9 ms | 245.9 ms | **1.32x** |
-| `flat/`, `-n` | refused | 179.7 ms | 249.4 ms | **1.39x** |
-| `flat/`, `-s` | refused | 158.3 ms | 128.9 ms | 0.81x |
-| `flat/`, `-i` | refused | 171.2 ms | 120.9 ms | 0.71x |
-| `flat/`, `-F` | a link taken for its target | 153.3 ms | 112.1 ms | 0.73x |
-| `flat/`, `-U` | refused | 25.8 ms | 15.8 ms | 0.61x |
-| `flat/`, `-lU` | refused | 144.2 ms | 196.4 ms | **1.36x** |
-| `-lR` of `deep/` | refused | 118.4 ms | 211.2 ms | **1.78x** |
+| `flat/`, one per line | 38.2 ms | **29.0 ms** | 57.8 ms | **1.99x** |
+| `flat/`, `-C` | 43.1 ms | **34.2 ms** | 67.0 ms | **1.96x** |
+| `flat/`, `-S` | 147.6 ms | 161.6 ms | 109.3 ms | 0.68x |
+| `flat/`, `-t` | 140.0 ms | 151.5 ms | 91.1 ms | 0.60x |
+| `-R` of `deep/` | 100.3 ms | **28.9 ms** | 27.2 ms | 0.94x |
+| `flat/`, `-l` | refused | 196.5 ms | 239.7 ms | **1.22x** |
+| `flat/`, `-n` | refused | 185.0 ms | 250.2 ms | **1.35x** |
+| `flat/`, `-s` | refused | 153.8 ms | 139.7 ms | 0.91x |
+| `flat/`, `-i` | refused | 166.8 ms | 118.1 ms | 0.71x |
+| `flat/`, `-F` | a link taken for its target | 151.0 ms | 115.7 ms | 0.77x |
+| `flat/`, `-U` | refused | 26.0 ms | 16.1 ms | 0.62x |
+| `flat/`, `-lU` | refused | 155.1 ms | 199.7 ms | **1.29x** |
+| `-lR` of `deep/` | refused | 122.1 ms | 214.1 ms | **1.75x** |
 
 Read the `-l` rows with their floor beside them. **The floor of a long
 listing is one stat per name, and both sides are on it:** `strace -c`
 counts 99,998 `statx` for GNU and 100,003 for this `ls` over the same
 99,998 names. But GNU makes a SECOND call per name, 99,998
-`llistxattr`, to decide the `+` it prints after a mode for an ACL, and
-that call is 54% of its system-call time. This `ls` cannot make it
-(wolf-lang#685), so part of the 1.32x is work not done, not work done
-faster; where GNU has no such second call (`-s`, `-i`, `-F`) this `ls`
-is 0.71x to 0.81x. `-R` went from 0.29x to level because a directory
-is known from the type the listing hands back, and a plain listing got
-faster because names `fs_read_dir` already sorted are no longer sorted
-again. `-S` lost a little to 0.2.26: it reads the whole record where it
-used to ask for the size alone, and in exchange sorts a link by the
-link's own size, as GNU does. Peak RSS for `-l` of the 100,000 names is
-**174 MB against GNU's 28 MB**: every list in a listing's region grows
-by doubling and nothing is given back until the listing ends, and no
-call can reserve a list's room (wolf-lang#416). A plain listing holds
-33 MB (0.2.26: 37 MB; GNU: 28 MB).
+`llistxattr`, to decide the `+` it prints after a mode for an ACL
+(201,751 system calls in all, against 100,327 here). This `ls` cannot
+make that call (wolf-lang#685), so part of the 1.22x is work not done,
+not work done faster; where GNU has no second call (`-s`, `-i`, `-F`)
+this `ls` is 0.71x to 0.91x. `-R` went from 0.27x to level because a
+directory is known from the type the listing hands back, and a plain
+listing got faster because names `fs_read_dir` already sorted are no
+longer sorted again. `-S` and `-t` are slower than GNU and no faster
+than 0.2.26: they read the whole record where 0.2.26 asked for the size
+or the time alone, and in exchange sort a link by the link's own size
+and time, as GNU does. Peak RSS for `-l` of the 100,000 names is **174
+MB against GNU's 29 MB**: every list in a listing's region grows by
+doubling and nothing is given back until the listing ends, and no call
+can reserve a list's room (wolf-lang#416). A plain listing holds 33 MB
+(0.2.26: 37 MB; GNU: 28 MB).
 
-| start-up and small work (kasumi, load 6) | boreutils | GNU | GNU / boreutils |
+| start-up and small work (kasumi, load 8, at `9633593`) | boreutils | GNU | GNU / boreutils |
 |---|---:|---:|---:|
-| `stat -c %s` of one file (`hyperfine -N`, 300 runs) | 265 µs | 202 µs | 0.76x |
-| `stat -c '%s %n'` of 10,000 files | 19.8 ms | 13.6 ms | 0.69x |
-| `stat -t` of 10,000 files | 29.7 ms | 22.3 ms | 0.75x |
-| `readlink` of one link (300 runs) | 299 µs | 191 µs | 0.64x |
-| `env true` (300 runs) | 456 µs | 365 µs | 0.80x |
+| `stat -c %s` of one file (`hyperfine -N`, 300 runs) | 279 µs | 215 µs | 0.77x |
+| `stat -c '%s %n'` of 10,000 files | 19.4 ms | 13.3 ms | 0.69x |
+| `stat -t` of 10,000 files | 29.2 ms | 22.0 ms | 0.75x |
+| `readlink` of one link (300 runs) | 275 µs | 211 µs | 0.77x |
+| `env true` (300 runs) | 438 µs | 341 µs | 0.78x |
 
 | utility | status | vs GNU |
 |---|---|---|
@@ -993,10 +997,10 @@ call can reserve a list's room (wolf-lang#416). A plain listing holds
 | `pwd` | done; `-L` without an inode (wolf-lang#536) | start-up 0.80x (linux) |
 | `sleep` | done, to the millisecond | start-up 0.88x; `sleep 0.1` 1.00x (linux) |
 | `nproc` | done; a fractional cgroup quota rounds down (wolf-lang#537) | start-up 0.80x (linux) |
-| `ls` | done: the formats, the long format and its family (`-l -g -n -o -G --full-time --time-style`), `-s`, `-i`, `-u`, `-c`, `--time`, sorting and the unsorted orders, every mark of `-F`, `-q`, `-N`, `-R`, `-L`/`-H`, GNU's terminal defaults; not the `+`/`.` after a mode (wolf-lang#685), a terminal's own width (#643), or where `.` and `..` stand under `-f` (#692) | **1.32x to 2.20x** plain, in columns and long; 0.61x to 0.89x where each name is stat'ed and GNU asks nothing more (linux) |
-| `stat` | done: the default and terse formats, `-c`/`--printf` with every directive but `%o` and `%C`, `-L`; not `-f` (wolf-lang#686) or `-` (#536) | start-up 0.76x; 10,000 operands 0.69x to 0.75x (linux) |
-| `readlink` | done: the target, and `-f`, `-e`, `-m` by a walk written here | start-up 0.64x (linux) |
-| `env` | done by exec: `-i`, `-u`, `NAME=VALUE`, `-C`, `-a`, `-0`, 125/126/127; the inherited environment in sorted order (wolf-lang#535); not `-S`, `-v` or the signal options | `env true` 0.80x (linux) |
+| `ls` | done: the formats, the long format and its family (`-l -g -n -o -G --full-time --time-style`), `-s`, `-i`, `-u`, `-c`, `--time`, sorting and the unsorted orders, every mark of `-F`, `-q`, `-N`, `-R`, `-L`/`-H`, GNU's terminal defaults; not the `+`/`.` after a mode (wolf-lang#685), a terminal's own width (#643), or where `.` and `..` stand under `-f` (#692) | **1.22x to 1.99x** plain, in columns and long; 0.60x to 0.91x where each name is stat'ed and GNU asks nothing more (linux) |
+| `stat` | done: the default and terse formats, `-c`/`--printf` with every directive but `%o` and `%C`, `-L`; not `-f` (wolf-lang#686) or `-` (#536) | start-up 0.77x; 10,000 operands 0.69x to 0.75x (linux) |
+| `readlink` | done: the target, and `-f`, `-e`, `-m` by a walk written here | start-up 0.77x (linux) |
+| `env` | done by exec: `-i`, `-u`, `NAME=VALUE`, `-C`, `-a`, `-0`, 125/126/127; the inherited environment in sorted order (wolf-lang#535); not `-S`, `-v` or the signal options | `env true` 0.78x (linux) |
 
 ## Drop-in readiness
 
@@ -1049,10 +1053,10 @@ table answers it per utility, from the evidence and from nothing else.
 | `pwd` | 4 / 4 | 44 / 1 | start-up 0.80x | drop-in for scripts that avoid `-L` with a `$PWD` naming a same-time twin of the working directory (wolf-lang#536) |
 | `sleep` | 2 / 2 | 61 / 0 | start-up 0.88x, `sleep 0.1` 1.00x | drop-in |
 | `nproc` | 4 / 4 | 78 / 0 | start-up 0.80x | drop-in outside a fractional cgroup cpu quota (wolf-lang#537) |
-| `ls` | 46 / 60 | 694 / 16 | 0.61x to 2.20x; the long format 1.32x beside a GNU that also asks for each name's ACL | drop-in for scripts that avoid `-v`, the quoting styles but `-N`, `--author`, `--block-size`, `--time-style=+FORMAT`, `-Z`, the colour and filtering options (each refused by name), do not list files with ACLs in the long format (no `+`, wolf-lang#685), and do not need `.` and `..` placed by `-f` on ext4 (#692); owners named from `/etc/passwd` and `/etc/group` only; on a terminal, one 80 wide or reporting no size (#643) |
-| `stat` | 7 / 8 | 152 / 8 | start-up 0.76x; 0.69x to 0.75x over many operands | drop-in for scripts that avoid `-f` (wolf-lang#686), `-` (#536), `%C`, and `%o` or the default format's `IO Block:` field, which prints `?` (#684) |
-| `readlink` | 10 / 10 | 97 / 0 | start-up 0.64x | drop-in |
-| `env` | 8 / 14 | 90 / 13 | `env true` 0.80x | drop-in for scripts that avoid `-S`, `-v` and the signal options (each refused by name), and do not read the ORDER of the environment they did not start from `-i` (wolf-lang#535) |
+| `ls` | 46 / 60 | 694 / 16 | 0.60x to 1.99x; the long format 1.22x beside a GNU that also asks for each name's ACL | drop-in for scripts that avoid `-v`, the quoting styles but `-N`, `--author`, `--block-size`, `--time-style=+FORMAT`, `-Z`, the colour and filtering options (each refused by name), do not list files with ACLs in the long format (no `+`, wolf-lang#685), and do not need `.` and `..` placed by `-f` on ext4 (#692); owners named from `/etc/passwd` and `/etc/group` only; on a terminal, one 80 wide or reporting no size (#643) |
+| `stat` | 7 / 8 | 152 / 8 | start-up 0.77x; 0.69x to 0.75x over many operands | drop-in for scripts that avoid `-f` (wolf-lang#686), `-` (#536), `%C`, and `%o` or the default format's `IO Block:` field, which prints `?` (#684) |
+| `readlink` | 10 / 10 | 97 / 0 | start-up 0.77x | drop-in |
+| `env` | 8 / 14 | 90 / 13 | `env true` 0.78x | drop-in for scripts that avoid `-S`, `-v` and the signal options (each refused by name), and do not read the ORDER of the environment they did not start from `-i` (wolf-lang#535) |
 
 **17 drop-in, 14 drop-in for scripts that avoid a named thing, none not
 yet** (`readlink` arrived drop-in at bu20; `env`, the one "not yet",
@@ -1118,7 +1122,7 @@ use it (bu15).
 - **#625** and **#626** (answered by wolf 0.2.27's s218): `fs_stat`,
   `fs_lstat`, `fs_read_link`, `fs_read_dir_entries`. `ls -l` and its
   family, `stat` and `readlink` are written on them (bu20), and `ls -R`
-  went from 0.29x to level with GNU. `realpath`, `du`, `test -h` and a
+  went from 0.27x to level with GNU. `realpath`, `du`, `test -h` and a
   `find`-shaped walk can be.
 - **#684**, the record has no I/O block size: `stat`'s `%o` and
   `IO Block:`.
