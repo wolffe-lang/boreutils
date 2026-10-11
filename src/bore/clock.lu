@@ -454,8 +454,18 @@ fn edge_secs(e: Edge, year: int) -> int {
 }
 
 /// The offset `r` puts in force at instant `t`.
+///
+/// One host difference, kept because the oracle is the host's: for a
+/// rule given in `TZ` itself, macOS's C library applies daylight time
+/// only from 1970 on and answers the standard offset for every instant
+/// before the epoch, where the GNU C library applies the rule to every
+/// year (measured: `TZ=AEST-10AEDT,M10.1.0,M4.1.0/3` in January 1902 is
+/// `+1000` on macOS and `+1100` on linux; CI run 38115826824).
 fn rule_offset(r: Rule, t: int) -> int {
     if !r.has_dst {
+        return r.std
+    }
+    if t < 0 && !built_for_linux() {
         return r.std
     }
     let year = civil(t, r.std).year
