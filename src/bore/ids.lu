@@ -1,0 +1,111 @@
+//! ids — an owner's and a group's NAME.
+//!
+//! wolf has no account lookup (no `getpwuid`), and needs none for the
+//! common case: `/etc/passwd` and `/etc/group` are files, and on a
+//! system that keeps its accounts there the first line carrying an id is
+//! the answer the C library gives. Each file is read once, and never
+//! when a listing prints ids only.
+//!
+//! **What this cannot see, named:** any name service that is not those
+//! two files — LDAP, NIS, systemd's dynamic users, and macOS's directory
+//! service, which holds every ordinary account on a Mac (only the system
+//! accounts are in its `/etc/passwd`). An id with no line prints as its
+//! number, which is also what GNU prints for an id nothing names.
+//!
+//! References consulted: POSIX.1-2024 `ls` (the owner and group
+//! columns); the `passwd(5)` and `group(5)` file formats; black-box runs
+//! of GNU `ls -l` and `stat` 9.11. Never GNU source.
+
+/// The two tables.
+pub struct Names {
+    users: Map[int, str],
+    groups: Map[int, str],
+}
+
+/// Two empty tables: every id prints as its number (`ls -n`).
+pub fn no_names() -> Names {
+    Names { users: Map[int, str](), groups: Map[int, str]() }
+}
+
+/// Both files, read once. A program reads them BEFORE it enters a
+/// `region` of its own: the tables must outlive every listing.
+pub fn read_names() -> Names {
+    var n = no_names()
+    read_table(mut n.users, "/etc/passwd")
+    read_table(mut n.groups, "/etc/group")
+    n
+}
+
+/// The owner's name for `uid`, or `""` when no line of `/etc/passwd`
+/// carries it.
+pub fn user_name(n: Names, uid: int) -> str {
+    n.users[uid] else ""
+}
+
+/// The group's name for `gid`, or `""` when no line of `/etc/group`
+/// carries it.
+pub fn group_name(n: Names, gid: int) -> str {
+    n.groups[gid] else ""
+}
+
+/// Read `name:password:id:…` lines of `path` into `table`, the FIRST
+/// line for an id winning, as it does in the C library's scan. A file
+/// that cannot be read leaves the table empty: every id then prints as
+/// a number. A line that is not UTF-8, has no third field or whose id is
+/// not a number is skipped.
+fn read_table(mut table: Map[int, str], path: str) {
+    let bytes = fs_read_bytes(path) else |_| {
+        return
+    }
+    var start = 0
+    while start < bytes.len {
+        var end = start
+        while end < bytes.len && bytes[end] as int != 10 {
+            end += 1
+        }
+        take_line(mut table, bytes, start, end)
+        start = end + 1
+    }
+}
+
+fn take_line(mut table: Map[int, str], bytes: List[byte], start: int, end: int) {
+    // The first two colons bound the name and the password; the id runs
+    // to the third colon or the end of the line.
+    var c1 = start
+    while c1 < end && bytes[c1] as int != 58 {
+        c1 += 1
+    }
+    if c1 >= end || c1 == start {
+        return
+    }
+    var c2 = c1 + 1
+    while c2 < end && bytes[c2] as int != 58 {
+        c2 += 1
+    }
+    if c2 >= end {
+        return
+    }
+    var at = c2 + 1
+    var id: int = 0
+    var digits = 0
+    while at < end && bytes[at] as int != 58 {
+        let d = bytes[at] as int - 48
+        if d < 0 || d > 9 || digits > 17 {
+            return
+        }
+        id = id * 10 + d
+        digits += 1
+        at += 1
+    }
+    if digits == 0 {
+        return
+    }
+    let known = table[id] else ""
+    if known.len > 0 {
+        return
+    }
+    let name = str_from_utf8(bytes[start..c1]) else |_| {
+        return
+    }
+    table[id] = name
+}
