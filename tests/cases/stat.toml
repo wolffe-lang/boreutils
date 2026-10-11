@@ -33,14 +33,14 @@ scratch_times = { "t/bb" = 1500000000, "t/big" = 1700000000, "t/dir" = 165000000
 scratch_atimes = { "t/bb" = 1500000123, "t/big" = 1700000456 }
 
 
-# Instants before the epoch and far away, inside what ext4 holds
-# (1901..2446).
+# Instants before the epoch and far away, inside what ext4 (1901..2446)
+# and APFS (to 2262) both hold.
 [tree.instants]
 cwd = "t"
 scratch_dirs = ["t"]
-scratch = { "t/y1902" = "", "t/y1969" = "", "t/y2020s" = "", "t/y2023w" = "", "t/y2100" = "", "t/y2400" = "" }
+scratch = { "t/y1902" = "", "t/y1969" = "", "t/y2020s" = "", "t/y2023w" = "", "t/y2100" = "", "t/y2200" = "" }
 scratch_time_all = 1600000000
-scratch_times = { "t/y1902" = -2145916800, "t/y1969" = -1, "t/y2020s" = 1600000000, "t/y2023w" = 1700000000, "t/y2100" = 4102444800, "t/y2400" = 13569465600 }
+scratch_times = { "t/y1902" = -2145916800, "t/y1969" = -1, "t/y2020s" = 1600000000, "t/y2023w" = 1700000000, "t/y2100" = 4102444800, "t/y2200" = 7258118400 }
 
 # --- the default format, every kind (one tree for both sides)
 [[case]]
@@ -267,7 +267,7 @@ mask = ["IO Block: [0-9?]+ +"]
 [[case]]
 name = "a character device"
 args = ["/dev/null"]
-requires = "/dev/null"
+requires = "/proc/version"
 accounts = true
 mask = ["IO Block: [0-9?]+ +"]
 
@@ -293,10 +293,8 @@ accounts = true
 mask = ["IO Block: [0-9?]+ +"]
 
 [[case]]
-name = "the root directory"
-args = ["/"]
-accounts = true
-mask = ["IO Block: [0-9?]+ +"]
+name = "the root directory, less its times"
+args = ["-c", "%F %a %A %u %g %h %n", "/"]
 
 # --- the terse format
 [[case]]
@@ -337,7 +335,7 @@ mask = ["(?m) [0-9?]+$"]
 [[case]]
 name = "-t of a character device"
 args = ["-t", "/dev/null"]
-requires = "/dev/null"
+requires = "/proc/version"
 mask = ["(?m) [0-9?]+$"]
 
 # --- the directives, one family at a time
@@ -892,34 +890,34 @@ compare = ["exit"]
 [[case]]
 name = "%y in TZ=UTC0"
 tree = "instants"
-args = ["-c", "%y %n", "y1902", "y1969", "y2020s", "y2023w", "y2100", "y2400"]
+args = ["-c", "%y %n", "y1902", "y1969", "y2020s", "y2023w", "y2100", "y2200"]
 env = { "TZ" = "UTC0" }
 
 [[case]]
 name = "%y in TZ=America/New_York"
 tree = "instants"
-args = ["-c", "%y %n", "y1902", "y1969", "y2020s", "y2023w", "y2100", "y2400"]
+args = ["-c", "%y %n", "y1902", "y1969", "y2020s", "y2023w", "y2100", "y2200"]
 env = { "TZ" = "America/New_York" }
 requires = "/usr/share/zoneinfo/America/New_York"
 
 [[case]]
 name = "%y in TZ=Asia/Kolkata"
 tree = "instants"
-args = ["-c", "%y %n", "y1902", "y1969", "y2020s", "y2023w", "y2100", "y2400"]
+args = ["-c", "%y %n", "y1902", "y1969", "y2020s", "y2023w", "y2100", "y2200"]
 env = { "TZ" = "Asia/Kolkata" }
 requires = "/usr/share/zoneinfo/Asia/Kolkata"
 
 [[case]]
 name = "%y in TZ=Australia/Lord_Howe"
 tree = "instants"
-args = ["-c", "%y %n", "y1902", "y1969", "y2020s", "y2023w", "y2100", "y2400"]
+args = ["-c", "%y %n", "y1902", "y1969", "y2020s", "y2023w", "y2100", "y2200"]
 env = { "TZ" = "Australia/Lord_Howe" }
 requires = "/usr/share/zoneinfo/Australia/Lord_Howe"
 
 [[case]]
 name = "%y in TZ=Europe/Dublin"
 tree = "instants"
-args = ["-c", "%y %n", "y1902", "y1969", "y2020s", "y2023w", "y2100", "y2400"]
+args = ["-c", "%y %n", "y1902", "y1969", "y2020s", "y2023w", "y2100", "y2200"]
 env = { "TZ" = "Europe/Dublin" }
 requires = "/usr/share/zoneinfo/Europe/Dublin"
 

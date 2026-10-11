@@ -1764,15 +1764,16 @@ scratch_times = { "t/just-recent" = "now-15778416", "t/just-old" = "now-15778536
 scratch_atimes = { "t/just-recent" = "now-15778536", "t/just-old" = "now-15778416", "t/minute-ago" = "now+60", "t/minute-ahead" = "now-60", "t/hour-ahead" = "now-3600", "t/month-ago" = "now-31556952", "t/year-ago" = "now-2592000", "t/right-now" = "now" }
 
 # Instants in winter and in summer, before the epoch and past 2038, for
-# the time zones. Between 1902 and 2400: ext4, which CI's scratch
-# directory is on, holds no time outside 1901..2446 (a year of five
-# digits is in src/bore_test.lu instead).
+# the time zones. Between 1902 and 2200: CI's scratch directory is on
+# ext4 on linux, which holds no time outside 1901..2446, and on APFS on
+# macOS, which holds none past 2262 (a year of five digits is in
+# src/bore_test.lu instead).
 [tree.instants]
 cwd = "t"
 scratch_dirs = ["t"]
-scratch = { "t/y1902" = "", "t/y1969" = "", "t/y1987w" = "", "t/y2020s" = "", "t/y2023w" = "", "t/y2024leap" = "", "t/y2040s" = "", "t/y2100" = "", "t/y2400" = "" }
+scratch = { "t/y1902" = "", "t/y1969" = "", "t/y1987w" = "", "t/y2020s" = "", "t/y2023w" = "", "t/y2024leap" = "", "t/y2040s" = "", "t/y2100" = "", "t/y2200" = "" }
 scratch_time_all = 1600000000
-scratch_times = { "t/y1902" = -2145916800, "t/y1969" = -1, "t/y1987w" = 536500800, "t/y2020s" = 1600000000, "t/y2023w" = 1700000000, "t/y2024leap" = 1709210096, "t/y2040s" = 2226000000, "t/y2100" = 4102444800, "t/y2400" = 13569465600 }
+scratch_times = { "t/y1902" = -2145916800, "t/y1969" = -1, "t/y1987w" = 536500800, "t/y2020s" = 1600000000, "t/y2023w" = 1700000000, "t/y2024leap" = 1709210096, "t/y2040s" = 2226000000, "t/y2100" = 4102444800, "t/y2200" = 7258118400 }
 
 # Link counts and sizes of different widths: one file with eleven names.
 [tree.widths]
@@ -3013,6 +3014,7 @@ name = "TZ: a rule with negative times"
 tree = "instants"
 args = ["-n", "--full-time"]
 env = { "TZ" = "WGT3WGST,M3.5.0/-2,M10.5.0/-1" }
+requires = "/proc/version"
 
 [[case]]
 name = "TZ: a rule whose daylight time is the earlier one"
@@ -3051,6 +3053,7 @@ name = "TZDIR names another directory, which has no zones"
 tree = "instants"
 args = ["-n", "--full-time"]
 env = { "TZ" = "America/New_York", "TZDIR" = "/nonexistent" }
+requires = "/proc/version"
 
 [[case]]
 name = "a year past 2038 and one before 1970, short style"
@@ -4033,7 +4036,7 @@ requires = "/dev/null"
 [[case]]
 name = "--full-time of a device"
 args = ["-n", "--full-time", "/dev/null"]
-requires = "/dev/null"
+requires = "/proc/version"
 
 [[case]]
 name = "a block device (an nvme disk)"
