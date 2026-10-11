@@ -118,6 +118,11 @@ Case file (TOML, one file per utility, any number of [[case]] tables):
                                  #   (bound and closed, so the name
                                  #   stays), and hard links (name =
                                  #   an existing file of the tree).
+  scratch_sizes = { "big" = 5000000000 }  # optional (bu20): a file of
+                                 #   this many bytes that occupies none
+                                 #   (a hole, made by truncating it up):
+                                 #   how a size too large to write, or to
+                                 #   spell in a case file, is listed.
   scratch_atimes = { "a" = 5 }   # optional (bu20): an entry's ACCESS
                                  #   time, where `scratch_times` alone
                                  #   sets both times to one value.
@@ -148,6 +153,14 @@ Case file (TOML, one file per utility, any number of [[case]] tables):
                                  #   the harness refuses the case when
                                  #   the first side left the tree
                                  #   different.
+  accounts = true                # optional (bu20): the case prints an
+                                 #   owner's or a group's NAME. boreutils
+                                 #   reads names from /etc/passwd and
+                                 #   /etc/group and nowhere else, so on a
+                                 #   host that keeps this user anywhere
+                                 #   else (macOS's directory service) the
+                                 #   case is a SKIP that says so, and its
+                                 #   numeric twin (`-n`) is what runs.
   mask = ["IO Block: [0-9]+"]    # optional (bu20): regular expressions
                                  #   whose every match, in stdout and
                                  #   stderr of BOTH sides, is replaced by
@@ -237,12 +250,12 @@ KEYS = {"name", "args", "stdin", "stdin_file", "stdin_offset", "requires",
         "scratch_dirs", "scratch_links", "scratch_modes", "scratch_times",
         "cwd", "tree", "tty", "scratch_fifos", "scratch_sockets",
         "scratch_hardlinks", "scratch_atimes", "scratch_time_all",
-        "scratch_keep", "mask"}
+        "scratch_keep", "mask", "scratch_sizes", "accounts"}
 # Naming any of these gives a case a scratch directory and a `files` field.
 SCRATCH = ("scratch", "scratch_dirs", "scratch_links", "scratch_modes",
            "scratch_times", "cwd", "scratch_fifos", "scratch_sockets",
            "scratch_hardlinks", "scratch_atimes", "scratch_time_all",
-           "scratch_keep")
+           "scratch_keep", "scratch_sizes")
 # What a case compares when descriptor 1 is closed: there is no stdout.
 CLOSED = ("stderr", "exit")
 
@@ -373,6 +386,22 @@ def feed(proc, data):
         pass
 
 
+def accounts_in_files():
+    """Whether this user's and this user's group's NAMES are lines of
+    /etc/passwd and /etc/group, the only place boreutils reads them."""
+    def listed(path, want):
+        try:
+            with open(path, "rb") as fh:
+                for line in fh:
+                    parts = line.split(b":")
+                    if len(parts) > 2 and parts[2].strip() == str(want).encode():
+                        return True
+        except OSError:
+            pass
+        return False
+    return listed("/etc/passwd", os.getuid()) and listed("/etc/group", os.getgid())
+
+
 def has_scratch(case):
     return any(k in case for k in SCRATCH)
 
@@ -414,6 +443,13 @@ def populate(case, top, now):
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "wb") as fh:
             fh.write(text.encode())
+    for name, size in case.get("scratch_sizes", {}).items():
+        path = os.path.join(top, name)
+        with open(path, "ab"):
+            pass
+        os.truncate(path, int(size))
+        if os.lstat(path).st_size != int(size):
+            die(f"scratch_sizes: {name} did not take {size} bytes")
     for name, target in case.get("scratch_links", {}).items():
         os.symlink(target, os.path.join(top, name))
     # The other kinds (bu20), each read back: a tree that silently held
@@ -497,6 +533,12 @@ def snapshot(top):
                 seen.append((rel, "link", os.readlink(path).encode()))
             elif os.path.isfile(path):
                 try:
+                    # A hole of a hundred gigabytes (`scratch_sizes`) is
+                    # compared by its length, never read into memory.
+                    size = os.path.getsize(path)
+                    if size > 1 << 20:
+                        seen.append((rel, "file", b"<%d bytes>" % size))
+                        continue
                     with open(path, "rb") as fh:
                         seen.append((rel, "file", fh.read()))
                 except OSError as e:
@@ -860,6 +902,12 @@ def main(argv):
             if need is not None and not os.path.exists(need):
                 skipped += 1
                 print(f"SKIP {label} (no {need} on this host)")
+                continue
+            if case.get("accounts") and not accounts_in_files():
+                skipped += 1
+                print(f"SKIP {label} (this account is not named in "
+                      f"/etc/passwd and /etc/group, the only name service "
+                      f"boreutils reads)")
                 continue
             sink = case.get("stdout_file")
             if sink is not None and not os.path.exists(sink):
