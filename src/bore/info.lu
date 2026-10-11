@@ -124,8 +124,24 @@ pub fn rec_has(r: List[int], i: int) -> bool {
     mask % 2 == 1
 }
 
+/// Whether bit `i` of a record's `have` word is set.
+pub fn mask_has(mask: int, i: int) -> bool {
+    var m = mask
+    var k = 0
+    while k < i {
+        m = m / 2
+        k += 1
+    }
+    m % 2 == 1
+}
+
 /// Which time: 0 modification, 1 access, 2 status change, 3 birth.
-/// The seconds word of that time in a record.
+/// The index of that time's seconds word in a record (its nanoseconds
+/// are the next word).
+pub fn time_at(which: int) -> int {
+    time_word(which)
+}
+
 fn time_word(which: int) -> int {
     if which == 1 {
         return 12
@@ -195,18 +211,24 @@ fn triple(mut out: List[byte], bits: int, special: bool, on: int, off: int) {
     }
 }
 
-/// The ten characters `ls -l` and `stat %A` print: the type, then
-/// `rwx` for owner, group and other, with `s`/`S` for set-user-id and
-/// set-group-id and `t`/`T` for the sticky bit (lower case over an
-/// execute bit, upper case without one). `mode` is the low twelve bits.
-pub fn mode_text(kind: int, mode: int) -> str {
-    var out = List[byte]()
+/// The ten characters `ls -l` and `stat %A` print, onto `out`: the
+/// type, then `rwx` for owner, group and other, with `s`/`S` for
+/// set-user-id and set-group-id and `t`/`T` for the sticky bit (lower
+/// case over an execute bit, upper case without one). `mode` is the low
+/// twelve bits.
+pub fn push_mode(mut out: List[byte], kind: int, mode: int) {
     for b in kind_letter(kind).bytes() {
         (mut out).push(b)
     }
     triple(mut out, mode / 64 % 8, mode / 2048 % 2 == 1, 115, 83)
     triple(mut out, mode / 8 % 8, mode / 1024 % 2 == 1, 115, 83)
     triple(mut out, mode % 8, mode / 512 % 2 == 1, 116, 84)
+}
+
+/// `push_mode`'s ten characters as a `str`.
+pub fn mode_text(kind: int, mode: int) -> str {
+    var out = List[byte]()
+    push_mode(mut out, kind, mode)
     str_from_utf8(out) else "??????????"
 }
 
