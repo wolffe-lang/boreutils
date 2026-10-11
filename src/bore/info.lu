@@ -1,0 +1,278 @@
+//! info — what a file's stat record says, in the words `ls -l` and
+//! `stat` print.
+//!
+//! The record is `fs_stat`'s and `fs_lstat`'s twenty words (wolf 0.2.27,
+//! s218, `[os.fs.stat]`): kind, size, modified_ms, a `have` mask, mode,
+//! nlink, uid, gid, blocks, dev, ino, rdev, and the access,
+//! modification, status-change and birth times as seconds and
+//! nanoseconds. This module names the words once, so no program counts
+//! them by hand, and renders the two things both programs print: the
+//! ten-character mode and a size in GNU's human-readable units.
+//!
+//! References consulted: POSIX.1-2024 `ls` (the file mode's ten
+//! characters) and `<sys/stat.h>`; GNU coreutils 9.11's manual (`ls
+//! invocation`, "What information is listed"; "Block size") and
+//! black-box runs of its `ls` and `stat`. Never GNU source.
+//!
+//! **What the record does not hold** (each named where a program meets
+//! it): the preferred I/O block size (`st_blksize`, wolf-lang#684), any
+//! extended attribute — so the `+` and `.` GNU prints after a mode for
+//! an ACL or a security context cannot be known (wolf-lang#685) — and
+//! owner and group NAMES, which `ids.lu` reads from the two files.
+
+/// The kinds, `[os.fs.stat]`'s word 0.
+pub fn kind_file() -> int {
+    0
+}
+
+/// A directory.
+pub fn kind_dir() -> int {
+    1
+}
+
+/// Anything the host gives no type for.
+pub fn kind_other() -> int {
+    2
+}
+
+/// A symbolic link (only `fs_lstat` and a directory entry answer it).
+pub fn kind_link() -> int {
+    3
+}
+
+/// A named pipe.
+pub fn kind_fifo() -> int {
+    4
+}
+
+/// A socket.
+pub fn kind_socket() -> int {
+    5
+}
+
+/// A character device.
+pub fn kind_char() -> int {
+    6
+}
+
+/// A block device.
+pub fn kind_block() -> int {
+    7
+}
+
+// The words of a record, by name.
+
+/// Word 0: the kind.
+pub fn rec_kind(r: List[int]) -> int {
+    r[0]
+}
+
+/// Word 1: the size in bytes (a link's: the length of its target).
+pub fn rec_size(r: List[int]) -> int {
+    r[1]
+}
+
+/// Word 4: the permission bits with set-user-id, set-group-id and sticky.
+pub fn rec_mode(r: List[int]) -> int {
+    r[4]
+}
+
+/// Word 5: the hard-link count.
+pub fn rec_nlink(r: List[int]) -> int {
+    r[5]
+}
+
+/// Word 6: the owner's id.
+pub fn rec_uid(r: List[int]) -> int {
+    r[6]
+}
+
+/// Word 7: the group's id.
+pub fn rec_gid(r: List[int]) -> int {
+    r[7]
+}
+
+/// Word 8: the space allocated, in 512-byte units.
+pub fn rec_blocks(r: List[int]) -> int {
+    r[8]
+}
+
+/// Word 9: the device the file is on.
+pub fn rec_dev(r: List[int]) -> int {
+    r[9]
+}
+
+/// Word 10: the inode number.
+pub fn rec_ino(r: List[int]) -> int {
+    r[10]
+}
+
+/// Word 11: a device file's own device number.
+pub fn rec_rdev(r: List[int]) -> int {
+    r[11]
+}
+
+/// Whether the host answered word `i` (`have`, word 3). A word it did
+/// not answer is 0 and must not be printed as one.
+pub fn rec_has(r: List[int], i: int) -> bool {
+    var mask = r[3]
+    var k = 0
+    while k < i {
+        mask = mask / 2
+        k += 1
+    }
+    mask % 2 == 1
+}
+
+/// Which time: 0 modification, 1 access, 2 status change, 3 birth.
+/// The seconds word of that time in a record.
+fn time_word(which: int) -> int {
+    if which == 1 {
+        return 12
+    }
+    if which == 2 {
+        return 16
+    }
+    if which == 3 {
+        return 18
+    }
+    14
+}
+
+/// The seconds of time `which`.
+pub fn rec_secs(r: List[int], which: int) -> int {
+    r[time_word(which)]
+}
+
+/// The nanoseconds of time `which`.
+pub fn rec_nanos(r: List[int], which: int) -> int {
+    r[time_word(which) + 1]
+}
+
+/// Whether the host answered time `which` (a birth time is the one a
+/// linux filesystem may not keep).
+pub fn rec_has_time(r: List[int], which: int) -> bool {
+    rec_has(r, time_word(which))
+}
+
+/// The first character of a mode: the file's type.
+pub fn kind_letter(kind: int) -> str {
+    if kind == 0 {
+        return "-"
+    }
+    if kind == 1 {
+        return "d"
+    }
+    if kind == 3 {
+        return "l"
+    }
+    if kind == 4 {
+        return "p"
+    }
+    if kind == 5 {
+        return "s"
+    }
+    if kind == 6 {
+        return "c"
+    }
+    if kind == 7 {
+        return "b"
+    }
+    "?"
+}
+
+/// One `rwx` triple onto `out`: `bits` is the three permission bits,
+/// `special` whether the set-id or sticky bit of this triple is on, and
+/// `on`/`off` the letters that bit shows with and without execute.
+fn triple(mut out: List[byte], bits: int, special: bool, on: int, off: int) {
+    (mut out).push((if bits / 4 % 2 == 1 then 114 else 45) as byte)
+    (mut out).push((if bits / 2 % 2 == 1 then 119 else 45) as byte)
+    let x = bits % 2 == 1
+    if special {
+        (mut out).push((if x then on else off) as byte)
+    } else {
+        (mut out).push((if x then 120 else 45) as byte)
+    }
+}
+
+/// The ten characters `ls -l` and `stat %A` print: the type, then
+/// `rwx` for owner, group and other, with `s`/`S` for set-user-id and
+/// set-group-id and `t`/`T` for the sticky bit (lower case over an
+/// execute bit, upper case without one). `mode` is the low twelve bits.
+pub fn mode_text(kind: int, mode: int) -> str {
+    var out = List[byte]()
+    for b in kind_letter(kind).bytes() {
+        (mut out).push(b)
+    }
+    triple(mut out, mode / 64 % 8, mode / 2048 % 2 == 1, 115, 83)
+    triple(mut out, mode / 8 % 8, mode / 1024 % 2 == 1, 115, 83)
+    triple(mut out, mode % 8, mode / 512 % 2 == 1, 116, 84)
+    str_from_utf8(out) else "??????????"
+}
+
+/// A device number's major part, as linux packs one in 64 bits
+/// (`makedev`: twelve low major bits at bit 8, the rest at bit 32).
+pub fn dev_major(dev: int) -> int {
+    let d: wrapping[u64] = dev as wrapping[u64]
+    let hi = d >> 32 & 0xfffff000
+    let lo = d >> 8 & 0xfff
+    (hi | lo) as int
+}
+
+/// A device number's minor part (eight low bits, the rest at bit 12).
+pub fn dev_minor(dev: int) -> int {
+    let d: wrapping[u64] = dev as wrapping[u64]
+    let hi = d >> 12 & 0xffffff00
+    let lo = d & 0xff
+    (hi | lo) as int
+}
+
+/// `n` bytes the way GNU's `-h` and `--si` print a size: as it is below
+/// one unit; else in the largest unit that leaves it at least 1, with
+/// one decimal below 10 and none from 10 up, always rounded UP (measured
+/// against 9.11: 5000 is `4.9K` and `5.0k`, 1 MiB less a byte is
+/// `1.0M`). `si` is powers of 1000 and a lower-case `k`.
+pub fn human(n: int, si: bool) -> str {
+    let base = if si then 1000 else 1024
+    if n < base {
+        return "{n}"
+    }
+    let units = if si then "kMGTPE" else "KMGTPE"
+    var div: int = base
+    var power = 0
+    while n / div >= base {
+        div *= base
+        power += 1
+    }
+    var whole = n / div
+    var rem = n % div
+    var scale = div
+    // Keep `rem * 10` inside an int for the largest unit.
+    var inexact = false
+    while scale > 100000000000000000 {
+        if rem % base != 0 {
+            inexact = true
+        }
+        rem = rem / base
+        scale = scale / base
+    }
+    if whole < 10 {
+        var tenths = whole * 10 + rem * 10 / scale
+        if rem * 10 % scale != 0 || inexact {
+            tenths += 1
+        }
+        if tenths < 100 {
+            return "{tenths / 10}.{tenths % 10}{units[power..power + 1]}"
+        }
+        whole = 10
+        rem = 0
+        inexact = false
+    }
+    if rem > 0 || inexact {
+        whole += 1
+    }
+    if whole >= base && power + 1 < units.len {
+        return "1.0{units[power + 1..power + 2]}"
+    }
+    "{whole}{units[power..power + 1]}"
+}
