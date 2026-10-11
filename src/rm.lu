@@ -1,0 +1,666 @@
+//! member: false
+//!
+//! rm — remove files, and with -r whole directories.
+//!
+//! References consulted: POSIX.1-2024 `rm`; GNU coreutils 9.11
+//! `rm --help`, the info manual's `rm invocation` and "Treating /
+//! specially" nodes, and black-box runs of the GNU binary on linux
+//! x86-64, every one of them inside a scratch directory (kasumi
+//! `~/lanes/bu21/gx.sh`), under `LC_ALL=C`. Never GNU source, nor any
+//! other implementation's.
+//!
+//! GNU's rules, each measured against 9.11 unless it says otherwise:
+//!
+//! - A FILE is unlinked (`fs_remove`); a link is removed and what it
+//!   names is not. A failure is `rm: cannot remove 'NAME': reason`,
+//!   status 1, and the rest are still tried. `-f` makes a name that is
+//!   not there (or lies under a file) no failure, says nothing, and
+//!   needs no operand; it forgives nothing else.
+//! - A directory is `Is a directory` unless `-d` (empty ones only:
+//!   `rmdir`) or `-r`.
+//! - `-r` removes a directory's contents, then it. It NEVER follows a
+//!   link it meets: the link is unlinked. An operand that is a link to
+//!   a directory is unlinked too — but named with a trailing slash the
+//!   HOST resolves it, so `rm -r link/` empties the directory and then
+//!   fails to remove `link/` itself (`Not a directory`). A directory
+//!   one of whose entries stayed is left without a word. One that
+//!   cannot be listed is tried anyway (it may be empty) and otherwise
+//!   reported with the listing's reason.
+//! - `-r .`, `-r ..` and any operand ending in one are skipped:
+//!   `refusing to remove '.' or '..' directory: skipping 'NAME'`.
+//! - `-i` asks before each removal and before descending, on standard
+//!   error, naming the kind (`regular file`, `regular empty file`,
+//!   `symbolic link`, `directory`, `fifo`, `socket`), and takes a line
+//!   beginning `y` or `Y` as yes; anything else, the end of input
+//!   included, leaves the file and is no failure. `-I` asks once, for
+//!   more than three operands or under `-r`. `--interactive=WHEN`
+//!   spells both; the last of `-f`, `-i`, `-I` wins.
+//! - `-v` prints `removed 'NAME'` or `removed directory 'NAME'`.
+//! - An option that is not one, when a file of that name exists, earns
+//!   the hint `Try 'rm ./-x' to remove the file '-x'.`
+//!
+//! **The root.** `rm -r` refuses an operand that IS the root directory,
+//! whatever it is spelled (`bore.rm_verdict`: the operand's device and
+//! inode are `/`'s), and the walk refuses to enter any directory whose
+//! record is the root's. GNU's words for it — `it is dangerous to
+//! operate recursively on '/'` and `use --no-preserve-root to override
+//! this failsafe` — are NOT measured: no `rm` is ever run on `/` by
+//! this project, GNU's included. They are written from the manual's
+//! description and from memory of the message, and are the one
+//! diagnostic in this file no case compares. The refusal itself is
+//! unit-tested (`src/change_test.lu`).
+//!
+//! **What this program cannot do, and does not pretend to.**
+//!
+//! - **`--no-preserve-root` is refused by name**, status 1, nothing
+//!   removed. It exists to let `rm -r /` run; this program will not.
+//! - **`--preserve-root=all`** (skip an operand on another device than
+//!   its parent) is not written yet, and is refused by name.
+//! - **"May I write it?" is read from the owner's write bit.** GNU asks
+//!   the host whether THIS process may write a file (`access`), to say
+//!   `write-protected` in a prompt and to ask at a terminal before
+//!   removing such a file without `-f`. wolf has no such question and
+//!   no user id (wolf-lang#633), so a file is called write-protected
+//!   when its owner may not write it — right for the owner, wrong for
+//!   root and for a file that is somebody else's.
+//! - **The walk is by path** (wolf-lang#707). GNU holds each directory
+//!   open and names entries relative to it; wolf can only name a whole
+//!   path. So a tree deeper than the host's path limit cannot be
+//!   removed here; and a directory that something else swaps for a link
+//!   between this program's `lstat` of it and its listing is followed,
+//!   where GNU's is not. The record is read immediately before the
+//!   listing to keep that window as small as a path walk allows.
+//! - A name that is not UTF-8 can be listed and not removed
+//!   (wolf-lang#687): it is reported, and its directory stays.
+//! - `fs_remove_dir_all` is never called: this walk is the only
+//!   recursive removal in the repository.
+
+use bore
+
+/// What governs one run.
+struct Cfg {
+    force: bool,
+    /// 0 never ask, 1 ask when a file is write-protected and standard
+    /// input is a terminal (the default), 2 the same after one question
+    /// for the whole command (`-I`), 3 always (`-i`).
+    ask: int,
+    recursive: bool,
+    dirs: bool,
+    verbose: bool,
+    one_fs: bool,
+    tty: bool,
+}
+
+/// How one removal ended.
+fn removed() -> int {
+    0
+}
+
+/// The user said no to a file: it stays, and that is no failure. Its
+/// directory is still asked about, and the host then refuses it.
+fn kept() -> int {
+    1
+}
+
+/// The user said no to a directory before anything was done to it —
+/// would not descend, or would not remove an empty one — or something
+/// below it failed or was so refused. No failure by itself, and every
+/// directory above it stays too, without a word. (Measured: after such
+/// a "no" GNU does not ask about the parent; after "no" to a file, or
+/// to removing a directory it has just emptied, it does ask, and the
+/// host then refuses the parent as not empty.)
+fn kept_directory() -> int {
+    3
+}
+
+fn failed() -> int {
+    2
+}
+
+fn main() -> int {
+    let args = env_args()
+    let p = bore.parse(options(), args, bore.permute())
+    var out = bore.stdout()
+    var c = Cfg {
+        force: false,
+        ask: 1,
+        recursive: false,
+        dirs: false,
+        verbose: false,
+        one_fs: false,
+        tty: false,
+    }
+    var refused = ""
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i]
+        if k == "help" {
+            bore.put(mut out, help()) else |_| {}
+            return bore.finish(mut out, "rm", 0)
+        }
+        if k == "version" {
+            bore.put(mut out, bore.version_text("rm")) else |_| {}
+            return bore.finish(mut out, "rm", 0)
+        }
+        if k == "force" {
+            c.force = true
+            c.ask = 0
+        } else if k == "i" {
+            c.force = false
+            c.ask = 3
+        } else if k == "I" {
+            c.force = false
+            c.ask = 2
+        } else if k == "interactive" {
+            var asked = 3
+            if p.given[i] {
+                asked = bore.argmatch(p.values[i], when_words(), when_means())
+                if asked < 0 {
+                    return bore.argmatch_error(
+                        "rm",
+                        p.values[i],
+                        "interactive",
+                        when_words(),
+                        when_means(),
+                        asked == -2,
+                    )
+                }
+            }
+            c.ask = asked
+            if asked != 0 {
+                c.force = false
+            }
+        } else if k == "recursive" || k == "R" {
+            c.recursive = true
+        } else if k == "dir" {
+            c.dirs = true
+        } else if k == "verbose" {
+            c.verbose = true
+        } else if k == "one-file-system" {
+            c.one_fs = true
+        } else if k == "no-preserve-root" {
+            if !spelled_whole(args) {
+                bore.warn("rm", "you may not abbreviate the --no-preserve-root option")
+                return 1
+            }
+            if refused.len == 0 {
+                refused = "--no-preserve-root is refused: this rm does not remove '/'"
+            }
+        } else if k == "preserve-root" && p.given[i] {
+            if p.values[i] != "all" {
+                bore.warn(
+                    "rm",
+                    "unrecognized --preserve-root argument: {bore.quote_always(p.values[i])}",
+                )
+                return 1
+            }
+            if refused.len == 0 {
+                refused = "--preserve-root=all is not written yet"
+            }
+        }
+        i += 1
+    }
+    if !bore.ok(p) {
+        eprint("rm: {p.error}")
+        hint(args)
+        eprint("Try 'rm --help' for more information.")
+        return 1
+    }
+    if refused.len > 0 {
+        bore.warn("rm", refused)
+        return 1
+    }
+    if p.operands.len == 0 {
+        if c.force {
+            return 0
+        }
+        return bore.usage_error("rm", "missing operand")
+    }
+    if c.ask == 1 || c.ask == 2 {
+        c.tty = os_isatty(0) else false
+    }
+    if c.ask == 2 && (c.recursive || p.operands.len > 3) {
+        let n = p.operands.len
+        let what = if n == 1 then "argument" else "arguments"
+        let how = if c.recursive then " recursively" else ""
+        eprint_raw("rm: remove {n} {what}{how}? ")
+        if !bore.said_yes() {
+            return 0
+        }
+    }
+    var status = 0
+    for name in p.operands {
+        if operand(mut out, c, name) == failed() {
+            status = 1
+        }
+    }
+    bore.finish(mut out, "rm", status)
+}
+
+/// GNU's vocabulary for `--interactive=WHEN`, synonyms side by side.
+fn when_words() -> List[str] {
+    var w = List[str]()
+    (mut w).push("never")
+    (mut w).push("no")
+    (mut w).push("none")
+    (mut w).push("once")
+    (mut w).push("always")
+    (mut w).push("yes")
+    w
+}
+
+/// What each of `when_words` means, as `Cfg.ask`.
+fn when_means() -> List[int] {
+    var m = List[int]()
+    (mut m).push(0)
+    (mut m).push(0)
+    (mut m).push(0)
+    (mut m).push(2)
+    (mut m).push(3)
+    (mut m).push(3)
+    m
+}
+
+/// Whether `--no-preserve-root` was written out in full: GNU refuses
+/// any abbreviation of it, by name.
+fn spelled_whole(args: List[str]) -> bool {
+    for a in args {
+        if a == "--" {
+            break
+        }
+        if a == "--no-preserve-root" {
+            return true
+        }
+    }
+    false
+}
+
+/// GNU's hint after a bad option: an argument that begins with `-` and
+/// names a file that exists was probably meant as a file.
+fn hint(args: List[str]) {
+    for a in args {
+        if a.starts_with("-") && a.len > 1 && exists(a) {
+            eprint("Try 'rm ./{bore.quote_name(a)}' to remove the file {bore.quote_always(a)}.")
+            return
+        }
+    }
+}
+
+fn is_link(path: str) -> bool {
+    let r = fs_lstat(path) else |_| {
+        return false
+    }
+    bore.rec_kind(r) == bore.kind_link()
+}
+
+fn exists(path: str) -> bool {
+    let _ = fs_lstat(path) else |_| {
+        return false
+    }
+    true
+}
+
+fn cannot(name: str, why: str) {
+    bore.warn("rm", "cannot remove {bore.quote_always(name)}: {why}")
+}
+
+/// An operand as GNU shows and uses it: a run of trailing slashes is
+/// one slash (`d//` is `d/`).
+fn shown(name: str) -> str {
+    if !name.ends_with("//") {
+        return name
+    }
+    let bare = bore.without_slashes(name)
+    if bare == "/" {
+        return bare
+    }
+    "{bare}/"
+}
+
+/// Remove one operand.
+fn operand(mut out: bore.Out, c: Cfg, typed: str) -> int {
+    let name = shown(typed)
+    let verdict = bore.rm_verdict(name, c.recursive, true)
+    if verdict == bore.rm_refuse_dot() {
+        bore.warn(
+            "rm",
+            "refusing to remove '.' or '..' directory: skipping {bore.quote_always(name)}",
+        )
+        return failed()
+    }
+    if verdict == bore.rm_refuse_root() {
+        refuse_root(name)
+        return failed()
+    }
+    var why = ""
+    let rec = fs_lstat(name) else |_| {
+        why = bore.io_error()
+        List[int]()
+    }
+    if why.len > 0 {
+        if why == bore.no_such_file() &&
+            name.ends_with("/") &&
+            is_link(bore.without_slashes(name)) {
+            // A dangling link named with a slash: the host would not
+            // look past it. GNU sees the link and lets the host refuse
+            // the removal instead (`Not a directory`).
+            return unlink(mut out, c, name)
+        }
+        if c.force && (why == bore.no_such_file() || why == "Not a directory") {
+            return removed()
+        }
+        cannot(name, why)
+        return failed()
+    }
+    if bore.rec_kind(rec) != bore.kind_dir() {
+        return file(mut out, c, name, rec)
+    }
+    if c.recursive {
+        return tree(mut out, c, name, rec, bore.rec_dev(rec))
+    }
+    if c.dirs {
+        return empty_directory(mut out, c, name, rec)
+    }
+    cannot(name, bore.directory_reason())
+    failed()
+}
+
+/// The refusal of the root. See the header: these two lines are not
+/// measured against GNU.
+fn refuse_root(name: str) {
+    if name == "/" {
+        bore.warn("rm", "it is dangerous to operate recursively on '/'")
+    } else {
+        bore.warn(
+            "rm",
+            "it is dangerous to operate recursively on {bore.quote_always(name)} (same as '/')",
+        )
+    }
+    bore.warn("rm", "use --no-preserve-root to override this failsafe")
+}
+
+/// Whether the owner may not write what `rec` describes — this
+/// program's stand-in for "may I write it?" (wolf-lang#633).
+fn protected(rec: List[int]) -> bool {
+    bore.rec_mode(rec) / 128 % 2 == 0
+}
+
+/// Whether to ask before removing what `rec` describes.
+fn asks(c: Cfg, rec: List[int]) -> bool {
+    if c.ask == 3 {
+        return true
+    }
+    if c.ask == 0 || !c.tty {
+        return false
+    }
+    bore.rec_kind(rec) != bore.kind_link() && protected(rec)
+}
+
+/// GNU's name for the kind of file `rec` describes, in a question.
+fn kind_words(rec: List[int]) -> str {
+    let k = bore.rec_kind(rec)
+    var words = "weird file"
+    if k == bore.kind_file() {
+        words = if bore.rec_size(rec) == 0 then "regular empty file" else "regular file"
+    } else if k == bore.kind_dir() {
+        words = "directory"
+    } else if k == bore.kind_link() {
+        return "symbolic link"
+    } else if k == bore.kind_fifo() {
+        words = "fifo"
+    } else if k == bore.kind_socket() {
+        words = "socket"
+    } else if k == bore.kind_char() {
+        words = "character special file"
+    } else if k == bore.kind_block() {
+        words = "block special file"
+    }
+    if protected(rec) {
+        return "write-protected {words}"
+    }
+    words
+}
+
+/// Ask `rm: VERB KIND 'NAME'? ` and answer whether the reply was a yes.
+/// Standard output is written first, so that what `-v` has said so far
+/// is on the terminal before the question is.
+fn confirm(mut out: bore.Out, verb: str, rec: List[int], name: str) -> bool {
+    bore.flush(mut out) else |_| {}
+    eprint_raw("rm: {verb} {kind_words(rec)} {bore.quote_always(name)}? ")
+    bore.said_yes()
+}
+
+fn say(mut out: bore.Out, c: Cfg, what: str, name: str) {
+    if c.verbose {
+        bore.put(mut out, "{what} {bore.quote_always(name)}\n") else |_| {}
+    }
+}
+
+/// Remove one thing that is not a directory.
+fn file(mut out: bore.Out, c: Cfg, name: str, rec: List[int]) -> int {
+    if asks(c, rec) && !confirm(mut out, "remove", rec, name) {
+        return kept()
+    }
+    unlink(mut out, c, name)
+}
+
+fn unlink(mut out: bore.Out, c: Cfg, name: str) -> int {
+    var why = ""
+    fs_remove(name) else |_| {
+        why = bore.io_error()
+    }
+    if why.len > 0 {
+        if c.force && why == bore.no_such_file() {
+            return removed()
+        }
+        cannot(name, why)
+        return failed()
+    }
+    say(mut out, c, "removed", name)
+    removed()
+}
+
+/// `rm -d DIR`: an empty directory, and only that.
+fn empty_directory(mut out: bore.Out, c: Cfg, name: str, rec: List[int]) -> int {
+    if asks(c, rec) {
+        // The question is asked of an empty directory only, so it has
+        // to be looked into first; one that holds something is refused
+        // as if `-d` had not been given.
+        var why = ""
+        let entries = fs_read_dir_entries(name) else |_| {
+            why = bore.io_error()
+            List[List[byte]]()
+        }
+        if why.len > 0 {
+            cannot(name, why)
+            return failed()
+        }
+        if entries.len > 0 {
+            cannot(name, bore.directory_reason())
+            return failed()
+        }
+        if !confirm(mut out, "remove", rec, name) {
+            return kept()
+        }
+    }
+    rmdir(mut out, c, name)
+}
+
+fn rmdir(mut out: bore.Out, c: Cfg, name: str) -> int {
+    var why = ""
+    fs_remove_dir(name) else |_| {
+        why = bore.io_error()
+    }
+    if why.len > 0 {
+        cannot(name, why)
+        return failed()
+    }
+    say(mut out, c, "removed directory", name)
+    removed()
+}
+
+/// `rm -r DIR`: everything in the directory `name`, then it. `rec` is
+/// its record, read without following a link, and `device` the device
+/// of the operand this walk started from.
+fn tree(mut out: bore.Out, c: Cfg, name: str, rec: List[int], device: int) -> int {
+    // The second fence. The first is `bore.rm_verdict` on the operand.
+    if bore.record_is_root(rec) {
+        refuse_root(name)
+        return failed()
+    }
+    if c.one_fs && bore.rec_dev(rec) != device {
+        bore.warn("rm", "skipping {bore.quote_always(name)}, since it's on a different device")
+        return failed()
+    }
+    var why = ""
+    let entries = fs_read_dir_entries(name) else |_| {
+        why = bore.io_error()
+        List[List[byte]]()
+    }
+    if why.len > 0 {
+        // It cannot be listed. It may still be empty, which only the
+        // host can say — but a question needs the answer first.
+        if c.ask == 3 {
+            cannot(name, why)
+            return failed()
+        }
+        var gone = true
+        fs_remove_dir(name) else |_| {
+            gone = false
+        }
+        if !gone {
+            cannot(name, why)
+            return failed()
+        }
+        say(mut out, c, "removed directory", name)
+        return removed()
+    }
+    if entries.len == 0 {
+        if asks(c, rec) && !confirm(mut out, "remove", rec, name) {
+            // Asked BEFORE anything was done to it, as a descent is.
+            return kept_directory()
+        }
+        return rmdir(mut out, c, name)
+    }
+    if asks(c, rec) && !confirm(mut out, "descend into", rec, name) {
+        return kept_directory()
+    }
+    let inside = bore.without_slashes(name)
+    var stays = false
+    var any_failed = false
+    for e in entries {
+        let end = entry(mut out, c, inside, e, device)
+        if end == failed() {
+            any_failed = true
+            stays = true
+        } else if end == kept_directory() {
+            stays = true
+        }
+    }
+    if stays {
+        // A failure or a kept directory below: this one stays, without
+        // a word.
+        return if any_failed then failed() else kept_directory()
+    }
+    if asks(c, rec) && !confirm(mut out, "remove", rec, name) {
+        return kept()
+    }
+    rmdir(mut out, c, name)
+}
+
+/// One entry of the directory `dir`: `e` is its kind and then its name
+/// (`[os.fs.readdir]`).
+fn entry(mut out: bore.Out, c: Cfg, dir: str, e: List[byte], device: int) -> int {
+    var raw = List[byte]()
+    var i = 1
+    while i < e.len {
+        (mut raw).push(e[i])
+        i += 1
+    }
+    var named = true
+    let base = str_from_utf8(raw) else |_| {
+        named = false
+        ""
+    }
+    if !named {
+        bore.warn(
+            "rm",
+            "cannot remove an entry of {bore.quote_always(dir)}: its name is not UTF-8, and wolf cannot name it (wolf-lang#687)",
+        )
+        return failed()
+    }
+    let path = bore.join_name(dir, base)
+    let kind = e[0] as int
+    let plain = kind != bore.kind_dir() && kind != bore.kind_link() && kind != bore.kind_other()
+    if plain && c.ask != 3 && !c.tty {
+        // The directory itself said this is no directory and no link,
+        // and no question depends on its record: unlink it unseen.
+        return unlink(mut out, c, path)
+    }
+    // A directory, a link, or a kind the host did not give: the record
+    // decides, read WITHOUT following a link, immediately before use.
+    var why = ""
+    let rec = fs_lstat(path) else |_| {
+        why = bore.io_error()
+        List[int]()
+    }
+    if why.len > 0 {
+        if c.force && why == bore.no_such_file() {
+            return removed()
+        }
+        cannot(path, why)
+        return failed()
+    }
+    if bore.rec_kind(rec) == bore.kind_dir() {
+        return tree(mut out, c, path, rec, device)
+    }
+    file(mut out, c, path, rec)
+}
+
+fn options() -> List[bore.Opt] {
+    var s = List[bore.Opt]()
+    (mut s).push(bore.flag("f", "force"))
+    (mut s).push(bore.flag("i", ""))
+    (mut s).push(bore.flag("I", ""))
+    (mut s).push(bore.optional("", "interactive"))
+    (mut s).push(bore.flag("", "one-file-system"))
+    (mut s).push(bore.flag("", "no-preserve-root"))
+    (mut s).push(bore.optional("", "preserve-root"))
+    (mut s).push(bore.flag("r", "recursive"))
+    (mut s).push(bore.flag("R", ""))
+    (mut s).push(bore.flag("d", "dir"))
+    (mut s).push(bore.flag("v", "verbose"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    s
+}
+
+fn help() -> str {
+    """
+    Usage: rm [OPTION]... [FILE]...
+    Remove each FILE. A directory is removed only with -d (when empty)
+    or -r (with everything in it).
+
+      -f, --force           a FILE that is not there is no failure; never ask
+      -i                    ask before every removal
+      -I                    ask once, before removing more than three
+                            files or removing recursively
+          --interactive[=WHEN]  ask never, once (-I) or always (-i);
+                            with no WHEN, always
+          --one-file-system  under -r, skip a directory on another
+                            file system than its operand
+          --preserve-root   never remove '/' (always in effect)
+          --no-preserve-root  (refused: this rm does not remove '/')
+      -r, -R, --recursive   remove directories and what they hold
+      -d, --dir             remove empty directories
+      -v, --verbose         say what was removed
+          --help            print this help and exit
+          --version         print the version and exit
+
+    A link is removed, never followed. '.' and '..' are never removed.
+    To remove a file whose name starts with '-', say 'rm ./-name' or
+    'rm -- -name'.
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}
