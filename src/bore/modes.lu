@@ -251,13 +251,32 @@ fn class_of(mode: int, cls: int) -> int {
 /// `mode` after `m`, for a file (`dir` false) or a directory, under the
 /// process's creation mask `umask`. Twelve bits in, twelve out.
 pub fn apply_mode(m: Mode, mode: int, dir: bool, umask: int) -> int {
+    applied(m, mode, dir, umask).mode
+}
+
+/// The bits `m` decides — sets, clears or copies — on `mode`: what GNU's
+/// `mkdir -m` checks after `mkdir(2)` to know whether the directory came
+/// out as asked (bu22, measured under `strace`). A number of four digits
+/// or fewer on a directory decides everything but the set-id bits it
+/// leaves clear.
+pub fn mode_touches(m: Mode, mode: int, dir: bool, umask: int) -> int {
+    applied(m, mode, dir, umask).touched
+}
+
+struct Applied {
+    mode: int,
+    touched: int,
+}
+
+fn applied(m: Mode, mode: int, dir: bool, umask: int) -> Applied {
     if m.plain {
         if dir && !m.exact {
-            return m.value | mode & 3072
+            return Applied { mode: m.value | mode & 3072, touched: 1023 | m.value & 3072 }
         }
-        return m.value
+        return Applied { mode: m.value, touched: 4095 }
     }
     var cur = mode % 4096
+    var touched = 0
     var k = 0
     while k + width() <= m.acts.len {
         let who = m.acts[k]
@@ -269,10 +288,13 @@ pub fn apply_mode(m: Mode, mode: int, dir: bool, umask: int) -> int {
         if number >= 0 {
             if op == 43 {
                 cur = cur | number
+                touched = touched | number
             } else if op == 45 {
                 cur = cur & 4095 - number
+                touched = touched | number
             } else {
                 cur = number
+                touched = 4095
             }
             continue
         }
@@ -315,8 +337,10 @@ pub fn apply_mode(m: Mode, mode: int, dir: bool, umask: int) -> int {
         }
         if op == 43 {
             cur = cur | bits
+            touched = touched | bits
         } else if op == 45 {
             cur = cur & 4095 - bits
+            touched = touched | bits
         } else {
             var clear = class_bits(all)
             if all / 4 % 2 == 1 {
@@ -331,9 +355,10 @@ pub fn apply_mode(m: Mode, mode: int, dir: bool, umask: int) -> int {
                 }
             }
             cur = cur & 4095 - clear | bits
+            touched = touched | clear | bits
         }
     }
-    cur
+    Applied { mode: cur, touched: touched }
 }
 
 /// Whether `m` has a symbolic action with no `who`: the only kind the
