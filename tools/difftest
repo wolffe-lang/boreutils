@@ -160,6 +160,33 @@ Case file (TOML, one file per utility, any number of [[case]] tables):
                                  #   every host; this is how what `mkdir`
                                  #   and `cp` do under another mask is
                                  #   seen.
+  times = true                   # optional (bu22): a scratch case also
+                                 #   compares a sixth field, `times`:
+                                 #   every entry's access and
+                                 #   modification time TO THE
+                                 #   NANOSECOND, a link's own included,
+                                 #   read without following anything. A
+                                 #   time that falls inside the side's
+                                 #   own case (from just before its
+                                 #   tree is laid out to just after
+                                 #   the program ended) is `now`, never
+                                 #   a number,
+                                 #   because the two sides run at two
+                                 #   instants; any other time compares
+                                 #   exactly. So a case that must see
+                                 #   a time SET to now gives that entry
+                                 #   a fixture time first. A time in the
+                                 #   three scratch time keys may be
+                                 #   "S.NNNNNNNNN" (seconds and nine
+                                 #   digits) for a time with nanoseconds.
+                                 #   tests/selftest/tee.toml is the
+                                 #   gate on it.
+  skip_on = { Darwin = "why" }   # optional (bu22): a SKIP, with the
+                                 #   reason given, on the named host
+                                 #   (`platform.system()`), and a run
+                                 #   everywhere else: for a difference
+                                 #   one host makes and the other does
+                                 #   not, named where it is met.
   accounts = true                # optional (bu20): the case prints an
                                  #   owner's or a group's NAME. boreutils
                                  #   reads names from /etc/passwd and
@@ -278,7 +305,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CASES = os.path.join(ROOT, "tests", "cases")
 FIXTURES = os.path.join(ROOT, "tests", "fixtures")
 ALL = ("stdout", "stderr", "exit")
-FIELDS = ALL + ("files", "offset", "tree")
+FIELDS = ALL + ("files", "offset", "tree", "times")
 # The utilities that change the file system (bu21): see the docstring.
 CHANGERS = ("mkdir", "rmdir", "rm", "mv", "cp", "touch", "ln", "chmod")
 KEYS = {"name", "args", "stdin", "stdin_file", "stdin_offset", "requires",
@@ -288,7 +315,8 @@ KEYS = {"name", "args", "stdin", "stdin_file", "stdin_offset", "requires",
         "scratch_dirs", "scratch_links", "scratch_modes", "scratch_times",
         "cwd", "tree", "tty", "scratch_fifos", "scratch_sockets",
         "scratch_hardlinks", "scratch_atimes", "scratch_time_all",
-        "scratch_keep", "mask", "scratch_sizes", "accounts", "umask"}
+        "scratch_keep", "mask", "scratch_sizes", "accounts", "umask",
+        "times", "skip_on"}
 # Naming any of these gives a case a scratch directory and a `files` field.
 SCRATCH = ("scratch", "scratch_dirs", "scratch_links", "scratch_modes",
            "scratch_times", "cwd", "scratch_fifos", "scratch_sockets",
@@ -521,6 +549,10 @@ def instant(value, now):
     """A case's TIME in nanoseconds: seconds from the epoch, or "now-N" /
     "now+N" against the one instant the case was given."""
     if isinstance(value, str):
+        exact = re.fullmatch(r"(-?\d+)\.(\d{9})", value)
+        if exact:
+            sec, frac = int(exact.group(1)), int(exact.group(2))
+            return sec * 1_000_000_000 + (frac if sec >= 0 else -frac)
         m = re.fullmatch(r"now([+-]\d+)?", value)
         if not m:
             die(f"a scratch time is seconds or 'now-N'/'now+N', not {value!r}")
@@ -676,6 +708,26 @@ def tree(top, now):
     return sorted(seen)
 
 
+def stamps(top, start, end):
+    """Every entry's access and modification time, to the nanosecond, a
+    link's own (never followed), the top included; a time inside
+    [start, end] (the side's own run) is "now". bu22."""
+    def word(t):
+        return "now" if start <= t <= end else t
+    def entry(path, rel):
+        try:
+            st = os.lstat(path)
+        except OSError as e:
+            return (rel, "unseen", e.errno)
+        return (rel, word(st.st_atime_ns), word(st.st_mtime_ns))
+    seen = [entry(top, ".")]
+    for root, dirs, files in os.walk(top):
+        for n in dirs + files:
+            path = os.path.join(root, n)
+            seen.append(entry(path, os.path.relpath(path, top)))
+    return sorted(seen, key=lambda e: e[0])
+
+
 def substitute(value, top):
     return value if top is None else value.replace("{scratch}", top)
 
@@ -685,6 +737,11 @@ def run(exe, argv0, case, base_env, top=None, now=0, fresh=True):
     env.update(base_env)
     env.update({k: substitute(v, top) for k, v in case.get("env", {}).items()})
     cwd = ROOT
+    # The side's own window, for `times` (bu22): from a little before
+    # its tree is laid out (a file system stamps with a coarser clock
+    # than the one read here) to a little after the program has gone.
+    # A time the fixture did not set is inside it, and so is "now".
+    started = time.time_ns() - 20_000_000
     if top is not None:
         if fresh:
             populate(case, top, now)
@@ -782,6 +839,7 @@ def run(exe, argv0, case, base_env, top=None, now=0, fresh=True):
     if top is not None:
         result["files"] = snapshot(top)
         result["tree"] = tree(top, now)
+        result["times"] = stamps(top, started, time.time_ns() + 20_000_000)
     return result
 
 
@@ -837,6 +895,8 @@ def run_tty(exe, argv0, case, env, cwd, stdin, data, timeout, cols, top, now=0):
     if top is not None:
         result["files"] = snapshot(top)
         result["tree"] = tree(top, now)
+        # No window is taken on a terminal: every time is a number.
+        result["times"] = stamps(top, 0, -1)
     return result
 
 
@@ -981,7 +1041,7 @@ def load(path, util=None):
             if f == "offset" and "stdin_offset" not in c:
                 die(f"{path}: case {c['name']!r} compares the offset and "
                     f"sets none")
-            if f in ("files", "tree") and not has_scratch(c):
+            if f in ("files", "tree", "times") and not has_scratch(c):
                 die(f"{path}: case {c['name']!r} compares {f} and has "
                     f"no scratch directory")
     return cases
@@ -1089,6 +1149,11 @@ def main(argv):
                 skipped += 1
                 print(f"SKIP {label} ({bound})")
                 continue
+            host = platform.system()
+            if host in case.get("skip_on", {}):
+                skipped += 1
+                print(f"SKIP {label} (on {host}: {case['skip_on'][host]})")
+                continue
             need = case.get("requires")
             if need is not None and not os.path.exists(need):
                 skipped += 1
@@ -1114,6 +1179,8 @@ def main(argv):
             if has_scratch(case):
                 if "compare" not in case:
                     fields = tuple(fields) + ("files", "tree")
+                    if case.get("times"):
+                        fields = tuple(fields) + ("times",)
                 # One path for both sides, emptied between them, so a
                 # path either one prints is the same path.
                 holder = tempfile.mkdtemp(prefix="bore-scratch.", dir=root)

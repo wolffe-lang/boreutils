@@ -70,3 +70,27 @@ umask = 0o066
 scratch = { "a" = "x\n" }
 scratch_modes = { "a" = 0o666 }
 compare = ["tree"]
+
+# The `times` field (bu22). `tee a` writes `a`, so its modification time
+# is the run's own ("now"); GNU `true` leaves the fixture's time, to the
+# nanosecond. Compared on `times` alone this passes the harness only by
+# failing.
+[[case]]
+name = "a time one side sets"
+args = ["a"]
+gnu_util = "true"
+scratch = { "a" = "x\n" }
+scratch_times = { "a" = "1000000000.123456789" }
+compare = ["times"]
+
+# And its control: the same program on both sides, a second file left
+# alone at a time with nanoseconds, compares equal — "now" for what each
+# side wrote, the exact fixture time for what neither touched.
+[[case]]
+name = "times both sides leave alike"
+args = ["a"]
+stdin = "x\n"
+gnu_util = "tee"
+scratch = { "a" = "x\n", "b" = "y\n" }
+scratch_times = { "a" = "1000000000.123456789", "b" = "1200000000.000000007" }
+compare = ["times"]

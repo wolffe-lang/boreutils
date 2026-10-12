@@ -33,7 +33,8 @@ for planted in "true: true is not false" \
                "head: an offset one side moves" \
                "echo: what a terminal received" \
                "echo: a mask hides only what it names" \
-               "tee: two names of one file"; do
+               "tee: two names of one file" \
+               "tee: a time one side sets"; do
     if ! echo "$out" | grep -qF "FAIL $planted"; then
         echo "difftest-selftest: REFUSED — the plant '$planted' did not fail:"
         echo "$out"
@@ -46,7 +47,8 @@ done
 # the two `umask` controls pass only when the mask reached both sides.
 for control in "tee: two names of one file, by bytes alone" \
                "tee: a mask reaches our side" \
-               "tee: a mask reaches both sides or neither"; do
+               "tee: a mask reaches both sides or neither" \
+               "tee: times both sides leave alike"; do
     if ! echo "$out" | grep -qxF "ok   $control"; then
         echo "difftest-selftest: REFUSED — the control '$control' did not pass:"
         echo "$out"
