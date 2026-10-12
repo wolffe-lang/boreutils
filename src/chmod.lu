@@ -1,0 +1,590 @@
+//! member: false
+//!
+//! chmod — change a file's mode bits.
+//!
+//! References consulted: POSIX.1-2024 `chmod`; GNU coreutils 9.11
+//! `chmod --help`, the info manual's `chmod invocation` and `File
+//! permissions` nodes, and black-box runs of the GNU binary in
+//! throwaway containers (kasumi `~/lanes/bu22/probes/pchmod*.sh`), under
+//! `LC_ALL=C`. Never GNU source, nor any other implementation's. The
+//! MODE itself is `bore.modes`.
+//!
+//! GNU's rules, each measured against 9.11:
+//!
+//! - `chmod MODE FILE...`, `chmod --reference=RFILE FILE...`. A MODE
+//!   that begins with `-` may be given as an option (`chmod -w f`,
+//!   `chmod f -x`); several such are joined with commas, and the first
+//!   operand is then a FILE. A word of options that holds a mode letter
+//!   anywhere is a mode as a whole (`-vw` is the invalid mode `-vw`).
+//!   A mode and `--reference` together are a usage error.
+//! - Each FILE's mode becomes the MODE applied to it (`chmod` follows a
+//!   link it is handed). `-v` says `mode of 'F' changed from 0644
+//!   (rw-r--r--) to 0755 (rwxr-xr-x)` or `mode of 'F' retained as …` on
+//!   standard output, `-c` only the first; a failure is `cannot access
+//!   'F': reason` or `changing permissions of 'F': reason`, and under
+//!   `-v` also `'F' could not be accessed` on standard output. A link
+//!   to nothing is `cannot operate on dangling symlink 'F'`. `-f` keeps
+//!   those quiet; the status is 1 either way.
+//! - A symbolic mode with no `who` that leaves a bit a `-` meant to
+//!   clear (the umask kept it) is `F: new permissions are …, not …` and
+//!   status 1, whatever `-f` says.
+//! - `-R` changes a directory and then what is in it, in the
+//!   directory's own order. A link met inside is neither changed nor
+//!   followed (`neither symbolic link 'F' nor referent has been
+//!   changed`, under `-v`) unless `-L`. A link given as an operand is
+//!   followed, and walked when it names a directory, unless `-P`; `-H`
+//!   is that default by name. `-h` changes no link it is handed at all
+//!   (on linux there is no such thing as a link's own mode to set).
+//!   A directory it cannot list is `cannot read directory 'D'`.
+//! - `--preserve-root` refuses `-R` on `/` (`it is dangerous to operate
+//!   recursively on '/'`); GNU's default is `--no-preserve-root`, and
+//!   so is this one's.
+//!
+//! **What this program cannot do, and does not pretend to.**
+//!
+//! - **`-h` on macOS.** There, GNU changes a link's own mode
+//!   (`lchmod`); wolf has no call for it (`fs_set_mode` follows a final
+//!   link, `[os.fs.mode]`), so a link handed to `chmod -h` is left
+//!   alone and said to be, as GNU says on linux.
+//! - **The walk is by path** (wolf-lang#707), as `rm`'s is: a tree
+//!   deeper than the host's path limit cannot be walked, and a
+//!   directory swapped for a link mid-walk is followed.
+//! - A name that is not UTF-8 can be listed and not named
+//!   (wolf-lang#687): it is reported, and the walk goes on.
+
+use bore
+
+struct Cfg {
+    m: bore.Mode,
+    /// Copy this record's mode instead (`--reference`); empty if not.
+    reference: List[int],
+    verbose: bool,
+    changes: bool,
+    quiet: bool,
+    recursive: bool,
+    /// Which links are followed: 0 none (`-P`), 1 the operands (`-H`,
+    /// the default), 2 all (`-L`).
+    follow: int,
+    /// `-h`: an operand that is a link is not followed.
+    no_deref: bool,
+    umask: int,
+    warns: bool,
+}
+
+fn main() -> int {
+    let args = env_args()
+    // The MODE given as options (`-w`, `-rx,g+s`), lifted out before the
+    // option parser sees words it would call invalid options.
+    var modes = List[str]()
+    var rest = List[str]()
+    var operands_only = false
+    var seen_operand = false
+    let permute = bore.permute()
+    var i = 0
+    while i < args.len {
+        let a = args[i]
+        i += 1
+        if operands_only || a == "-" || !a.starts_with("-") {
+            (mut rest).push(a)
+            seen_operand = true
+            continue
+        }
+        if !permute && seen_operand {
+            (mut rest).push(a)
+            continue
+        }
+        if a == "--" {
+            operands_only = true
+            (mut rest).push(a)
+            continue
+        }
+        if a.starts_with("--") {
+            (mut rest).push(a)
+            // `--reference FILE`: the next word is its argument.
+            if a.starts_with("--ref") && !a.contains("=") && i < args.len {
+                (mut rest).push(args[i])
+                i += 1
+            }
+            continue
+        }
+        if is_mode_word(a) {
+            (mut modes).push(a)
+        } else {
+            (mut rest).push(a)
+        }
+    }
+    let p = bore.parse(options(), rest, permute)
+    var out = bore.stdout()
+    var c = Cfg {
+        m: bore.no_mode(),
+        reference: List[int](),
+        verbose: false,
+        changes: false,
+        quiet: false,
+        recursive: false,
+        follow: 1,
+        no_deref: false,
+        umask: 18,
+        warns: false,
+    }
+    var reference = ""
+    var has_reference = false
+    var preserve = false
+    var k = 0
+    while k < p.keys.len {
+        let key = p.keys[k]
+        if key == "help" {
+            bore.put(mut out, help()) else |_| {}
+            return bore.finish(mut out, "chmod", 0)
+        }
+        if key == "version" {
+            bore.put(mut out, bore.version_text("chmod")) else |_| {}
+            return bore.finish(mut out, "chmod", 0)
+        }
+        if key == "changes" {
+            c.changes = true
+        } else if key == "silent" || key == "quiet" {
+            c.quiet = true
+        } else if key == "verbose" {
+            c.verbose = true
+        } else if key == "recursive" {
+            c.recursive = true
+        } else if key == "reference" {
+            reference = p.values[k]
+            has_reference = true
+        } else if key == "H" {
+            c.follow = 1
+        } else if key == "L" {
+            c.follow = 2
+        } else if key == "P" {
+            c.follow = 0
+        } else if key == "no-dereference" {
+            c.no_deref = true
+        } else if key == "dereference" {
+            c.no_deref = false
+        } else if key == "preserve-root" {
+            preserve = true
+        } else if key == "no-preserve-root" {
+            preserve = false
+        }
+        k += 1
+    }
+    if !bore.ok(p) {
+        return bore.usage_error("chmod", p.error)
+    }
+    var files = copy p.operands
+    var text = ""
+    if modes.len > 0 {
+        text = join_commas(modes)
+    }
+    if has_reference && modes.len > 0 {
+        return bore.usage_error("chmod", "cannot combine mode and --reference options")
+    }
+    if !has_reference && modes.len == 0 {
+        if files.len == 0 {
+            return bore.usage_error("chmod", "missing operand")
+        }
+        text = files[0]
+        files = files[1..]
+        if files.len == 0 {
+            return bore.usage_error("chmod", "missing operand after {bore.quote_always(text)}")
+        }
+    }
+    if files.len == 0 {
+        return bore.usage_error("chmod", "missing operand")
+    }
+    if has_reference {
+        var why = ""
+        let r = fs_stat(reference) else |_| {
+            why = bore.io_error()
+            List[int]()
+        }
+        if why.len > 0 {
+            bore.warn("chmod", "failed to get attributes of {bore.quote_always(reference)}: {why}")
+            return 1
+        }
+        c.reference = r
+    } else {
+        c.m = bore.parse_mode(text) else |_| {
+            bore.warn("chmod", "invalid mode: {bore.quote_always(text)}")
+            eprint("Try 'chmod --help' for more information.")
+            return 1
+        }
+        // Measured: GNU warns only for a MODE given as an option
+        // (`chmod -r f`, `chmod f -r`), never for the same MODE as an
+        // operand (`chmod -- -r f`, `chmod u+x,-r f`).
+        c.warns = modes.len > 0 && bore.mode_uses_umask(c.m)
+        if bore.mode_uses_umask(c.m) {
+            c.umask = bore.current_umask()
+        }
+    }
+    var status = 0
+    for f in files {
+        if c.recursive && preserve && bore.names_root(f) {
+            if f == "/" {
+                bore.warn("chmod", "it is dangerous to operate recursively on '/'")
+            } else {
+                bore.warn(
+                    "chmod",
+                    "it is dangerous to operate recursively on {bore.quote_always(f)} (same as '/')",
+                )
+            }
+            bore.warn("chmod", "use --no-preserve-root to override this failsafe")
+            status = 1
+            continue
+        }
+        var above = List[int]()
+        if !operand(mut out, c, f, mut above) {
+            status = 1
+        }
+    }
+    bore.finish(mut out, "chmod", status)
+}
+
+/// Whether the option word `a` (a `-` and at least one character) is a
+/// MODE: some character of it is one a mode is made of, and every one
+/// before that is one of this program's own option letters.
+fn is_mode_word(a: str) -> bool {
+    for b in a[1..].bytes() {
+        let n = b as int
+        if mode_char(n) {
+            return true
+        }
+        if !option_letter(n) {
+            return false
+        }
+    }
+    false
+}
+
+/// `rwxXst`, `ugoa`, `,`, `+`, `-`, `=` and the octal digits.
+fn mode_char(n: int) -> bool {
+    n == 114 ||
+        n == 119 ||
+        n == 120 ||
+        n == 88 ||
+        n == 115 ||
+        n == 116 ||
+        n == 117 ||
+        n == 103 ||
+        n == 111 ||
+        n == 97 ||
+        n == 44 ||
+        n == 43 ||
+        n == 45 ||
+        n == 61 ||
+        n >= 48 && n <= 55
+}
+
+/// `c f v R H L P h`.
+fn option_letter(n: int) -> bool {
+    n == 99 || n == 102 || n == 118 || n == 82 || n == 72 || n == 76 || n == 80 || n == 104
+}
+
+fn join_commas(parts: List[str]) -> str {
+    var out = List[byte]()
+    var first = true
+    for s in parts {
+        if !first {
+            (mut out).push(44 as byte)
+        }
+        first = false
+        for b in s.bytes() {
+            (mut out).push(b)
+        }
+    }
+    str_from_utf8(out) else ""
+}
+
+/// Say, under `-v`, that `name` could not be reached.
+fn unreached(mut out: bore.Out, c: Cfg, name: str) {
+    if c.verbose {
+        bore.put(mut out, "{bore.quote_always(name)} could not be accessed\n") else |_| {}
+    }
+}
+
+/// Say, under `-v`, that a link was left alone.
+fn link_left(mut out: bore.Out, c: Cfg, name: str) {
+    if c.verbose {
+        bore.put(
+            mut out,
+            "neither symbolic link {bore.quote_always(name)} nor referent has been changed\n",
+        ) else |_| {}
+    }
+}
+
+/// One operand, and under `-R` everything below it. Answers false on any
+/// failure.
+fn operand(mut out: bore.Out, c: Cfg, name: str, mut above: List[int]) -> bool {
+    var why = ""
+    let own = fs_lstat(name) else |_| {
+        why = bore.io_error()
+        List[int]()
+    }
+    if why.len > 0 {
+        if !c.quiet {
+            bore.warn("chmod", "cannot access {bore.quote_always(name)}: {why}")
+        }
+        unreached(mut out, c, name)
+        return false
+    }
+    var rec = copy own
+    if bore.rec_kind(own) == bore.kind_link() {
+        if c.recursive && c.follow == 0 {
+            link_left(mut out, c, name)
+            return true
+        }
+        rec = fs_stat(name) else |_| {
+            why = bore.io_error()
+            List[int]()
+        }
+        if why.len > 0 {
+            if !c.quiet {
+                if why == bore.no_such_file() {
+                    bore.warn(
+                        "chmod",
+                        "cannot operate on dangling symlink {bore.quote_always(name)}",
+                    )
+                } else {
+                    bore.warn("chmod", "cannot access {bore.quote_always(name)}: {why}")
+                }
+            }
+            unreached(mut out, c, name)
+            return false
+        }
+    }
+    var ok = true
+    if bore.rec_kind(own) == bore.kind_link() && c.no_deref {
+        // `-h`: the link is not changed — and, under `-R`, what it names
+        // is still walked (measured: `chmod -vRh 700 link` changes
+        // `link/x` and leaves `link`'s target alone).
+        link_left(mut out, c, name)
+    } else {
+        ok = change(mut out, c, name, rec)
+    }
+    if c.recursive && bore.rec_kind(rec) == bore.kind_dir() {
+        if !walk(mut out, c, name, rec, mut above) {
+            ok = false
+        }
+    }
+    ok
+}
+
+/// Set `name`'s mode (its record `rec`, a link already followed) and say
+/// so. Answers false on a failure or on GNU's umask warning.
+fn change(mut out: bore.Out, c: Cfg, name: str, rec: List[int]) -> bool {
+    let kind = bore.rec_kind(rec)
+    let dir = kind == bore.kind_dir()
+    let old = bore.rec_mode(rec) % 4096
+    var new = 0
+    if c.reference.len > 0 {
+        new = bore.rec_mode(c.reference) % 4096
+    } else {
+        new = bore.apply_mode(c.m, old, dir, c.umask)
+    }
+    if new != old {
+        var why = ""
+        fs_set_mode(name, new) else |_| {
+            why = bore.io_error()
+        }
+        if why.len > 0 {
+            if !c.quiet {
+                bore.warn("chmod", "changing permissions of {bore.quote_always(name)}: {why}")
+            }
+            if c.verbose {
+                bore.put(
+                    mut out,
+                    "failed to change mode of {bore.quote_always(name)} from {said(kind, old)} to {said(kind, new)}\n",
+                ) else |_| {}
+            }
+            return false
+        }
+        if c.verbose || c.changes {
+            bore.put(
+                mut out,
+                "mode of {bore.quote_always(name)} changed from {said(kind, old)} to {said(kind, new)}\n",
+            ) else |_| {}
+        }
+    } else if c.verbose {
+        bore.put(
+            mut out,
+            "mode of {bore.quote_always(name)} retained as {said(kind, old)}\n",
+        ) else |_| {}
+    }
+    if c.warns {
+        let naive = bore.apply_mode(c.m, old, dir, 0)
+        if new & 4095 - naive != 0 {
+            bore.warn(
+                "chmod",
+                "{bore.quote_name(name)}: new permissions are {bore.mode_text(kind, new)[1..]}, not {bore.mode_text(kind, naive)[1..]}",
+            )
+            return false
+        }
+    }
+    true
+}
+
+/// `0755 (rwxr-xr-x)`.
+fn said(kind: int, mode: int) -> str {
+    "{bore.octal_word(mode)} ({bore.mode_text(kind, mode)[1..]})"
+}
+
+/// Whether `rec`'s device and inode are one of the pairs in `pairs`.
+fn pair_in(pairs: List[int], rec: List[int]) -> bool {
+    var k = 0
+    while k + 1 < pairs.len {
+        if pairs[k] == bore.rec_dev(rec) && pairs[k + 1] == bore.rec_ino(rec) {
+            return true
+        }
+        k += 2
+    }
+    false
+}
+
+/// `-R`: everything in the directory `dir` (record `rec`), in the
+/// directory's own order.
+fn walk(mut out: bore.Out, c: Cfg, dir: str, rec: List[int], mut above: List[int]) -> bool {
+    var why = ""
+    let entries = fs_read_dir_entries(dir) else |_| {
+        why = bore.io_error()
+        List[List[byte]]()
+    }
+    if why.len > 0 {
+        if !c.quiet {
+            bore.warn("chmod", "cannot read directory {bore.quote_always(dir)}: {why}")
+        }
+        unreached(mut out, c, dir)
+        return false
+    }
+    (mut above).push(bore.rec_dev(rec))
+    (mut above).push(bore.rec_ino(rec))
+    var ok = true
+    for e in entries {
+        var raw = List[byte]()
+        var i = 1
+        while i < e.len {
+            (mut raw).push(e[i])
+            i += 1
+        }
+        var named = true
+        let base = str_from_utf8(raw) else |_| {
+            named = false
+            ""
+        }
+        if !named {
+            bore.warn(
+                "chmod",
+                "cannot change an entry of {bore.quote_always(dir)}: its name is not UTF-8, and wolf cannot name it (wolf-lang#687)",
+            )
+            ok = false
+            continue
+        }
+        let path = bore.join_name(dir, base)
+        if !entry(mut out, c, path, mut above) {
+            ok = false
+        }
+    }
+    let _ = (mut above).pop() else 0
+    let _ = (mut above).pop() else 0
+    ok
+}
+
+/// One entry met by the walk.
+fn entry(mut out: bore.Out, c: Cfg, path: str, mut above: List[int]) -> bool {
+    var why = ""
+    var rec = fs_lstat(path) else |_| {
+        why = bore.io_error()
+        List[int]()
+    }
+    if why.len > 0 {
+        if !c.quiet {
+            bore.warn("chmod", "cannot access {bore.quote_always(path)}: {why}")
+        }
+        unreached(mut out, c, path)
+        return false
+    }
+    if bore.rec_kind(rec) == bore.kind_link() {
+        if c.follow != 2 {
+            link_left(mut out, c, path)
+            return true
+        }
+        rec = fs_stat(path) else |_| {
+            why = bore.io_error()
+            List[int]()
+        }
+        if why.len > 0 {
+            if !c.quiet {
+                if why == bore.no_such_file() {
+                    bore.warn(
+                        "chmod",
+                        "cannot operate on dangling symlink {bore.quote_always(path)}",
+                    )
+                } else {
+                    bore.warn("chmod", "cannot access {bore.quote_always(path)}: {why}")
+                }
+            }
+            unreached(mut out, c, path)
+            return false
+        }
+        if bore.rec_kind(rec) == bore.kind_dir() && pair_in(above, rec) {
+            // A link back to a directory being walked: not entered again.
+            return change(mut out, c, path, rec)
+        }
+    }
+    var ok = change(mut out, c, path, rec)
+    if bore.rec_kind(rec) == bore.kind_dir() {
+        if !walk(mut out, c, path, rec, mut above) {
+            ok = false
+        }
+    }
+    ok
+}
+
+fn options() -> List[bore.Opt] {
+    var s = List[bore.Opt]()
+    (mut s).push(bore.flag("c", "changes"))
+    (mut s).push(bore.flag("f", "silent"))
+    (mut s).push(bore.flag("", "quiet"))
+    (mut s).push(bore.flag("v", "verbose"))
+    (mut s).push(bore.flag("", "dereference"))
+    (mut s).push(bore.flag("h", "no-dereference"))
+    (mut s).push(bore.flag("", "no-preserve-root"))
+    (mut s).push(bore.flag("", "preserve-root"))
+    (mut s).push(bore.takes("", "reference"))
+    (mut s).push(bore.flag("R", "recursive"))
+    (mut s).push(bore.flag("H", ""))
+    (mut s).push(bore.flag("L", ""))
+    (mut s).push(bore.flag("P", ""))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    s
+}
+
+fn help() -> str {
+    """
+    Usage: chmod [OPTION]... MODE[,MODE]... FILE...
+      or:  chmod [OPTION]... OCTAL-MODE FILE...
+      or:  chmod [OPTION]... --reference=RFILE FILE...
+    Change each FILE's mode bits to MODE, or to RFILE's.
+
+      -c, --changes          say which modes changed
+      -f, --silent, --quiet  say nothing about files that fail
+      -v, --verbose          say what was done to every FILE
+          --dereference      follow a link handed in (the default)
+      -h, --no-dereference   leave a link handed in alone
+          --no-preserve-root  let -R walk '/' (the default)
+          --preserve-root    refuse -R on '/'
+          --reference=RFILE  copy RFILE's mode
+      -R, --recursive        also change what each directory holds
+      -H                     under -R, walk a link handed in (the default)
+      -L                     under -R, follow every link
+      -P                     under -R, follow no link
+          --help             print this help and exit
+          --version          print the version and exit
+
+    MODE is [ugoa]*([-+=]([rwxXst]*|[ugo]))+ in a comma list, or an
+    octal number, or an octal number after one of = + -.
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}

@@ -1,0 +1,3231 @@
+# chmod — GNU coreutils 9.11, black-box, on linux x86-64 and macOS arm64.
+# Written by notes/bu22/gen/chmod_cases.py; this file is the record.
+#
+# chmod changes the file system, so every case runs in a scratch
+# directory (tools/difftest), and what each side leaves is compared:
+# `files` (names, kinds, bytes) and `tree` (modes, link counts).
+
+# Usage: what is missing, what is not an option.
+[[case]]
+name = "no operand"
+args = []
+
+[[case]]
+name = "a mode and no file"
+args = ["755"]
+
+[[case]]
+name = "a symbolic mode and no file"
+args = ["u+x"]
+
+[[case]]
+name = "an option mode and no file"
+args = ["-x"]
+
+[[case]]
+name = "-R alone"
+args = ["-R"]
+
+[[case]]
+name = "only --"
+args = ["--"]
+
+[[case]]
+name = "an invalid option"
+args = ["-Q", "7", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "an unrecognized long option"
+args = ["--bogus", "7", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "--mode is not an option of chmod"
+args = ["--mode=644", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "--help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "--version"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "--reference with a mode"
+args = ["--reference=f", "-w", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "--reference and no file"
+args = ["--reference=f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "--reference to nothing"
+args = ["-v", "--reference=nope", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "--reference copies"
+args = ["--reference=d", "f"]
+scratch = { "f" = "x\n" }
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o751 }
+
+[[case]]
+name = "--reference as two words"
+args = ["--reference", "d", "f"]
+scratch = { "f" = "x\n" }
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o700 }
+
+[[case]]
+name = "--ref abbreviates"
+args = ["--ref=d", "f"]
+scratch = { "f" = "x\n" }
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o711 }
+
+[[case]]
+name = "--reference: the next word is a file"
+args = ["--reference=f", "700", "d"]
+scratch = { "f" = "x\n" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "--reference with set-id bits"
+args = ["--reference=s", "f"]
+scratch = { "f" = "x\n", "s" = "y\n" }
+scratch_modes = { "s" = 0o6750 }
+
+# Octal modes, on a file and on a directory.
+[[case]]
+name = "octal 755 on a file"
+args = ["755", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "octal 644 on a file"
+args = ["644", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "octal 0 on a file"
+args = ["0", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "octal 7 on a file"
+args = ["7", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "octal 70 on a file"
+args = ["70", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "octal 700 on a file"
+args = ["700", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "octal 4755 on a file"
+args = ["4755", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "octal 2755 on a file"
+args = ["2755", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "octal 1777 on a file"
+args = ["1777", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "octal 7777 on a file"
+args = ["7777", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "octal 0755 on a file"
+args = ["0755", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "octal 00755 on a file"
+args = ["00755", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "octal 000000000644 on a file"
+args = ["000000000644", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "octal 6000 on a file"
+args = ["6000", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "octal 0000 on a file"
+args = ["0000", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "octal 755 on a set-group-ID directory"
+args = ["755", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o2755 }
+
+[[case]]
+name = "octal 0755 on a set-group-ID directory"
+args = ["0755", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o2755 }
+
+[[case]]
+name = "octal 00755 on a set-group-ID directory"
+args = ["00755", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o2755 }
+
+[[case]]
+name = "octal 000755 on a set-group-ID directory"
+args = ["000755", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o2755 }
+
+[[case]]
+name = "octal 1755 on a set-group-ID directory"
+args = ["1755", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o2755 }
+
+[[case]]
+name = "octal 4755 on a set-group-ID directory"
+args = ["4755", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o2755 }
+
+[[case]]
+name = "octal 700 on a set-group-ID directory"
+args = ["700", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o2755 }
+
+[[case]]
+name = "octal 2700 on a set-group-ID directory"
+args = ["2700", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o2755 }
+
+[[case]]
+name = "octal 07755 on a set-group-ID directory"
+args = ["07755", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o2755 }
+
+[[case]]
+name = "octal =755 on a set-group-ID directory"
+args = ["=755", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o2755 }
+
+[[case]]
+name = "octal +755 on a set-group-ID directory"
+args = ["+755", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o2755 }
+
+[[case]]
+name = "octal -2000 on a set-group-ID directory"
+args = ["-2000", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o2755 }
+
+[[case]]
+name = "octal -6000 on a set-group-ID directory"
+args = ["-6000", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o2755 }
+
+[[case]]
+name = "octal =0 on a set-group-ID directory"
+args = ["=0", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o2755 }
+
+[[case]]
+name = "octal -0 on a set-group-ID directory"
+args = ["-0", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o2755 }
+
+[[case]]
+name = "octal +1000 on a set-group-ID directory"
+args = ["+1000", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o2755 }
+
+[[case]]
+name = "invalid octal 17777"
+args = ["17777", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "invalid octal 8"
+args = ["8", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "invalid octal 999"
+args = ["999", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "invalid octal 08"
+args = ["08", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "invalid octal -8"
+args = ["-8", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "invalid octal =8"
+args = ["=8", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "invalid octal +17777"
+args = ["+17777", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "invalid octal u+0"
+args = ["u+0", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "invalid octal 755,u+x"
+args = ["755,u+x", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "invalid octal u+x,755"
+args = ["u+x,755", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "invalid octal 0x1ff"
+args = ["0x1ff", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "an empty mode"
+args = ["", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "operator numbers in a list"
+args = ["+755,-5", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "a number after =, under a mask"
+args = ["=751", "f"]
+scratch = { "f" = "x\n" }
+umask = 0o077
+
+[[case]]
+name = "a number after +, under a mask"
+args = ["+111", "f"]
+scratch = { "f" = "x\n" }
+umask = 0o077
+
+# Symbolic modes, from three starting modes, on files and directories.
+[[case]]
+name = "u+x on a file of 644"
+args = ["u+x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "+x on a file of 644"
+args = ["+x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "a+x on a file of 644"
+args = ["a+x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "-x on a file of 644"
+args = ["-x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "=r on a file of 644"
+args = ["=r", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "a=rwx,o-w on a file of 644"
+args = ["a=rwx,o-w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "u=g on a file of 644"
+args = ["u=g", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "go=u on a file of 644"
+args = ["go=u", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "g+u,o-g on a file of 644"
+args = ["g+u,o-g", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "u+s,g+s on a file of 644"
+args = ["u+s,g+s", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "+s on a file of 644"
+args = ["+s", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "=s on a file of 644"
+args = ["=s", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "o+t on a file of 644"
+args = ["o+t", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "+t on a file of 644"
+args = ["+t", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "u+t on a file of 644"
+args = ["u+t", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "a+X on a file of 644"
+args = ["a+X", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "u+x,a+X on a file of 644"
+args = ["u+x,a+X", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "a+X,u+x on a file of 644"
+args = ["a+X,u+x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "a+xX on a file of 644"
+args = ["a+xX", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "ug+rw-x on a file of 644"
+args = ["ug+rw-x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "u+ on a file of 644"
+args = ["u+", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "+u on a file of 644"
+args = ["+u", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "-u on a file of 644"
+args = ["-u", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "o=rw+x on a file of 644"
+args = ["o=rw+x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "ugoa+r on a file of 644"
+args = ["ugoa+r", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "-r,+w on a file of 644"
+args = ["-r,+w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "u=,g=o on a file of 644"
+args = ["u=,g=o", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "o=u-w on a file of 644"
+args = ["o=u-w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "o=u+w on a file of 644"
+args = ["o=u+w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "= on a file of 644"
+args = ["=", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "u=rwx,go=rx on a file of 644"
+args = ["u=rwx,go=rx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "a=rx on a file of 644"
+args = ["a=rx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "u=rx on a file of 644"
+args = ["u=rx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "g=rx on a file of 644"
+args = ["g=rx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "o=rx on a file of 644"
+args = ["o=rx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "=rx on a file of 644"
+args = ["=rx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "u=s on a file of 644"
+args = ["u=s", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "g-s on a file of 644"
+args = ["g-s", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "-s on a file of 644"
+args = ["-s", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "-t on a file of 644"
+args = ["-t", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "a-w on a file of 644"
+args = ["a-w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "u+w,g-r,o=x on a file of 644"
+args = ["u+w,g-r,o=x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "o=g,g=u,u=o on a file of 644"
+args = ["o=g,g=u,u=o", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "+X on a file of 644"
+args = ["+X", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "a= on a file of 644"
+args = ["a=", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "g+wX,o-rwx on a file of 644"
+args = ["g+wX,o-rwx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o644 }
+
+[[case]]
+name = "u+x on a file of 750"
+args = ["u+x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "+x on a file of 750"
+args = ["+x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "a+x on a file of 750"
+args = ["a+x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "-x on a file of 750"
+args = ["-x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "=r on a file of 750"
+args = ["=r", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "a=rwx,o-w on a file of 750"
+args = ["a=rwx,o-w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "u=g on a file of 750"
+args = ["u=g", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "go=u on a file of 750"
+args = ["go=u", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "g+u,o-g on a file of 750"
+args = ["g+u,o-g", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "u+s,g+s on a file of 750"
+args = ["u+s,g+s", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "+s on a file of 750"
+args = ["+s", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "=s on a file of 750"
+args = ["=s", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "o+t on a file of 750"
+args = ["o+t", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "+t on a file of 750"
+args = ["+t", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "u+t on a file of 750"
+args = ["u+t", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "a+X on a file of 750"
+args = ["a+X", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "u+x,a+X on a file of 750"
+args = ["u+x,a+X", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "a+X,u+x on a file of 750"
+args = ["a+X,u+x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "a+xX on a file of 750"
+args = ["a+xX", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "ug+rw-x on a file of 750"
+args = ["ug+rw-x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "u+ on a file of 750"
+args = ["u+", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "+u on a file of 750"
+args = ["+u", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "-u on a file of 750"
+args = ["-u", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "o=rw+x on a file of 750"
+args = ["o=rw+x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "ugoa+r on a file of 750"
+args = ["ugoa+r", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "-r,+w on a file of 750"
+args = ["-r,+w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "u=,g=o on a file of 750"
+args = ["u=,g=o", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "o=u-w on a file of 750"
+args = ["o=u-w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "o=u+w on a file of 750"
+args = ["o=u+w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "= on a file of 750"
+args = ["=", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "u=rwx,go=rx on a file of 750"
+args = ["u=rwx,go=rx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "a=rx on a file of 750"
+args = ["a=rx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "u=rx on a file of 750"
+args = ["u=rx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "g=rx on a file of 750"
+args = ["g=rx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "o=rx on a file of 750"
+args = ["o=rx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "=rx on a file of 750"
+args = ["=rx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "u=s on a file of 750"
+args = ["u=s", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "g-s on a file of 750"
+args = ["g-s", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "-s on a file of 750"
+args = ["-s", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "-t on a file of 750"
+args = ["-t", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "a-w on a file of 750"
+args = ["a-w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "u+w,g-r,o=x on a file of 750"
+args = ["u+w,g-r,o=x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "o=g,g=u,u=o on a file of 750"
+args = ["o=g,g=u,u=o", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "+X on a file of 750"
+args = ["+X", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "a= on a file of 750"
+args = ["a=", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "g+wX,o-rwx on a file of 750"
+args = ["g+wX,o-rwx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o750 }
+
+[[case]]
+name = "u+x on a file of 6755"
+args = ["u+x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "+x on a file of 6755"
+args = ["+x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "a+x on a file of 6755"
+args = ["a+x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "-x on a file of 6755"
+args = ["-x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "=r on a file of 6755"
+args = ["=r", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "a=rwx,o-w on a file of 6755"
+args = ["a=rwx,o-w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "u=g on a file of 6755"
+args = ["u=g", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "go=u on a file of 6755"
+args = ["go=u", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "g+u,o-g on a file of 6755"
+args = ["g+u,o-g", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "u+s,g+s on a file of 6755"
+args = ["u+s,g+s", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "+s on a file of 6755"
+args = ["+s", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "=s on a file of 6755"
+args = ["=s", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "o+t on a file of 6755"
+args = ["o+t", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "+t on a file of 6755"
+args = ["+t", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "u+t on a file of 6755"
+args = ["u+t", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "a+X on a file of 6755"
+args = ["a+X", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "u+x,a+X on a file of 6755"
+args = ["u+x,a+X", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "a+X,u+x on a file of 6755"
+args = ["a+X,u+x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "a+xX on a file of 6755"
+args = ["a+xX", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "ug+rw-x on a file of 6755"
+args = ["ug+rw-x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "u+ on a file of 6755"
+args = ["u+", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "+u on a file of 6755"
+args = ["+u", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "-u on a file of 6755"
+args = ["-u", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "o=rw+x on a file of 6755"
+args = ["o=rw+x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "ugoa+r on a file of 6755"
+args = ["ugoa+r", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "-r,+w on a file of 6755"
+args = ["-r,+w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "u=,g=o on a file of 6755"
+args = ["u=,g=o", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "o=u-w on a file of 6755"
+args = ["o=u-w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "o=u+w on a file of 6755"
+args = ["o=u+w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "= on a file of 6755"
+args = ["=", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "u=rwx,go=rx on a file of 6755"
+args = ["u=rwx,go=rx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "a=rx on a file of 6755"
+args = ["a=rx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "u=rx on a file of 6755"
+args = ["u=rx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "g=rx on a file of 6755"
+args = ["g=rx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "o=rx on a file of 6755"
+args = ["o=rx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "=rx on a file of 6755"
+args = ["=rx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "u=s on a file of 6755"
+args = ["u=s", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "g-s on a file of 6755"
+args = ["g-s", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "-s on a file of 6755"
+args = ["-s", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "-t on a file of 6755"
+args = ["-t", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "a-w on a file of 6755"
+args = ["a-w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "u+w,g-r,o=x on a file of 6755"
+args = ["u+w,g-r,o=x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "o=g,g=u,u=o on a file of 6755"
+args = ["o=g,g=u,u=o", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "+X on a file of 6755"
+args = ["+X", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "a= on a file of 6755"
+args = ["a=", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "g+wX,o-rwx on a file of 6755"
+args = ["g+wX,o-rwx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o6755 }
+
+[[case]]
+name = "u+x on a directory of 755"
+args = ["u+x", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "+x on a directory of 755"
+args = ["+x", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "a+x on a directory of 755"
+args = ["a+x", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "-x on a directory of 755"
+args = ["-x", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "=r on a directory of 755"
+args = ["=r", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "a=rwx,o-w on a directory of 755"
+args = ["a=rwx,o-w", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "u=g on a directory of 755"
+args = ["u=g", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "go=u on a directory of 755"
+args = ["go=u", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "g+u,o-g on a directory of 755"
+args = ["g+u,o-g", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "u+s,g+s on a directory of 755"
+args = ["u+s,g+s", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "+s on a directory of 755"
+args = ["+s", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "=s on a directory of 755"
+args = ["=s", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "o+t on a directory of 755"
+args = ["o+t", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "+t on a directory of 755"
+args = ["+t", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "u+t on a directory of 755"
+args = ["u+t", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "a+X on a directory of 755"
+args = ["a+X", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "u+x,a+X on a directory of 755"
+args = ["u+x,a+X", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "a+X,u+x on a directory of 755"
+args = ["a+X,u+x", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "a+xX on a directory of 755"
+args = ["a+xX", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "ug+rw-x on a directory of 755"
+args = ["ug+rw-x", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "u+ on a directory of 755"
+args = ["u+", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "+u on a directory of 755"
+args = ["+u", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "-u on a directory of 755"
+args = ["-u", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "o=rw+x on a directory of 755"
+args = ["o=rw+x", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "ugoa+r on a directory of 755"
+args = ["ugoa+r", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "-r,+w on a directory of 755"
+args = ["-r,+w", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "u=,g=o on a directory of 755"
+args = ["u=,g=o", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "o=u-w on a directory of 755"
+args = ["o=u-w", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "o=u+w on a directory of 755"
+args = ["o=u+w", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "= on a directory of 755"
+args = ["=", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "u=rwx,go=rx on a directory of 755"
+args = ["u=rwx,go=rx", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "a=rx on a directory of 755"
+args = ["a=rx", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "u=rx on a directory of 755"
+args = ["u=rx", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "g=rx on a directory of 755"
+args = ["g=rx", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "o=rx on a directory of 755"
+args = ["o=rx", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "=rx on a directory of 755"
+args = ["=rx", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "u=s on a directory of 755"
+args = ["u=s", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "g-s on a directory of 755"
+args = ["g-s", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "-s on a directory of 755"
+args = ["-s", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "-t on a directory of 755"
+args = ["-t", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "a-w on a directory of 755"
+args = ["a-w", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "u+w,g-r,o=x on a directory of 755"
+args = ["u+w,g-r,o=x", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "o=g,g=u,u=o on a directory of 755"
+args = ["o=g,g=u,u=o", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "+X on a directory of 755"
+args = ["+X", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "a= on a directory of 755"
+args = ["a=", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "g+wX,o-rwx on a directory of 755"
+args = ["g+wX,o-rwx", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o755 }
+
+[[case]]
+name = "u+x on a directory of 3755"
+args = ["u+x", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "+x on a directory of 3755"
+args = ["+x", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "a+x on a directory of 3755"
+args = ["a+x", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "-x on a directory of 3755"
+args = ["-x", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "=r on a directory of 3755"
+args = ["=r", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "a=rwx,o-w on a directory of 3755"
+args = ["a=rwx,o-w", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "u=g on a directory of 3755"
+args = ["u=g", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "go=u on a directory of 3755"
+args = ["go=u", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "g+u,o-g on a directory of 3755"
+args = ["g+u,o-g", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "u+s,g+s on a directory of 3755"
+args = ["u+s,g+s", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "+s on a directory of 3755"
+args = ["+s", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "=s on a directory of 3755"
+args = ["=s", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "o+t on a directory of 3755"
+args = ["o+t", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "+t on a directory of 3755"
+args = ["+t", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "u+t on a directory of 3755"
+args = ["u+t", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "a+X on a directory of 3755"
+args = ["a+X", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "u+x,a+X on a directory of 3755"
+args = ["u+x,a+X", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "a+X,u+x on a directory of 3755"
+args = ["a+X,u+x", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "a+xX on a directory of 3755"
+args = ["a+xX", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "ug+rw-x on a directory of 3755"
+args = ["ug+rw-x", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "u+ on a directory of 3755"
+args = ["u+", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "+u on a directory of 3755"
+args = ["+u", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "-u on a directory of 3755"
+args = ["-u", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "o=rw+x on a directory of 3755"
+args = ["o=rw+x", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "ugoa+r on a directory of 3755"
+args = ["ugoa+r", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "-r,+w on a directory of 3755"
+args = ["-r,+w", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "u=,g=o on a directory of 3755"
+args = ["u=,g=o", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "o=u-w on a directory of 3755"
+args = ["o=u-w", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "o=u+w on a directory of 3755"
+args = ["o=u+w", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "= on a directory of 3755"
+args = ["=", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "u=rwx,go=rx on a directory of 3755"
+args = ["u=rwx,go=rx", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "a=rx on a directory of 3755"
+args = ["a=rx", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "u=rx on a directory of 3755"
+args = ["u=rx", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "g=rx on a directory of 3755"
+args = ["g=rx", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "o=rx on a directory of 3755"
+args = ["o=rx", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "=rx on a directory of 3755"
+args = ["=rx", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "u=s on a directory of 3755"
+args = ["u=s", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "g-s on a directory of 3755"
+args = ["g-s", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "-s on a directory of 3755"
+args = ["-s", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "-t on a directory of 3755"
+args = ["-t", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "a-w on a directory of 3755"
+args = ["a-w", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "u+w,g-r,o=x on a directory of 3755"
+args = ["u+w,g-r,o=x", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "o=g,g=u,u=o on a directory of 3755"
+args = ["o=g,g=u,u=o", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "+X on a directory of 3755"
+args = ["+X", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "a= on a directory of 3755"
+args = ["a=", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "g+wX,o-rwx on a directory of 3755"
+args = ["g+wX,o-rwx", "d"]
+scratch_dirs = ["d"]
+scratch_modes = { "d" = 0o3755 }
+
+[[case]]
+name = "invalid symbolic u"
+args = ["u", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "invalid symbolic a"
+args = ["a", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "invalid symbolic ,"
+args = [",", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "invalid symbolic u+r,"
+args = ["u+r,", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "invalid symbolic u+rw,,g+r"
+args = ["u+rw,,g+r", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "invalid symbolic z+r"
+args = ["z+r", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "invalid symbolic u+q"
+args = ["u+q", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "invalid symbolic o=ug"
+args = ["o=ug", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "invalid symbolic o+ugo"
+args = ["o+ugo", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "invalid symbolic o+ur"
+args = ["o+ur", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "invalid symbolic u+r g+w"
+args = ["u+r g+w", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "invalid symbolic U+x"
+args = ["U+x", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "invalid symbolic +R"
+args = ["+R", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "invalid symbolic =w,"
+args = ["=w,", "f"]
+scratch = { "f" = "x\n" }
+
+# With no `who`, the umask decides what +, - and = reach; s and t ignore it.
+# A `-` the mask kept from clearing a bit is GNU's warning and status 1.
+[[case]]
+name = "+x under the mask 022"
+args = ["+x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o022
+
+[[case]]
+name = "+rw under the mask 022"
+args = ["+rw", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o022
+
+[[case]]
+name = "+w under the mask 022"
+args = ["+w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o022
+
+[[case]]
+name = "-w under the mask 022"
+args = ["-w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o022
+
+[[case]]
+name = "-r under the mask 022"
+args = ["-r", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o022
+
+[[case]]
+name = "=rwx under the mask 022"
+args = ["=rwx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o022
+
+[[case]]
+name = "=rx under the mask 022"
+args = ["=rx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o022
+
+[[case]]
+name = "u=rwx,=rx under the mask 022"
+args = ["u=rwx,=rx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o022
+
+[[case]]
+name = "a=rwx,-w under the mask 022"
+args = ["a=rwx,-w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o022
+
+[[case]]
+name = "-r,+w under the mask 022"
+args = ["-r,+w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o022
+
+[[case]]
+name = "+s under the mask 022"
+args = ["+s", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o022
+
+[[case]]
+name = "+t under the mask 022"
+args = ["+t", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o022
+
+[[case]]
+name = "=s under the mask 022"
+args = ["=s", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o022
+
+[[case]]
+name = "-x under the mask 022"
+args = ["-x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o022
+
+[[case]]
+name = "+X under the mask 022"
+args = ["+X", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o022
+
+[[case]]
+name = "a-r under the mask 022"
+args = ["a-r", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o022
+
+[[case]]
+name = "+x under the mask 077"
+args = ["+x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o077
+
+[[case]]
+name = "+rw under the mask 077"
+args = ["+rw", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o077
+
+[[case]]
+name = "+w under the mask 077"
+args = ["+w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o077
+
+[[case]]
+name = "-w under the mask 077"
+args = ["-w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o077
+
+[[case]]
+name = "-r under the mask 077"
+args = ["-r", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o077
+
+[[case]]
+name = "=rwx under the mask 077"
+args = ["=rwx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o077
+
+[[case]]
+name = "=rx under the mask 077"
+args = ["=rx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o077
+
+[[case]]
+name = "u=rwx,=rx under the mask 077"
+args = ["u=rwx,=rx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o077
+
+[[case]]
+name = "a=rwx,-w under the mask 077"
+args = ["a=rwx,-w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o077
+
+[[case]]
+name = "-r,+w under the mask 077"
+args = ["-r,+w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o077
+
+[[case]]
+name = "+s under the mask 077"
+args = ["+s", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o077
+
+[[case]]
+name = "+t under the mask 077"
+args = ["+t", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o077
+
+[[case]]
+name = "=s under the mask 077"
+args = ["=s", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o077
+
+[[case]]
+name = "-x under the mask 077"
+args = ["-x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o077
+
+[[case]]
+name = "+X under the mask 077"
+args = ["+X", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o077
+
+[[case]]
+name = "a-r under the mask 077"
+args = ["a-r", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o077
+
+[[case]]
+name = "+x under the mask 027"
+args = ["+x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o027
+
+[[case]]
+name = "+rw under the mask 027"
+args = ["+rw", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o027
+
+[[case]]
+name = "+w under the mask 027"
+args = ["+w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o027
+
+[[case]]
+name = "-w under the mask 027"
+args = ["-w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o027
+
+[[case]]
+name = "-r under the mask 027"
+args = ["-r", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o027
+
+[[case]]
+name = "=rwx under the mask 027"
+args = ["=rwx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o027
+
+[[case]]
+name = "=rx under the mask 027"
+args = ["=rx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o027
+
+[[case]]
+name = "u=rwx,=rx under the mask 027"
+args = ["u=rwx,=rx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o027
+
+[[case]]
+name = "a=rwx,-w under the mask 027"
+args = ["a=rwx,-w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o027
+
+[[case]]
+name = "-r,+w under the mask 027"
+args = ["-r,+w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o027
+
+[[case]]
+name = "+s under the mask 027"
+args = ["+s", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o027
+
+[[case]]
+name = "+t under the mask 027"
+args = ["+t", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o027
+
+[[case]]
+name = "=s under the mask 027"
+args = ["=s", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o027
+
+[[case]]
+name = "-x under the mask 027"
+args = ["-x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o027
+
+[[case]]
+name = "+X under the mask 027"
+args = ["+X", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o027
+
+[[case]]
+name = "a-r under the mask 027"
+args = ["a-r", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o027
+
+[[case]]
+name = "+x under the mask 002"
+args = ["+x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o002
+
+[[case]]
+name = "+rw under the mask 002"
+args = ["+rw", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o002
+
+[[case]]
+name = "+w under the mask 002"
+args = ["+w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o002
+
+[[case]]
+name = "-w under the mask 002"
+args = ["-w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o002
+
+[[case]]
+name = "-r under the mask 002"
+args = ["-r", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o002
+
+[[case]]
+name = "=rwx under the mask 002"
+args = ["=rwx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o002
+
+[[case]]
+name = "=rx under the mask 002"
+args = ["=rx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o002
+
+[[case]]
+name = "u=rwx,=rx under the mask 002"
+args = ["u=rwx,=rx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o002
+
+[[case]]
+name = "a=rwx,-w under the mask 002"
+args = ["a=rwx,-w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o002
+
+[[case]]
+name = "-r,+w under the mask 002"
+args = ["-r,+w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o002
+
+[[case]]
+name = "+s under the mask 002"
+args = ["+s", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o002
+
+[[case]]
+name = "+t under the mask 002"
+args = ["+t", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o002
+
+[[case]]
+name = "=s under the mask 002"
+args = ["=s", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o002
+
+[[case]]
+name = "-x under the mask 002"
+args = ["-x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o002
+
+[[case]]
+name = "+X under the mask 002"
+args = ["+X", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o002
+
+[[case]]
+name = "a-r under the mask 002"
+args = ["a-r", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o002
+
+[[case]]
+name = "+x under the mask 000"
+args = ["+x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o000
+
+[[case]]
+name = "+rw under the mask 000"
+args = ["+rw", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o000
+
+[[case]]
+name = "+w under the mask 000"
+args = ["+w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o000
+
+[[case]]
+name = "-w under the mask 000"
+args = ["-w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o000
+
+[[case]]
+name = "-r under the mask 000"
+args = ["-r", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o000
+
+[[case]]
+name = "=rwx under the mask 000"
+args = ["=rwx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o000
+
+[[case]]
+name = "=rx under the mask 000"
+args = ["=rx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o000
+
+[[case]]
+name = "u=rwx,=rx under the mask 000"
+args = ["u=rwx,=rx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o000
+
+[[case]]
+name = "a=rwx,-w under the mask 000"
+args = ["a=rwx,-w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o000
+
+[[case]]
+name = "-r,+w under the mask 000"
+args = ["-r,+w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o000
+
+[[case]]
+name = "+s under the mask 000"
+args = ["+s", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o000
+
+[[case]]
+name = "+t under the mask 000"
+args = ["+t", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o000
+
+[[case]]
+name = "=s under the mask 000"
+args = ["=s", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o000
+
+[[case]]
+name = "-x under the mask 000"
+args = ["-x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o000
+
+[[case]]
+name = "+X under the mask 000"
+args = ["+X", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o000
+
+[[case]]
+name = "a-r under the mask 000"
+args = ["a-r", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o000
+
+[[case]]
+name = "+x under the mask 777"
+args = ["+x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o777
+
+[[case]]
+name = "+rw under the mask 777"
+args = ["+rw", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o777
+
+[[case]]
+name = "+w under the mask 777"
+args = ["+w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o777
+
+[[case]]
+name = "-w under the mask 777"
+args = ["-w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o777
+
+[[case]]
+name = "-r under the mask 777"
+args = ["-r", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o777
+
+[[case]]
+name = "=rwx under the mask 777"
+args = ["=rwx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o777
+
+[[case]]
+name = "=rx under the mask 777"
+args = ["=rx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o777
+
+[[case]]
+name = "u=rwx,=rx under the mask 777"
+args = ["u=rwx,=rx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o777
+
+[[case]]
+name = "a=rwx,-w under the mask 777"
+args = ["a=rwx,-w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o777
+
+[[case]]
+name = "-r,+w under the mask 777"
+args = ["-r,+w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o777
+
+[[case]]
+name = "+s under the mask 777"
+args = ["+s", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o777
+
+[[case]]
+name = "+t under the mask 777"
+args = ["+t", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o777
+
+[[case]]
+name = "=s under the mask 777"
+args = ["=s", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o777
+
+[[case]]
+name = "-x under the mask 777"
+args = ["-x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o777
+
+[[case]]
+name = "+X under the mask 777"
+args = ["+X", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o777
+
+[[case]]
+name = "a-r under the mask 777"
+args = ["a-r", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o777
+
+[[case]]
+name = "the warning under -v"
+args = ["-v", "-r", "f"]
+scratch = { "f" = "x\n" }
+umask = 0o027
+
+[[case]]
+name = "the warning under -c"
+args = ["-c", "-r", "f"]
+scratch = { "f" = "x\n" }
+umask = 0o027
+
+[[case]]
+name = "the warning under -f"
+args = ["-f", "-r", "f"]
+scratch = { "f" = "x\n" }
+umask = 0o027
+
+[[case]]
+name = "the warning, a directory and a file"
+args = ["-r", "d", "f"]
+scratch = { "f" = "x\n" }
+scratch_dirs = ["d"]
+umask = 0o027
+
+[[case]]
+name = "the warning, a name with a space"
+args = ["-r", "a b"]
+scratch = { "a b" = "" }
+umask = 0o027
+
+[[case]]
+name = "the warning, a name with a quote"
+args = ["-r", "q'x"]
+scratch = { "q'x" = "" }
+umask = 0o027
+
+[[case]]
+name = "the warning, a name with a tab"
+args = ["--", "-r", "t\tb"]
+scratch = { "t\tb" = "" }
+umask = 0o027
+
+[[case]]
+name = "no warning when the mask is not in the way"
+args = ["-r", "f"]
+scratch = { "f" = "x\n" }
+umask = 0o022
+
+# Measured: the warning is given for a MODE given as an option, never for
+# the same MODE as an operand.
+[[case]]
+name = "no warning for -r as an operand"
+args = ["--", "-r", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o027
+
+[[case]]
+name = "no warning for -r,u+x as an operand"
+args = ["--", "-r,u+x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o027
+
+[[case]]
+name = "no warning for u+x,-r as an operand"
+args = ["--", "u+x,-r", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o027
+
+[[case]]
+name = "no warning for -r,-w as an operand"
+args = ["--", "-r,-w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o027
+
+[[case]]
+name = "no warning for a=rwx,-w as an operand"
+args = ["--", "a=rwx,-w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o027
+
+[[case]]
+name = "no warning for =rw,-w as an operand"
+args = ["--", "=rw,-w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o027
+
+[[case]]
+name = "no warning for -w,a=rwx as an operand"
+args = ["--", "-w,a=rwx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o027
+
+[[case]]
+name = "the warning for an option mode: -r f"
+args = ["-r", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o027
+
+[[case]]
+name = "the warning for an option mode: -r,u+x f"
+args = ["-r,u+x", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o027
+
+[[case]]
+name = "the warning for an option mode: -r,-w f"
+args = ["-r,-w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o027
+
+[[case]]
+name = "the warning for an option mode: -r -- f"
+args = ["-r", "--", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o027
+
+[[case]]
+name = "the warning for an option mode: f -r"
+args = ["f", "-r"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o027
+
+[[case]]
+name = "the warning for an option mode: -r -w f"
+args = ["-r", "-w", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o027
+
+[[case]]
+name = "the warning for an option mode: -w,a=rwx f"
+args = ["-w,a=rwx", "f"]
+scratch = { "f" = "x\n" }
+scratch_modes = { "f" = 0o755 }
+umask = 0o027
+
+# A mode given as an option, joined with commas.
+[[case]]
+name = "as options: -w f"
+args = ["-w", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -rwx f"
+args = ["-rwx", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -x,g+w f"
+args = ["-x,g+w", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -w -x f"
+args = ["-w", "-x", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -v -w,u+x f"
+args = ["-v", "-w,u+x", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -x f -w"
+args = ["-x", "f", "-w"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: f -w"
+args = ["f", "-w"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -w f -v"
+args = ["-w", "f", "-v"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: u+x -v f"
+args = ["u+x", "-v", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -R -w f"
+args = ["-R", "-w", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -c -w -v f"
+args = ["-c", "-w", "-v", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -0 f"
+args = ["-0", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -7 f"
+args = ["-7", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -u f"
+args = ["-u", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -a f"
+args = ["-a", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -+x f"
+args = ["-+x", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -=x f"
+args = ["-=x", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -, f"
+args = ["-,", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -X f"
+args = ["-X", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -s f"
+args = ["-s", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -t f"
+args = ["-t", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -g+x f"
+args = ["-g+x", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -w+x f"
+args = ["-w+x", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -rw -v -x f"
+args = ["-rw", "-v", "-x", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -w -- -x f"
+args = ["-w", "--", "-x", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -wxr f"
+args = ["-wxr", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -vw f"
+args = ["-vw", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -cw f"
+args = ["-cw", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -w u+x f"
+args = ["-w", "u+x", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -c -- -w f"
+args = ["-c", "--", "-w", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -- -w f"
+args = ["--", "-w", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -w -- f"
+args = ["-w", "--", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: 755 -- f"
+args = ["755", "--", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -Rv f"
+args = ["-Rv", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -Qw f"
+args = ["-Qw", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -x -"
+args = ["-x", "-"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -c u+x"
+args = ["-c", "u+x"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options: -R -w"
+args = ["-R", "-w"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "as options under POSIXLY_CORRECT"
+args = ["u+x", "f", "-w"]
+scratch = { "f" = "x\n" }
+env = { "POSIXLY_CORRECT" = "1" }
+
+# What is said: -v, -c, -f.
+[[case]]
+name = "-v changed"
+args = ["-v", "755", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "-v retained"
+args = ["-v", "644", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "-c retained says nothing"
+args = ["-c", "644", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "-c changed"
+args = ["-c", "755", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "--changes"
+args = ["--changes", "700", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "--verbose"
+args = ["--verbose", "700", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "-v, set-user-ID without execute"
+args = ["-v", "u+s", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "-v, a sticky directory"
+args = ["-v", "1777", "d"]
+scratch_dirs = ["d"]
+
+[[case]]
+name = "-v, a sticky file without other execute"
+args = ["-v", "1644", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "-v twice on one file"
+args = ["-v", "755", "f", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "-v on a directory"
+args = ["-v", "-x", "d"]
+scratch_dirs = ["d"]
+
+[[case]]
+name = "-v of a missing file"
+args = ["-v", "755", "nope"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "a missing file"
+args = ["755", "nope"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "a missing file among others"
+args = ["755", "f", "nope", "g"]
+scratch = { "f" = "", "g" = "" }
+
+[[case]]
+name = "-f of a missing file"
+args = ["-f", "755", "nope"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "--quiet"
+args = ["--quiet", "700", "nope"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "--silent"
+args = ["--silent", "700", "nope"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "an empty name"
+args = ["-v", "7", "", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "a name with a space, -v"
+args = ["-v", "755", "sp ace"]
+scratch = { "sp ace" = "" }
+
+[[case]]
+name = "a name with a newline, -v"
+args = ["-v", "755", "n\nl"]
+scratch = { "n\nl" = "" }
+
+[[case]]
+name = "under a file"
+args = ["755", "f/x"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "a trailing slash on a file"
+args = ["755", "f/"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "a trailing slash on a directory"
+args = ["-v", "700", "d/"]
+scratch_dirs = ["d"]
+
+[[case]]
+name = "an unsearchable parent"
+args = ["-v", "700", "p/f"]
+scratch = { "p/f" = "" }
+scratch_modes = { "p" = 0o600 }
+
+# Links handed in: followed, unless -h.
+[[case]]
+name = "a link to a file"
+args = ["-v", "700", "lf"]
+scratch = { "f" = "x\n" }
+scratch_links = { "lf" = "f", "dang" = "nowhere" }
+
+[[case]]
+name = "a dangling link"
+args = ["-v", "700", "dang"]
+scratch = { "f" = "x\n" }
+scratch_links = { "lf" = "f", "dang" = "nowhere" }
+
+[[case]]
+name = "a dangling link, -f"
+args = ["-f", "700", "dang"]
+scratch = { "f" = "x\n" }
+scratch_links = { "lf" = "f", "dang" = "nowhere" }
+
+[[case]]
+name = "a dangling link, -R"
+args = ["-vR", "700", "dang"]
+scratch = { "f" = "x\n" }
+scratch_links = { "lf" = "f", "dang" = "nowhere" }
+
+[[case]]
+name = "-h on a link"
+args = ["-vh", "700", "lf"]
+skip_on = { "Darwin" = "GNU changes a link's own mode there (lchmod); wolf has no call that does (fs_set_mode follows a final link), so this one leaves it, as GNU does on linux" }
+scratch = { "f" = "x\n" }
+scratch_links = { "lf" = "f", "dang" = "nowhere" }
+
+[[case]]
+name = "--no-dereference on a link"
+args = ["-v", "--no-dereference", "700", "lf"]
+skip_on = { "Darwin" = "GNU changes a link's own mode there (lchmod); wolf has no call that does" }
+scratch = { "f" = "x\n" }
+scratch_links = { "lf" = "f", "dang" = "nowhere" }
+
+[[case]]
+name = "-h on a file"
+args = ["-h", "755", "f"]
+scratch = { "f" = "x\n" }
+scratch_links = { "lf" = "f", "dang" = "nowhere" }
+
+[[case]]
+name = "--dereference"
+args = ["--dereference", "755", "lf"]
+scratch = { "f" = "x\n" }
+scratch_links = { "lf" = "f", "dang" = "nowhere" }
+
+[[case]]
+name = "-h then --dereference"
+args = ["-h", "--dereference", "755", "lf"]
+scratch = { "f" = "x\n" }
+scratch_links = { "lf" = "f", "dang" = "nowhere" }
+
+# -R: the directory, then what it holds; links inside are left alone unless -L.
+[[case]]
+name = "walk: -vR 700 d"
+args = ["-vR", "700", "d"]
+scratch = { "d/f" = "x\n", "e/x" = "y\n" }
+scratch_dirs = ["d/s", "e/sub"]
+scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+
+[[case]]
+name = "walk: -R 700 d lf"
+args = ["-R", "700", "d", "lf"]
+scratch = { "d/f" = "x\n", "e/x" = "y\n" }
+scratch_dirs = ["d/s", "e/sub"]
+scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+
+[[case]]
+name = "walk: -vR 700 lf"
+args = ["-vR", "700", "lf"]
+scratch = { "d/f" = "x\n", "e/x" = "y\n" }
+scratch_dirs = ["d/s", "e/sub"]
+scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+
+[[case]]
+name = "walk: -R -L 700 d"
+args = ["-R", "-L", "700", "d"]
+scratch = { "d/f" = "x\n", "e/x" = "y\n" }
+scratch_dirs = ["d/s", "e/sub"]
+scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+
+[[case]]
+name = "walk: -R -H 700 d"
+args = ["-R", "-H", "700", "d"]
+scratch = { "d/f" = "x\n", "e/x" = "y\n" }
+scratch_dirs = ["d/s", "e/sub"]
+scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+
+[[case]]
+name = "walk: -vR -L u-x d"
+args = ["-vR", "-L", "u-x", "d"]
+scratch = { "d/f" = "x\n", "e/x" = "y\n" }
+scratch_dirs = ["d/s", "e/sub"]
+scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+
+[[case]]
+name = "walk: -cR 755 d"
+args = ["-cR", "755", "d"]
+scratch = { "d/f" = "x\n", "e/x" = "y\n" }
+scratch_dirs = ["d/s", "e/sub"]
+scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+
+[[case]]
+name = "walk: -vRh 700 d"
+args = ["-vRh", "700", "d"]
+scratch = { "d/f" = "x\n", "e/x" = "y\n" }
+scratch_dirs = ["d/s", "e/sub"]
+scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+
+[[case]]
+name = "walk: -vR 700 ld"
+args = ["-vR", "700", "ld"]
+scratch = { "d/f" = "x\n", "e/x" = "y\n" }
+scratch_dirs = ["d/s", "e/sub"]
+scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+
+[[case]]
+name = "walk: -vR -H 700 ld"
+args = ["-vR", "-H", "700", "ld"]
+scratch = { "d/f" = "x\n", "e/x" = "y\n" }
+scratch_dirs = ["d/s", "e/sub"]
+scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+
+[[case]]
+name = "walk: -vR -P 700 ld"
+args = ["-vR", "-P", "700", "ld"]
+scratch = { "d/f" = "x\n", "e/x" = "y\n" }
+scratch_dirs = ["d/s", "e/sub"]
+scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+
+[[case]]
+name = "walk: -vR -L 700 ld"
+args = ["-vR", "-L", "700", "ld"]
+scratch = { "d/f" = "x\n", "e/x" = "y\n" }
+scratch_dirs = ["d/s", "e/sub"]
+scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+
+[[case]]
+name = "walk: -v 700 ld/"
+args = ["-v", "700", "ld/"]
+scratch = { "d/f" = "x\n", "e/x" = "y\n" }
+scratch_dirs = ["d/s", "e/sub"]
+scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+
+[[case]]
+name = "walk: -vR 700 ld/"
+args = ["-vR", "700", "ld/"]
+scratch = { "d/f" = "x\n", "e/x" = "y\n" }
+scratch_dirs = ["d/s", "e/sub"]
+scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+
+[[case]]
+name = "walk: -vRh 700 ld"
+args = ["-vRh", "700", "ld"]
+scratch = { "d/f" = "x\n", "e/x" = "y\n" }
+scratch_dirs = ["d/s", "e/sub"]
+scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+
+[[case]]
+name = "walk: -vR a-x d"
+args = ["-vR", "a-x", "d"]
+scratch = { "d/f" = "x\n", "e/x" = "y\n" }
+scratch_dirs = ["d/s", "e/sub"]
+scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+
+[[case]]
+name = "walk: -vR 000 d"
+args = ["-vR", "000", "d"]
+scratch = { "d/f" = "x\n", "e/x" = "y\n" }
+scratch_dirs = ["d/s", "e/sub"]
+scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+
+[[case]]
+name = "walk: -vR a-r d"
+args = ["-vR", "a-r", "d"]
+scratch = { "d/f" = "x\n", "e/x" = "y\n" }
+scratch_dirs = ["d/s", "e/sub"]
+scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+
+[[case]]
+name = "walk: -R --preserve-root 700 d"
+args = ["-R", "--preserve-root", "700", "d"]
+scratch = { "d/f" = "x\n", "e/x" = "y\n" }
+scratch_dirs = ["d/s", "e/sub"]
+scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+
+[[case]]
+name = "walk: --no-preserve-root -R 700 d"
+args = ["--no-preserve-root", "-R", "700", "d"]
+scratch = { "d/f" = "x\n", "e/x" = "y\n" }
+scratch_dirs = ["d/s", "e/sub"]
+scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+
+[[case]]
+name = "walk: -R go-rwx ."
+args = ["-R", "go-rwx", "."]
+scratch = { "d/f" = "x\n", "e/x" = "y\n" }
+scratch_dirs = ["d/s", "e/sub"]
+scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+
+[[case]]
+name = "walk: -vR u+x d e"
+args = ["-vR", "u+x", "d", "e"]
+scratch = { "d/f" = "x\n", "e/x" = "y\n" }
+scratch_dirs = ["d/s", "e/sub"]
+scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+
+[[case]]
+name = "walk: -fR a-x d"
+args = ["-fR", "a-x", "d"]
+scratch = { "d/f" = "x\n", "e/x" = "y\n" }
+scratch_dirs = ["d/s", "e/sub"]
+scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+
+[[case]]
+name = "walk: -RP -vL 700 d"
+args = ["-RP", "-vL", "700", "d"]
+scratch = { "d/f" = "x\n", "e/x" = "y\n" }
+scratch_dirs = ["d/s", "e/sub"]
+scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+
+[[case]]
+name = "walk: -RL -P 700 ld"
+args = ["-RL", "-P", "700", "ld"]
+scratch = { "d/f" = "x\n", "e/x" = "y\n" }
+scratch_dirs = ["d/s", "e/sub"]
+scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+
+[[case]]
+name = "walk: --recursive 700 e"
+args = ["--recursive", "700", "e"]
+scratch = { "d/f" = "x\n", "e/x" = "y\n" }
+scratch_dirs = ["d/s", "e/sub"]
+scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+
+[[case]]
+name = "walk: --rec 700 e"
+args = ["--rec", "700", "e"]
+scratch = { "d/f" = "x\n", "e/x" = "y\n" }
+scratch_dirs = ["d/s", "e/sub"]
+scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+
+[[case]]
+name = "walk: -R a+X d"
+args = ["-R", "a+X", "d"]
+scratch = { "d/f" = "x\n", "e/x" = "y\n" }
+scratch_dirs = ["d/s", "e/sub"]
+scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+
+[[case]]
+name = "walk: -vR = e"
+args = ["-vR", "=", "e"]
+scratch = { "d/f" = "x\n", "e/x" = "y\n" }
+scratch_dirs = ["d/s", "e/sub"]
+scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+
+[[case]]
+name = "walk: the mask's warning on every entry"
+args = ["-R", "-r", "e"]
+umask = 0o027
+scratch = { "d/f" = "x\n", "e/x" = "y\n" }
+scratch_dirs = ["d/s", "e/sub"]
+scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+
+[[case]]
+name = "walk: a link back up, -L"
+args = ["-R", "-L", "700", "c"]
+scratch_dirs = ["c/sub"]
+scratch_links = { "c/sub/up" = ".." }
+
+[[case]]
+name = "walk: an empty directory"
+args = ["-vR", "700", "z"]
+scratch_dirs = ["z"]
+
+[[case]]
+name = "walk: a file"
+args = ["-vR", "700", "f"]
+scratch = { "f" = "x\n" }
