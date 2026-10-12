@@ -606,7 +606,14 @@ fn file(mut out: bore.Out, c: Cfg, src: str, dst: str, rec: List[int]) -> int {
 fn keep(c: Cfg, dst: str, rec: List[int], follow: bool) -> int {
     if c.keep_times {
         var why = ""
-        fs_set_times(dst, bore.rec_secs(rec, 1), 0, bore.rec_secs(rec, 0), 0, follow) else |_| {
+        fs_set_times(
+            dst,
+            bore.rec_secs(rec, 1),
+            0,
+            bore.rec_secs(rec, 0),
+            0,
+            follow,
+        ) else |_| {
             why = bore.io_error()
         }
         if why.len > 0 {

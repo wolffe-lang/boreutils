@@ -89,14 +89,7 @@ fn main() -> int {
         return bore.usage_error("mkdir", "missing operand")
     }
     let umask = bore.current_umask()
-    var c = Cfg {
-        verbose: verbose,
-        want: -1,
-        touched: 0,
-        special: false,
-        as_if: umask,
-        umask: umask,
-    }
+    var c = Cfg { verbose: verbose, want: -1, touched: 0, special: false, as_if: umask, umask: umask }
     if mode {
         let m = bore.parse_mode(mode_text) else |_| {
             bore.warn("mkdir", "invalid mode {bore.quote_always(mode_text)}")
