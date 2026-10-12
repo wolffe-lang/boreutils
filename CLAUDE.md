@@ -115,23 +115,34 @@ against GNU. The short form for a new utility:
   (wolf-lang#406), so no utility can handle one yet.
 - `print`/`print_raw` discard write errors and are one `write(2)` per
   call (wolf-lang#408): use `bore.Out`.
-- **The file system can be changed in six ways and no more** (bu21's
-  census, `notes/bu21/census/`, probed on four machines): make a
-  directory (`fs_create_dir`), remove an empty one (`fs_remove_dir`),
-  unlink (`fs_remove`), rename (`fs_rename`, which names another file
-  system by its own row, `cross_device`), create or truncate-to-zero
-  and write (`fs_open_mode`), and copy bytes in the kernel
-  (`fs_copy_chunk`). `mkdir`, `rmdir`, `rm`, `mv` and `cp` stand on
-  those. NOTHING sets a mode, a time or an owner, makes a link, a fifo
-  or a device, truncates to a length, finds a hole, reads the umask, or
-  names an entry relative to an open directory — each filed
-  (wolf-lang#346, #698–#707, #633) — so `touch`, `ln` and `chmod` are
-  NOT here, and `mkdir -m`, `cp -p`, a `cp` of an executable and a `mv`
-  to another file system refuse BY NAME rather than do it wrong. A
-  utility whose core operation is missing is left out, never faked.
+- **What wolf can do to a file** (bu21's census, `notes/bu21/census/`,
+  and wolf 0.2.28's s230, ruling #67): make a directory
+  (`fs_create_dir`, or with a mode `fs_create_dir_mode`), remove an
+  empty one (`fs_remove_dir`), unlink (`fs_remove`), rename
+  (`fs_rename`, which names another file system by its own row,
+  `cross_device`), create (`fs_open_mode`, or with a mode
+  `fs_open_perm`) and write, copy bytes in the kernel
+  (`fs_copy_chunk`), change a mode (`fs_set_mode`, following a final
+  link), make a symbolic or hard link (`fs_symlink`, `fs_link`), set
+  both times or either (`fs_set_times`, a link's own too), truncate a
+  handle to a length (`fs_truncate`), and set the umask and be told
+  the old one (`os_umask`; reading it is setting it and putting it
+  back, `bore.current_umask`). The builtins are called directly:
+  wolf-std's wrappers (wolf-std#62) are not in the std pin yet.
+  NOTHING changes an owner (#701, and no user id: #633), makes a fifo
+  or a device (#705), finds a hole (#703), renames without replacing
+  (#706), names an entry relative to an open directory (#707), sets a
+  link's own mode, sets times through a handle (#714) or reads a
+  handle's open flags. A utility whose core operation is missing is
+  left out, never faked; an option that needs one is refused by name.
   `fs_remove_dir_all` is never called: a recursive removal is `rm`'s
   own walk.
-- **`rm`, `mv`, `cp`, `rmdir` and `mkdir` delete and overwrite, so they
+- **A MODE** (`chmod`, `mkdir -m`) is `src/bore/modes.lu`, measured
+  against GNU 9.11; **a date** (`touch -d`, `-t`) is
+  `src/bore/dates.lu`, which reads part of GNU's grammar and refuses
+  the rest by name.
+- **`rm`, `mv`, `cp`, `rmdir`, `mkdir`, `chmod`, `touch` and `ln` delete,
+  overwrite or change, so they
   are run only where `tools/difftest` stands them**: a scratch
   directory it made under its root (`$BORE_SCRATCH_ROOT`, else the temp
   directory) and checked by prefix immediately before each side starts.
@@ -151,8 +162,15 @@ against GNU. The short form for a new utility:
   case. `umask = 0o077` runs both sides under a mask; the harness
   itself runs at 022. A changer's own name at the start of a line of
   standard output is `PROG` (`mkdir -v` says `mkdir: created …`, and
-  GNU on macOS is `gmkdir`).
-- No permissions (wolf-lang#346), no pids (wolf-lang#141). The host's
+  GNU on macOS is `gmkdir`). `times = true` (bu22) adds a sixth field:
+  every entry's access and modification time to the nanosecond, a
+  link's own, with a time inside the side's own run read as `now` — so
+  give an entry a fixture time (`"S.NNNNNNNNN"` takes nanoseconds) when
+  the case is about it moving to now. `skip_on = { Darwin = "why" }`
+  skips on one host by name. The changers' differential runs on a
+  lane's host belong in a throwaway container (bu22 ran px12-ubuntu,
+  no network, only the lane directory mounted).
+- No pids (wolf-lang#141). The host's
   reason for an fs failure is `bore.io_error()` (`os_error_text`, wolf
   0.2.26): ask it before any other fs call, which clears it, or keep
   `bore.host_code()` and ask `bore.reason_of` later.
@@ -195,8 +213,8 @@ against GNU. The short form for a new utility:
 - Local time is read from the zone's TZif file and its POSIX rule
   (`src/bore/clock.lu`); a canonical path is walked a component at a
   time (`src/bore/paths.lu`). Neither is a builtin.
-- An `0o…` or `0b…` literal is refused by the native and release tiers
-  (wolf-lang#688) though `wolf test` runs it: write decimal.
+- An `0o…` literal lowers on every tier since wolf 0.2.28 (#688); the
+  code here still writes modes in decimal (`438` is 0666) and need not.
 - The host is decided when a program is compiled:
   `bore.built_for_linux()` (`#[cfg(target = "…")]`), never by looking
   for `/proc`.
