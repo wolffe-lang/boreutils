@@ -27,8 +27,9 @@
 //!   a directory is `A: hard link not allowed for directory`, unless
 //!   `-d`/`-F` asks the host anyway (and linux refuses: `Operation not
 //!   permitted`).
-//! - A hard link to a symbolic link is a link to the LINK (`-P`, linux's
-//!   default); `-L` links what it names.
+//! - A hard link to a symbolic link is a link to the LINK under `-P`,
+//!   linux's default, and to what it names under `-L`, macOS's default
+//!   (GNU takes the host's `link(2)`'s; measured, CI run 38209179024).
 //! - `-r` (only with `-s`, else `cannot do --relative without
 //!   --symbolic`) writes TARGET relative to LINK_NAME's directory, both
 //!   made canonical first (links resolved, `..` removed).
@@ -71,7 +72,10 @@ fn main() -> int {
         over: 0,
         verbose: false,
         relative: false,
-        logical: false,
+        // A hard link to a link: the link itself on linux (`-P`), what it
+        // names elsewhere (`-L`) — GNU's default is the host's `link(2)`'s
+        // (measured on macOS, CI run 38209179024).
+        logical: !bore.built_for_linux(),
         no_deref: false,
         dirs: false,
     }
