@@ -29,20 +29,22 @@
 //! - `-Z` and a bare `--context` do nothing on a kernel without SELinux;
 //!   `--context=CTX` warns that it is ignored and carries on.
 //! - No operand is a usage error, status 1.
+//! - `-m MODE` (bu22, wolf 0.2.28) is read as `chmod` reads one
+//!   (`bore.modes`), applied to `a=rwx`: the directory ends with exactly
+//!   that mode, the umask notwithstanding (`-m 775` under 027 is 775,
+//!   `-m 2750` is 2750). It is made with the mode's permission bits
+//!   (`fs_create_dir_mode`, less the umask) and its mode set after
+//!   (`fs_set_mode`) only when creation could not give it — so a
+//!   directory made under a set-group-ID parent keeps the bit it
+//!   inherits when the mode needs no change. An invalid mode is `invalid
+//!   mode 'M'`, status 1, nothing made.
+//! - Under `-p` a missing PARENT gets 777 less the umask, plus `u+wx`
+//!   (so the walk can go on whatever the mask); `-m` names only the last
+//!   component's mode. The umask is read by setting it and putting it
+//!   back (`os_umask`, wolf 0.2.28: POSIX has no other way).
 //!
 //! **What this program cannot do, and does not pretend to.**
 //!
-//! - **`-m`/`--mode` is refused by name**, status 1, and nothing is
-//!   made. A directory's mode is what `fs_create_dir` gives it — the
-//!   host's 777 less the umask — and wolf 0.2.27 has neither a mode at
-//!   creation nor a call that changes one (wolf-lang#346). Making the
-//!   directory with some other mode would be a silent difference.
-//! - **Under `-p` a missing parent gets the umask's mode, where GNU
-//!   gives it `u+wx` whatever the umask says** (the umask cannot be read
-//!   or set, wolf-lang#704). Under any umask that leaves the owner write
-//!   and search — 022, 027, 077 — the two are the same directory. Under
-//!   one that does not, GNU goes on to create inside the parent and this
-//!   program is refused by the host, and says so in GNU's words.
 //! - `-p` walks by PATH, one `mkdir` per prefix, where GNU changes
 //!   directory as it goes: a path longer than the host's limit fails
 //!   here (wolf-lang#707).
@@ -55,6 +57,7 @@ fn main() -> int {
     var parents = false
     var verbose = false
     var mode = false
+    var mode_text = ""
     var context = false
     var i = 0
     while i < p.keys.len {
@@ -73,6 +76,7 @@ fn main() -> int {
             verbose = true
         } else if k == "mode" {
             mode = true
+            mode_text = p.values[i]
         } else if k == "context" && p.given[i] {
             context = true
         }
@@ -81,15 +85,18 @@ fn main() -> int {
     if !bore.ok(p) {
         return bore.usage_error("mkdir", p.error)
     }
-    if mode {
-        bore.warn(
-            "mkdir",
-            "-m (--mode) is not supported: wolf 0.2.27 cannot give a directory a mode (wolf-lang#346)",
-        )
-        return 1
-    }
     if p.operands.len == 0 {
         return bore.usage_error("mkdir", "missing operand")
+    }
+    let umask = bore.current_umask()
+    var c = Cfg { verbose: verbose, want: -1, touched: 0, as_if: 0, umask: umask }
+    if mode {
+        let m = bore.parse_mode(mode_text) else |_| {
+            bore.warn("mkdir", "invalid mode {bore.quote_always(mode_text)}")
+            return 1
+        }
+        c.want = bore.apply_mode(m, 511, true, umask)
+        c.touched = bore.mode_touches(m, 511, true, umask)
     }
     if context {
         bore.warn(
@@ -101,9 +108,9 @@ fn main() -> int {
     for name in p.operands {
         var made = true
         if parents {
-            made = with_parents(mut out, name, verbose)
+            made = with_parents(mut out, c, name)
         } else {
-            made = one(mut out, name, verbose)
+            made = one(mut out, c, name)
         }
         if !made {
             status = 1
@@ -112,9 +119,106 @@ fn main() -> int {
     bore.finish(mut out, "mkdir", status)
 }
 
+struct Cfg {
+    verbose: bool,
+    /// The mode `-m` asked for, twelve bits; -1 without `-m`.
+    want: int,
+    /// The bits `-m`'s MODE decides (`bore.mode_touches`).
+    touched: int,
+    /// The mask the directory is made under: none under `-m`, which
+    /// has already been read under the real one (GNU's `mkdir(2)` then
+    /// gets the mode's own bits, measured under `strace`).
+    as_if: int,
+    umask: int,
+}
+
+/// Make the directory `path`: with creation's mode (`want` -1), or as
+/// GNU's `mkdir -m` does (measured under `strace`): made with the mode's
+/// bits — less group and other write when the mode has a set-id or
+/// sticky bit — under the mask `as_if`, and its mode then set to `want`
+/// only when a bit the MODE decides (`touched`) came out otherwise. So
+/// `-m +t` is `1755` whatever the umask, and a set-group-ID bit inherited
+/// from the parent stays unless the MODE decides it. The host's number
+/// for a failure is in `bore.host_code()`.
+fn make(path: str, want: int, touched: int, as_if: int) -> Made {
+    var done = Made { code: 0, exists: false }
+    if want < 0 {
+        fs_create_dir(path) else |e| {
+            done.code = host_or_io()
+            match e {
+                exists => { done.exists = true },
+                denied => {},
+                not_found => {},
+                io => {},
+            }
+        }
+        return done
+    }
+    var asked = want
+    if want & 3584 != 0 {
+        asked = want & 4095 - 18
+    }
+    let mask = os_umask(as_if) else 18
+    fs_create_dir_mode(path, asked % 512) else |e| {
+        done.code = host_or_io()
+        match e {
+            exists => { done.exists = true },
+            denied => {},
+            invalid => {},
+            io => {},
+            not_found => {},
+            unsupported => {},
+        }
+    }
+    let _ = os_umask(mask) else 0
+    if done.code != 0 {
+        return done
+    }
+    let r = fs_stat(path) else |_| {
+        done.code = host_or_io()
+        return done
+    }
+    var got = bore.rec_mode(r) % 4096
+    if asked & 512 != 0 {
+        // mkdir(2) keeps a sticky bit it is given; fs_create_dir_mode
+        // takes the nine permission bits only.
+        got = got | 512
+    }
+    var set = got
+    if (got ^ want) & touched != 0 {
+        // A set-id bit the directory inherited and the MODE does not
+        // decide stays (measured: `-m u+s` under a set-group-ID parent
+        // is 6777).
+        set = want | got & 3072 & 4095 - touched
+    }
+    if set != bore.rec_mode(r) % 4096 {
+        fs_set_mode(path, set) else |_| {
+            done.code = host_or_io()
+        }
+    }
+    done
+}
+
+/// How a `make` ended: 0, or the host's number (`exists` when the name
+/// was taken).
+struct Made {
+    code: int,
+    exists: bool,
+}
+
+/// The host's number for the call that just failed (5, `Input/output
+/// error`, when it left none).
+fn host_or_io() -> int {
+    let code = bore.host_code()
+    if code == 0 {
+        return 5
+    }
+    code
+}
+
 /// Say that `name` was made, when asked to.
-fn created(mut out: bore.Out, name: str, verbose: bool) {
-    if verbose {
+fn created(mut out: bore.Out, c: Cfg, name: str) {
+    if c.verbose {
         bore.put(mut out, "mkdir: created directory {bore.quote_always(name)}\n") else |_| {}
     }
 }
@@ -124,12 +228,13 @@ fn cannot(name: str, why: str) {
 }
 
 /// Make `name`, whose parent must exist.
-fn one(mut out: bore.Out, name: str, verbose: bool) -> bool {
-    fs_create_dir(name) else |_| {
-        cannot(name, bore.io_error())
+fn one(mut out: bore.Out, c: Cfg, name: str) -> bool {
+    let done = make(name, c.want, c.touched, c.as_if)
+    if done.code != 0 {
+        cannot(name, bore.reason_of(done.code))
         return false
     }
-    created(mut out, name, verbose)
+    created(mut out, c, name)
     true
 }
 
@@ -191,7 +296,10 @@ fn hidden(path: str) -> bool {
 }
 
 /// `mkdir -p name`: every missing component, in order.
-fn with_parents(mut out: bore.Out, name: str, verbose: bool) -> bool {
+fn with_parents(mut out: bore.Out, c: Cfg, name: str) -> bool {
+    // A parent: 777 less the mask, and always the owner's write and
+    // search, so the walk can go on.
+    let parent_mode = 511 - c.umask % 512 | 192
     let ends = prefix_ends(name)
     var k = 0
     while k < ends.len {
@@ -200,18 +308,23 @@ fn with_parents(mut out: bore.Out, name: str, verbose: bool) -> bool {
         var taken = false
         var code = 0
         var ok = true
-        fs_create_dir(prefix) else |e| {
-            code = bore.host_code()
+        var want = parent_mode
+        // A parent's set-group-ID bit, inherited, is left alone.
+        var touched = 511
+        var as_if = c.umask
+        if last {
+            want = c.want
+            touched = c.touched
+            as_if = c.as_if
+        }
+        let done = make(prefix, want, touched, as_if)
+        if done.code != 0 {
+            code = done.code
             ok = false
-            match e {
-                exists => { taken = true },
-                denied => {},
-                not_found => {},
-                io => {},
-            }
+            taken = done.exists
         }
         if ok {
-            created(mut out, prefix, verbose)
+            created(mut out, c, prefix)
         } else if !is_directory(prefix) {
             if taken {
                 // Something is there and it is not a directory. A file
@@ -255,12 +368,14 @@ fn help() -> str {
       -p, --parents     make missing parents too, and do not mind a
                         DIRECTORY that already exists
       -v, --verbose     say which directories were made
-      -m, --mode=MODE   (refused: wolf cannot give a directory a mode)
+      -m, --mode=MODE   give the directory exactly MODE (as chmod reads
+                        one, from a=rwx), whatever the umask
       -Z, --context[=CTX]  accepted; there is no security context to set
           --help        print this help and exit
           --version     print the version and exit
 
-    A new directory's mode is 777 less the umask.
+    Without -m a new directory's mode is 777 less the umask; a parent
+    made by -p also gets u+wx.
 
     boreutils: https://github.com/wolffe-lang/boreutils
     """

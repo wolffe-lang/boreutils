@@ -6,11 +6,10 @@
 # each side leaves is compared twice: `files` (names, kinds, bytes) and
 # `tree` (modes, link counts). No case names a path outside it.
 #
-# What this mkdir cannot match is named, never imitated:
-#   wolf-lang#346  no mode at creation and no chmod: -m is refused (skips)
-#   wolf-lang#704  no umask: under -p a missing parent gets the mask's
-#                  mode, not GNU's u+wx (two skips, under masks that take
-#                  the owner's write or search)
+# bu21 left -m out (no mode at creation, no chmod: wolf-lang#346) and
+# could not give a -p parent GNU's u+wx (no umask: #704); wolf 0.2.28 has
+# both (s230), and bu22 lifted the nine skips and added the -m cases at
+# the end of this file by hand.
 
 [[case]]
 name = "no operand"
@@ -421,18 +420,15 @@ name = "a mask that takes the owner's write: one directory"
 args = ["a"]
 umask = 0o277
 
-# What this mkdir cannot match, named: see the header of src/mkdir.lu.
 [[case]]
 name = "a mask that takes the owner's write: -p"
 args = ["-p", "a/b/c"]
 umask = 0o277
-skip = "GNU gives a missing parent u+wx whatever the mask says; wolf cannot read or set the mask (wolf-lang#704), so the parent gets the mask's mode and the host refuses the next component"
 
 [[case]]
 name = "a mask that takes the owner's search: -p"
 args = ["-p", "a/b"]
 umask = 0o177
-skip = "GNU gives a missing parent u+wx whatever the mask says; wolf cannot read or set the mask (wolf-lang#704)"
 
 [[case]]
 name = "a mask that takes the owner's write: -p of one new component"
@@ -468,41 +464,34 @@ args = ["--contex=x", "z"]
 name = "-Z with no operand"
 args = ["-Z"]
 
-# -m: refused by name (wolf-lang#346).
+# -m.
 [[case]]
 name = "-m 700"
 args = ["-m", "700", "m"]
-skip = "a directory's mode cannot be set in wolf 0.2.27 (wolf-lang#346): -m is refused by name, status 1, and nothing is made"
 
 [[case]]
 name = "-m attached"
 args = ["-m755", "m"]
-skip = "a directory's mode cannot be set in wolf 0.2.27 (wolf-lang#346): -m is refused by name, status 1, and nothing is made"
 
 [[case]]
 name = "--mode=u+x,g-w"
 args = ["--mode=u+x,g-w", "m"]
-skip = "a directory's mode cannot be set in wolf 0.2.27 (wolf-lang#346): -m is refused by name, status 1, and nothing is made"
 
 [[case]]
 name = "-m 0"
 args = ["-m", "0", "m"]
-skip = "a directory's mode cannot be set in wolf 0.2.27 (wolf-lang#346): -m is refused by name, status 1, and nothing is made"
 
 [[case]]
 name = "-m a=rwxt"
 args = ["-m", "a=rwxt", "m"]
-skip = "a directory's mode cannot be set in wolf 0.2.27 (wolf-lang#346): -m is refused by name, status 1, and nothing is made"
 
 [[case]]
 name = "-pm 700: the parents take the mask, the last the mode"
 args = ["-pm", "700", "pm/a/b"]
-skip = "a directory's mode cannot be set in wolf 0.2.27 (wolf-lang#346): -m is refused by name, status 1, and nothing is made"
 
 [[case]]
 name = "-m with an invalid mode"
 args = ["-m", "999", "m"]
-skip = "a directory's mode cannot be set in wolf 0.2.27 (wolf-lang#346): -m is refused by name, status 1, and nothing is made (GNU says: invalid mode '999')"
 
 [[case]]
 name = "-m with no argument"
@@ -544,3 +533,765 @@ stdout_closed = true
 name = "stdout closed under -v"
 args = ["-v", "a"]
 stdout_closed = true
+
+[[case]]
+name = "-m 755 under the mask 022"
+args = ["-m", "755", "m"]
+umask = 0o022
+
+[[case]]
+name = "-m 755 under the mask 077"
+args = ["-m", "755", "m"]
+umask = 0o077
+
+[[case]]
+name = "-m 755 under the mask 027"
+args = ["-m", "755", "m"]
+umask = 0o027
+
+[[case]]
+name = "-m 755 under the mask 777"
+args = ["-m", "755", "m"]
+umask = 0o777
+
+[[case]]
+name = "-m 700 under the mask 022"
+args = ["-m", "700", "m"]
+umask = 0o022
+
+[[case]]
+name = "-m 700 under the mask 077"
+args = ["-m", "700", "m"]
+umask = 0o077
+
+[[case]]
+name = "-m 700 under the mask 027"
+args = ["-m", "700", "m"]
+umask = 0o027
+
+[[case]]
+name = "-m 700 under the mask 777"
+args = ["-m", "700", "m"]
+umask = 0o777
+
+[[case]]
+name = "-m 0 under the mask 022"
+args = ["-m", "0", "m"]
+umask = 0o022
+
+[[case]]
+name = "-m 0 under the mask 077"
+args = ["-m", "0", "m"]
+umask = 0o077
+
+[[case]]
+name = "-m 0 under the mask 027"
+args = ["-m", "0", "m"]
+umask = 0o027
+
+[[case]]
+name = "-m 0 under the mask 777"
+args = ["-m", "0", "m"]
+umask = 0o777
+
+[[case]]
+name = "-m 777 under the mask 022"
+args = ["-m", "777", "m"]
+umask = 0o022
+
+[[case]]
+name = "-m 777 under the mask 077"
+args = ["-m", "777", "m"]
+umask = 0o077
+
+[[case]]
+name = "-m 777 under the mask 027"
+args = ["-m", "777", "m"]
+umask = 0o027
+
+[[case]]
+name = "-m 777 under the mask 777"
+args = ["-m", "777", "m"]
+umask = 0o777
+
+[[case]]
+name = "-m 1777 under the mask 022"
+args = ["-m", "1777", "m"]
+umask = 0o022
+
+[[case]]
+name = "-m 1777 under the mask 077"
+args = ["-m", "1777", "m"]
+umask = 0o077
+
+[[case]]
+name = "-m 1777 under the mask 027"
+args = ["-m", "1777", "m"]
+umask = 0o027
+
+[[case]]
+name = "-m 1777 under the mask 777"
+args = ["-m", "1777", "m"]
+umask = 0o777
+
+[[case]]
+name = "-m 2750 under the mask 022"
+args = ["-m", "2750", "m"]
+umask = 0o022
+
+[[case]]
+name = "-m 2750 under the mask 077"
+args = ["-m", "2750", "m"]
+umask = 0o077
+
+[[case]]
+name = "-m 2750 under the mask 027"
+args = ["-m", "2750", "m"]
+umask = 0o027
+
+[[case]]
+name = "-m 2750 under the mask 777"
+args = ["-m", "2750", "m"]
+umask = 0o777
+
+[[case]]
+name = "-m 4700 under the mask 022"
+args = ["-m", "4700", "m"]
+umask = 0o022
+
+[[case]]
+name = "-m 4700 under the mask 077"
+args = ["-m", "4700", "m"]
+umask = 0o077
+
+[[case]]
+name = "-m 4700 under the mask 027"
+args = ["-m", "4700", "m"]
+umask = 0o027
+
+[[case]]
+name = "-m 4700 under the mask 777"
+args = ["-m", "4700", "m"]
+umask = 0o777
+
+[[case]]
+name = "-m 7777 under the mask 022"
+args = ["-m", "7777", "m"]
+umask = 0o022
+
+[[case]]
+name = "-m 7777 under the mask 077"
+args = ["-m", "7777", "m"]
+umask = 0o077
+
+[[case]]
+name = "-m 7777 under the mask 027"
+args = ["-m", "7777", "m"]
+umask = 0o027
+
+[[case]]
+name = "-m 7777 under the mask 777"
+args = ["-m", "7777", "m"]
+umask = 0o777
+
+[[case]]
+name = "-m 00755 under the mask 022"
+args = ["-m", "00755", "m"]
+umask = 0o022
+
+[[case]]
+name = "-m 00755 under the mask 077"
+args = ["-m", "00755", "m"]
+umask = 0o077
+
+[[case]]
+name = "-m 00755 under the mask 027"
+args = ["-m", "00755", "m"]
+umask = 0o027
+
+[[case]]
+name = "-m 00755 under the mask 777"
+args = ["-m", "00755", "m"]
+umask = 0o777
+
+[[case]]
+name = "-m =755 under the mask 022"
+args = ["-m", "=755", "m"]
+umask = 0o022
+
+[[case]]
+name = "-m =755 under the mask 077"
+args = ["-m", "=755", "m"]
+umask = 0o077
+
+[[case]]
+name = "-m =755 under the mask 027"
+args = ["-m", "=755", "m"]
+umask = 0o027
+
+[[case]]
+name = "-m =755 under the mask 777"
+args = ["-m", "=755", "m"]
+umask = 0o777
+
+[[case]]
+name = "-m +t under the mask 022"
+args = ["-m", "+t", "m"]
+umask = 0o022
+
+[[case]]
+name = "-m +t under the mask 077"
+args = ["-m", "+t", "m"]
+umask = 0o077
+
+[[case]]
+name = "-m +t under the mask 027"
+args = ["-m", "+t", "m"]
+umask = 0o027
+
+[[case]]
+name = "-m +t under the mask 777"
+args = ["-m", "+t", "m"]
+umask = 0o777
+
+[[case]]
+name = "-m u=rwx,go=rx under the mask 022"
+args = ["-m", "u=rwx,go=rx", "m"]
+umask = 0o022
+
+[[case]]
+name = "-m u=rwx,go=rx under the mask 077"
+args = ["-m", "u=rwx,go=rx", "m"]
+umask = 0o077
+
+[[case]]
+name = "-m u=rwx,go=rx under the mask 027"
+args = ["-m", "u=rwx,go=rx", "m"]
+umask = 0o027
+
+[[case]]
+name = "-m u=rwx,go=rx under the mask 777"
+args = ["-m", "u=rwx,go=rx", "m"]
+umask = 0o777
+
+[[case]]
+name = "-m go-w under the mask 022"
+args = ["-m", "go-w", "m"]
+umask = 0o022
+
+[[case]]
+name = "-m go-w under the mask 077"
+args = ["-m", "go-w", "m"]
+umask = 0o077
+
+[[case]]
+name = "-m go-w under the mask 027"
+args = ["-m", "go-w", "m"]
+umask = 0o027
+
+[[case]]
+name = "-m go-w under the mask 777"
+args = ["-m", "go-w", "m"]
+umask = 0o777
+
+[[case]]
+name = "-m a-x under the mask 022"
+args = ["-m", "a-x", "m"]
+umask = 0o022
+
+[[case]]
+name = "-m a-x under the mask 077"
+args = ["-m", "a-x", "m"]
+umask = 0o077
+
+[[case]]
+name = "-m a-x under the mask 027"
+args = ["-m", "a-x", "m"]
+umask = 0o027
+
+[[case]]
+name = "-m a-x under the mask 777"
+args = ["-m", "a-x", "m"]
+umask = 0o777
+
+[[case]]
+name = "-m -w under the mask 022"
+args = ["-m", "-w", "m"]
+umask = 0o022
+
+[[case]]
+name = "-m -w under the mask 077"
+args = ["-m", "-w", "m"]
+umask = 0o077
+
+[[case]]
+name = "-m -w under the mask 027"
+args = ["-m", "-w", "m"]
+umask = 0o027
+
+[[case]]
+name = "-m -w under the mask 777"
+args = ["-m", "-w", "m"]
+umask = 0o777
+
+[[case]]
+name = "-m = under the mask 022"
+args = ["-m", "=", "m"]
+umask = 0o022
+
+[[case]]
+name = "-m = under the mask 077"
+args = ["-m", "=", "m"]
+umask = 0o077
+
+[[case]]
+name = "-m = under the mask 027"
+args = ["-m", "=", "m"]
+umask = 0o027
+
+[[case]]
+name = "-m = under the mask 777"
+args = ["-m", "=", "m"]
+umask = 0o777
+
+[[case]]
+name = "-m u+s under the mask 022"
+args = ["-m", "u+s", "m"]
+umask = 0o022
+
+[[case]]
+name = "-m u+s under the mask 077"
+args = ["-m", "u+s", "m"]
+umask = 0o077
+
+[[case]]
+name = "-m u+s under the mask 027"
+args = ["-m", "u+s", "m"]
+umask = 0o027
+
+[[case]]
+name = "-m u+s under the mask 777"
+args = ["-m", "u+s", "m"]
+umask = 0o777
+
+[[case]]
+name = "-m g+s under the mask 022"
+args = ["-m", "g+s", "m"]
+umask = 0o022
+
+[[case]]
+name = "-m g+s under the mask 077"
+args = ["-m", "g+s", "m"]
+umask = 0o077
+
+[[case]]
+name = "-m g+s under the mask 027"
+args = ["-m", "g+s", "m"]
+umask = 0o027
+
+[[case]]
+name = "-m g+s under the mask 777"
+args = ["-m", "g+s", "m"]
+umask = 0o777
+
+[[case]]
+name = "-m +s under the mask 022"
+args = ["-m", "+s", "m"]
+umask = 0o022
+
+[[case]]
+name = "-m +s under the mask 077"
+args = ["-m", "+s", "m"]
+umask = 0o077
+
+[[case]]
+name = "-m +s under the mask 027"
+args = ["-m", "+s", "m"]
+umask = 0o027
+
+[[case]]
+name = "-m +s under the mask 777"
+args = ["-m", "+s", "m"]
+umask = 0o777
+
+[[case]]
+name = "-m o+t under the mask 022"
+args = ["-m", "o+t", "m"]
+umask = 0o022
+
+[[case]]
+name = "-m o+t under the mask 077"
+args = ["-m", "o+t", "m"]
+umask = 0o077
+
+[[case]]
+name = "-m o+t under the mask 027"
+args = ["-m", "o+t", "m"]
+umask = 0o027
+
+[[case]]
+name = "-m o+t under the mask 777"
+args = ["-m", "o+t", "m"]
+umask = 0o777
+
+[[case]]
+name = "-m a=rX under the mask 022"
+args = ["-m", "a=rX", "m"]
+umask = 0o022
+
+[[case]]
+name = "-m a=rX under the mask 077"
+args = ["-m", "a=rX", "m"]
+umask = 0o077
+
+[[case]]
+name = "-m a=rX under the mask 027"
+args = ["-m", "a=rX", "m"]
+umask = 0o027
+
+[[case]]
+name = "-m a=rX under the mask 777"
+args = ["-m", "a=rX", "m"]
+umask = 0o777
+
+[[case]]
+name = "-m u=rwx,g=u under the mask 022"
+args = ["-m", "u=rwx,g=u", "m"]
+umask = 0o022
+
+[[case]]
+name = "-m u=rwx,g=u under the mask 077"
+args = ["-m", "u=rwx,g=u", "m"]
+umask = 0o077
+
+[[case]]
+name = "-m u=rwx,g=u under the mask 027"
+args = ["-m", "u=rwx,g=u", "m"]
+umask = 0o027
+
+[[case]]
+name = "-m u=rwx,g=u under the mask 777"
+args = ["-m", "u=rwx,g=u", "m"]
+umask = 0o777
+
+[[case]]
+name = "-m +X under the mask 022"
+args = ["-m", "+X", "m"]
+umask = 0o022
+
+[[case]]
+name = "-m +X under the mask 077"
+args = ["-m", "+X", "m"]
+umask = 0o077
+
+[[case]]
+name = "-m +X under the mask 027"
+args = ["-m", "+X", "m"]
+umask = 0o027
+
+[[case]]
+name = "-m +X under the mask 777"
+args = ["-m", "+X", "m"]
+umask = 0o777
+
+[[case]]
+name = "-m -x under the mask 022"
+args = ["-m", "-x", "m"]
+umask = 0o022
+
+[[case]]
+name = "-m -x under the mask 077"
+args = ["-m", "-x", "m"]
+umask = 0o077
+
+[[case]]
+name = "-m -x under the mask 027"
+args = ["-m", "-x", "m"]
+umask = 0o027
+
+[[case]]
+name = "-m -x under the mask 777"
+args = ["-m", "-x", "m"]
+umask = 0o777
+
+[[case]]
+name = "-m =rx,u+w under the mask 022"
+args = ["-m", "=rx,u+w", "m"]
+umask = 0o022
+
+[[case]]
+name = "-m =rx,u+w under the mask 077"
+args = ["-m", "=rx,u+w", "m"]
+umask = 0o077
+
+[[case]]
+name = "-m =rx,u+w under the mask 027"
+args = ["-m", "=rx,u+w", "m"]
+umask = 0o027
+
+[[case]]
+name = "-m =rx,u+w under the mask 777"
+args = ["-m", "=rx,u+w", "m"]
+umask = 0o777
+
+[[case]]
+name = "-m 8 is invalid"
+args = ["-m", "8", "m"]
+
+[[case]]
+name = "-m 17777 is invalid"
+args = ["-m", "17777", "m"]
+
+[[case]]
+name = "-m u+q is invalid"
+args = ["-m", "u+q", "m"]
+
+[[case]]
+name = "-m z is invalid"
+args = ["-m", "z", "m"]
+
+[[case]]
+name = "-m  is invalid"
+args = ["-m", "", "m"]
+
+[[case]]
+name = "-m , is invalid"
+args = ["-m", ",", "m"]
+
+[[case]]
+name = "-m u is invalid"
+args = ["-m", "u", "m"]
+
+[[case]]
+name = "-m invalid and no operand"
+args = ["-m", "999"]
+
+[[case]]
+name = "-m and no operand"
+args = ["-m", "755"]
+
+[[case]]
+name = "-pm 700: the parents get u+wx under the mask 277"
+args = ["-pm", "700", "pm/a/b"]
+umask = 0o277
+
+[[case]]
+name = "-pm 700: the parents under the mask 777"
+args = ["-pm", "700", "pm/a/b"]
+umask = 0o777
+
+[[case]]
+name = "-p: the parents under the mask 777"
+args = ["-p", "pm/a/b"]
+umask = 0o777
+
+[[case]]
+name = "-p: the parents under the mask 377"
+args = ["-p", "pm/a/b"]
+umask = 0o377
+
+[[case]]
+name = "-pm 2755 -v"
+args = ["-pvm", "2755", "x/y/z"]
+
+[[case]]
+name = "-pm on a directory that exists keeps its mode"
+args = ["-pm", "700", "d"]
+scratch_dirs = ["d"]
+
+[[case]]
+name = "-pm on a path that exists in part"
+args = ["-pm", "711", "d/new/newer"]
+scratch_dirs = ["d"]
+
+[[case]]
+name = "-m under a set-group-ID parent, no change needed"
+args = ["-m", "755", "g/sub"]
+scratch_dirs = ["g"]
+scratch_modes = { "g" = 0o2775 }
+
+[[case]]
+name = "-m under a set-group-ID parent, a change needed"
+args = ["-m", "777", "g/sub"]
+scratch_dirs = ["g"]
+scratch_modes = { "g" = 0o2775 }
+
+[[case]]
+name = "-m under a set-group-ID parent, the bit asked for"
+args = ["-m", "2700", "g/sub"]
+scratch_dirs = ["g"]
+scratch_modes = { "g" = 0o2775 }
+
+[[case]]
+name = "-m under a set-group-ID parent, symbolic"
+args = ["-m", "g-s", "g/sub"]
+scratch_dirs = ["g"]
+scratch_modes = { "g" = 0o2775 }
+
+[[case]]
+name = "plain mkdir under a set-group-ID parent"
+args = ["g/sub"]
+scratch_dirs = ["g"]
+scratch_modes = { "g" = 0o2775 }
+
+[[case]]
+name = "-p under a set-group-ID parent"
+args = ["-p", "g/a/b"]
+scratch_dirs = ["g"]
+scratch_modes = { "g" = 0o2775 }
+
+[[case]]
+name = "-m 0 then something inside fails"
+args = ["-m", "0", "z", "z/in"]
+
+[[case]]
+name = "-m twice, the last wins"
+args = ["-m", "700", "-m", "755", "m"]
+
+[[case]]
+name = "-m in a directory that may not be written"
+args = ["-m", "700", "ro/m"]
+scratch_dirs = ["ro"]
+scratch_modes = { "ro" = 0o555 }
+
+[[case]]
+name = "--mode as two words"
+args = ["--mode", "711", "m"]
+
+[[case]]
+name = "-m with a file in the way"
+args = ["-m", "700", "f"]
+scratch = { "f" = "x\n" }
+
+[[case]]
+name = "-m a=rwx under a set-group-ID parent, the mask 022"
+args = ["-m", "a=rwx", "g/sub"]
+umask = 0o022
+scratch_dirs = ["g"]
+scratch_modes = { "g" = 0o2775 }
+
+[[case]]
+name = "-m u=rwx,go=rx under a set-group-ID parent, the mask 022"
+args = ["-m", "u=rwx,go=rx", "g/sub"]
+umask = 0o022
+scratch_dirs = ["g"]
+scratch_modes = { "g" = 0o2775 }
+
+[[case]]
+name = "-m 00777 under a set-group-ID parent, the mask 022"
+args = ["-m", "00777", "g/sub"]
+umask = 0o022
+scratch_dirs = ["g"]
+scratch_modes = { "g" = 0o2775 }
+
+[[case]]
+name = "-m =755 under a set-group-ID parent, the mask 022"
+args = ["-m", "=755", "g/sub"]
+umask = 0o022
+scratch_dirs = ["g"]
+scratch_modes = { "g" = 0o2775 }
+
+[[case]]
+name = "-m +w under a set-group-ID parent, the mask 022"
+args = ["-m", "+w", "g/sub"]
+umask = 0o022
+scratch_dirs = ["g"]
+scratch_modes = { "g" = 0o2775 }
+
+[[case]]
+name = "-m 700 under a set-group-ID parent, the mask 077"
+args = ["-m", "700", "g/sub"]
+umask = 0o077
+scratch_dirs = ["g"]
+scratch_modes = { "g" = 0o2775 }
+
+[[case]]
+name = "-m 750 under a set-group-ID parent, the mask 077"
+args = ["-m", "750", "g/sub"]
+umask = 0o077
+scratch_dirs = ["g"]
+scratch_modes = { "g" = 0o2775 }
+
+[[case]]
+name = "-m =rwxt under a set-group-ID parent, the mask 022"
+args = ["-m", "=rwxt", "g/sub"]
+umask = 0o022
+scratch_dirs = ["g"]
+scratch_modes = { "g" = 0o2775 }
+
+[[case]]
+name = "-m u+s under a set-group-ID parent, the mask 077"
+args = ["-m", "u+s", "g/sub"]
+umask = 0o077
+scratch_dirs = ["g"]
+scratch_modes = { "g" = 0o2775 }
+
+[[case]]
+name = "-m =t under the mask 000"
+args = ["-m", "=t", "m"]
+umask = 0o000
+
+[[case]]
+name = "-m =t under the mask 077"
+args = ["-m", "=t", "m"]
+umask = 0o077
+
+[[case]]
+name = "-m u+t under the mask 000"
+args = ["-m", "u+t", "m"]
+umask = 0o000
+
+[[case]]
+name = "-m u+t under the mask 077"
+args = ["-m", "u+t", "m"]
+umask = 0o077
+
+[[case]]
+name = "-m +t,o+w under the mask 000"
+args = ["-m", "+t,o+w", "m"]
+umask = 0o000
+
+[[case]]
+name = "-m +t,o+w under the mask 077"
+args = ["-m", "+t,o+w", "m"]
+umask = 0o077
+
+[[case]]
+name = "-m a+t under the mask 000"
+args = ["-m", "a+t", "m"]
+umask = 0o000
+
+[[case]]
+name = "-m a+t under the mask 077"
+args = ["-m", "a+t", "m"]
+umask = 0o077
+
+[[case]]
+name = "-m =rwxt under the mask 000"
+args = ["-m", "=rwxt", "m"]
+umask = 0o000
+
+[[case]]
+name = "-m =rwxt under the mask 077"
+args = ["-m", "=rwxt", "m"]
+umask = 0o077
+
+[[case]]
+name = "-m +s,+t under the mask 000"
+args = ["-m", "+s,+t", "m"]
+umask = 0o000
+
+[[case]]
+name = "-m +s,+t under the mask 077"
+args = ["-m", "+s,+t", "m"]
+umask = 0o077
+
+[[case]]
+name = "-m g+s,o+t under the mask 000"
+args = ["-m", "g+s,o+t", "m"]
+umask = 0o000
+
+[[case]]
+name = "-m g+s,o+t under the mask 077"
+args = ["-m", "g+s,o+t", "m"]
+umask = 0o077
