@@ -125,6 +125,7 @@ c.case("-h on a file", ["-h", "755", "f"], **L)
 c.case("--dereference", ["--dereference", "755", "lf"], **L)
 c.case("-h then --dereference", ["-h", "--dereference", "755", "lf"], **L)
 
+LCHMOD = {"-vR 700 d", "-vRh 700 d", "-vR -P 700 ld", "-vRh 700 ld", "-vR u+x d e"}
 c.note("-R: the directory, then what it holds; links inside are left alone unless -L.")
 T = {"scratch": {"d/f": "x\n", "e/x": "y\n"}, "scratch_dirs": ["d/s", "e/sub"],
      "scratch_links": {"d/l": "../e", "ld": "e", "lf": "d/f", "d/dang": "nowhere"}}
@@ -136,7 +137,10 @@ for args in [["-vR", "700", "d"], ["-R", "700", "d", "lf"], ["-vR", "700", "lf"]
              ["--no-preserve-root", "-R", "700", "d"], ["-R", "go-rwx", "."], ["-vR", "u+x", "d", "e"],
              ["-fR", "a-x", "d"], ["-RP", "-vL", "700", "d"], ["-RL", "-P", "700", "ld"], ["--recursive", "700", "e"],
              ["--rec", "700", "e"], ["-R", "a+X", "d"], ["-vR", "=", "e"]]:
-    c.case("walk: " + " ".join(args), args, **T)
+    kw = dict(T)
+    if " ".join(args) in LCHMOD:
+        kw["skip_on"] = {"Darwin": "GNU changes a link's own mode there (lchmod) when the walk meets one, or -h or -P names one; wolf has no call that does (fs_set_mode follows a final link), so this one leaves it and says so, as GNU does on linux (CI run 38208558368)"}
+    c.case("walk: " + " ".join(args), args, **kw)
 c.case("walk: the mask's warning on every entry", ["-R", "-r", "e"], umask=0o027, **T)
 c.case("walk: a link back up, -L", ["-R", "-L", "700", "c"], scratch_dirs=["c/sub"], scratch_links={"c/sub/up": ".."})
 c.case("walk: an empty directory", ["-vR", "700", "z"], scratch_dirs=["z"])

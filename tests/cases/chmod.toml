@@ -3009,6 +3009,7 @@ args = ["-vR", "700", "d"]
 scratch = { "d/f" = "x\n", "e/x" = "y\n" }
 scratch_dirs = ["d/s", "e/sub"]
 scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+skip_on = { "Darwin" = "GNU changes a link's own mode there (lchmod) when the walk meets one, or -h or -P names one; wolf has no call that does (fs_set_mode follows a final link), so this one leaves it and says so, as GNU does on linux (CI run 38208558368)" }
 
 [[case]]
 name = "walk: -R 700 d lf"
@@ -3058,6 +3059,7 @@ args = ["-vRh", "700", "d"]
 scratch = { "d/f" = "x\n", "e/x" = "y\n" }
 scratch_dirs = ["d/s", "e/sub"]
 scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+skip_on = { "Darwin" = "GNU changes a link's own mode there (lchmod) when the walk meets one, or -h or -P names one; wolf has no call that does (fs_set_mode follows a final link), so this one leaves it and says so, as GNU does on linux (CI run 38208558368)" }
 
 [[case]]
 name = "walk: -vR 700 ld"
@@ -3079,6 +3081,7 @@ args = ["-vR", "-P", "700", "ld"]
 scratch = { "d/f" = "x\n", "e/x" = "y\n" }
 scratch_dirs = ["d/s", "e/sub"]
 scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+skip_on = { "Darwin" = "GNU changes a link's own mode there (lchmod) when the walk meets one, or -h or -P names one; wolf has no call that does (fs_set_mode follows a final link), so this one leaves it and says so, as GNU does on linux (CI run 38208558368)" }
 
 [[case]]
 name = "walk: -vR -L 700 ld"
@@ -3107,6 +3110,7 @@ args = ["-vRh", "700", "ld"]
 scratch = { "d/f" = "x\n", "e/x" = "y\n" }
 scratch_dirs = ["d/s", "e/sub"]
 scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+skip_on = { "Darwin" = "GNU changes a link's own mode there (lchmod) when the walk meets one, or -h or -P names one; wolf has no call that does (fs_set_mode follows a final link), so this one leaves it and says so, as GNU does on linux (CI run 38208558368)" }
 
 [[case]]
 name = "walk: -vR a-x d"
@@ -3156,6 +3160,7 @@ args = ["-vR", "u+x", "d", "e"]
 scratch = { "d/f" = "x\n", "e/x" = "y\n" }
 scratch_dirs = ["d/s", "e/sub"]
 scratch_links = { "d/l" = "../e", "ld" = "e", "lf" = "d/f", "d/dang" = "nowhere" }
+skip_on = { "Darwin" = "GNU changes a link's own mode there (lchmod) when the walk meets one, or -h or -P names one; wolf has no call that does (fs_set_mode follows a final link), so this one leaves it and says so, as GNU does on linux (CI run 38208558368)" }
 
 [[case]]
 name = "walk: -fR a-x d"

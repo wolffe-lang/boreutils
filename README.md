@@ -260,7 +260,7 @@ cannot do to a file or an option not written** (bu21, bu22). Since wolf
 0.2.28 (s230) a mode can be given at creation and changed, a link of
 either kind made, a time set and the umask read, and `chmod`, `touch`,
 `ln`, `mkdir -m` and `cp -p` are written on them (bu22). `mkdir` and
-`rmdir` have none. `chmod` has none on linux (on macOS, two: GNU
+`rmdir` have none. `chmod` has none on linux (on macOS, seven: GNU
 changes a link's own mode there and wolf has no call for it). `touch`'s
 thirteen: eleven `-d` strings GNU's free-form grammar takes and this
 one does not read — relative items, month names, `MM/DD/YYYY` — each
@@ -1160,7 +1160,7 @@ table answers it per utility, from the evidence and from nothing else.
 | `rm` | 11 / 12 | 218 / 3 | start-up 0.87x; `-r` 0.94x to 1.02x | drop-in for scripts that avoid `--no-preserve-root` (refused on purpose: this `rm` does not remove `/`) and `--preserve-root=all`; at a terminal, "write-protected" is the owner's write bit (#633); a tree deeper than the host's path limit is not removed (#707) |
 | `mv` | 11 / 18 | 134 / 8 | start-up 1.01x | drop-in for scripts that stay on ONE file system (a move to another is refused, where GNU copies and removes) and avoid `-u`, `-b`, `-S`, `--exchange` and `--debug`, each refused by name; `-n` is a look and then a rename (#706) |
 | `cp` | 19 / 36 | 228 / 19 | start-up 0.92x; 1 GiB 1.00x; `-r` 0.72x to 0.75x | drop-in for scripts that avoid `-a`, `-d`, `--preserve=links`/`xattr`/`context`/`all`, `-s`, `-l`, a special file met under `-r`, `--sparse`/`--reflink` beyond `auto`, `-u`, `-b`, `--parents`, `--attributes-only` and `-x`, each refused by name, and do not `-p` a file owned by someone else (the owner is refused by name, #701) |
-| `chmod` | 14 / 14 | 532 / 0 | not benched | drop-in on linux; on macOS `-h` leaves a link alone where GNU changes its own mode |
+| `chmod` | 14 / 14 | 532 / 0 | not benched | drop-in on linux; on macOS a link named by `-h`/`-P` or met by `-R` is left alone where GNU changes its own mode |
 | `touch` | 11 / 11 | 156 / 13 | not benched | drop-in for scripts whose `-d` dates are `@SECONDS`, ISO 8601, a time of day or now/today/yesterday/tomorrow (any other is refused by name), that do not `touch -` (#714) or combine `-r` with `-d` |
 | `ln` | 13 / 16 | 145 / 3 | not benched | drop-in for scripts that avoid `-b`/`--backup`/`-S` (refused by name) |
 

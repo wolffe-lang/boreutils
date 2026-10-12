@@ -42,10 +42,11 @@
 //!
 //! **What this program cannot do, and does not pretend to.**
 //!
-//! - **`-h` on macOS.** There, GNU changes a link's own mode
-//!   (`lchmod`); wolf has no call for it (`fs_set_mode` follows a final
-//!   link, `[os.fs.mode]`), so a link handed to `chmod -h` is left
-//!   alone and said to be, as GNU says on linux.
+//! - **A link's own mode, on macOS.** There GNU changes it (`lchmod`)
+//!   when `-h` or `-P` names a link or the walk meets one; wolf has no
+//!   call for it (`fs_set_mode` follows a final link, `[os.fs.mode]`),
+//!   so such a link is left alone and said to be, as GNU does on linux
+//!   (seven cases skip on macOS by name; CI run 38208558368).
 //! - **The walk is by path** (wolf-lang#707), as `rm`'s is: a tree
 //!   deeper than the host's path limit cannot be walked, and a
 //!   directory swapped for a link mid-walk is followed.
