@@ -151,9 +151,16 @@ derives no boreutils code from GPL source.
 
 Every utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus, except where a case says otherwise and is
-skipped with its reason. The corpus holds **4,594 cases**; a run on
-kasumi (linux x86-64) at this pin answers **4,476 passed, 0 failed, 118
-skipped**, the same list on the release and the dev tier, and CI's
+skipped with its reason. The corpus holds **5,646 cases**; a run in a
+throwaway Ubuntu 24.04 container on kasumi (linux x86-64; the utilities
+that change files are run nowhere else on a lane's host) at this pin
+answers **5,527 passed, 0 failed, 119 skipped**, the same list on the
+release and the dev tier (bu22's figures and CI's are in
+`notes/bu22-the-modes-and-links.md` and its PR). The previous edition
+of this sentence, before bu22's `chmod`, `touch`, `ln`, `mkdir -m` and
+`cp -p`, said: a run on kasumi (linux x86-64) at this pin answers
+**4,476 passed, 0 failed, 118 skipped** of 4,594, the same list on the
+release and the dev tier, and CI's
 macOS leg skips the `/dev/full` and `/proc` cases besides, because
 macOS has neither, and the cases that print an owner's NAME, because a
 Mac's accounts are not in `/etc/passwd`: run 38124071375 answers 4,477
@@ -248,35 +255,34 @@ found through an empty `PATH` component, which sees `./name` where
 GNU's sees `name` (#689); and six options not written yet (`-S`, `-v`,
 the four signal options), refused by name.
 
-**The file changers add fifty-one skips, and every one is a thing wolf
-cannot do to a file** (bu21). `mkdir`, `rmdir`, `rm`, `mv` and `cp` are
-written on the six changes wolf 0.2.27 can make — make a directory,
-remove an empty one, unlink, rename, create-or-truncate, copy bytes —
-and each skip is a case that needs a seventh. `mkdir`'s nine: `-m`
-seven times (no mode at creation and no `chmod`, wolf-lang#346) and
-`-p` twice under a umask that takes the owner's write or search, where
-GNU gives a missing parent `u+wx` regardless (no umask, #704). `rmdir`
-has none. `rm`'s three: `--no-preserve-root` twice, refused on
+**The file changers add thirty-five skips, and every one is a thing wolf
+cannot do to a file or an option not written** (bu21, bu22). Since wolf
+0.2.28 (s230) a mode can be given at creation and changed, a link of
+either kind made, a time set and the umask read, and `chmod`, `touch`,
+`ln`, `mkdir -m` and `cp -p` are written on them (bu22). `mkdir` and
+`rmdir` have none. `chmod` has none on linux (on macOS, two: GNU
+changes a link's own mode there and wolf has no call for it). `touch`'s
+thirteen: eleven `-d` strings GNU's free-form grammar takes and this
+one does not read — relative items, month names, `MM/DD/YYYY` — each
+refused by name rather than guessed at, and `touch -` twice (times by
+handle, wolf-lang#714). `ln`'s three: `-b`, `--backup`, `-S`, not
+written. `rm`'s three: `--no-preserve-root` twice, refused on
 purpose, and `--preserve-root=all`, not written yet. `mv`'s eight:
 `--exchange` (no rename that swaps, #706) and seven for `-u`, `-b`,
-`-S` and `--debug`, not written yet. `cp`'s thirty-one: nine copies
-whose NEW file or directory would need the source's mode — an
-executable, a file private to its owner — and four for `-p`,
-`--preserve` and `-a` (#346, with #700 for the times and #701 for the
-owner); six that must create a symbolic link (`-P`, `-d`, `-s`, a link
-met under `-r`, #698), one a hard link (`-l`, #699), one a fifo (#705);
-five for `--sparse` and `--reflink` with anything but `auto` (#703);
-and five options not written yet. Every one is REFUSED BY NAME, status
-1, with the issue in the message, and leaves nothing behind: a copy
-with the wrong mode is not made and then apologised for. **And `rm -r
-/` is refused as GNU refuses it, which is run, not read:**
+`-S` and `--debug`, not written yet. `cp`'s nineteen: `-a`, `-d` and
+`--preserve=links`, `xattr`, `context`, `all` (hard links among the
+sources are not tracked; no extended attribute, #685); `-s` and `-l`,
+not written; one fifo (#705); five for `--sparse` and `--reflink` with
+anything but `auto` (#703); and five options not written yet. The
+OWNER is the one thing `cp -p` cannot keep (#701): a copy whose owner
+or group came out other than its source's says so by name, status 1.
+Every refusal is BY NAME, status 1, and leaves nothing wrong behind.
+**And `rm -r /` is refused as GNU refuses it, which is run, not read:**
 `tools/roottest` hands `/` and its spellings to both tiers of `rm` in
 a throwaway container — no mount, no network, as a user and as root
 inside — beside GNU 9.11, thirty cases with `mv`'s and `cp`'s, a
 sentinel tree summed before and after (`tests/root/cases.toml`; CI's
-ubuntu leg). `touch`, `ln`
-and `chmod` are not in the table at all: the one operation each exists
-for has no builtin (#700; #698 and #699; #346).
+ubuntu leg).
 
 "vs GNU" is wall-clock from `tools/bench`, GNU's time divided by ours,
 so above 1.00 is faster than GNU. It is a measurement on a stated host,
@@ -1085,11 +1091,14 @@ depth is start-up on both sides.
 | `stat` | done: the default and terse formats, `-c`/`--printf` with every directive but `%o` and `%C`, `-L`; not `-f` (wolf-lang#686) or `-` (#536) | start-up 0.77x; 10,000 operands 0.69x to 0.75x (linux) |
 | `readlink` | done: the target, and `-f`, `-e`, `-m` by a walk written here | start-up 0.77x (linux) |
 | `env` | done by exec: `-i`, `-u`, `NAME=VALUE`, `-C`, `-a`, `-0`, 125/126/127; the inherited environment in sorted order (wolf-lang#535); not `-S`, `-v` or the signal options | `env true` 0.78x (linux) |
-| `mkdir` | done: `-p`, `-v`, `-Z`; `-m` refused (wolf-lang#346), and under `-p` a missing parent takes the umask's mode, not GNU's `u+wx` (#704) | start-up 0.72x; `-p` a thousand deep 0.37x (linux) |
+| `mkdir` | done: `-p`, `-v`, `-Z`, `-m` (as GNU makes it: under no mask, fixed after only where the MODE says) | start-up 0.72x; `-p` a thousand deep 0.37x (linux) |
 | `rmdir` | done: `-p`, `-v`, `--ignore-fail-on-non-empty` | start-up 0.72x (linux) |
 | `rm` | done: `-f`, `-r`, `-d`, `-v`, `-i`, `-I`, `--interactive`, `--one-file-system`; a link never followed; `/`, `.` and `..` refused; not `--no-preserve-root` (on purpose) or `--preserve-root=all` | start-up 0.87x; `-r` of 100,000 files 0.94x to 1.02x (linux) |
 | `mv` | done: one rename, into a directory, `-f`, `-i`, `-n`, `-v`, `-T`, `-t`, `--strip-trailing-slashes`, `--no-copy`; ANOTHER FILE SYSTEM REFUSED by name (a copy would lose the mode, the times, the owner, the links); not `-u`, `-b`, `--exchange` (#706) | start-up 1.01x (linux) |
-| `cp` | done: bytes by `fs_copy_chunk`, `-r`, `-L`, `-H`, `-f`, `-i`, `-n`, `-v`, `-T`, `-t`, `--remove-destination`, `--no-preserve=mode`; a NEW file whose mode is not creation's is refused, never copied wrong (#346); not `-p`, `-a`, `-P`, `-d`, `-s`, `-l`, a link or a fifo under `-r` (#698, #699, #705), `--sparse`/`--reflink` beyond `auto` (#703) | start-up 0.92x; 1 GiB 1.00x; `-r` of 100,000 files 0.72x to 0.75x (linux, btrfs) |
+| `cp` | done: bytes by `fs_copy_chunk`, a new file with its source's mode from the first instant, `-r`, `-L`, `-H`, `-P`, a link under `-r` copied as a link, `-p`, `--preserve=mode,timestamps`, `--no-preserve`, `-f`, `-i`, `-n`, `-v`, `-T`, `-t`, `--remove-destination`; not the owner (#701), `-a`, `-d`, `--preserve=links/xattr/context/all`, `-s`, `-l`, a fifo under `-r` (#705), `--sparse`/`--reflink` beyond `auto` (#703) | start-up 0.92x; 1 GiB 1.00x; `-r` of 100,000 files 0.72x to 0.75x (linux, btrfs; bu21's figures, not re-taken) |
+| `chmod` | done: octal and symbolic modes, a mode given as an option, `-c`, `-f`, `-v`, `-R`, `-H`, `-L`, `-P`, `-h`, `--reference`, `--preserve-root` | not benched |
+| `touch` | done: `-a`, `-m`, `--time`, `-c`, `-h`, `-r`, `-t`, `-d` for `@SECONDS`, ISO 8601, a time of day and now/today/yesterday/tomorrow, both times to the nanosecond; not `touch -` (#714) or the rest of GNU's date grammar | not benched |
+| `ln` | done: hard and symbolic, `-f` (a replace that never leaves the name missing), `-i`, `-n`, `-T`, `-t`, `-v`, `-P`, `-L`, `-r`, `-d`/`-F`; not `-b` | not benched |
 
 ## Drop-in readiness
 
@@ -1146,19 +1155,22 @@ table answers it per utility, from the evidence and from nothing else.
 | `stat` | 7 / 8 | 152 / 8 | start-up 0.77x; 0.69x to 0.75x over many operands | drop-in for scripts that avoid `-f` (wolf-lang#686), `-` (#536), `%C`, and `%o` or the default format's `IO Block:` field, which prints `?` (#684) |
 | `readlink` | 10 / 10 | 97 / 0 | start-up 0.77x | drop-in |
 | `env` | 8 / 14 | 90 / 13 | `env true` 0.78x | drop-in for scripts that avoid `-S`, `-v` and the signal options (each refused by name), and do not read the ORDER of the environment they did not start from `-i` (wolf-lang#535) |
-| `mkdir` | 6 / 7 | 103 / 9 | start-up 0.72x; a thousand deep 0.37x | drop-in for scripts that avoid `-m` (refused: wolf-lang#346), and do not run `-p` under a umask that takes the owner's write or search (#704) |
+| `mkdir` | 7 / 7 | 262 / 0 | start-up 0.72x; a thousand deep 0.37x | drop-in |
 | `rmdir` | 5 / 5 | 70 / 0 | start-up 0.72x | drop-in |
 | `rm` | 11 / 12 | 218 / 3 | start-up 0.87x; `-r` 0.94x to 1.02x | drop-in for scripts that avoid `--no-preserve-root` (refused on purpose: this `rm` does not remove `/`) and `--preserve-root=all`; at a terminal, "write-protected" is the owner's write bit (#633); a tree deeper than the host's path limit is not removed (#707) |
 | `mv` | 11 / 18 | 134 / 8 | start-up 1.01x | drop-in for scripts that stay on ONE file system (a move to another is refused, where GNU copies and removes) and avoid `-u`, `-b`, `-S`, `--exchange` and `--debug`, each refused by name; `-n` is a look and then a rename (#706) |
-| `cp` | 16 / 36 | 163 / 31 | start-up 0.92x; 1 GiB 1.00x; `-r` 0.72x to 0.75x | drop-in for scripts that copy ordinary data files and trees of them: a source that is executable or private to its owner is refused unless `--no-preserve=mode` (#346), as are `-p`, `--preserve`, `-a`, `-P`, `-d`, `-s`, `-l`, a link or a special file met under `-r` without `-L`, `--sparse`/`--reflink` beyond `auto`, `-u`, `-b`, `--parents`, `--attributes-only` and `-x`, each by name |
+| `cp` | 19 / 36 | 228 / 19 | start-up 0.92x; 1 GiB 1.00x; `-r` 0.72x to 0.75x | drop-in for scripts that avoid `-a`, `-d`, `--preserve=links`/`xattr`/`context`/`all`, `-s`, `-l`, a special file met under `-r`, `--sparse`/`--reflink` beyond `auto`, `-u`, `-b`, `--parents`, `--attributes-only` and `-x`, each refused by name, and do not `-p` a file owned by someone else (the owner is refused by name, #701) |
+| `chmod` | 14 / 14 | 532 / 0 | not benched | drop-in on linux; on macOS `-h` leaves a link alone where GNU changes its own mode |
+| `touch` | 11 / 11 | 156 / 13 | not benched | drop-in for scripts whose `-d` dates are `@SECONDS`, ISO 8601, a time of day or now/today/yesterday/tomorrow (any other is refused by name), that do not `touch -` (#714) or combine `-r` with `-d` |
+| `ln` | 13 / 16 | 145 / 3 | not benched | drop-in for scripts that avoid `-b`/`--backup`/`-S` (refused by name) |
 
-**18 drop-in, 18 drop-in for scripts that avoid a named thing, none not
-yet** (`rmdir` arrived drop-in at bu21 and `mkdir`, `rm`, `mv` and `cp`
-with a named thing each; `readlink` arrived drop-in at bu20; `env`, the
+**19 drop-in, 20 drop-in for scripts that avoid a named thing, none not
+yet** (bu22: `mkdir` became drop-in, and `chmod`, `touch` and `ln`
+arrived with a named thing each; `rmdir` arrived drop-in at bu21 and
+`mkdir`, `rm`, `mv` and `cp` with a named thing each; `readlink` arrived drop-in at bu20; `env`, the
 one "not yet", shipped; `wc` became drop-in at bu19, when the host's
-reason arrived). `cp`'s named thing is the largest in the table: it is
-the right tool for data files and the wrong one, by its own admission
-at run time, for anything whose mode matters. The same evidence read across: no shipped utility fails a case,
+reason arrived). `cp`'s named things shrank at bu22: it copies a mode
+and both times now, and refuses only what it cannot keep, by name. The same evidence read across: no shipped utility fails a case,
 and every skip that is this program's own names the wolf issue behind
 it.
 
@@ -1166,19 +1178,18 @@ it.
 **103 utilities** (its info manual's `invocation` nodes, the four SHA-2
 sums counted as one and `[` as `test`; Arch's build installs 102
 binaries and leaves out `arch`, `chcon`, `runcon`, `hostname`, `kill`
-and `uptime`). boreutils ships **36 of them, 35%**. Effort is not what
-blocks most of the other 67: wolf
-0.2.27 has no surface for them, and each gap boreutils has met is filed
+and `uptime`). boreutils ships **39 of them, 38%**. Effort is not what
+blocks most of the other 64: wolf
+0.2.28 has no surface for them, and each gap boreutils has met is filed
 upstream with its witness. The OS surface lane's first cut, s199's
 wolf-lang#426 and #424 (seek, tell, the positional read, and the
 standard descriptors), shipped in 0.2.22, and `tail`, `head` and `wc`
 use it (bu15).
 
-- **#346**, no permission surface — neither a mode at creation nor a
-  change of one: `chmod` (left out for this alone), `install -m`,
-  `mkdir -m`, `mkfifo`/`mknod -m`, `mktemp`'s private file, `cp -p`, and
-  `cp` itself for any source whose mode is not creation's (bu21: an
-  executable or a private file is refused, never copied wrong).
+- **#346** (closed, wolf 0.2.28, s230): a mode at creation
+  (`fs_open_perm`, `fs_create_dir_mode`) and a change of one
+  (`fs_set_mode`); `chmod`, `mkdir -m`, `cp`'s new files and `cp -p`
+  stand on them (bu22). `install -m`, `mkfifo -m`, `mktemp` can.
 - **#633**, no user id and no `access`: `rm`'s and `mv`'s
   "write-protected" is the owner's write bit; `id`, `whoami`, `test -w`.
 - **#405** (closed, wolf 0.2.26): descriptors 0, 1 and 2 are read and
@@ -1206,7 +1217,9 @@ use it (bu15).
 - **#424** (closed, wolf 0.2.22): `fs_fstat`, `fs_seek`, `fs_tell` and
   `fs_read_at` see descriptors 0, 1 and 2; `wc -c` and `tail` on a
   redirected regular file use them (bu15). `cat`'s input-is-output
-  refusal still waits on #536.
+  refusal waits on #536 and on a handle's open flags: GNU refuses only
+  when the output was opened for append or stands past the input
+  (bu22, boreutils#28).
 - **#426** (wolf 0.2.22): seek, tell and the positional read exist;
   `tail`, `head` and `wc` use them (bu15). `tac` does not yet; `dd
   skip=`/`seek=` could; `truncate` and `shred` need a truncate call
@@ -1236,25 +1249,26 @@ use it (bu15).
   reports and skips it, and so do `rm -r` and `cp -r` (bu21) — its
   directory then stays, and the status is 1. As an OPERAND it never
   arrives: the runtime aborts on the argument (#406).
-- **#688**, an `0o…` or `0b…` literal is refused by the native and
-  release tiers and run by `wolf test`: written in decimal here.
+- **#688** (closed, wolf 0.2.28): an `0o…` or `0b…` literal lowers on
+  every tier; the modes here are still written in decimal.
 - **#689** and **#682**, `os_exec` runs `./name` for an empty `PATH`
   component, and says nothing of why an exec failed: `env`.
 - **#692**, the listing leaves out `.` and `..`: `ls -f` and `-aU`
   cannot place them where ext4 has them.
-- **#698**, no call creates a symbolic link, and **#699**, none a hard
-  link: `ln` is left out; `cp -P`, `-d`, `-s`, `-l` and a link met under
-  `cp -r` are refused; `link`, `mktemp`'s neighbours beyond.
-- **#700**, no call changes a file's times: `touch` is left out; `cp
-  -p` and a `mv` to another file system cannot keep one.
-- **#701**, no call changes an owner: `chown`, `chgrp`, `cp -p`,
-  `install -o`.
-- **#702**, a file is truncated to zero and to no other length:
-  `truncate`, a copy's trailing hole.
+- **#698**, **#699** and **#700** (closed, wolf 0.2.28, s230):
+  `fs_symlink`, `fs_link`, `fs_set_times`; `ln`, `touch`, `cp -p` and
+  `cp`'s links stand on them (bu22). Setting times through a HANDLE is
+  #714, which `touch -` waits on; a `mv` to another file system could
+  now keep a mode and the times and does not yet.
+- **#701**, no call changes an owner: `chown`, `chgrp`, `cp -p`'s
+  owner (refused by name), `install -o`.
+- **#702** (closed, wolf 0.2.28): `fs_truncate` sets a handle's length;
+  `truncate` can be written on it.
 - **#703**, a hole can be written and not found, and a clone cannot be
   asked for: `cp --sparse` and `--reflink` beyond `auto`.
-- **#704**, the umask cannot be read or set: `mkdir -p`'s parents,
-  `chmod +x`, a shell's `umask`.
+- **#704** (closed, wolf 0.2.28): `os_umask` sets the mask and answers
+  the old one; reading it is setting it back (`bore.current_umask`),
+  which `chmod`'s symbolic modes, `mkdir -p`'s parents and `-m` use.
 - **#705**, no fifo and no device node: `mkfifo`, `mknod`, a special
   file under `cp -r`.
 - **#706**, a rename always replaces: `mv -n` is a look and then a
