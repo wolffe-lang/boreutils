@@ -361,6 +361,11 @@ fn applied(m: Mode, mode: int, dir: bool, umask: int) -> Applied {
     Applied { mode: cur, touched: touched }
 }
 
+/// Whether `m` is a plain number (`755`, `02750`).
+pub fn mode_is_number(m: Mode) -> bool {
+    m.plain
+}
+
 /// Whether `m` has a symbolic action with no `who`: the only kind the
 /// umask reaches, and so the only kind GNU can warn about.
 pub fn mode_uses_umask(m: Mode) -> bool {

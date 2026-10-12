@@ -89,7 +89,7 @@ fn main() -> int {
         return bore.usage_error("mkdir", "missing operand")
     }
     let umask = bore.current_umask()
-    var c = Cfg { verbose: verbose, want: -1, touched: 0, as_if: 0, umask: umask }
+    var c = Cfg { verbose: verbose, want: -1, touched: 0, special: false, as_if: 0, umask: umask }
     if mode {
         let m = bore.parse_mode(mode_text) else |_| {
             bore.warn("mkdir", "invalid mode {bore.quote_always(mode_text)}")
@@ -97,6 +97,9 @@ fn main() -> int {
         }
         c.want = bore.apply_mode(m, 511, true, umask)
         c.touched = bore.mode_touches(m, 511, true, umask)
+        // A MODE that has a set-id or sticky bit, or (symbolic) decides
+        // one: GNU then asks mkdir(2) for it less group and other write.
+        c.special = c.want & 3584 != 0 || !bore.mode_is_number(m) && c.touched & 3584 != 0
     }
     if context {
         bore.warn(
@@ -125,6 +128,8 @@ struct Cfg {
     want: int,
     /// The bits `-m`'s MODE decides (`bore.mode_touches`).
     touched: int,
+    /// Whether the MODE has or decides a set-id or sticky bit.
+    special: bool,
     /// The mask the directory is made under: none under `-m`, which
     /// has already been read under the real one (GNU's `mkdir(2)` then
     /// gets the mode's own bits, measured under `strace`).
@@ -140,7 +145,7 @@ struct Cfg {
 /// `-m +t` is `1755` whatever the umask, and a set-group-ID bit inherited
 /// from the parent stays unless the MODE decides it. The host's number
 /// for a failure is in `bore.host_code()`.
-fn make(path: str, want: int, touched: int, as_if: int) -> Made {
+fn make(path: str, want: int, touched: int, special: bool, as_if: int) -> Made {
     var done = Made { code: 0, exists: false }
     if want < 0 {
         fs_create_dir(path) else |e| {
@@ -155,7 +160,7 @@ fn make(path: str, want: int, touched: int, as_if: int) -> Made {
         return done
     }
     var asked = want
-    if want & 3584 != 0 {
+    if special {
         asked = want & 4095 - 18
     }
     let mask = os_umask(as_if) else 18
@@ -179,9 +184,10 @@ fn make(path: str, want: int, touched: int, as_if: int) -> Made {
         return done
     }
     var got = bore.rec_mode(r) % 4096
-    if asked & 512 != 0 {
-        // mkdir(2) keeps a sticky bit it is given; fs_create_dir_mode
-        // takes the nine permission bits only.
+    if asked & 512 != 0 && bore.built_for_linux() {
+        // linux's mkdir(2) keeps a sticky bit it is given (macOS's does
+        // not, and GNU then sets it after: CI run 38209631107);
+        // fs_create_dir_mode takes the nine permission bits only.
         got = got | 512
     }
     var set = got
@@ -229,7 +235,7 @@ fn cannot(name: str, why: str) {
 
 /// Make `name`, whose parent must exist.
 fn one(mut out: bore.Out, c: Cfg, name: str) -> bool {
-    let done = make(name, c.want, c.touched, c.as_if)
+    let done = make(name, c.want, c.touched, c.special, c.as_if)
     if done.code != 0 {
         cannot(name, bore.reason_of(done.code))
         return false
@@ -317,7 +323,11 @@ fn with_parents(mut out: bore.Out, c: Cfg, name: str) -> bool {
             touched = c.touched
             as_if = c.as_if
         }
-        let done = make(prefix, want, touched, as_if)
+        var special = false
+        if last {
+            special = c.special
+        }
+        let done = make(prefix, want, touched, special, as_if)
         if done.code != 0 {
             code = done.code
             ok = false
