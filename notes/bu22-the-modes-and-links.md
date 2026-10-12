@@ -152,3 +152,95 @@ Each line names what is expected and what would falsify it.
     and no links yet: none of the five runs there as written, each said
     by syscall.
 13. One thing here is wrong in a way this list does not name.
+
+## 3a. The prediction, scored
+
+§3 above is as it was committed (`1e9ba1c`, before the first probe and
+the first change). Scored in place, by line. "The box" is a throwaway
+px12-ubuntu container on kasumi, no network, only `~/lanes/bu22`
+mounted, as uid 1000, GNU 9.11 built in it from its tarball by digest.
+
+| # | predicted | measured | verdict |
+|---|---|---|---|
+| 1 | the pin by digest, std to `98e1b7b`, no W0304, no E1010, the verdict list unmoved | digests as §2; B151: both std revs build all 36 on both tiers with no diagnostic (`ev/b151.log`; at `98e1b7b` the release binaries of `expand`, `fold`, `rm` and every dev binary move); the list is `9fa4e3d3d4d7040a…` (4470/0/124, both tiers) at trunk-0.2.27, at the pin with std `87ba162` and with `98e1b7b` | right |
+| 2 | `chmod`: the modes, `-c -f -v -R --reference --preserve-root -H -L -P`; `-h` on a link refused by name; ~130 cases, under 10 skips | **532 cases, 532 passed, 0 skipped** (linux). `-h` is NOT refused: GNU on linux leaves a link alone and says so under `-v`, and so does this one; macOS (where GNU has `lchmod`) is a named `skip_on`. **Not predicted:** GNU warns `new permissions are …` ONLY for a MODE given as an option (`chmod -r f`), never for the same MODE as an operand (`chmod -- -r f`); a numeric mode on a directory keeps its set-id bits unless written with five digits or `=`; symbolic `=` on a directory never clears set-id but does clear sticky; under `-R` the default is `-H`, and `-h` still walks what a link operand names | right on the options, wrong on `-h`, many more cases |
+| 3 | `touch`: the options, `-d` in part, `-t` whole, `touch -` refused; ~110 cases, under 15 skips | **169 cases, 156 passed, 13 skipped** (eleven `-d` strings GNU takes and this does not read, `touch -` twice). **Not predicted:** `-d ''` is today's midnight; `-t …60` is the next minute; GNU opens a file that IS there (so a file this user may not write is `cannot touch: Permission denied`; found as a second user in the box, `ev/owner-probe.log`, and fixed in `59a555d`); `-r` with `-d` is relative (refused by name) | right |
+| 4 | `ln`: `-s -f -i -n -T -t -v -P -L -r`; `-d`/`-F` and `-b` refused; ~110 cases, under 8 skips; macOS skips an empty symlink target | **148 cases, 145 passed, 3 skipped** (`-b`, `--backup`, `-S`). `-d`/`-F` is NOT refused: GNU asks the host, which says `Operation not permitted`, and so does this. **Not predicted:** the hard-link failure names the target (`'c' => 'd'`) unless the reason is `File exists`; `ln -f a h` with `h` already a link to `a` succeeds silently while `ln -f a ./a` is `the same file` (one ENTRY, not one inode); `-f` onto a directory is `cannot overwrite directory`; a rename onto another name of the same file does nothing and must have its temporary name taken away | right, one refusal fewer |
+| 5 | `mkdir -m` exact whatever the umask; bu21's 7 `-m` and 2 umask skips become passes; ~30 new cases | **262 cases, 262 passed, 0 skipped; all nine lifted, 53 added.** "Exact whatever the umask" is WRONG as a rule: measured under `strace`, GNU makes the directory under umask 0 with the MODE (less group/other write when a set-id or sticky bit is asked for) and fixes it only when a bit the MODE decides came out otherwise — so `-m +t` is 1755 under any mask, an inherited set-group-ID stays unless the MODE decides it, and `-m u+s` under one is 6777. Written that way (`bore.mode_touches`) | right on the counts, wrong on the rule |
+| 6 | `cp -p` mode and both times, owner refused by name; bu21's mode refusal retired; ~45 new cases | **247 cases, 228 passed, 19 skipped; 16 bu21 skips lifted, 53 added.** A link met under `-r` and `-P` are now copied as links (not predicted). The owner refusal is run as root and as a second user in the box (`ev/owner-probe.log`): GNU as root keeps uid 4242, as a user gives it up in silence; this says so by name, status 1 | right |
+| 7 | the `times` field with a plant; `tools/boxtest` | `times` (`a0baa55`), its plant and control in `tests/selftest/tee.toml`, gated by `tools/difftest-selftest`. **`tools/boxtest` was NOT written**: the box is a lane script (kasumi `~/lanes/bu22/box.sh`, `gauntlet.sh`), not a repository tool | half |
+| 8 | 39 utilities; ~420 more cases; no verdict of the 36 moves but the lifted skips | **39**; 4,594 → **5,646** cases (+1,052); against trunk's list, 25 verdicts of the 36 moved, every one SKIP → ok, and each is a lifted skip (`cmpv.py`) | right on the rule, low on the count |
+| 9 | #28 is one condition (same file, output before input's end), fixable | **WRONG.** GNU refuses on three conditions: the same regular file, the input not at its end, and the output opened for APPEND or past the input's offset. `cat f 1<> f` is not refused; `cat e >> e` with `e` empty is not. No builtin answers a handle's open flags, so #28 stays open and its scope goes upstream (text in §4) | wrong |
+| 10 | five plants red in CI on named cases | red locally in the box on every named case (`ev/plant-local.log` `7c7f5d4e89f6…`): `chmod: walk: -vR 700 d`, `touch: -a`, `ln: hard: -f a b`, `mkdir: -m 755 under the mask 077`, `cp: -p: -p a b`; the CI run is in §4 | see §4 |
+| 11 | CI green on both hosts, macOS parting only in words | §4 | see §4 |
+| 12 | the syscalls (`fchmodat`, `utimensat`, `symlinkat`, `linkat`, `umask`, `mkdirat` and `openat` with modes); px27's tree has no modes | the static binaries make `chmod`, `utimensat`, `linkat`, `symlink`, `rename`, `mkdir`, `umask`, `openat` with a mode (`ev/static.log`): the libc's older names, not the `*at` ones. **px27's tree DOES have modes at creation and the umask** (pax CHANGELOG): what it refuses is a change of mode, owner or times, and links (§4) | half |
+| 13 | one thing wrong this list does not name | three. (a) Process: the first `run` of `cp` reported an old binary's verdicts because the build had failed and its stale binary stayed (caught by the diff of skip texts; `run.sh` now removes the binary first). (b) Two of the harness's actions on this lane were refused (cancelling this lane's own queued CI runs; pruning its own build copies on kasumi) and reported. (c) `wolf fmt` removed the parentheses written around `&` and `|`: wolf binds `&` tighter than `!=` and `-` tighter than `&`, unlike C | — |
+
+## 4. Evidence index
+
+Shas are this branch's (`bu22`). kasumi paths are under `~/lanes/bu22/`;
+a digest's first twelve characters follow a log.
+
+- **The prediction:** `1e9ba1c`. **The pin:** `15fe294`, `93f15d9`,
+  `3665fe0`; `ev/archives.log`, `ev/b151.log`,
+  `ev/gauntlet-trunk-abc59f5.log`, `gauntlet-pin-15fe294.log`,
+  `gauntlet-pin-93f15d9.log`.
+- **The harness:** `a0baa55` (`times`, nanosecond fixtures,
+  `skip_on`, the plant and control).
+- **The utilities:** `b764b77`, `778d3dc` (`bore.modes`), `0d8ae35`
+  (`chmod`); `72ca07d` (`bore.dates`), `a80105c`, `59a555d` (`touch`);
+  `8043ba4` (`ln`); `1d30a8e` (`mkdir -m`); `e23c058`, `c9a0c03`
+  (`cp`). Generators: `notes/bu22/gen/`.
+- **The gauntlet at the code's head `c9a0c03`** (`ev/gauntlet-head-c9a0c03.log`
+  `ba0c2fcaf204…`): 39 built on both tiers, fmt, unit tests, the
+  suite **5,527 passed, 0 failed, 119 skipped on release and on dev**,
+  the same list `637ee0857b4eaca9…`, the selftest, the evidence gate,
+  the field-verdict selftest; `difftest-release-head-c9a0c03.log`
+  `a12e6637b67e…`, `difftest-dev-head-c9a0c03.log` `4d0848170914…`.
+  Per utility: chmod 532/0/0, touch 156/0/13, ln 145/0/3, mkdir
+  262/0/0, cp 228/0/19.
+- **Root and a second user** (`ev/owner-probe.log` `6d6e33ac35b4…`, a
+  container's own `/tmp`, nothing mounted writable): `cp -p` of a file
+  owned by 4242:4343 — GNU as root keeps the owner, as a user gives it
+  up silently, this one refuses by name, status 1; `chmod` of another
+  user's file (`changing permissions …: Operation not permitted`, and
+  `-v`'s `failed to change mode` line) and `ln` to it (protected hard
+  links, `Operation not permitted`) answer as GNU; `touch` answers as
+  GNU after `59a555d`.
+- **GNU's `mkdir -m` under `strace`:** `probes/pmkdir2.sh` and the
+  `pm3.sh` run in the box; the rule is in `src/mkdir.lu`'s header.
+- **boreutils#28's three conditions:** `probes/p28.sh`, `p28b.sh`. The
+  upstream text (a handle's open flags) is handed to the orchestrator to
+  file; it is reproduced in the PR.
+- **The static binaries and their system calls** (`ev/static.log`
+  `1e2bf37f2211…`; built in px12-ubuntu by pax's recipe, no INTERP):
+  - `chmod`: `chmod`, `statx`, `openat`, `getdents64`, `fstat`, `close`
+  - `touch`: `openat` (with a mode), `utimensat`, `statx`, `close`, `read`
+  - `ln`: `linkat`, `symlink`, `rename`, `statx`
+  - `mkdir`: `umask`, `mkdir`, `chmod`, `statx`
+  - `cp`: `openat` (with a mode), `copy_file_range`, `fcntl`, `mkdir`,
+    `chmod`, `utimensat`, `umask`, `getdents64`, `statx`, `fstat`
+  - each beside the start-up set (`execve`, `brk`, `arch_prctl`,
+    `set_tid_address`, `set_robust_list`, `rseq`, `prlimit64`,
+    `getrandom`, `mprotect`, `readlinkat`, `exit_group`).
+- **For PAX** (item 4): px27's in-memory tree takes `openat` and
+  `mkdir` with a mode and the process's `umask`, and refuses BY NAME a
+  change of mode, owner or times and both kinds of link. So on PAX
+  today: `cp` without `-p` runs (a new file or directory gets its mode
+  at creation, and `c9a0c03` makes no `chmod` when creation already gave
+  the mode); `mkdir -m` runs when no fix-up is needed (no set-id or
+  sticky bit asked for, `-p` parents under a mask that leaves the owner
+  `wx`); `chmod`, `touch` (even of a new file: its times are set after),
+  `ln` and `cp -p` do not, each refused at `chmod`, `utimensat`,
+  `linkat`/`symlink`.
+- **The plants:** §5.
+
+## 5. Done-when
+
+- [x] Branch `bu22`, PR wolffe-lang/boreutils#29, unmerged; five sections.
+- [x] The pin, its own commits.
+- [x] `chmod`, `touch`, `ln`, `mkdir -m`, `cp -p`, each differential against GNU 9.11 with every skip named.
+- [x] boreutils#28: not one condition; scope written for the orchestrator to file (no issue filed or closed by this lane).
+- [x] The PAX-facing note (§4).
+- CI, the plants by run id, and the audit: in the PR body, which is the record of the runs this note was written before.
+- Utility count: **39** of GNU's 103.
