@@ -7,6 +7,9 @@
 # kinds, bytes) and `tree` (modes, link counts, sizes): a copy with the
 # wrong mode is a difference.
 #
+# bu22 (wolf 0.2.28) lifted sixteen of bu21's skips — a new file's mode,
+# a link copied as a link, -p — and added the -p cases at the end.
+#
 # What this cp cannot match is named, never imitated (the skips):
 #   wolf-lang#346  a new file's mode is creation's, never the source's:
 #                  an executable or a private file is refused, not
@@ -244,7 +247,6 @@ name = "a source of mode 644 under a mask of 000"
 args = ["a", "new"]
 scratch = { "a" = "A\n", "b" = "B\n" }
 umask = 0o000
-skip = "a new file's mode cannot be the source's in wolf 0.2.27 (no mode at creation, no chmod: wolf-lang#346): the copy is refused by name, status 1, and nothing is left"
 
 [[case]]
 name = "a source of mode 666 under a mask of 000"
@@ -258,21 +260,18 @@ name = "an executable"
 args = ["x", "new"]
 scratch = { "x" = "#!/bin/sh\n" }
 scratch_modes = { "x" = 0o755 }
-skip = "a new file's mode cannot be the source's in wolf 0.2.27 (no mode at creation, no chmod: wolf-lang#346): the copy is refused by name, status 1, and nothing is left"
 
 [[case]]
 name = "a file private to its owner"
 args = ["p", "new"]
 scratch = { "p" = "secret\n" }
 scratch_modes = { "p" = 0o600 }
-skip = "a new file's mode cannot be the source's in wolf 0.2.27 (no mode at creation, no chmod: wolf-lang#346): the copy is refused by name, status 1, and nothing is left"
 
 [[case]]
 name = "a read-only file"
 args = ["r", "new"]
 scratch = { "r" = "x\n" }
 scratch_modes = { "r" = 0o444 }
-skip = "a new file's mode cannot be the source's in wolf 0.2.27 (no mode at creation, no chmod: wolf-lang#346): the copy is refused by name, status 1, and nothing is left"
 
 [[case]]
 name = "an executable over an existing file"
@@ -298,7 +297,6 @@ name = "a setuid file"
 args = ["s", "new"]
 scratch = { "s" = "x\n" }
 scratch_modes = { "s" = 0o4755 }
-skip = "a new file's mode cannot be the source's in wolf 0.2.27 (no mode at creation, no chmod: wolf-lang#346): the copy is refused by name, status 1, and nothing is left"
 
 [[case]]
 name = "--no-preserve=mode: an executable"
@@ -398,26 +396,25 @@ name = "-P: a link, no -r"
 args = ["-P", "l", "new"]
 scratch = { "a" = "A\n", "b" = "B\n" }
 scratch_links = { "l" = "a" }
-skip = "wolf 0.2.27 cannot create a symbolic link (wolf-lang#698): refused by name, status 1"
 
 [[case]]
 name = "-d"
 args = ["-d", "l", "new"]
 scratch = { "a" = "A\n", "b" = "B\n" }
 scratch_links = { "l" = "a" }
-skip = "wolf 0.2.27 cannot create a symbolic link (wolf-lang#698): refused by name, status 1"
+skip = "-d preserves hard links among the sources, which this cp does not track: refused by name, status 1"
 
 [[case]]
 name = "-s"
 args = ["-s", "a", "new"]
 scratch = { "a" = "A\n", "b" = "B\n" }
-skip = "wolf 0.2.27 cannot create a symbolic link (wolf-lang#698): refused by name, status 1"
+skip = "-s (--symbolic-link) is not written yet: refused by name, status 1"
 
 [[case]]
 name = "-l"
 args = ["-l", "a", "new"]
 scratch = { "a" = "A\n", "b" = "B\n" }
-skip = "wolf 0.2.27 cannot create a hard link (wolf-lang#699): refused by name, status 1"
+skip = "-l (--link) is not written yet: refused by name, status 1"
 
 [[case]]
 name = "-L: a link to a file"
@@ -567,7 +564,6 @@ name = "-r: a directory that may not be listed"
 args = ["-r", "d", "e"]
 scratch = { "d/no/x" = "x\n", "d/ok" = "k\n" }
 scratch_modes = { "d/no" = 0o000 }
-skip = "GNU makes the copy of the unlistable directory before it fails to list it; here a directory of mode 000 cannot be made at all (its mode is not creation's, wolf-lang#346), so that entry is refused by name and the rest copied"
 
 [[case]]
 name = "-r: a file that may not be read"
@@ -587,7 +583,6 @@ name = "-r: a private directory"
 args = ["-r", "p", "out"]
 scratch = { "p/f" = "x\n" }
 scratch_modes = { "p" = 0o700 }
-skip = "a new file's mode cannot be the source's in wolf 0.2.27 (no mode at creation, no chmod: wolf-lang#346): the copy is refused by name, status 1, and nothing is left"
 
 [[case]]
 name = "-r: a directory of mode 775"
@@ -600,7 +595,6 @@ name = "-r: a read-only directory"
 args = ["-r", "p", "out"]
 scratch = { "p/f" = "x\n" }
 scratch_modes = { "p" = 0o555 }
-skip = "a new file's mode cannot be the source's in wolf 0.2.27 (no mode at creation, no chmod: wolf-lang#346): the copy is refused by name, status 1, and nothing is left"
 
 [[case]]
 name = "-r: a private directory into one that is there"
@@ -614,7 +608,6 @@ name = "-r: an executable inside"
 args = ["-r", "d", "e"]
 scratch = { "d/x" = "x\n", "d/ok" = "k\n" }
 scratch_modes = { "d/x" = 0o755 }
-skip = "a new file's mode cannot be the source's in wolf 0.2.27 (no mode at creation, no chmod: wolf-lang#346): the copy is refused by name, status 1, and nothing is left"
 
 [[case]]
 name = "-r under a mask of 077"
@@ -627,7 +620,7 @@ name = "-r: a fifo inside"
 args = ["-r", "d", "e"]
 scratch = { "d/ok" = "k\n" }
 scratch_fifos = ["d/p"]
-skip = "wolf 0.2.27 cannot create a fifo (wolf-lang#705): that entry is refused by name, status 1, and the rest copied"
+skip = "wolf cannot create a fifo (wolf-lang#705): that entry is refused by name, status 1, and the rest copied"
 
 # --- -r and links: nothing is followed unless -L or -H says so
 [[case]]
@@ -635,14 +628,12 @@ name = "-r: a link inside the tree"
 args = ["-r", "d", "e"]
 scratch = { "d/f" = "x\n" }
 scratch_links = { "d/l" = "f" }
-skip = "wolf 0.2.27 cannot create a symbolic link (wolf-lang#698): refused by name, status 1; that entry only, the rest copied"
 
 [[case]]
 name = "-r: an operand that is a link to a directory"
 args = ["-r", "l", "e"]
 scratch = { "d/c" = "c\n", "d/sub/s" = "s\n", "d/sub/deep/z" = "z\n" }
 scratch_links = { "l" = "d" }
-skip = "wolf 0.2.27 cannot create a symbolic link (wolf-lang#698): refused by name, status 1"
 
 [[case]]
 name = "-rL: a link to a file inside the tree"
@@ -685,7 +676,6 @@ name = "-rH: a link inside is still a link"
 args = ["-rH", "d", "e"]
 scratch = { "d/f" = "x\n" }
 scratch_links = { "d/l" = "f" }
-skip = "wolf 0.2.27 cannot create a symbolic link (wolf-lang#698): refused by name, status 1; that entry only"
 
 [[case]]
 name = "-rH -L: the last wins"
@@ -977,57 +967,54 @@ name = "-p"
 args = ["-p", "a", "new"]
 scratch = { "a" = "A\n", "b" = "B\n" }
 scratch_times = { "a" = 1500000000 }
-skip = "wolf 0.2.27 cannot set a mode, a time or an owner (wolf-lang#346, #700, #701): refused by name, status 1"
 
 [[case]]
 name = "--preserve=timestamps"
 args = ["--preserve=timestamps", "a", "new"]
 scratch = { "a" = "A\n", "b" = "B\n" }
 scratch_times = { "a" = 1500000000 }
-skip = "wolf 0.2.27 cannot set a mode, a time or an owner (wolf-lang#346, #700, #701): refused by name, status 1"
 
 [[case]]
 name = "--preserve"
 args = ["--preserve", "a", "new"]
 scratch = { "a" = "A\n", "b" = "B\n" }
-skip = "wolf 0.2.27 cannot set a mode, a time or an owner (wolf-lang#346, #700, #701): refused by name, status 1"
 
 [[case]]
 name = "-a"
 args = ["-a", "d", "e"]
 scratch = { "d/c" = "c\n", "d/sub/s" = "s\n", "d/sub/deep/z" = "z\n" }
 scratch_time_all = 1400000000
-skip = "wolf 0.2.27 cannot set a mode, a time or an owner (wolf-lang#346, #700, #701): refused by name, status 1"
+skip = "-a preserves hard links among the sources, which this cp does not track: refused by name, status 1"
 
 [[case]]
 name = "--sparse=always"
 args = ["--sparse=always", "a", "new"]
 scratch = { "a" = "A\n", "b" = "B\n" }
-skip = "wolf 0.2.27 can neither find a hole nor ask for a clone (wolf-lang#703): refused by name, status 1"
+skip = "wolf can neither find a hole nor ask for a clone (wolf-lang#703): refused by name, status 1"
 
 [[case]]
 name = "--sparse=never"
 args = ["--sparse=never", "a", "new"]
 scratch = { "a" = "A\n", "b" = "B\n" }
-skip = "wolf 0.2.27 can neither find a hole nor ask for a clone (wolf-lang#703): refused by name, status 1"
+skip = "wolf can neither find a hole nor ask for a clone (wolf-lang#703): refused by name, status 1"
 
 [[case]]
 name = "--reflink=always"
 args = ["--reflink=always", "a", "new"]
 scratch = { "a" = "A\n", "b" = "B\n" }
-skip = "wolf 0.2.27 can neither find a hole nor ask for a clone (wolf-lang#703): refused by name, status 1"
+skip = "wolf can neither find a hole nor ask for a clone (wolf-lang#703): refused by name, status 1"
 
 [[case]]
 name = "--reflink"
 args = ["--reflink", "a", "new"]
 scratch = { "a" = "A\n", "b" = "B\n" }
-skip = "wolf 0.2.27 can neither find a hole nor ask for a clone (wolf-lang#703): refused by name, status 1"
+skip = "wolf can neither find a hole nor ask for a clone (wolf-lang#703): refused by name, status 1"
 
 [[case]]
 name = "--reflink=never"
 args = ["--reflink=never", "a", "new"]
 scratch = { "a" = "A\n", "b" = "B\n" }
-skip = "wolf 0.2.27 can neither find a hole nor ask for a clone (wolf-lang#703): refused by name, status 1"
+skip = "wolf can neither find a hole nor ask for a clone (wolf-lang#703): refused by name, status 1"
 
 [[case]]
 name = "--sparse=auto is the default"
@@ -1138,3 +1125,467 @@ name = "stdout closed under -v"
 args = ["-v", "a", "new"]
 scratch = { "a" = "A\n", "b" = "B\n" }
 stdout_closed = true
+
+[[case]]
+name = "-p: -p a b"
+args = ["-p", "a", "b"]
+scratch = { "a" = "abc\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "-p: --preserve a b"
+args = ["--preserve", "a", "b"]
+scratch = { "a" = "abc\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "-p: --preserve=mode a b"
+args = ["--preserve=mode", "a", "b"]
+scratch = { "a" = "abc\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "-p: --preserve=timestamps a b"
+args = ["--preserve=timestamps", "a", "b"]
+scratch = { "a" = "abc\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "-p: --preserve=mode,timestamps a b"
+args = ["--preserve=mode,timestamps", "a", "b"]
+scratch = { "a" = "abc\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "-p: --preserve=ownership a b"
+args = ["--preserve=ownership", "a", "b"]
+scratch = { "a" = "abc\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "-p: --preserve=mode,ownership,timestamps a b"
+args = ["--preserve=mode,ownership,timestamps", "a", "b"]
+scratch = { "a" = "abc\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "-p: -p --no-preserve=mode a b"
+args = ["-p", "--no-preserve=mode", "a", "b"]
+scratch = { "a" = "abc\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "-p: --no-preserve=mode -p a b"
+args = ["--no-preserve=mode", "-p", "a", "b"]
+scratch = { "a" = "abc\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "-p: -p --no-preserve=timestamps a b"
+args = ["-p", "--no-preserve=timestamps", "a", "b"]
+scratch = { "a" = "abc\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "-p: -p --no-preserve=ownership a b"
+args = ["-p", "--no-preserve=ownership", "a", "b"]
+scratch = { "a" = "abc\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "-p: -p --no-preserve=all a b"
+args = ["-p", "--no-preserve=all", "a", "b"]
+scratch = { "a" = "abc\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "-p: -pv a b"
+args = ["-pv", "a", "b"]
+scratch = { "a" = "abc\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "-p: -p a d"
+args = ["-p", "a", "d"]
+scratch = { "a" = "abc\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "-p: -pr d e"
+args = ["-pr", "d", "e"]
+scratch = { "a" = "abc\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "-p: -rp d e"
+args = ["-rp", "d", "e"]
+scratch = { "a" = "abc\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "-p: -r --preserve=timestamps d e"
+args = ["-r", "--preserve=timestamps", "d", "e"]
+scratch = { "a" = "abc\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "-p: -r --preserve=mode d e"
+args = ["-r", "--preserve=mode", "d", "e"]
+scratch = { "a" = "abc\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "-p: -p l b"
+args = ["-p", "l", "b"]
+scratch = { "a" = "abc\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "-p: -pP l b"
+args = ["-pP", "l", "b"]
+scratch = { "a" = "abc\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "-p: -pr d d/sub/e"
+args = ["-pr", "d", "d/sub/e"]
+scratch = { "a" = "abc\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "-p: -p a a"
+args = ["-p", "a", "a"]
+scratch = { "a" = "abc\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "-p: -p nope b"
+args = ["-p", "nope", "b"]
+scratch = { "a" = "abc\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "-p: --preserve=bogus a b"
+args = ["--preserve=bogus", "a", "b"]
+scratch = { "a" = "abc\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "-p: --preserve= a b"
+args = ["--preserve=", "a", "b"]
+scratch = { "a" = "abc\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "-p: --preserve=mo a b"
+args = ["--preserve=mo", "a", "b"]
+scratch = { "a" = "abc\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "-p: --preserve=mode, a b"
+args = ["--preserve=mode,", "a", "b"]
+scratch = { "a" = "abc\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "-p onto a file that is there"
+args = ["-p", "a", "b"]
+scratch = { "a" = "abc\n", "b" = "old\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "b" = 0o600, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "no -p onto a file that is there keeps its mode"
+args = ["a", "b"]
+scratch = { "a" = "abc\n", "b" = "old\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "b" = 0o600, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "-p of mode 4755"
+args = ["-p", "s", "t"]
+scratch = { "s" = "z\n" }
+scratch_modes = { "s" = 0o4755 }
+
+[[case]]
+name = "a copy of mode 4755"
+args = ["s", "t"]
+scratch = { "s" = "z\n" }
+scratch_modes = { "s" = 0o4755 }
+
+[[case]]
+name = "-p of mode 2750"
+args = ["-p", "s", "t"]
+scratch = { "s" = "z\n" }
+scratch_modes = { "s" = 0o2750 }
+
+[[case]]
+name = "a copy of mode 2750"
+args = ["s", "t"]
+scratch = { "s" = "z\n" }
+scratch_modes = { "s" = 0o2750 }
+
+[[case]]
+name = "-p of mode 1777"
+args = ["-p", "s", "t"]
+scratch = { "s" = "z\n" }
+scratch_modes = { "s" = 0o1777 }
+
+[[case]]
+name = "a copy of mode 1777"
+args = ["s", "t"]
+scratch = { "s" = "z\n" }
+scratch_modes = { "s" = 0o1777 }
+
+[[case]]
+name = "-p of mode 7777"
+args = ["-p", "s", "t"]
+scratch = { "s" = "z\n" }
+scratch_modes = { "s" = 0o7777 }
+
+[[case]]
+name = "a copy of mode 7777"
+args = ["s", "t"]
+scratch = { "s" = "z\n" }
+scratch_modes = { "s" = 0o7777 }
+
+[[case]]
+name = "-p of mode 0"
+args = ["-p", "s", "t"]
+scratch = { "s" = "z\n" }
+scratch_modes = { "s" = 0o0 }
+
+[[case]]
+name = "a copy of mode 0"
+args = ["s", "t"]
+scratch = { "s" = "z\n" }
+scratch_modes = { "s" = 0o0 }
+
+[[case]]
+name = "-p of mode 400"
+args = ["-p", "s", "t"]
+scratch = { "s" = "z\n" }
+scratch_modes = { "s" = 0o400 }
+
+[[case]]
+name = "a copy of mode 400"
+args = ["s", "t"]
+scratch = { "s" = "z\n" }
+scratch_modes = { "s" = 0o400 }
+
+[[case]]
+name = "-p of mode 6711"
+args = ["-p", "s", "t"]
+scratch = { "s" = "z\n" }
+scratch_modes = { "s" = 0o6711 }
+
+[[case]]
+name = "a copy of mode 6711"
+args = ["s", "t"]
+scratch = { "s" = "z\n" }
+scratch_modes = { "s" = 0o6711 }
+
+[[case]]
+name = "-pr under the mask 022"
+args = ["-pr", "d", "e"]
+umask = 0o022
+scratch = { "a" = "abc\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "-r under the mask 022"
+args = ["-r", "d", "e"]
+umask = 0o022
+scratch = { "a" = "abc\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "-pr under the mask 077"
+args = ["-pr", "d", "e"]
+umask = 0o077
+scratch = { "a" = "abc\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "-r under the mask 077"
+args = ["-r", "d", "e"]
+umask = 0o077
+scratch = { "a" = "abc\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "-pr under the mask 002"
+args = ["-pr", "d", "e"]
+umask = 0o002
+scratch = { "a" = "abc\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "-r under the mask 002"
+args = ["-r", "d", "e"]
+umask = 0o002
+scratch = { "a" = "abc\n", "d/sub/f" = "x\n", "d/g" = "y\n" }
+scratch_links = { "l" = "a", "d/ln" = "g" }
+scratch_times = { "a" = "1500000000.123456789", "d" = "1300000000.000000001", "d/sub" = "1310000000.500000000", "d/sub/f" = "1320000000.000000777", "d/g" = "1330000000.250000000", "d/ln" = "1340000000.750000000", "l" = "1350000000.000000003" }
+scratch_atimes = { "a" = "1400000000.987654321" }
+scratch_modes = { "a" = 0o640, "d" = 0o750, "d/sub" = 0o705 }
+times = true
+
+[[case]]
+name = "--preserve=links"
+args = ["--preserve=links", "a", "b"]
+scratch = { "a" = "x\n" }
+skip = "hard links among the sources are not tracked, and wolf reads no extended attribute (wolf-lang#685): --preserve=links is refused by name, status 1"
+
+[[case]]
+name = "--preserve=xattr"
+args = ["--preserve=xattr", "a", "b"]
+scratch = { "a" = "x\n" }
+skip = "hard links among the sources are not tracked, and wolf reads no extended attribute (wolf-lang#685): --preserve=xattr is refused by name, status 1"
+
+[[case]]
+name = "--preserve=context"
+args = ["--preserve=context", "a", "b"]
+scratch = { "a" = "x\n" }
+skip = "hard links among the sources are not tracked, and wolf reads no extended attribute (wolf-lang#685): --preserve=context is refused by name, status 1"
+
+[[case]]
+name = "--preserve=all"
+args = ["--preserve=all", "a", "b"]
+scratch = { "a" = "x\n" }
+skip = "hard links among the sources are not tracked, and wolf reads no extended attribute (wolf-lang#685): --preserve=all is refused by name, status 1"

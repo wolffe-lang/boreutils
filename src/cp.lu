@@ -35,28 +35,34 @@
 //! `copy_file_range`, then `sendfile`, `splice`, and a read/write loop;
 //! on macOS the loop. They do not pass through this program.
 //!
-//! **What this program cannot do, and does not pretend to.** wolf
-//! 0.2.27 can create a file or a directory and can write bytes. It
-//! cannot set a mode, a time or an owner, and cannot make a link, a
-//! fifo or a device. Where the copy GNU would make needs one of those,
-//! this program makes NO copy and says why, by name, status 1:
+//! - **A new file gets the SOURCE's permission bits less the umask**
+//!   (its set-id bits are dropped), made so from its first instant
+//!   (`fs_open_perm`, wolf 0.2.28); a new directory likewise, made
+//!   owner-writable while it is filled and given its mode after.
+//!   `--no-preserve=mode` asks for creation's 666 (777) less the umask.
+//! - **`-p`** (`--preserve` with no list: mode, ownership, timestamps)
+//!   gives the copy the SOURCE's mode exactly, set-id bits and all, and
+//!   both its times to the nanosecond (`fs_set_mode`, `fs_set_times`,
+//!   bu22), a directory's after what it holds; a DEST that was there
+//!   gets them too. `--preserve=mode,timestamps` names them one at a
+//!   time and `--no-preserve` takes them back.
+//! - A link met under `-r`, or any link under `-P`, is copied as a link
+//!   (its text, `fs_read_link` and `fs_symlink`); under `-p` its own
+//!   times too.
 //!
-//! - **A new file's mode is what creation gives it — 666 less the
-//!   umask — and GNU's is the SOURCE's, less the umask.** For a source
-//!   of mode 644 or 664 under the usual umasks those are the same file.
-//!   For an executable, or a file private to its owner, they are not:
-//!   the copy is refused (and removed again, empty, if it had to be
-//!   created to find out), because a copy that silently lost its
-//!   execute bit or gained readers would be a wrong answer
-//!   (wolf-lang#346). `--no-preserve=mode` asks for creation's mode in
-//!   so many words, and then every file copies. A new directory is the
-//!   same story with 777.
-//! - **A link met under `-r` cannot be re-created** (wolf-lang#698),
-//!   nor can `-P`, `-d`, `-s` or `-l` be honoured (#699); a fifo, a
-//!   socket or a device under `-r` cannot be either (#705). `-L`
-//!   copies what a link names instead, and is honoured.
-//! - **`-p`, `--preserve`, `-a`** need the mode, the times and the
-//!   owner set (#346, #700, #701): refused by name.
+//! **What this program cannot do, and does not pretend to.**
+//!
+//! - **The owner and group** cannot be set (wolf-lang#701, and no user
+//!   id to know whether one may: #633). Under `-p` or
+//!   `--preserve=ownership` a copy whose owner or group came out other
+//!   than the SOURCE's says so by name, status 1, the copy kept. (GNU,
+//!   not running as root, gives up such an owner without a word; as
+//!   root it sets it.)
+//! - **`--preserve=links`, `xattr`, `context`, `all` and `-a`, `-d`** are
+//!   refused by name: hard links among the sources are not tracked, and
+//!   wolf reads no extended attribute (wolf-lang#685).
+//! - **A fifo, a socket or a device under `-r`** cannot be made
+//!   (wolf-lang#705): that entry is refused by name, the rest copied.
 //! - **`--sparse` and `--reflink`** with anything but `auto` are
 //!   refused by name (#703). With `auto`, GNU keeps a source's holes
 //!   and shares its extents where the file system can; this program
@@ -66,7 +72,7 @@
 //! - A failed copy is `error copying 'A' to 'B'`: the builtin's `io`
 //!   row does not say which side failed (wolf-lang#642), where GNU says
 //!   `error reading` or `error writing`.
-//! - `-u`, `-b`, `--parents`, `--attributes-only`, `-x`,
+//! - `-s`, `-l`, `-u`, `-b`, `--parents`, `--attributes-only`, `-x`,
 //!   `--copy-contents`, `--keep-directory-symlink` and `--debug` are
 //!   not written yet, and are refused by name. `-Z` does nothing on a
 //!   host without SELinux, as GNU's does there.
@@ -85,6 +91,11 @@ struct Cfg {
     /// False under `--no-preserve=mode`: creation's mode is the one
     /// asked for.
     source_mode: bool,
+    /// `-p`'s three: the mode exactly, both times, the owner.
+    keep_mode: bool,
+    keep_times: bool,
+    keep_owner: bool,
+    umask: int,
 }
 
 /// How one copy ended.
@@ -118,6 +129,10 @@ fn main() -> int {
         verbose: false,
         remove_first: false,
         source_mode: true,
+        keep_mode: false,
+        keep_times: false,
+        keep_owner: false,
+        umask: bore.current_umask(),
     }
     var target = ""
     var into = false
@@ -171,14 +186,30 @@ fn main() -> int {
             if p.given[i] {
                 context = true
             }
-        } else if k == "no-preserve" {
-            let r = no_preserve(p.values[i])
+        } else if k == "p" {
+            c.keep_mode = true
+            c.keep_times = true
+            c.keep_owner = true
+            c.source_mode = true
+        } else if k == "preserve" {
+            var list = "mode,ownership,timestamps"
+            if p.given[i] {
+                list = p.values[i]
+            }
+            let r = preserve(mut c, list, true)
             if r == -1 {
                 return 1
             }
-            if r == 1 {
-                c.source_mode = false
+            if r == -2 && refused.len == 0 {
+                refused = "--preserve=links, xattr, context and all are not supported: hard links among the sources are not tracked, and wolf reads no extended attribute (wolf-lang#685)"
             }
+        } else if k == "no-preserve" {
+            let r = preserve(mut c, p.values[i], false)
+            if r == -1 {
+                return 1
+            }
+        } else if k == "no-dereference" {
+            c.follow = 0
         } else if k == "sparse" || k == "reflink" {
             if (p.given[i] && p.values[i] != "auto" || !p.given[i] && k == "reflink") &&
                 refused.len == 0 {
@@ -275,14 +306,14 @@ fn operand(mut out: bore.Out, c: Cfg, src: str, dst: str, mut made: List[int]) -
 
 /// Why the option `k` is refused, or `""`.
 fn refusal(k: str) -> str {
-    if k == "p" || k == "preserve" || k == "archive" {
-        return "-p, --preserve and -a are not supported: wolf 0.2.27 cannot set a mode, a time or an owner (wolf-lang#346, #700, #701)"
+    if k == "archive" || k == "d" {
+        return "-a and -d are not supported: they preserve hard links among the sources, which this cp does not track"
     }
-    if k == "no-dereference" || k == "d" || k == "symbolic-link" {
-        return "-P, -d and -s are not supported: wolf 0.2.27 cannot create a symbolic link (wolf-lang#698)"
+    if k == "symbolic-link" {
+        return "-s (--symbolic-link) is not written yet"
     }
     if k == "link" {
-        return "-l is not supported: wolf 0.2.27 cannot create a hard link (wolf-lang#699)"
+        return "-l (--link) is not written yet"
     }
     if k == "update" || k == "u" {
         return "-u (--update) is not written yet"
@@ -301,27 +332,41 @@ fn refusal(k: str) -> str {
     ""
 }
 
-/// Read `--no-preserve`'s list. Answers 1 when it names `mode` (or
-/// `all`), 0 when it does not, -1 (having said why) for a word that is
-/// not one of GNU's.
-fn no_preserve(list: str) -> int {
-    var mode = 0
+/// Read a `--preserve` (`on`) or `--no-preserve` list into `c`. Answers
+/// 0, -1 (having said why) for a word that is not one of GNU's, or -2 for
+/// a word this cp refuses (`links`, `xattr`, `context`, `all`, preserved).
+fn preserve(mut c: Cfg, list: str, on: bool) -> int {
+    let flag = if on then "--preserve" else "--no-preserve"
+    var choices = List[str]()
+    var meaning = List[int]()
+    var n = 0
+    for w in ["mode", "timestamps", "ownership", "links", "context", "xattr", "all"] {
+        (mut choices).push(w)
+        (mut meaning).push(n)
+        n += 1
+    }
+    var answer = 0
     for w in list.split(",") {
-        if w == "mode" || w == "all" {
-            mode = 1
-        } else if w != "ownership" &&
-            w != "timestamps" &&
-            w != "links" &&
-            w != "context" &&
-            w != "xattr" {
-            bore.warn("cp", "invalid argument {bore.quote_always(w)} for '--no-preserve'")
-            eprint(
-                "Valid arguments are:\n  - 'mode'\n  - 'timestamps'\n  - 'ownership'\n  - 'links'\n  - 'context'\n  - 'xattr'\n  - 'all'\nTry 'cp --help' for more information.",
-            )
+        let which = bore.argmatch(w, choices, meaning)
+        if which < 0 {
+            let _ = bore.argmatch_error("cp", w, flag[2..], choices, meaning, which == -2)
             return -1
         }
+        if which == 0 || which == 6 {
+            c.keep_mode = on
+            c.source_mode = on || !(which == 0 || which == 6)
+        }
+        if which == 1 || which == 6 {
+            c.keep_times = on
+        }
+        if which == 2 || which == 6 {
+            c.keep_owner = on
+        }
+        if on && which >= 3 {
+            answer = -2
+        }
     }
-    mode
+    answer
 }
 
 fn not_a_target(target: str, what: str) -> int {
@@ -361,35 +406,6 @@ fn octal4(mode: int) -> str {
     let e = mode / 8 % 8
     let f = mode % 8
     "{d[a..a + 1]}{d[b..b + 1]}{d[e..e + 1]}{d[f..f + 1]}"
-}
-
-/// Whether every bit set in `part` is set in `whole`, over the low
-/// nine (permission) bits.
-fn within(part: int, whole: int) -> bool {
-    var a = part % 512
-    var b = whole % 512
-    var k = 0
-    while k < 9 {
-        if a % 2 == 1 && b % 2 == 0 {
-            return false
-        }
-        a = a / 2
-        b = b / 2
-        k += 1
-    }
-    true
-}
-
-/// Whether any of the three execute bits is set in `mode`.
-fn executable(mode: int) -> bool {
-    mode % 2 == 1 || mode / 8 % 2 == 1 || mode / 64 % 2 == 1
-}
-
-fn mode_refusal(src: str, dst: str, mode: int) {
-    bore.warn(
-        "cp",
-        "cannot copy {bore.quote_always(src)} to {bore.quote_always(dst)}: its mode is {octal4(mode % 4096)}, and wolf 0.2.27 can create only with the default mode (wolf-lang#346); --no-preserve=mode copies it that way",
-    )
 }
 
 /// Copy whatever `src` names to `dst`. `top` says `src` is an operand,
@@ -439,16 +455,12 @@ fn any(
         return directory(mut out, c, src, dst, rec, mut made, mut above)
     }
     if kind == bore.kind_link() {
-        bore.warn(
-            "cp",
-            "cannot copy the symbolic link {bore.quote_always(src)} to {bore.quote_always(dst)}: wolf 0.2.27 cannot create one (wolf-lang#698); -L copies what it names",
-        )
-        return failed()
+        return link(mut out, c, src, dst, rec)
     }
     if kind != bore.kind_file() && c.recursive {
         bore.warn(
             "cp",
-            "cannot copy the special file {bore.quote_always(src)} to {bore.quote_always(dst)}: wolf 0.2.27 cannot create a fifo, a socket or a device (wolf-lang#705)",
+            "cannot copy the special file {bore.quote_always(src)} to {bore.quote_always(dst)}: wolf cannot create a fifo, a socket or a device (wolf-lang#705)",
         )
         return failed()
     }
@@ -546,12 +558,10 @@ fn file(mut out: bore.Out, c: Cfg, src: str, dst: str, rec: List[int]) -> int {
         }
     }
     if fresh {
-        if c.source_mode && executable(bore.rec_mode(rec)) {
-            fs_close(from) else |_| {}
-            mode_refusal(src, dst, bore.rec_mode(rec))
-            return failed()
-        }
-        into = fs_open_mode(dst, 4) else |_| {
+        // The SOURCE's permission bits less the umask from the first
+        // instant, or creation's own under `--no-preserve=mode`.
+        let bits = if c.source_mode then bore.rec_mode(rec) % 512 else 438
+        into = fs_open_perm(dst, 4, bits) else |_| {
             reason = bore.io_error()
             -1
         }
@@ -563,15 +573,6 @@ fn file(mut out: bore.Out, c: Cfg, src: str, dst: str, rec: List[int]) -> int {
     if into < 0 {
         fs_close(from) else |_| {}
         bore.warn("cp", "cannot create regular file {bore.quote_always(dst)}: {reason}")
-        return failed()
-    }
-    if fresh && c.source_mode && !mode_agrees(dst, bore.rec_mode(rec)) {
-        // Created, and not with the mode GNU would give it: take the
-        // empty file away again before a byte is in it.
-        fs_close(from) else |_| {}
-        fs_close(into) else |_| {}
-        fs_remove(dst) else |_| {}
-        mode_refusal(src, dst, bore.rec_mode(rec))
         return failed()
     }
     var done = false
@@ -596,7 +597,120 @@ fn file(mut out: bore.Out, c: Cfg, src: str, dst: str, rec: List[int]) -> int {
         return failed()
     }
     say(mut out, c, src, dst)
+    keep(c, dst, rec, true)
+}
+
+/// `-p` and `--preserve`: give `dst` what `rec` (the SOURCE's record)
+/// says — the times, then the mode, then a word on the owner. `follow`
+/// false is a link's own. Answers `copied()` or `failed()`.
+fn keep(c: Cfg, dst: str, rec: List[int], follow: bool) -> int {
+    if c.keep_times {
+        var why = ""
+        fs_set_times(
+            dst,
+            bore.rec_secs(rec, 1),
+            bore.rec_nanos(rec, 1),
+            bore.rec_secs(rec, 0),
+            bore.rec_nanos(rec, 0),
+            follow,
+        ) else |_| {
+            why = bore.io_error()
+        }
+        if why.len > 0 {
+            bore.warn("cp", "preserving times for {bore.quote_always(dst)}: {why}")
+            return failed()
+        }
+    }
+    if c.keep_mode && follow {
+        var why = ""
+        fs_set_mode(dst, bore.rec_mode(rec) % 4096) else |_| {
+            why = bore.io_error()
+        }
+        if why.len > 0 {
+            bore.warn("cp", "preserving permissions for {bore.quote_always(dst)}: {why}")
+            return failed()
+        }
+    }
+    if c.keep_owner {
+        var now = List[int]()
+        if follow {
+            now = fs_stat(dst) else |_| {
+                List[int]()
+            }
+        } else {
+            now = fs_lstat(dst) else |_| {
+                List[int]()
+            }
+        }
+        if now.len > 0 &&
+            (bore.rec_uid(now) != bore.rec_uid(rec) || bore.rec_gid(now) != bore.rec_gid(rec)) {
+            bore.warn(
+                "cp",
+                "cannot preserve the owner and group of {bore.quote_always(dst)} (uid {bore.rec_uid(rec)}, gid {bore.rec_gid(rec)}): wolf cannot change an owner (wolf-lang#701)",
+            )
+            return failed()
+        }
+    }
     copied()
+}
+
+/// Copy the symbolic link `src` (record `rec`) as a link: its text, and
+/// under `-p` its own times.
+fn link(mut out: bore.Out, c: Cfg, src: str, dst: str, rec: List[int]) -> int {
+    var why = ""
+    let raw = fs_read_link(src) else |_| {
+        why = bore.io_error()
+        List[byte]()
+    }
+    if why.len > 0 {
+        bore.warn("cp", "cannot read symbolic link {bore.quote_always(src)}: {why}")
+        return failed()
+    }
+    var named = true
+    let text = str_from_utf8(raw) else |_| {
+        named = false
+        ""
+    }
+    if !named {
+        bore.warn(
+            "cp",
+            "cannot copy the symbolic link {bore.quote_always(src)}: its target is not UTF-8, and wolf cannot name it (wolf-lang#687)",
+        )
+        return failed()
+    }
+    var there = true
+    let to = fs_lstat(dst) else |_| {
+        there = false
+        List[int]()
+    }
+    if there {
+        if bore.rec_kind(to) == bore.kind_dir() {
+            bore.warn(
+                "cp",
+                "cannot overwrite directory {bore.quote_always(dst)} with non-directory {bore.quote_always(src)}",
+            )
+            return failed()
+        }
+        if c.over == 3 {
+            return skipped()
+        }
+        fs_remove(dst) else |_| {
+            why = bore.io_error()
+        }
+        if why.len > 0 {
+            bore.warn("cp", "cannot remove {bore.quote_always(dst)}: {why}")
+            return failed()
+        }
+    }
+    fs_symlink(text, dst) else |_| {
+        why = bore.io_error()
+    }
+    if why.len > 0 {
+        bore.warn("cp", "cannot create symbolic link {bore.quote_always(dst)}: {why}")
+        return failed()
+    }
+    say(mut out, c, src, dst)
+    keep(c, dst, rec, false)
 }
 
 /// Whether `path` is a symbolic link whose target is not there.
@@ -605,16 +719,6 @@ fn dangling(path: str) -> bool {
         return false
     }
     bore.rec_kind(r) == bore.kind_link()
-}
-
-/// Whether the mode creation gave `dst` is the one GNU would have given
-/// a copy of a source of mode `want`: every bit creation set must be
-/// one the source has (the umask took the same bits from both).
-fn mode_agrees(dst: str, want: int) -> bool {
-    let r = fs_stat(dst) else |_| {
-        return false
-    }
-    within(bore.rec_mode(r), want)
 }
 
 /// Whether `rec`'s device and inode are one of the pairs in `pairs`.
@@ -655,8 +759,17 @@ fn directory(
         return failed()
     }
     var why = ""
+    // What the copy's mode is to end as: the SOURCE's less the umask (or
+    // creation's 777 less it), or the SOURCE's exactly under `-p`. It is
+    // made owner-writable and searchable meanwhile, so what the SOURCE
+    // holds can be copied into it whatever its mode.
+    let bits = if c.source_mode then bore.rec_mode(rec) % 512 else 511
+    var final = bits & 511 - c.umask % 512
+    if c.keep_mode {
+        final = bore.rec_mode(rec) % 4096
+    }
     if !there {
-        fs_create_dir(dst) else |_| {
+        fs_create_dir_mode(dst, bits | 448) else |_| {
             why = bore.io_error()
         }
         if why.len > 0 {
@@ -666,9 +779,8 @@ fn directory(
         let now = fs_stat(dst) else |_| {
             List[int]()
         }
-        if now.len == 0 || c.source_mode && !within(bore.rec_mode(now), bore.rec_mode(rec)) {
-            fs_remove_dir(dst) else |_| {}
-            mode_refusal(src, dst, bore.rec_mode(rec))
+        if now.len == 0 {
+            bore.warn("cp", "cannot create directory {bore.quote_always(dst)}: {bore.io_error()}")
             return failed()
         }
         (mut made).push(bore.rec_dev(now))
@@ -681,13 +793,15 @@ fn directory(
         why = bore.io_error()
         List[List[byte]]()
     }
+    var status = copied()
     if why.len > 0 {
+        // Measured: GNU still gives the copy its mode (and, under `-p`,
+        // its times) when the SOURCE cannot be listed.
         bore.warn("cp", "cannot access {bore.quote_always(src)}: {why}")
-        return failed()
+        status = failed()
     }
     (mut above).push(bore.rec_dev(rec))
     (mut above).push(bore.rec_ino(rec))
-    var status = copied()
     let from = bore.without_slashes(src)
     let onto = bore.without_slashes(dst)
     // Every entry's name and its own record, then the order of their
@@ -752,6 +866,35 @@ fn directory(
     }
     let _ = (mut above).pop() else 0
     let _ = (mut above).pop() else 0
+    if !there || c.keep_mode {
+        var set_why = ""
+        fs_set_mode(dst, final) else |_| {
+            set_why = bore.io_error()
+        }
+        if set_why.len > 0 {
+            bore.warn("cp", "preserving permissions for {bore.quote_always(dst)}: {set_why}")
+            if status == copied() {
+                status = failed()
+            }
+        }
+    }
+    if c.keep_times || c.keep_owner {
+        let quiet = Cfg {
+            recursive: c.recursive,
+            follow: c.follow,
+            over: c.over,
+            verbose: false,
+            remove_first: false,
+            source_mode: c.source_mode,
+            keep_mode: false,
+            keep_times: c.keep_times,
+            keep_owner: c.keep_owner,
+            umask: c.umask,
+        }
+        if keep(quiet, dst, rec, true) == failed() && status == copied() {
+            status = failed()
+        }
+    }
     status
 }
 
@@ -810,8 +953,13 @@ fn help() -> str {
       -n, --no-clobber      never replace a file that is there
       -L, --dereference     follow every link in SOURCE
       -H                    follow the links named on the command line
-          --no-preserve=mode  give a new file the default mode, not
-                            the SOURCE's
+      -p                    keep the mode exactly and both times (and
+                            say so when the owner cannot be kept)
+          --preserve[=LIST]  keep mode, timestamps, ownership (the
+                            default LIST)
+          --no-preserve=LIST  do not: mode gives a new file creation's
+                            mode, not the SOURCE's
+      -P, --no-dereference  copy a link in SOURCE as a link
           --remove-destination  remove each DEST before copying to it
           --strip-trailing-slashes  drop trailing slashes from each SOURCE
       -t, --target-directory=DIRECTORY  copy every SOURCE into DIRECTORY
@@ -821,13 +969,10 @@ fn help() -> str {
           --help            print this help and exit
           --version         print the version and exit
 
-    A new file gets the mode creation gives it. When that is not the
-    mode of SOURCE less the umask (an executable, a private file) the
-    copy is refused rather than made wrong: wolf cannot set a mode.
-    For the same kind of reason these are refused by name: -p,
-    --preserve, -a (modes, times, owners); -P, -d, -s, -l and a link, a
-    fifo or a device met under -r (they cannot be created); --sparse and
-    --reflink other than auto. Not written yet: -u, -b, --parents,
+    A new file gets SOURCE's permission bits less the umask. Refused by
+    name: -a, -d, --preserve=links, xattr, context or all; a fifo or a
+    device met under -r (it cannot be created); --sparse and --reflink
+    other than auto. Not written yet: -s, -l, -u, -b, --parents,
     --attributes-only, -x.
 
     boreutils: https://github.com/wolffe-lang/boreutils
