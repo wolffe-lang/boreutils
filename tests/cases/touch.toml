@@ -1,0 +1,1326 @@
+# touch — GNU coreutils 9.11, black-box, on linux x86-64 and macOS arm64.
+# Written by notes/bu22/gen/touch_cases.py; this file is the record.
+#
+# touch changes the file system, so every case runs in a scratch
+# directory (tools/difftest). A case that says `times = true` compares
+# every entry's access and modification time to the nanosecond, a
+# time inside the side's own run read as `now`; a fixture time is set
+# on every entry whose move to `now` the case is about.
+
+# Usage.
+[[case]]
+name = "no operand"
+args = []
+
+[[case]]
+name = "-d with no argument"
+args = ["-d"]
+
+[[case]]
+name = "-t with no argument"
+args = ["-t"]
+
+[[case]]
+name = "-r with no argument"
+args = ["-r"]
+
+[[case]]
+name = "an invalid option"
+args = ["-Q", "f"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "--help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "--version"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "-d and -t together"
+args = ["-d", "@1", "-t", "202001020304", "f"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t and -d together"
+args = ["-t", "202001020304", "-d", "@1", "f"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t and -r together"
+args = ["-t", "202001020304", "-r", "f", "f"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-f does nothing"
+args = ["-f", "-d", "@5", "f"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+# Now: an old file's times move to now; a new file is made.
+[[case]]
+name = "an existing file"
+args = ["f"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "a new file"
+args = ["g"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "a new file under the mask 077"
+args = ["g"]
+umask = 0o077
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "a new file under the mask 777"
+args = ["g"]
+umask = 0o777
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "two files, one new"
+args = ["f", "g"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-c on a new name"
+args = ["-c", "g"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-c on an existing file"
+args = ["-c", "f"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "--no-create"
+args = ["--no-create", "g", "f"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-a"
+args = ["-a", "f"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-m"
+args = ["-m", "f"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-a -m"
+args = ["-a", "-m", "f"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "a directory"
+args = ["d"]
+scratch_dirs = ["d"]
+scratch_times = { "d" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "a directory with a slash"
+args = ["d/"]
+scratch_dirs = ["d"]
+scratch_times = { "d" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "an unwritable file of one's own"
+args = ["f"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+scratch_modes = { "f" = 0o444 }
+times = true
+
+[[case]]
+name = "--time=atime"
+args = ["--time=atime", "-d", "@2000000000", "f"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "--time=access"
+args = ["--time=access", "-d", "@2000000000", "f"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "--time=use"
+args = ["--time=use", "-d", "@2000000000", "f"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "--time=mtime"
+args = ["--time=mtime", "-d", "@2000000000", "f"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "--time=modify"
+args = ["--time=modify", "-d", "@2000000000", "f"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "--time=a"
+args = ["--time=a", "-d", "@2000000000", "f"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "--time=m"
+args = ["--time=m", "-d", "@2000000000", "f"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "--time=mo"
+args = ["--time=mo", "-d", "@2000000000", "f"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "--time=u"
+args = ["--time=u", "-d", "@2000000000", "f"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "--time as two words"
+args = ["--time", "mtime", "-d", "@2000000000", "f"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "--time=bogus"
+args = ["--time=bogus", "f"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "--time= empty"
+args = ["--time=", "f"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "--time=atime and -m"
+args = ["--time=atime", "-m", "-d", "@7", "f"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+# Failures: the making's reason, or the setting's.
+[[case]]
+name = "under a missing directory"
+args = ["x/y"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "under a file"
+args = ["f/x"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "a file with a slash"
+args = ["f/"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "an empty name"
+args = [""]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "one fails, the rest are touched"
+args = ["x/y", "f", "g"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "in a directory that may not be written"
+args = ["ro/g"]
+scratch_dirs = ["ro"]
+scratch_modes = { "ro" = 0o555 }
+times = true
+
+[[case]]
+name = "standard output"
+args = ["-"]
+skip = "GNU sets the times of whatever standard output is, through the descriptor; wolf sets times by name only (wolf-lang#714): refused by name, status 1"
+
+[[case]]
+name = "standard output with a date"
+args = ["-d", "@1", "-"]
+skip = "GNU sets the times of whatever standard output is, through the descriptor; wolf sets times by name only (wolf-lang#714): refused by name, status 1"
+
+# Links: followed, unless -h.
+[[case]]
+name = "a link to a file"
+args = ["-d", "@77", "l"]
+scratch = { "f" = "x\n" }
+scratch_links = { "l" = "f", "dang" = "nowhere", "deep" = "sub/x" }
+scratch_times = { "f" = "1000000000.000000000", "l" = "1100000000.000000000", "dang" = "1100000000.000000000" }
+times = true
+
+[[case]]
+name = "-h on a link to a file"
+args = ["-h", "-d", "@77", "l"]
+scratch = { "f" = "x\n" }
+scratch_links = { "l" = "f", "dang" = "nowhere", "deep" = "sub/x" }
+scratch_times = { "f" = "1000000000.000000000", "l" = "1100000000.000000000", "dang" = "1100000000.000000000" }
+times = true
+
+[[case]]
+name = "-h on a dangling link"
+args = ["-h", "-d", "@77", "dang"]
+scratch = { "f" = "x\n" }
+scratch_links = { "l" = "f", "dang" = "nowhere", "deep" = "sub/x" }
+scratch_times = { "f" = "1000000000.000000000", "l" = "1100000000.000000000", "dang" = "1100000000.000000000" }
+times = true
+
+[[case]]
+name = "a dangling link makes its target"
+args = ["-d", "@77", "dang"]
+scratch = { "f" = "x\n" }
+scratch_links = { "l" = "f", "dang" = "nowhere", "deep" = "sub/x" }
+scratch_times = { "f" = "1000000000.000000000", "l" = "1100000000.000000000", "dang" = "1100000000.000000000" }
+times = true
+
+[[case]]
+name = "-c on a dangling link"
+args = ["-c", "-d", "@77", "dang"]
+scratch = { "f" = "x\n" }
+scratch_links = { "l" = "f", "dang" = "nowhere", "deep" = "sub/x" }
+scratch_times = { "f" = "1000000000.000000000", "l" = "1100000000.000000000", "dang" = "1100000000.000000000" }
+times = true
+
+[[case]]
+name = "a link into a missing directory"
+args = ["deep"]
+scratch = { "f" = "x\n" }
+scratch_links = { "l" = "f", "dang" = "nowhere", "deep" = "sub/x" }
+scratch_times = { "f" = "1000000000.000000000", "l" = "1100000000.000000000", "dang" = "1100000000.000000000" }
+times = true
+
+[[case]]
+name = "-h on a missing name"
+args = ["-h", "-d", "@77", "nope"]
+scratch = { "f" = "x\n" }
+scratch_links = { "l" = "f", "dang" = "nowhere", "deep" = "sub/x" }
+scratch_times = { "f" = "1000000000.000000000", "l" = "1100000000.000000000", "dang" = "1100000000.000000000" }
+times = true
+
+[[case]]
+name = "-hc on a missing name"
+args = ["-hc", "nope"]
+scratch = { "f" = "x\n" }
+scratch_links = { "l" = "f", "dang" = "nowhere", "deep" = "sub/x" }
+scratch_times = { "f" = "1000000000.000000000", "l" = "1100000000.000000000", "dang" = "1100000000.000000000" }
+times = true
+
+[[case]]
+name = "-h now on a link"
+args = ["-h", "l"]
+scratch = { "f" = "x\n" }
+scratch_links = { "l" = "f", "dang" = "nowhere", "deep" = "sub/x" }
+scratch_times = { "f" = "1000000000.000000000", "l" = "1100000000.000000000", "dang" = "1100000000.000000000" }
+times = true
+
+[[case]]
+name = "-h -a on a link"
+args = ["-h", "-a", "-d", "@5", "l"]
+scratch = { "f" = "x\n" }
+scratch_links = { "l" = "f", "dang" = "nowhere", "deep" = "sub/x" }
+scratch_times = { "f" = "1000000000.000000000", "l" = "1100000000.000000000", "dang" = "1100000000.000000000" }
+times = true
+
+# -r: each time from the reference.
+[[case]]
+name = "-r"
+args = ["-r", "r", "f"]
+scratch = { "f" = "x\n", "r" = "y\n" }
+scratch_times = { "f" = "1000000000.000000000", "r" = "1234567890.123456789" }
+scratch_atimes = { "r" = "1111111111.987654321" }
+scratch_links = { "lr" = "r" }
+times = true
+
+[[case]]
+name = "--reference"
+args = ["--reference=r", "f"]
+scratch = { "f" = "x\n", "r" = "y\n" }
+scratch_times = { "f" = "1000000000.000000000", "r" = "1234567890.123456789" }
+scratch_atimes = { "r" = "1111111111.987654321" }
+scratch_links = { "lr" = "r" }
+times = true
+
+[[case]]
+name = "-r a new file"
+args = ["-r", "r", "g"]
+scratch = { "f" = "x\n", "r" = "y\n" }
+scratch_times = { "f" = "1000000000.000000000", "r" = "1234567890.123456789" }
+scratch_atimes = { "r" = "1111111111.987654321" }
+scratch_links = { "lr" = "r" }
+times = true
+
+[[case]]
+name = "-r -a"
+args = ["-a", "-r", "r", "f"]
+scratch = { "f" = "x\n", "r" = "y\n" }
+scratch_times = { "f" = "1000000000.000000000", "r" = "1234567890.123456789" }
+scratch_atimes = { "r" = "1111111111.987654321" }
+scratch_links = { "lr" = "r" }
+times = true
+
+[[case]]
+name = "-r -m"
+args = ["-m", "-r", "r", "f"]
+scratch = { "f" = "x\n", "r" = "y\n" }
+scratch_times = { "f" = "1000000000.000000000", "r" = "1234567890.123456789" }
+scratch_atimes = { "r" = "1111111111.987654321" }
+scratch_links = { "lr" = "r" }
+times = true
+
+[[case]]
+name = "-r a missing reference"
+args = ["-r", "nope", "f"]
+scratch = { "f" = "x\n", "r" = "y\n" }
+scratch_times = { "f" = "1000000000.000000000", "r" = "1234567890.123456789" }
+scratch_atimes = { "r" = "1111111111.987654321" }
+scratch_links = { "lr" = "r" }
+times = true
+
+[[case]]
+name = "-r through a link"
+args = ["-r", "lr", "f"]
+scratch = { "f" = "x\n", "r" = "y\n" }
+scratch_times = { "f" = "1000000000.000000000", "r" = "1234567890.123456789" }
+scratch_atimes = { "r" = "1111111111.987654321" }
+scratch_links = { "lr" = "r" }
+times = true
+
+[[case]]
+name = "-r -h reads the link itself"
+args = ["-h", "-r", "lr", "f"]
+scratch = { "f" = "x\n", "r" = "y\n" }
+scratch_times = { "f" = "1000000000.000000000", "r" = "1234567890.123456789", "lr" = "1300000000.500000000" }
+scratch_links = { "lr" = "r" }
+times = true
+
+[[case]]
+name = "-r with -d"
+args = ["-r", "r", "-d", "@5", "f"]
+skip = "-d with -r (a date relative to the reference's times) is not written: refused by name, status 1"
+scratch = { "f" = "x\n", "r" = "y\n" }
+scratch_times = { "f" = "1000000000.000000000", "r" = "1234567890.123456789" }
+scratch_atimes = { "r" = "1111111111.987654321" }
+scratch_links = { "lr" = "r" }
+times = true
+
+# -d: the forms read, in UTC.
+[[case]]
+name = "-d '@1500000000'"
+args = ["-d", "@1500000000", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '@1500000000.5'"
+args = ["-d", "@1500000000.5", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '@1500000000.123456789'"
+args = ["-d", "@1500000000.123456789", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '@1500000000,25'"
+args = ["-d", "@1500000000,25", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '@-1'"
+args = ["-d", "@-1", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '@-1.5'"
+args = ["-d", "@-1.5", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '@0'"
+args = ["-d", "@0", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '@1.0000000001'"
+args = ["-d", "@1.0000000001", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '@+5'"
+args = ["-d", "@+5", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2020-01-02'"
+args = ["-d", "2020-01-02", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2020-01-02 03:04'"
+args = ["-d", "2020-01-02 03:04", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2020-01-02 03:04:05'"
+args = ["-d", "2020-01-02 03:04:05", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2020-01-02T03:04:05'"
+args = ["-d", "2020-01-02T03:04:05", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2020-01-02t03:04:05'"
+args = ["-d", "2020-01-02t03:04:05", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2020-01-02 03:04:05.5'"
+args = ["-d", "2020-01-02 03:04:05.5", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2020-01-02 03:04:05,25'"
+args = ["-d", "2020-01-02 03:04:05,25", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2020-01-02 03:04:05Z'"
+args = ["-d", "2020-01-02 03:04:05Z", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2020-01-02 03:04:05 UTC'"
+args = ["-d", "2020-01-02 03:04:05 UTC", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2020-01-02 03:04:05 utc'"
+args = ["-d", "2020-01-02 03:04:05 utc", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2020-01-02 03:04:05 GMT'"
+args = ["-d", "2020-01-02 03:04:05 GMT", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2020-01-02 03:04:05 +0200'"
+args = ["-d", "2020-01-02 03:04:05 +0200", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2020-01-02 03:04:05+02:00'"
+args = ["-d", "2020-01-02 03:04:05+02:00", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2020-01-02 03:04:05 -05'"
+args = ["-d", "2020-01-02 03:04:05 -05", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2020-01-02T03:04:05.123456789Z'"
+args = ["-d", "2020-01-02T03:04:05.123456789Z", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2020-01-02T03:04:05.1234567891Z'"
+args = ["-d", "2020-01-02T03:04:05.1234567891Z", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d ' 2020-01-02 '"
+args = ["-d", " 2020-01-02 ", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '1969-07-20 20:17:40'"
+args = ["-d", "1969-07-20 20:17:40", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '1900-01-01'"
+args = ["-d", "1900-01-01", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2038-01-19 03:14:08'"
+args = ["-d", "2038-01-19 03:14:08", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2100-02-28 23:59:59'"
+args = ["-d", "2100-02-28 23:59:59", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2000-02-29'"
+args = ["-d", "2000-02-29", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '03:04'"
+args = ["-d", "03:04", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '03:04:05'"
+args = ["-d", "03:04:05", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '23:59:59.999999999'"
+args = ["-d", "23:59:59.999999999", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d ''"
+args = ["-d", "", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2020-01-02 03:04 Z'"
+args = ["-d", "2020-01-02 03:04 Z", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2020-13-01' is no date"
+args = ["-d", "2020-13-01", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2020-02-30' is no date"
+args = ["-d", "2020-02-30", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2019-02-29' is no date"
+args = ["-d", "2019-02-29", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2020-00-10' is no date"
+args = ["-d", "2020-00-10", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2020-01-00' is no date"
+args = ["-d", "2020-01-00", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2020-01-02 25:00' is no date"
+args = ["-d", "2020-01-02 25:00", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2020-01-02 03:60' is no date"
+args = ["-d", "2020-01-02 03:60", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2020-01-02 03:04:61' is no date"
+args = ["-d", "2020-01-02 03:04:61", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '24:00:01' is no date"
+args = ["-d", "24:00:01", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "--date="
+args = ["--date=2020-01-02", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d attached"
+args = ["-d@5", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d now"
+args = ["-d", "now", "f"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d NOW"
+args = ["-d", "NOW", "f"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d today"
+args = ["-d", "today", "f"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d yesterday"
+args = ["-d", "yesterday", "f"]
+scratch = { "f" = "x\n" }
+compare = ["stdout", "stderr", "exit", "files"]
+
+[[case]]
+name = "-d tomorrow"
+args = ["-d", "tomorrow", "f"]
+scratch = { "f" = "x\n" }
+compare = ["stdout", "stderr", "exit", "files"]
+
+[[case]]
+name = "-d '1 day ago' is not read here"
+args = ["-d", "1 day ago", "f"]
+env = { "TZ" = "UTC0" }
+skip = "GNU's date grammar takes this; boreutils reads part of it and refuses the rest by name, status 1, nothing touched"
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d 'next monday' is not read here"
+args = ["-d", "next monday", "f"]
+env = { "TZ" = "UTC0" }
+skip = "GNU's date grammar takes this; boreutils reads part of it and refuses the rest by name, status 1, nothing touched"
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '+1 day' is not read here"
+args = ["-d", "+1 day", "f"]
+env = { "TZ" = "UTC0" }
+skip = "GNU's date grammar takes this; boreutils reads part of it and refuses the rest by name, status 1, nothing touched"
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d 'Jan 2 2020' is not read here"
+args = ["-d", "Jan 2 2020", "f"]
+env = { "TZ" = "UTC0" }
+skip = "GNU's date grammar takes this; boreutils reads part of it and refuses the rest by name, status 1, nothing touched"
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2 January 2020' is not read here"
+args = ["-d", "2 January 2020", "f"]
+env = { "TZ" = "UTC0" }
+skip = "GNU's date grammar takes this; boreutils reads part of it and refuses the rest by name, status 1, nothing touched"
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '1/2/2020' is not read here"
+args = ["-d", "1/2/2020", "f"]
+env = { "TZ" = "UTC0" }
+skip = "GNU's date grammar takes this; boreutils reads part of it and refuses the rest by name, status 1, nothing touched"
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '20200102' is not read here"
+args = ["-d", "20200102", "f"]
+env = { "TZ" = "UTC0" }
+skip = "GNU's date grammar takes this; boreutils reads part of it and refuses the rest by name, status 1, nothing touched"
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d 'noon' is not read here"
+args = ["-d", "noon", "f"]
+env = { "TZ" = "UTC0" }
+skip = "GNU's date grammar takes this; boreutils reads part of it and refuses the rest by name, status 1, nothing touched"
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2020-01-02 3pm' is not read here"
+args = ["-d", "2020-01-02 3pm", "f"]
+env = { "TZ" = "UTC0" }
+skip = "GNU's date grammar takes this; boreutils reads part of it and refuses the rest by name, status 1, nothing touched"
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d garbage"
+args = ["-d", "garbage", "f"]
+env = { "TZ" = "UTC0" }
+skip = "GNU says 'invalid date format'; boreutils cannot tell a string GNU's grammar refuses from one it takes, so it refuses every string it does not read by name, in its own words"
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+# -d in a zone with daylight time (when the host has the zone file).
+[[case]]
+name = "-d '2020-07-01 12:00' in New York"
+args = ["-d", "2020-07-01 12:00", "f"]
+env = { "TZ" = "America/New_York" }
+requires = "/usr/share/zoneinfo/America/New_York"
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2020-01-01 12:00' in New York"
+args = ["-d", "2020-01-01 12:00", "f"]
+env = { "TZ" = "America/New_York" }
+requires = "/usr/share/zoneinfo/America/New_York"
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2020-11-01 01:30' in New York"
+args = ["-d", "2020-11-01 01:30", "f"]
+env = { "TZ" = "America/New_York" }
+requires = "/usr/share/zoneinfo/America/New_York"
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2020-03-08 02:30' in New York"
+args = ["-d", "2020-03-08 02:30", "f"]
+env = { "TZ" = "America/New_York" }
+requires = "/usr/share/zoneinfo/America/New_York"
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2020-03-08 03:00' in New York"
+args = ["-d", "2020-03-08 03:00", "f"]
+env = { "TZ" = "America/New_York" }
+requires = "/usr/share/zoneinfo/America/New_York"
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '2020-07-01 12:00 UTC' in New York"
+args = ["-d", "2020-07-01 12:00 UTC", "f"]
+env = { "TZ" = "America/New_York" }
+requires = "/usr/share/zoneinfo/America/New_York"
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d '1950-06-01 00:00' in New York"
+args = ["-d", "1950-06-01 00:00", "f"]
+env = { "TZ" = "America/New_York" }
+requires = "/usr/share/zoneinfo/America/New_York"
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d in a POSIX rule zone"
+args = ["-d", "2020-11-01 01:30", "f"]
+env = { "TZ" = "EST5EDT,M3.2.0,M11.1.0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-d in a fixed offset zone"
+args = ["-d", "2020-06-01 10:00", "f"]
+env = { "TZ" = "JST-9" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+# -t [[CC]YY]MMDDhhmm[.ss], local time.
+[[case]]
+name = "-t 202001020304"
+args = ["-t", "202001020304", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t 202001020304.05"
+args = ["-t", "202001020304.05", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t 2001020304"
+args = ["-t", "2001020304", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t 7001020304"
+args = ["-t", "7001020304", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t 6901020304"
+args = ["-t", "6901020304", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t 0001020304"
+args = ["-t", "0001020304", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t 6801020304"
+args = ["-t", "6801020304", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t 202001020304.60"
+args = ["-t", "202001020304.60", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t 202001020304.59"
+args = ["-t", "202001020304.59", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t 199912312359.59"
+args = ["-t", "199912312359.59", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t 203801190314.07"
+args = ["-t", "203801190314.07", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t 000001010000"
+args = ["-t", "000001010000", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t without a year"
+args = ["-t", "01020304", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t without a year, with seconds"
+args = ["-t", "01020304.59", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t 202001020304.61 is no date"
+args = ["-t", "202001020304.61", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t 2020010203 is no date"
+args = ["-t", "2020010203", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t x is no date"
+args = ["-t", "x", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t 202013020304 is no date"
+args = ["-t", "202013020304", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t 202002300000 is no date"
+args = ["-t", "202002300000", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t 202001022400 is no date"
+args = ["-t", "202001022400", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t 202001020360 is no date"
+args = ["-t", "202001020360", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t 20200102030 is no date"
+args = ["-t", "20200102030", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t 202001020304.5 is no date"
+args = ["-t", "202001020304.5", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t 202001020304. is no date"
+args = ["-t", "202001020304.", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t .05 is no date"
+args = ["-t", ".05", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t 2020-01-02 is no date"
+args = ["-t", "2020-01-02", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t 1202001020304 is no date"
+args = ["-t", "1202001020304", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t in New York"
+args = ["-t", "202007011200", "f"]
+env = { "TZ" = "America/New_York" }
+requires = "/usr/share/zoneinfo/America/New_York"
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t in a skipped hour"
+args = ["-t", "202003080230", "f"]
+env = { "TZ" = "America/New_York" }
+requires = "/usr/share/zoneinfo/America/New_York"
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t -a"
+args = ["-a", "-t", "202001020304", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t -m"
+args = ["-m", "-t", "202001020304", "f"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t a new file"
+args = ["-t", "202001020304", "g"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "-t -c a new name"
+args = ["-c", "-t", "202001020304", "g"]
+env = { "TZ" = "UTC0" }
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = "1000000000.000000000" }
+times = true

@@ -1,0 +1,312 @@
+//! member: false
+//!
+//! touch — change a file's access and modification times, making the
+//! file when it is not there.
+//!
+//! References consulted: POSIX.1-2024 `touch`; GNU coreutils 9.11
+//! `touch --help`, the info manual's `touch invocation` and `Date input
+//! formats` nodes, and black-box runs of the GNU binary in throwaway
+//! containers (kasumi `~/lanes/bu22/probes/ptouch*.sh`), under
+//! `LC_ALL=C`. Never GNU source, nor any other implementation's. The
+//! dates are `bore.dates`.
+//!
+//! GNU's rules, each measured against 9.11:
+//!
+//! - Each FILE's access and modification times become now, or the time
+//!   `-d`, `-t` or `-r` names, to the nanosecond; `-a` changes only the
+//!   access time, `-m` only the modification time (`--time=atime`,
+//!   `access`, `use`; `mtime`, `modify`). `-r FILE` takes each time from
+//!   FILE (`failed to get attributes of 'X'` when it cannot be read).
+//!   `-d` and `-t` together are `cannot specify times from more than
+//!   one source`.
+//! - A FILE that is not there is made, empty, mode 666 less the umask —
+//!   through a link to nothing, the link's target — unless `-c`, when it
+//!   is no failure, or `-h`, when it is `setting times of 'X': No such
+//!   file or directory`. `-h` sets a link's own times.
+//! - A FILE that cannot be made is `cannot touch 'X': reason`, with the
+//!   reason the making gave; one that was there (or a name the host
+//!   calls a directory) and whose times cannot be set is `setting times
+//!   of 'X': reason`. `touch f/` with `f` a file is the second.
+//! - `-f` is accepted and does nothing.
+//!
+//! **What this program cannot do, and does not pretend to.**
+//!
+//! - **`touch -` is refused by name.** GNU sets the times of whatever
+//!   standard output is, through the descriptor; wolf can set times by
+//!   name only (`fs_set_times`; the handle form is wolf-lang#714).
+//! - **`-d` reads part of GNU's date grammar** (`bore.dates`); every
+//!   other string is refused by name rather than guessed at.
+//! - **`-r` with `-d`** (a date relative to the reference's times) is
+//!   not written, and is refused by name.
+//! - A file is made by opening it (`fs_open_perm`) and its times are
+//!   then set by name: GNU sets them through the descriptor it opened.
+
+use bore
+
+struct Cfg {
+    access: bool,
+    modify: bool,
+    create: bool,
+    follow: bool,
+    atime: bore.Instant,
+    mtime: bore.Instant,
+}
+
+fn main() -> int {
+    let p = bore.parse(options(), env_args(), bore.permute())
+    var out = bore.stdout()
+    var c = Cfg {
+        access: false,
+        modify: false,
+        create: true,
+        follow: true,
+        atime: bore.instant_now(),
+        mtime: bore.instant_now(),
+    }
+    var date = ""
+    var has_date = false
+    var stamp = ""
+    var has_stamp = false
+    var reference = ""
+    var has_reference = false
+    var k = 0
+    while k < p.keys.len {
+        let key = p.keys[k]
+        if key == "help" {
+            bore.put(mut out, help()) else |_| {}
+            return bore.finish(mut out, "touch", 0)
+        }
+        if key == "version" {
+            bore.put(mut out, bore.version_text("touch")) else |_| {}
+            return bore.finish(mut out, "touch", 0)
+        }
+        if key == "a" {
+            c.access = true
+        } else if key == "m" {
+            c.modify = true
+        } else if key == "no-create" {
+            c.create = false
+        } else if key == "no-dereference" {
+            c.follow = false
+        } else if key == "date" {
+            date = p.values[k]
+            has_date = true
+        } else if key == "t" {
+            stamp = p.values[k]
+            has_stamp = true
+        } else if key == "reference" {
+            reference = p.values[k]
+            has_reference = true
+        } else if key == "time" {
+            var choices = List[str]()
+            var meaning = List[int]()
+            for w in ["atime", "access", "use", "mtime", "modify"] {
+                (mut choices).push(w)
+            }
+            for m in [1, 1, 1, 2, 2] {
+                (mut meaning).push(m)
+            }
+            let which = bore.argmatch(p.values[k], choices, meaning)
+            if which < 0 {
+                return bore.argmatch_error(
+                    "touch",
+                    p.values[k],
+                    "time",
+                    choices,
+                    meaning,
+                    which == -2,
+                )
+            }
+            if which == 1 {
+                c.access = true
+            } else {
+                c.modify = true
+            }
+        }
+        k += 1
+    }
+    if !bore.ok(p) {
+        return bore.usage_error("touch", p.error)
+    }
+    if has_date && has_stamp || has_stamp && has_reference {
+        return bore.usage_error("touch", "cannot specify times from more than one source")
+    }
+    if has_date && has_reference {
+        bore.warn(
+            "touch",
+            "-d with -r (a date relative to the reference file's times) is not written yet",
+        )
+        return 1
+    }
+    if !c.access && !c.modify {
+        c.access = true
+        c.modify = true
+    }
+    if has_reference {
+        var why = ""
+        var r = List[int]()
+        if c.follow {
+            r = fs_stat(reference) else |_| {
+                why = bore.io_error()
+                List[int]()
+            }
+        } else {
+            r = fs_lstat(reference) else |_| {
+                why = bore.io_error()
+                List[int]()
+            }
+        }
+        if why.len > 0 {
+            bore.warn("touch", "failed to get attributes of {bore.quote_always(reference)}: {why}")
+            return 1
+        }
+        c.atime = bore.Instant { secs: bore.rec_secs(r, 1), nanos: bore.rec_nanos(r, 1) }
+        c.mtime = bore.Instant { secs: bore.rec_secs(r, 0), nanos: bore.rec_nanos(r, 0) }
+    } else if has_stamp {
+        let at = bore.parse_stamp(stamp, bore.zone()) else |_| {
+            bore.warn("touch", "invalid date format {bore.quote_always(stamp)}")
+            return 1
+        }
+        c.atime = copy at
+        c.mtime = copy at
+    } else if has_date {
+        var unread = false
+        var bad = false
+        let d = bore.parse_date(date, bore.zone()) else |e| {
+            match e {
+                invalid => { bad = true },
+                unread => { unread = true },
+            }
+            bore.instant_now()
+        }
+        if unread {
+            bore.warn(
+                "touch",
+                "cannot read the date {bore.quote_always(date)}: this touch reads @SECONDS, an ISO 8601 date and time, a time of day, now, today, yesterday and tomorrow, not the whole of GNU's date grammar",
+            )
+            return 1
+        }
+        if bad {
+            bore.warn("touch", "invalid date format {bore.quote_always(date)}")
+            return 1
+        }
+        c.atime = copy d
+        c.mtime = copy d
+    }
+    if p.operands.len == 0 {
+        return bore.usage_error("touch", "missing file operand")
+    }
+    var status = 0
+    for f in p.operands {
+        if f == "-" {
+            bore.warn(
+                "touch",
+                "cannot set the times of standard output: wolf sets times by name only (wolf-lang#714)",
+            )
+            status = 1
+            continue
+        }
+        if !one(c, f) {
+            status = 1
+        }
+    }
+    bore.finish(mut out, "touch", status)
+}
+
+/// Touch one FILE. Answers false on a failure.
+fn one(c: Cfg, name: str) -> bool {
+    var made_why = ""
+    if c.create && c.follow {
+        var there = true
+        let _ = fs_stat(name) else |_| {
+            there = false
+            List[int]()
+        }
+        if !there {
+            let fd = fs_open_perm(name, 2, 438) else |_| {
+                made_why = bore.io_error()
+                -1
+            }
+            if fd >= 0 {
+                fs_close(fd) else |_| {}
+            }
+        }
+    }
+    var a_s = c.atime.secs
+    var a_ns = c.atime.nanos
+    var m_s = c.mtime.secs
+    var m_ns = c.mtime.nanos
+    if !c.access {
+        a_s = 0
+        a_ns = -2
+    }
+    if !c.modify {
+        m_s = 0
+        m_ns = -2
+    }
+    var why = ""
+    var gone = false
+    fs_set_times(name, a_s, a_ns, m_s, m_ns, c.follow) else |e| {
+        why = bore.io_error()
+        match e {
+            not_found => { gone = true },
+            denied => {},
+            invalid => {},
+            io => {},
+        }
+    }
+    if why.len == 0 {
+        return true
+    }
+    if gone && !c.create {
+        // `-c`: a file that is not there is no failure.
+        return true
+    }
+    if made_why.len > 0 && made_why != bore.directory_reason() {
+        bore.warn("touch", "cannot touch {bore.quote_always(name)}: {made_why}")
+    } else {
+        bore.warn("touch", "setting times of {bore.quote_always(name)}: {why}")
+    }
+    false
+}
+
+fn options() -> List[bore.Opt] {
+    var s = List[bore.Opt]()
+    (mut s).push(bore.flag("a", ""))
+    (mut s).push(bore.flag("c", "no-create"))
+    (mut s).push(bore.takes("d", "date"))
+    (mut s).push(bore.flag("f", ""))
+    (mut s).push(bore.flag("h", "no-dereference"))
+    (mut s).push(bore.flag("m", ""))
+    (mut s).push(bore.takes("r", "reference"))
+    (mut s).push(bore.takes("t", ""))
+    (mut s).push(bore.takes("", "time"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    s
+}
+
+fn help() -> str {
+    """
+    Usage: touch [OPTION]... FILE...
+    Set each FILE's access and modification times to now, making it
+    empty if it is not there.
+
+      -a                     change only the access time
+      -c, --no-create        make no file
+      -d, --date=STRING      use STRING instead of now: @SECONDS, an ISO
+                             8601 date and time, a time of day, now,
+                             today, yesterday or tomorrow
+      -f                     (ignored)
+      -h, --no-dereference   change a link's own times, and make nothing
+      -m                     change only the modification time
+      -r, --reference=FILE   use FILE's times instead of now
+      -t [[CC]YY]MMDDhhmm[.ss]  use this local time instead of now
+          --time=WORD        atime, access or use: as -a; mtime or
+                             modify: as -m
+          --help             print this help and exit
+          --version          print the version and exit
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}
