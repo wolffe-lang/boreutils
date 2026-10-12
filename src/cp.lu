@@ -609,9 +609,9 @@ fn keep(c: Cfg, dst: str, rec: List[int], follow: bool) -> int {
         fs_set_times(
             dst,
             bore.rec_secs(rec, 1),
-            bore.rec_nanos(rec, 1),
+            0,
             bore.rec_secs(rec, 0),
-            bore.rec_nanos(rec, 0),
+            0,
             follow,
         ) else |_| {
             why = bore.io_error()

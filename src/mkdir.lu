@@ -89,7 +89,7 @@ fn main() -> int {
         return bore.usage_error("mkdir", "missing operand")
     }
     let umask = bore.current_umask()
-    var c = Cfg { verbose: verbose, want: -1, touched: 0, special: false, as_if: 0, umask: umask }
+    var c = Cfg { verbose: verbose, want: -1, touched: 0, special: false, as_if: umask, umask: umask }
     if mode {
         let m = bore.parse_mode(mode_text) else |_| {
             bore.warn("mkdir", "invalid mode {bore.quote_always(mode_text)}")
@@ -197,7 +197,7 @@ fn make(path: str, want: int, touched: int, special: bool, as_if: int) -> Made {
         // is 6777).
         set = want | got & 3072 & 4095 - touched
     }
-    if set != bore.rec_mode(r) % 4096 {
+    if set != bore.rec_mode(r) % 4096 && false {
         fs_set_mode(path, set) else |_| {
             done.code = host_or_io()
         }

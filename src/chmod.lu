@@ -493,7 +493,7 @@ fn walk(mut out: bore.Out, c: Cfg, dir: str, rec: List[int], mut above: List[int
 /// One entry met by the walk.
 fn entry(mut out: bore.Out, c: Cfg, path: str, mut above: List[int]) -> bool {
     var why = ""
-    var rec = fs_lstat(path) else |_| {
+    var rec = fs_stat(path) else |_| {
         why = bore.io_error()
         List[int]()
     }

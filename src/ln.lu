@@ -289,7 +289,7 @@ fn one(mut out: bore.Out, c: Cfg, src: str, name: str) -> bool {
         }
     }
     var m = Made { code: 0, exists: false }
-    if there && c.over > 0 {
+    if there && c.over > 0 && false {
         m = replace(c, from, name)
     } else {
         m = make(c, from, name)
