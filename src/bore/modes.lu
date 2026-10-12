@@ -1,0 +1,375 @@
+//! modes — a MODE as `chmod` and `mkdir -m` read it, and what it does to
+//! a file's mode.
+//!
+//! References consulted: POSIX.1-2024 `chmod` (the symbolic mode
+//! grammar, the umask rule for an omitted `who`, `X`), GNU coreutils
+//! 9.11's `chmod --help` and the info manual's `File permissions` node,
+//! and black-box runs of GNU's `chmod` in throwaway containers (bu22,
+//! `~/lanes/bu22/probes/pchmod*.sh` on kasumi). Never GNU source.
+//!
+//! What GNU 9.11 does, each measured:
+//!
+//! - **Octal.** One to any number of octal digits whose value is at
+//!   most `7777`; `8`, `999` and `17777` are invalid. On a FILE the mode
+//!   becomes exactly the number. On a DIRECTORY a number of four digits
+//!   or fewer keeps the set-user-ID and set-group-ID bits it already had
+//!   (`chmod 755` on a `2755` directory leaves `2755`; `1755` makes
+//!   `3755`); five digits or more (`00755`) sets exactly.
+//! - **An operator before a number** (`=755`, `+2000`, `-6000`) sets,
+//!   adds or takes away exactly those bits, directory or not, and the
+//!   umask has no say. Such clauses may stand in a comma list
+//!   (`+755,-5`); a bare number may not (`755,u+x` is invalid), and a
+//!   `who` before a number is invalid (`u+0`).
+//! - **Symbolic.** Clauses `[ugoa]*` then one or more actions, each an
+//!   operator `+`, `-` or `=` and then either letters from `rwxXst` or
+//!   ONE of `ugo` (the bits that class has NOW, earlier actions
+//!   included); `o=ug` and `o+ur` are invalid, `u+` and `+u` are not.
+//!   An empty clause (`u+r,,g+r`, `,`, `u+r,`) is invalid.
+//! - With no `who`, `+`, `-` and `=` touch only the permission bits the
+//!   umask leaves alone — except that `=` still CLEARS all nine first —
+//!   and `s` and `t` ignore the umask. When that leaves a bit a `-` was
+//!   meant to clear, GNU warns `NAME: new permissions are …, not …` and
+//!   the status is 1, `-f` or not.
+//! - `X` is execute for a directory, or for a file with an execute bit
+//!   set at that point. `s` is set-user-ID for `u` and set-group-ID for
+//!   `g` (both when no `who`); `t` is the sticky bit for `o` (and `a`,
+//!   or no `who`), and nothing for `u` or `g` alone.
+//! - `=` clears the classes it names. On a FILE that includes the
+//!   class's special bit (`u=` the set-user-ID, `g=` the set-group-ID,
+//!   `o=` the sticky); on a DIRECTORY `=` never clears set-user-ID or
+//!   set-group-ID (`a=rx` on `6755` is `6555`) and does clear the
+//!   sticky bit for `o`.
+
+/// One parsed MODE. A plain number is `plain`; anything else is a list
+/// of actions, five words each (see `act_*`).
+pub struct Mode {
+    plain: bool,
+    value: int,
+    /// The number was written with five digits or more: on a directory
+    /// it sets exactly, rather than keeping the set-id bits.
+    exact: bool,
+    acts: List[int],
+}
+
+/// The mode that changes nothing: a value for a `Mode` field before the
+/// real one is read.
+pub fn no_mode() -> Mode {
+    Mode { plain: false, value: 0, exact: false, acts: List[int]() }
+}
+
+// An action's five words: who (a mask of 1 u, 2 g, 4 o; 0 none given),
+// operator (43 +, 45 -, 61 =), letters (1 r, 2 w, 4 x, 8 X, 16 s, 32 t),
+// a class to copy (0 none, 1 u, 2 g, 3 o), and an octal value (-1 when
+// the action is symbolic).
+fn width() -> int {
+    5
+}
+
+fn who_u() -> int {
+    1
+}
+
+fn who_g() -> int {
+    2
+}
+
+fn who_o() -> int {
+    4
+}
+
+/// Read `text` as a MODE. `invalid` when GNU's `chmod` would say
+/// `invalid mode`.
+pub fn parse_mode(text: str) -> Mode ! {invalid} {
+    if text.len == 0 {
+        return invalid
+    }
+    var digits = true
+    for b in text.bytes() {
+        let n = b as int
+        if n < 48 || n > 55 {
+            digits = false
+        }
+    }
+    if digits {
+        let v = octal_value(text)?
+        return Mode { plain: true, value: v, exact: text.len >= 5, acts: List[int]() }
+    }
+    var acts = List[int]()
+    for clause in text.split(",") {
+        clause_into(clause, mut acts)?
+    }
+    Mode { plain: false, value: 0, exact: false, acts: acts }
+}
+
+/// The value of an all-octal `text`, refused past `7777`.
+fn octal_value(text: str) -> int ! {invalid} {
+    var v = 0
+    for b in text.bytes() {
+        let n = b as int
+        if n < 48 || n > 55 {
+            return invalid
+        }
+        v = v * 8 + n - 48
+        if v > 4095 {
+            return invalid
+        }
+    }
+    v
+}
+
+/// One clause of a symbolic mode, its actions appended to `acts`.
+fn clause_into(clause: str, mut acts: List[int]) -> () ! {invalid} {
+    if clause.len == 0 {
+        return invalid
+    }
+    let bs = clause.bytes()
+    var i = 0
+    var who = 0
+    while i < bs.len {
+        let n = bs[i] as int
+        if n == 117 {
+            who = who | who_u()
+        } else if n == 103 {
+            who = who | who_g()
+        } else if n == 111 {
+            who = who | who_o()
+        } else if n == 97 {
+            who = who | 7
+        } else {
+            break
+        }
+        i += 1
+    }
+    let named = i > 0
+    if i == bs.len {
+        // A `who` with no action (`u`, `a`).
+        return invalid
+    }
+    while i < bs.len {
+        let op = bs[i] as int
+        if op != 43 && op != 45 && op != 61 {
+            return invalid
+        }
+        i += 1
+        // A number after an operator, with no `who` before it.
+        if i < bs.len && bs[i] as int >= 48 && bs[i] as int <= 55 {
+            if named {
+                return invalid
+            }
+            let v = octal_value(clause[i..])?
+            (mut acts).push(0)
+            (mut acts).push(op)
+            (mut acts).push(0)
+            (mut acts).push(0)
+            (mut acts).push(v)
+            return
+        }
+        var letters = 0
+        var copy_from = 0
+        var count = 0
+        while i < bs.len {
+            let n = bs[i] as int
+            var bit = 0
+            var cls = 0
+            if n == 114 {
+                bit = 1
+            } else if n == 119 {
+                bit = 2
+            } else if n == 120 {
+                bit = 4
+            } else if n == 88 {
+                bit = 8
+            } else if n == 115 {
+                bit = 16
+            } else if n == 116 {
+                bit = 32
+            } else if n == 117 {
+                cls = 1
+            } else if n == 103 {
+                cls = 2
+            } else if n == 111 {
+                cls = 3
+            } else {
+                break
+            }
+            if cls > 0 {
+                // A class to copy stands alone in its action.
+                if count > 0 {
+                    return invalid
+                }
+                copy_from = cls
+                count += 1
+                i += 1
+                if i < bs.len {
+                    let next = bs[i] as int
+                    if next != 43 && next != 45 && next != 61 {
+                        return invalid
+                    }
+                }
+                break
+            }
+            letters = letters | bit
+            count += 1
+            i += 1
+        }
+        (mut acts).push(if named then who else 0)
+        (mut acts).push(op)
+        (mut acts).push(letters)
+        (mut acts).push(copy_from)
+        (mut acts).push(-1)
+    }
+}
+
+/// The nine permission bits of the classes in `who` (a mask of 1 u,
+/// 2 g, 4 o).
+fn class_bits(who: int) -> int {
+    var m = 0
+    if who % 2 == 1 {
+        m = m | 448
+    }
+    if who / 2 % 2 == 1 {
+        m = m | 56
+    }
+    if who / 4 % 2 == 1 {
+        m = m | 7
+    }
+    m
+}
+
+/// The three bits `rwx` of class `cls` (1 u, 2 g, 3 o) in `mode`, as a
+/// number from 0 to 7.
+fn class_of(mode: int, cls: int) -> int {
+    if cls == 1 {
+        return mode / 64 % 8
+    }
+    if cls == 2 {
+        return mode / 8 % 8
+    }
+    mode % 8
+}
+
+/// `mode` after `m`, for a file (`dir` false) or a directory, under the
+/// process's creation mask `umask`. Twelve bits in, twelve out.
+pub fn apply_mode(m: Mode, mode: int, dir: bool, umask: int) -> int {
+    if m.plain {
+        if dir && !m.exact {
+            return m.value | mode & 3072
+        }
+        return m.value
+    }
+    var cur = mode % 4096
+    var k = 0
+    while k + width() <= m.acts.len {
+        let who = m.acts[k]
+        let op = m.acts[k + 1]
+        let letters = m.acts[k + 2]
+        let from = m.acts[k + 3]
+        let number = m.acts[k + 4]
+        k += width()
+        if number >= 0 {
+            if op == 43 {
+                cur = cur | number
+            } else if op == 45 {
+                cur = cur & 4095 - number
+            } else {
+                cur = number
+            }
+            continue
+        }
+        let all = if who == 0 then 7 else who
+        // What this action may set or clear among the nine: with no
+        // `who`, only what the umask leaves alone.
+        var reach = class_bits(all)
+        if who == 0 {
+            reach = reach & 511 - umask % 512
+        }
+        var bits = 0
+        if from > 0 {
+            bits = class_of(cur, from) * 73 & reach
+        } else {
+            var per = 0
+            if letters % 2 == 1 {
+                per = per | 4
+            }
+            if letters / 2 % 2 == 1 {
+                per = per | 2
+            }
+            if letters / 4 % 2 == 1 {
+                per = per | 1
+            }
+            if letters / 8 % 2 == 1 && (dir || cur & 73 != 0) {
+                per = per | 1
+            }
+            bits = per * 73 & reach
+            if letters / 16 % 2 == 1 {
+                if all % 2 == 1 {
+                    bits = bits | 2048
+                }
+                if all / 2 % 2 == 1 {
+                    bits = bits | 1024
+                }
+            }
+            if letters / 32 % 2 == 1 && all / 4 % 2 == 1 {
+                bits = bits | 512
+            }
+        }
+        if op == 43 {
+            cur = cur | bits
+        } else if op == 45 {
+            cur = cur & 4095 - bits
+        } else {
+            var clear = class_bits(all)
+            if all / 4 % 2 == 1 {
+                clear = clear | 512
+            }
+            if !dir {
+                if all % 2 == 1 {
+                    clear = clear | 2048
+                }
+                if all / 2 % 2 == 1 {
+                    clear = clear | 1024
+                }
+            }
+            cur = cur & 4095 - clear | bits
+        }
+    }
+    cur
+}
+
+/// Whether `m` has a symbolic action with no `who`: the only kind the
+/// umask reaches, and so the only kind GNU can warn about.
+pub fn mode_uses_umask(m: Mode) -> bool {
+    if m.plain {
+        return false
+    }
+    var k = 0
+    while k + width() <= m.acts.len {
+        if m.acts[k] == 0 && m.acts[k + 4] < 0 {
+            return true
+        }
+        k += width()
+    }
+    false
+}
+
+/// The process's file mode creation mask. wolf can only SET it and be
+/// told the old one (`os_umask`, `[os.fs.umask]`, ruling #67 R6), so
+/// it is set to 022 and put straight back. 022 if the host has none.
+pub fn current_umask() -> int {
+    let old = os_umask(18) else |_| {
+        return 18
+    }
+    let _ = os_umask(old) else 0
+    old
+}
+
+/// `mode`'s low twelve bits as GNU's `chmod -v` writes them: four octal
+/// digits.
+pub fn octal_word(mode: int) -> str {
+    let d = "01234567"
+    let a = mode / 512 % 8
+    let b = mode / 64 % 8
+    let e = mode / 8 % 8
+    let f = mode % 8
+    "{d[a..a + 1]}{d[b..b + 1]}{d[e..e + 1]}{d[f..f + 1]}"
+}
