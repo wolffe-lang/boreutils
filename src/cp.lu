@@ -866,7 +866,10 @@ fn directory(
     }
     let _ = (mut above).pop() else 0
     let _ = (mut above).pop() else 0
-    if !there || c.keep_mode {
+    // Set only when creation did not already give it: a call fewer, and
+    // one a host without mode changes (PAX's tree) never refuses.
+    let created = (bits | 448) & 511 - c.umask % 512
+    if !there && final != created || c.keep_mode {
         var set_why = ""
         fs_set_mode(dst, final) else |_| {
             set_why = bore.io_error()
