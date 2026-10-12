@@ -171,8 +171,8 @@ mounted, as uid 1000, GNU 9.11 built in it from its tarball by digest.
 | 7 | the `times` field with a plant; `tools/boxtest` | `times` (`a0baa55`), its plant and control in `tests/selftest/tee.toml`, gated by `tools/difftest-selftest`. **`tools/boxtest` was NOT written**: the box is a lane script (kasumi `~/lanes/bu22/box.sh`, `gauntlet.sh`), not a repository tool | half |
 | 8 | 39 utilities; ~420 more cases; no verdict of the 36 moves but the lifted skips | **39**; 4,594 → **5,646** cases (+1,052); against trunk's list, 25 verdicts of the 36 moved, every one SKIP → ok, and each is a lifted skip (`cmpv.py`) | right on the rule, low on the count |
 | 9 | #28 is one condition (same file, output before input's end), fixable | **WRONG.** GNU refuses on three conditions: the same regular file, the input not at its end, and the output opened for APPEND or past the input's offset. `cat f 1<> f` is not refused; `cat e >> e` with `e` empty is not. No builtin answers a handle's open flags, so #28 stays open and its scope goes upstream (text in §4) | wrong |
-| 10 | five plants red in CI on named cases | red locally in the box on every named case (`ev/plant-local.log` `7c7f5d4e89f6…`): `chmod: walk: -vR 700 d`, `touch: -a`, `ln: hard: -f a b`, `mkdir: -m 755 under the mask 077`, `cp: -p: -p a b`; the CI run is in §4 | see §4 |
-| 11 | CI green on both hosts, macOS parting only in words | §4 | see §4 |
+| 10 | five plants red in CI on named cases | red locally in the box on every named case (`ev/plant-local.log` `7c7f5d4e89f6…`): `chmod: walk: -vR 700 d`, `touch: -a`, `ln: hard: -f a b`, `mkdir: -m 755 under the mask 077`, `cp: -p: -p a b`. **In CI, run 38221600943** (plant `c8de05b` with `a811103`): red on all five on ubuntu (chmod 13, touch 9, ln 18, mkdir 111, cp 20 FAIL lines); on macOS on four, the fifth (`chmod`'s named case) being a named macOS skip, while ten other `chmod` cases went red there. The first plant run, 38221117011, was red at `wolf fmt --check` before any case ran — no evidence; the plant was formatted and pushed again. Reverted in `4462833` | right, after one wasted run |
+| 11 | CI green on both hosts, macOS parting only in words | green at `1885d40`, run 38214862860 (both hosts and the field leg). **macOS parted in behaviour, not words**, three times, each found by CI: GNU there changes a link's own mode (`lchmod`) where `chmod`'s walk, `-h` or `-P` meets one (run 38208558368; seven cases skip there by name); GNU `ln`'s hard link FOLLOWS a link by default there (run 38209179024; `315e442` takes the host's default); macOS's `mkdir(2)` drops a sticky bit and GNU asks for less group/other write whenever the MODE decides a special bit (run 38209631107; `1885d40`) | wrong on where macOS parts |
 | 12 | the syscalls (`fchmodat`, `utimensat`, `symlinkat`, `linkat`, `umask`, `mkdirat` and `openat` with modes); px27's tree has no modes | the static binaries make `chmod`, `utimensat`, `linkat`, `symlink`, `rename`, `mkdir`, `umask`, `openat` with a mode (`ev/static.log`): the libc's older names, not the `*at` ones. **px27's tree DOES have modes at creation and the umask** (pax CHANGELOG): what it refuses is a change of mode, owner or times, and links (§4) | half |
 | 13 | one thing wrong this list does not name | three. (a) Process: the first `run` of `cp` reported an old binary's verdicts because the build had failed and its stale binary stayed (caught by the diff of skip texts; `run.sh` now removes the binary first). (b) Two of the harness's actions on this lane were refused (cancelling this lane's own queued CI runs; pruning its own build copies on kasumi) and reported. (c) `wolf fmt` removed the parentheses written around `&` and `|`: wolf binds `&` tighter than `!=` and `-` tighter than `&`, unlike C | — |
 
@@ -233,7 +233,9 @@ a digest's first twelve characters follow a log.
   `wx`); `chmod`, `touch` (even of a new file: its times are set after),
   `ln` and `cp -p` do not, each refused at `chmod`, `utimensat`,
   `linkat`/`symlink`.
-- **The plants:** §5.
+- **The plants:** `c8de05b` + `a811103`, red in CI run 38221600943 (both hosts; the named cases above), reverted in `4462833`; locally `ev/plant-local.log`. A first run, 38221117011, went red only at the format check.
+- **CI:** green at `1885d40`, run 38214862860 (ubuntu, macOS, field). Earlier reds, each a finding fixed by a later commit: 38208558368, 38209179024, 38209631107, 38213729733. The run at the head is named in the PR.
+- **`tools/roottest`** (podman, both tiers static, as user and root): 178 passed, 0 failed at `c9a0c03` (`ev/roottest-c9a0c03.log` `875e22daca74…`); in CI on every green ubuntu run.
 
 ## 5. Done-when
 
@@ -242,5 +244,6 @@ a digest's first twelve characters follow a log.
 - [x] `chmod`, `touch`, `ln`, `mkdir -m`, `cp -p`, each differential against GNU 9.11 with every skip named.
 - [x] boreutils#28: not one condition; scope written for the orchestrator to file (no issue filed or closed by this lane).
 - [x] The PAX-facing note (§4).
-- CI, the plants by run id, and the audit: in the PR body, which is the record of the runs this note was written before.
+- [x] Planted breaks red in CI (38221600943), reverted (`4462833`).
+- [x] CI green at `1885d40` (38214862860); the head's run and the audit's exit status are in the PR.
 - Utility count: **39** of GNU's 103.
