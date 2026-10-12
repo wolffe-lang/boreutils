@@ -1,0 +1,559 @@
+//! member: false
+//!
+//! ln — make links between files.
+//!
+//! References consulted: POSIX.1-2024 `ln`; GNU coreutils 9.11
+//! `ln --help` and the info manual's `ln invocation` node, and
+//! black-box runs of the GNU binary in throwaway containers (kasumi
+//! `~/lanes/bu22/probes/pln*.sh`), under `LC_ALL=C`. Never GNU source,
+//! nor any other implementation's.
+//!
+//! GNU's rules, each measured against 9.11:
+//!
+//! - `ln TARGET LINK_NAME` makes LINK_NAME a hard link to TARGET (`-s`:
+//!   a symbolic link whose text is TARGET, verbatim); `ln TARGET` makes
+//!   `./NAME`; `ln TARGET... DIRECTORY` and `-t DIRECTORY` make each in
+//!   the directory under TARGET's last name; `-T` never treats
+//!   LINK_NAME as a directory. A LINK_NAME that is a link to a directory
+//!   is that directory unless `-n`.
+//! - A LINK_NAME that exists is `failed to create hard link 'B': File
+//!   exists` (`symbolic link`), status 1, unless `-f` (replace it) or
+//!   `-i` (ask `replace 'B'?` on standard error; anything but a yes is
+//!   status 1). `-f` on the very file is `'A' and 'B' are the same
+//!   file`.
+//! - Any other failure names TARGET too, `'B' => 'A'` for a hard link;
+//!   a symbolic link names it only when TARGET is empty (`'B' -> ''`).
+//!   A TARGET that cannot be reached is `failed to access 'A': reason`;
+//!   a directory is `A: hard link not allowed for directory`, unless
+//!   `-d`/`-F` asks the host anyway (and linux refuses: `Operation not
+//!   permitted`).
+//! - A hard link to a symbolic link is a link to the LINK (`-P`, linux's
+//!   default); `-L` links what it names.
+//! - `-r` (only with `-s`, else `cannot do --relative without
+//!   --symbolic`) writes TARGET relative to LINK_NAME's directory, both
+//!   made canonical first (links resolved, `..` removed).
+//! - `-v` says `'B' => 'A'` for a hard link, `'B' -> 'A'` for a symbolic
+//!   one, on standard output.
+//!
+//! **How a link is replaced.** `-f` makes the new link under a
+//! temporary name beside LINK_NAME and renames it over LINK_NAME
+//! (`fs_rename` replaces atomically), so LINK_NAME is never missing.
+//!
+//! **What this program cannot do, and does not pretend to.**
+//!
+//! - **`-b`, `--backup` and `-S`** are not written, and are refused by
+//!   name.
+//! - `-L` resolves TARGET's links itself (`bore.paths`) and links the
+//!   path it ends at: GNU asks the host to follow them in the one call.
+//!   The two differ only if a link changes between the walk and the
+//!   call.
+
+use bore
+
+struct Cfg {
+    symbolic: bool,
+    /// 0 never replace, 1 `-f`, 2 `-i`.
+    over: int,
+    verbose: bool,
+    relative: bool,
+    /// `-L`: a TARGET that is a link is followed.
+    logical: bool,
+    /// `-n`: a LINK_NAME that is a link to a directory is not one.
+    no_deref: bool,
+    dirs: bool,
+}
+
+fn main() -> int {
+    let p = bore.parse(options(), env_args(), bore.permute())
+    var out = bore.stdout()
+    var c = Cfg {
+        symbolic: false,
+        over: 0,
+        verbose: false,
+        relative: false,
+        logical: false,
+        no_deref: false,
+        dirs: false,
+    }
+    var target = ""
+    var into = false
+    var no_target = false
+    var refused = ""
+    var k = 0
+    while k < p.keys.len {
+        let key = p.keys[k]
+        if key == "help" {
+            bore.put(mut out, help()) else |_| {}
+            return bore.finish(mut out, "ln", 0)
+        }
+        if key == "version" {
+            bore.put(mut out, bore.version_text("ln")) else |_| {}
+            return bore.finish(mut out, "ln", 0)
+        }
+        if key == "symbolic" {
+            c.symbolic = true
+        } else if key == "force" {
+            c.over = 1
+        } else if key == "interactive" {
+            c.over = 2
+        } else if key == "verbose" {
+            c.verbose = true
+        } else if key == "relative" {
+            c.relative = true
+        } else if key == "logical" {
+            c.logical = true
+        } else if key == "physical" {
+            c.logical = false
+        } else if key == "no-dereference" {
+            c.no_deref = true
+        } else if key == "directory" || key == "F" {
+            c.dirs = true
+        } else if key == "target-directory" {
+            if into {
+                bore.warn("ln", "multiple target directories specified")
+                return 1
+            }
+            target = p.values[k]
+            into = true
+        } else if key == "no-target-directory" {
+            no_target = true
+        } else if key == "backup" || key == "b" || key == "suffix" {
+            if refused.len == 0 {
+                refused = "-b (--backup, -S) is not written yet"
+            }
+        }
+        k += 1
+    }
+    if !bore.ok(p) {
+        return bore.usage_error("ln", p.error)
+    }
+    if refused.len > 0 {
+        bore.warn("ln", refused)
+        return 1
+    }
+    if c.relative && !c.symbolic {
+        bore.warn("ln", "cannot do --relative without --symbolic")
+        return 1
+    }
+    var names = copy p.operands
+    if names.len == 0 {
+        return bore.usage_error("ln", "missing file operand")
+    }
+    if into && no_target {
+        bore.warn("ln", "cannot combine --target-directory and --no-target-directory")
+        return 1
+    }
+    if into {
+        var why = ""
+        let r = fs_stat(target) else |_| {
+            why = bore.io_error()
+            List[int]()
+        }
+        if why.len > 0 {
+            bore.warn("ln", "failed to access {bore.quote_always(target)}: {why}")
+            return 1
+        }
+        if bore.rec_kind(r) != bore.kind_dir() {
+            bore.warn("ln", "target {bore.quote_always(target)} is not a directory")
+            return 1
+        }
+    } else if no_target {
+        if names.len == 1 {
+            return bore.usage_error(
+                "ln",
+                "missing destination file operand after {bore.quote_always(names[0])}",
+            )
+        }
+        if names.len > 2 {
+            return bore.usage_error("ln", "extra operand {bore.quote_always(names[2])}")
+        }
+    } else if names.len == 1 {
+        target = "."
+        into = true
+    } else if names.len > 2 || is_directory(c, names[names.len - 1]) {
+        target = names[names.len - 1]
+        let _ = (mut names).pop() else ""
+        into = true
+        var why = ""
+        let r = fs_stat(target) else |_| {
+            why = bore.io_error()
+            List[int]()
+        }
+        if why.len == 0 && bore.rec_kind(r) != bore.kind_dir() {
+            why = "Not a directory"
+        }
+        if why.len > 0 {
+            bore.warn("ln", "target {bore.quote_always(target)}: {why}")
+            return 1
+        }
+    }
+    var status = 0
+    if into {
+        for n in names {
+            if !one(mut out, c, n, bore.join_name(target, bore.last_name(n))) {
+                status = 1
+            }
+        }
+    } else if !one(mut out, c, names[0], names[1]) {
+        status = 1
+    }
+    bore.finish(mut out, "ln", status)
+}
+
+/// Whether LINK_NAME `path` is a directory to make links in: one, or a
+/// link to one unless `-n`.
+fn is_directory(c: Cfg, path: str) -> bool {
+    if c.no_deref {
+        let own = fs_lstat(path) else |_| {
+            return false
+        }
+        if bore.rec_kind(own) == bore.kind_link() {
+            return false
+        }
+    }
+    let r = fs_stat(path) else |_| {
+        return false
+    }
+    bore.rec_kind(r) == bore.kind_dir()
+}
+
+/// Make the one link `name` to `src`. Answers false on a failure.
+fn one(mut out: bore.Out, c: Cfg, src: str, name: str) -> bool {
+    var from = src
+    if !c.symbolic {
+        var why = ""
+        var rec = List[int]()
+        if c.logical {
+            rec = fs_stat(src) else |_| {
+                why = bore.io_error()
+                List[int]()
+            }
+        } else {
+            rec = fs_lstat(src) else |_| {
+                why = bore.io_error()
+                List[int]()
+            }
+        }
+        if why.len > 0 {
+            bore.warn("ln", "failed to access {bore.quote_always(src)}: {why}")
+            return false
+        }
+        if bore.rec_kind(rec) == bore.kind_dir() && !c.dirs {
+            bore.warn("ln", "{bore.quote_name(src)}: hard link not allowed for directory")
+            return false
+        }
+        if c.logical && bore.rec_kind(rec) != bore.kind_dir() {
+            let own = fs_lstat(src) else |_| {
+                List[int]()
+            }
+            if own.len > 0 && bore.rec_kind(own) == bore.kind_link() {
+                let r = bore.canonical(src, bore.existing())
+                if r.ok {
+                    from = r.path
+                }
+            }
+        }
+    } else if c.relative {
+        from = relative_to(src, name)
+    }
+    var there = true
+    let have = fs_lstat(name) else |_| {
+        there = false
+        List[int]()
+    }
+    if there && c.over > 0 {
+        // The same ENTRY under two spellings (`a` and `./a`) is refused;
+        // two names of one file (`a` and a hard link `h`) are not:
+        // measured, `ln -f a h` then succeeds and changes nothing.
+        if same_entry(src, name) {
+            bore.warn(
+                "ln",
+                "{bore.quote_always(src)} and {bore.quote_always(name)} are the same file",
+            )
+            return false
+        }
+        if bore.rec_kind(have) == bore.kind_dir() {
+            bore.warn("ln", "{bore.quote_name(name)}: cannot overwrite directory")
+            return false
+        }
+    }
+    if there && c.over == 2 {
+        bore.flush(mut out) else |_| {}
+        eprint_raw("ln: replace {bore.quote_always(name)}? ")
+        if !bore.said_yes() {
+            return false
+        }
+    }
+    var m = Made { code: 0, exists: false }
+    if there && c.over > 0 {
+        m = replace(c, from, name)
+    } else {
+        m = make(c, from, name)
+    }
+    if m.code != 0 || m.exists {
+        let why = if m.exists then "File exists" else bore.reason_of(m.code)
+        if c.symbolic {
+            if src.len == 0 {
+                // wolf answers `invalid` for an empty target before it asks
+                // the host (`[os.fs.symlink]`); linux would have said this.
+                bore.warn(
+                    "ln",
+                    "failed to create symbolic link {bore.quote_always(name)} -> {bore.quote_always(src)}: {bore.no_such_file()}",
+                )
+            } else {
+                bore.warn("ln", "failed to create symbolic link {bore.quote_always(name)}: {why}")
+            }
+        } else if m.exists {
+            bore.warn("ln", "failed to create hard link {bore.quote_always(name)}: {why}")
+        } else {
+            bore.warn(
+                "ln",
+                "failed to create hard link {bore.quote_always(name)} => {bore.quote_always(src)}: {why}",
+            )
+        }
+        return false
+    }
+    if c.verbose {
+        let arrow = if c.symbolic then "->" else "=>"
+        bore.put(
+            mut out,
+            "{bore.quote_always(name)} {arrow} {bore.quote_always(from)}\n",
+        ) else |_| {}
+    }
+    true
+}
+
+/// How a link call ended: `exists` when the name was taken (the call's
+/// own row), else the host's number, 0 when it was made.
+struct Made {
+    code: int,
+    exists: bool,
+}
+
+/// Whether `a` and `b` name one directory entry: the same last name in
+/// the same directory, that directory made canonical, and the entry
+/// there.
+fn same_entry(a: str, b: str) -> bool {
+    let ra = fs_lstat(a) else |_| {
+        return false
+    }
+    let rb = fs_lstat(b) else |_| {
+        return false
+    }
+    if !bore.same_file(ra, rb) || bore.last_name(a) != bore.last_name(b) {
+        return false
+    }
+    let pa = bore.canonical(dir_part(a), bore.existing())
+    let pb = bore.canonical(dir_part(b), bore.existing())
+    pa.ok && pb.ok && pa.path == pb.path
+}
+
+/// The directory `path`'s last name is in, as written (`.` for none).
+fn dir_part(path: str) -> str {
+    let bare = bore.without_slashes(path)
+    let cut = bare.rfind("/") else -1
+    if cut == 0 {
+        return "/"
+    }
+    if cut > 0 {
+        return bare[0..cut]
+    }
+    "."
+}
+
+/// Make the link.
+fn make(c: Cfg, from: str, name: str) -> Made {
+    var m = Made { code: 0, exists: false }
+    if c.symbolic {
+        fs_symlink(from, name) else |e| {
+            m.code = host_or(5)
+            match e {
+                exists => { m.exists = true },
+                denied => {},
+                invalid => {},
+                io => {},
+                not_found => {},
+                unsupported => {},
+            }
+        }
+    } else {
+        fs_link(from, name) else |e| {
+            m.code = host_or(5)
+            match e {
+                exists => { m.exists = true },
+                cross_device => {},
+                denied => {},
+                io => {},
+                not_found => {},
+            }
+        }
+    }
+    m
+}
+
+/// The host's number for the call that just failed, or `fallback` when
+/// it left none.
+fn host_or(fallback: int) -> int {
+    let code = bore.host_code()
+    if code == 0 {
+        return fallback
+    }
+    code
+}
+
+/// `-f`: make the link under a free temporary name beside `name`, then
+/// rename it over `name`, which is never missing meanwhile.
+fn replace(c: Cfg, from: str, name: str) -> Made {
+    let bare = bore.without_slashes(name)
+    var dir = ""
+    let cut = bare.rfind("/") else -1
+    if cut >= 0 {
+        dir = bare[0..cut + 1]
+    }
+    var n = time_unix_ms() % 1000000
+    var tries = 0
+    while tries < 100 {
+        let temp = "{dir}.bore-ln.{n}"
+        let m = make(c, from, temp)
+        if !m.exists {
+            if m.code != 0 {
+                return m
+            }
+            var moved = Made { code: 0, exists: false }
+            fs_rename(temp, name) else |_| {
+                moved.code = host_or(5)
+            }
+            // A rename onto another name of the same file does nothing and
+            // succeeds (POSIX), leaving the temporary name: take it away.
+            var left = moved.code != 0
+            if !left {
+                var gone = false
+                let _ = fs_lstat(temp) else |_| {
+                    gone = true
+                    List[int]()
+                }
+                left = !gone
+            }
+            if left {
+                fs_remove(temp) else |_| {}
+            }
+            return moved
+        }
+        n += 1
+        tries += 1
+    }
+    Made { code: 0, exists: true }
+}
+
+/// `-r`: `src` written relative to the directory `name` will be in, both
+/// made canonical (`readlink -m`'s walk).
+fn relative_to(src: str, name: str) -> str {
+    let whole = bore.canonical(src, bore.missing())
+    let bare = bore.without_slashes(name)
+    var parent = "."
+    let cut = bare.rfind("/") else -1
+    if cut == 0 {
+        parent = "/"
+    } else if cut > 0 {
+        parent = bare[0..cut]
+    }
+    let base = bore.canonical(parent, bore.missing())
+    if !whole.ok || !base.ok {
+        return src
+    }
+    var to = List[str]()
+    for part in whole.path.split("/") {
+        if part.len > 0 {
+            (mut to).push(part)
+        }
+    }
+    var at = List[str]()
+    for part in base.path.split("/") {
+        if part.len > 0 {
+            (mut at).push(part)
+        }
+    }
+    var common = 0
+    while common < to.len && common < at.len && to[common] == at[common] {
+        common += 1
+    }
+    var pieces = List[str]()
+    var up = common
+    while up < at.len {
+        (mut pieces).push("..")
+        up += 1
+    }
+    var down = common
+    while down < to.len {
+        (mut pieces).push(to[down])
+        down += 1
+    }
+    if pieces.len == 0 {
+        return "."
+    }
+    var out = List[byte]()
+    var first = true
+    for piece in pieces {
+        if !first {
+            (mut out).push(47 as byte)
+        }
+        first = false
+        for b in piece.bytes() {
+            (mut out).push(b)
+        }
+    }
+    str_from_utf8(out) else src
+}
+
+fn options() -> List[bore.Opt] {
+    var s = List[bore.Opt]()
+    (mut s).push(bore.optional("", "backup"))
+    (mut s).push(bore.flag("b", ""))
+    (mut s).push(bore.flag("d", "directory"))
+    (mut s).push(bore.flag("F", ""))
+    (mut s).push(bore.flag("f", "force"))
+    (mut s).push(bore.flag("i", "interactive"))
+    (mut s).push(bore.flag("L", "logical"))
+    (mut s).push(bore.flag("n", "no-dereference"))
+    (mut s).push(bore.flag("P", "physical"))
+    (mut s).push(bore.flag("r", "relative"))
+    (mut s).push(bore.flag("s", "symbolic"))
+    (mut s).push(bore.takes("S", "suffix"))
+    (mut s).push(bore.takes("t", "target-directory"))
+    (mut s).push(bore.flag("T", "no-target-directory"))
+    (mut s).push(bore.flag("v", "verbose"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    s
+}
+
+fn help() -> str {
+    """
+    Usage: ln [OPTION]... [-T] TARGET LINK_NAME
+      or:  ln [OPTION]... TARGET
+      or:  ln [OPTION]... TARGET... DIRECTORY
+      or:  ln [OPTION]... -t DIRECTORY TARGET...
+    Make LINK_NAME a link to TARGET (a hard link unless -s), or a link
+    to each TARGET in DIRECTORY, or in the working directory.
+
+      -d, -F, --directory   ask the host for a hard link to a directory
+      -f, --force           replace a LINK_NAME that is there
+      -i, --interactive     ask before replacing
+      -L, --logical         link what a TARGET that is a link names
+      -n, --no-dereference  a LINK_NAME that is a link to a directory is
+                            not a directory
+      -P, --physical        link a TARGET that is a link itself (the
+                            default)
+      -r, --relative        with -s, write TARGET relative to LINK_NAME
+      -s, --symbolic        make symbolic links
+      -t, --target-directory=DIRECTORY  make every link in DIRECTORY
+      -T, --no-target-directory  LINK_NAME is never a directory
+      -v, --verbose         say what was linked
+          --help            print this help and exit
+          --version         print the version and exit
+
+    Not written yet: -b, --backup, -S.
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}

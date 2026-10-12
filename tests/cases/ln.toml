@@ -1,0 +1,1048 @@
+# ln — GNU coreutils 9.11, black-box, on linux x86-64 and macOS arm64.
+# Written by notes/bu22/gen/ln_cases.py; this file is the record.
+#
+# ln changes the file system, so every case runs in a scratch
+# directory (tools/difftest); `files` compares each link's text and
+# `tree` its kind and link count.
+
+# Usage.
+[[case]]
+name = "no operand"
+args = []
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "--help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "--version"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "an invalid option"
+args = ["-Q", "a", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "-t with no argument"
+args = ["-t"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "-t and no target"
+args = ["-t", "d"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "-t twice"
+args = ["-t", "d", "-t", "e", "a"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "-t and -T"
+args = ["-t", "d", "-T", "a"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "-T with one operand"
+args = ["-T", "a"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "-T with three operands"
+args = ["-T", "a", "b", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "-r without -s"
+args = ["-r", "a", "d/c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "-b is not written"
+args = ["-b", "a", "b"]
+skip = "-b, --backup and -S are not written: refused by name, status 1"
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "--backup=numbered is not written"
+args = ["--backup=numbered", "a", "b"]
+skip = "-b, --backup and -S are not written: refused by name, status 1"
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "-S is not written"
+args = ["-S", ".x", "a", "b"]
+skip = "-b, --backup and -S are not written: refused by name, status 1"
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+# Hard links.
+[[case]]
+name = "hard: a c"
+args = ["a", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: a b"
+args = ["a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: -f a b"
+args = ["-f", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: -v a c"
+args = ["-v", "a", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: -v a d"
+args = ["-v", "a", "d"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: a d"
+args = ["a", "d"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: a ld"
+args = ["a", "ld"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: -n a ld"
+args = ["-n", "a", "ld"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: -nf a ld"
+args = ["-nf", "a", "ld"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: -T a d"
+args = ["-T", "a", "d"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: -T a c"
+args = ["-T", "a", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: -t d a b"
+args = ["-t", "d", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: -vt d a b"
+args = ["-vt", "d", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: --target-directory=d a"
+args = ["--target-directory=d", "a"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: -t nope a"
+args = ["-t", "nope", "a"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: -t a b"
+args = ["-t", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: a b d"
+args = ["a", "b", "d"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: a b c"
+args = ["a", "b", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: a b a"
+args = ["a", "b", "a"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: a"
+args = ["a"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: d/in"
+args = ["d/in"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: nope c"
+args = ["nope", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: d c"
+args = ["d", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: -d d c"
+args = ["-d", "d", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: -F d c"
+args = ["-F", "d", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: --directory d c"
+args = ["--directory", "d", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: a a"
+args = ["a", "a"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: -f a a"
+args = ["-f", "a", "a"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: a ./a"
+args = ["a", "./a"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: -f a ./a"
+args = ["-f", "a", "./a"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: a ''"
+args = ["a", ""]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: '' c"
+args = ["", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: a c/"
+args = ["a", "c/"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: a nodir/c"
+args = ["a", "nodir/c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: a dang"
+args = ["a", "dang"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: -f a dang"
+args = ["-f", "a", "dang"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: -fv a b"
+args = ["-fv", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: -f a d"
+args = ["-f", "a", "d"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: -Tf a d"
+args = ["-Tf", "a", "d"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: -Tf a e"
+args = ["-Tf", "a", "e"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: -f a nodir/c"
+args = ["-f", "a", "nodir/c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: sa c"
+args = ["sa", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: -P sa c"
+args = ["-P", "sa", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: -L sa c"
+args = ["-L", "sa", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: -L dang c"
+args = ["-L", "dang", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: -L ld c"
+args = ["-L", "ld", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: -P ld c"
+args = ["-P", "ld", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: ld c"
+args = ["ld", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: -L a c"
+args = ["-L", "a", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: -L sd c"
+args = ["-L", "sd", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: --logical ld c"
+args = ["--logical", "ld", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: --physical ld c"
+args = ["--physical", "ld", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: -PL sa c"
+args = ["-PL", "sa", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: -LP sa c"
+args = ["-LP", "sa", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: --no-dereference a ld"
+args = ["--no-dereference", "a", "ld"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: --no-target-directory a d"
+args = ["--no-target-directory", "a", "d"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: --verbose a c"
+args = ["--verbose", "a", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: --force a b"
+args = ["--force", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: a e/ d/"
+args = ["a", "e/", "d/"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: -v a b e"
+args = ["-v", "a", "b", "e"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: dang c"
+args = ["dang", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: -f dang c"
+args = ["-f", "dang", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "hard: into a directory that may not be written"
+args = ["a", "ro/c"]
+scratch = { "a" = "A\n" }
+scratch_dirs = ["ro"]
+scratch_modes = { "ro" = 0o555 }
+
+[[case]]
+name = "hard: -f into a directory that may not be written"
+args = ["-f", "a", "ro/c"]
+scratch = { "a" = "A\n", "ro/c" = "C\n" }
+scratch_modes = { "ro" = 0o555 }
+
+[[case]]
+name = "hard: a link already to the same file, -f"
+args = ["-f", "a", "h"]
+scratch = { "a" = "A\n" }
+scratch_hardlinks = { "h" = "a" }
+
+[[case]]
+name = "hard: a link already to the same file"
+args = ["a", "h"]
+scratch = { "a" = "A\n" }
+scratch_hardlinks = { "h" = "a" }
+
+# Symbolic links.
+[[case]]
+name = "symbolic: -s a c"
+args = ["-s", "a", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -s a b"
+args = ["-s", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -sf a b"
+args = ["-sf", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -sv a c"
+args = ["-sv", "a", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -sfv a b"
+args = ["-sfv", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -sfv a d"
+args = ["-sfv", "a", "d"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -sf a ld"
+args = ["-sf", "a", "ld"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -snf a ld"
+args = ["-snf", "a", "ld"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -sn a ld"
+args = ["-sn", "a", "ld"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -sn a d"
+args = ["-sn", "a", "d"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -sT d e"
+args = ["-sT", "d", "e"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -sTf d e"
+args = ["-sTf", "d", "e"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -s nope c"
+args = ["-s", "nope", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -s x/y c"
+args = ["-s", "x/y", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -s a ''"
+args = ["-s", "a", ""]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -s a c/"
+args = ["-s", "a", "c/"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -s a nodir/c"
+args = ["-s", "a", "nodir/c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -s a"
+args = ["-s", "a"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -s d/in"
+args = ["-s", "d/in"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -s a d/"
+args = ["-s", "a", "d/"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -s d/ lnk"
+args = ["-s", "d/", "lnk"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -sf a a"
+args = ["-sf", "a", "a"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -s a a"
+args = ["-s", "a", "a"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -s x dang"
+args = ["-s", "x", "dang"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -sf x dang"
+args = ["-sf", "x", "dang"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -s {scratch}/a c"
+args = ["-s", "{scratch}/a", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -st d a b nope"
+args = ["-st", "d", "a", "b", "nope"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: --symbolic --force a b"
+args = ["--symbolic", "--force", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -s a b c d"
+args = ["-s", "a b", "c d"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -sv q'x n\nl"
+args = ["-sv", "q'x", "n\nl"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -s -a c"
+args = ["-s", "-a", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -s -- -a c"
+args = ["-s", "--", "-a", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -sv a b e"
+args = ["-sv", "a", "b", "e"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -sf a e"
+args = ["-sf", "a", "e"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -sfT a e"
+args = ["-sfT", "a", "e"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: -sL sa c"
+args = ["-sL", "sa", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: an empty target"
+args = ["-s", "", "c"]
+skip_on = { "Darwin" = "macOS's symlink(2) takes an empty target and GNU makes the link; wolf refuses one as invalid before asking the host ([os.fs.symlink], ruling #67 R3), and says what linux says" }
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "symbolic: into a directory that may not be written"
+args = ["-s", "a", "ro/c"]
+scratch_dirs = ["ro"]
+scratch_modes = { "ro" = 0o555 }
+
+# -r: relative to the link's own directory, both ends canonical.
+[[case]]
+name = "relative: -sr a d/c"
+args = ["-sr", "a", "d/c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "relative: -sr a c"
+args = ["-sr", "a", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "relative: -sr ld/in e/y"
+args = ["-sr", "ld/in", "e/y"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "relative: -sr {scratch}/a c"
+args = ["-sr", "{scratch}/a", "c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "relative: -sr {scratch}/d/in e/z"
+args = ["-sr", "{scratch}/d/in", "e/z"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "relative: -srv a d/c"
+args = ["-srv", "a", "d/c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "relative: -sr nope e/q"
+args = ["-sr", "nope", "e/q"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "relative: -sr nope/deeper e/q"
+args = ["-sr", "nope/deeper", "e/q"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "relative: -sr a e"
+args = ["-sr", "a", "e"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "relative: -sr d e/back"
+args = ["-sr", "d", "e/back"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "relative: -sr e e/self"
+args = ["-sr", "e", "e/self"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "relative: -sr . e/dot"
+args = ["-sr", ".", "e/dot"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "relative: -sr a sd/c"
+args = ["-sr", "a", "sd/c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "relative: --relative -s a d/x"
+args = ["--relative", "-s", "a", "d/x"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "relative: -srf b sa"
+args = ["-srf", "b", "sa"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "relative: -srt e a d/in"
+args = ["-srt", "e", "a", "d/in"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "relative: -sr dang e/w"
+args = ["-sr", "dang", "e/w"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "relative: -sr d/in {scratch}/e/abs"
+args = ["-sr", "d/in", "{scratch}/e/abs"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "relative: -sr a ./c"
+args = ["-sr", "a", "./c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "relative: -sr ./a ./e/./c"
+args = ["-sr", "./a", "./e/./c"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+# -i asks on standard error; a line beginning y or Y is yes.
+[[case]]
+name = "-i, yes"
+args = ["-i", "a", "b"]
+stdin = "y\n"
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "-i, Yes"
+args = ["-i", "a", "b"]
+stdin = "Yes\n"
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "-i, no"
+args = ["-i", "a", "b"]
+stdin = "n\n"
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "-i, end of input"
+args = ["-i", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "-i, nothing there"
+args = ["-i", "a", "c"]
+stdin = "n\n"
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "-si, yes"
+args = ["-si", "a", "b"]
+stdin = "y\n"
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "-i then -f"
+args = ["-i", "-f", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "-f then -i"
+args = ["-f", "-i", "a", "b"]
+stdin = "n\n"
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "--interactive"
+args = ["--interactive", "a", "b"]
+scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
+scratch_dirs = ["e"]
+scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
+
+[[case]]
+name = "-i twice"
+args = ["-i", "-t", "e", "a", "b"]
+stdin = "y\nn\n"
+scratch = { "a" = "A\n", "b" = "B\n", "e/a" = "x\n", "e/b" = "y\n" }
