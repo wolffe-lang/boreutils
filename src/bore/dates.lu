@@ -1,0 +1,389 @@
+//! dates — the dates `touch -d` and `touch -t` read, as an instant.
+//!
+//! References consulted: POSIX.1-2024 `touch` (`-t`'s grammar and the
+//! century rule), ISO 8601, GNU coreutils 9.11's `touch --help` and the
+//! info manual's `Date input formats` node, and black-box runs of GNU's
+//! `touch` in throwaway containers (kasumi `~/lanes/bu22/probes/
+//! ptouch*.sh`). Never GNU source.
+//!
+//! **`-t [[CC]YY]MMDDhhmm[.ss]`** is read whole, as POSIX gives it: a
+//! two-digit year from 69 is 19YY and below it 20YY; no year is this
+//! year; seconds run to 60 (GNU 9.11 takes `.60` as the next minute and
+//! refuses `.61`). Local time, from the zone's TZif file
+//! (`bore.clock`).
+//!
+//! **`-d STRING`** is GNU's free-form date grammar, and this reads a
+//! PART of it, by name: `@SECONDS[.FRACTION]`; an ISO 8601 date
+//! `YYYY-MM-DD`, alone (midnight) or with a time `hh:mm[:ss[.N]]` after
+//! a space or a `T`; a time of day alone (today); either with a zone
+//! `Z`, `UTC`, `UT`, `GMT`, `±hh`, `±hhmm` or `±hh:mm`; the words `now`,
+//! `today`, `yesterday`, `tomorrow` (any case); and the empty string,
+//! which GNU reads as today's midnight. A comma is a decimal point, and
+//! digits past the ninth are dropped (measured). A date in one of these
+//! shapes that names no day (`2020-02-30`, `25:00`), or a local time
+//! the clock skips, is GNU's `invalid date format`. **Anything else is
+//! refused by name** — relative items (`1 day ago`, `next monday`),
+//! month names, `MM/DD/YYYY` — because this program cannot tell which
+//! of them GNU would take, and a guess would touch a file with a time
+//! nobody asked for.
+
+/// An instant: seconds from the epoch and nanoseconds within the
+/// second. `nanos` is -1 for "the host's clock now", which is what
+/// `fs_set_times` takes for it.
+pub struct Instant {
+    secs: int,
+    nanos: int,
+}
+
+/// The host's clock now, as `fs_set_times` asks for it.
+pub fn instant_now() -> Instant {
+    Instant { secs: 0, nanos: -1 }
+}
+
+/// Read `touch -t`'s STAMP.
+pub fn parse_stamp(text: str, z: Zone) -> Instant ! {invalid} {
+    var body = text
+    var secs = 0
+    let dot = text.find(".") else -1
+    if dot >= 0 {
+        body = text[0..dot]
+        let frac = text[dot + 1..]
+        if frac.len != 2 || !all_digits(frac) {
+            return invalid
+        }
+        secs = decimal(frac)
+        if secs > 60 {
+            return invalid
+        }
+    }
+    if !all_digits(body) {
+        return invalid
+    }
+    var year = 0
+    var rest = body
+    if body.len == 12 {
+        year = decimal(body[0..4])
+        rest = body[4..]
+    } else if body.len == 10 {
+        let yy = decimal(body[0..2])
+        year = if yy >= 69 then 1900 + yy else 2000 + yy
+        rest = body[2..]
+    } else if body.len == 8 {
+        let now = time_unix_ms() / 1000
+        year = civil_in(z, now).year
+    } else {
+        return invalid
+    }
+    let month = decimal(rest[0..2])
+    let day = decimal(rest[2..4])
+    let hour = decimal(rest[4..6])
+    let minute = decimal(rest[6..8])
+    if !day_exists(year, month, day) || hour > 23 || minute > 59 {
+        return invalid
+    }
+    let t = local_instant(z, year, month, day, hour, minute, 0)?
+    Instant { secs: t + secs, nanos: 0 }
+}
+
+/// What `parse_date` answers when it cannot read a date: `invalid` is
+/// GNU's `invalid date format` (a shape this reads that names no
+/// instant); `unread` is a string this does not read at all.
+pub error DateFailed = {invalid, unread}
+
+/// Read `touch -d`'s STRING (see the module's header).
+pub fn parse_date(text: str, z: Zone) -> Instant ! DateFailed {
+    let s = text.trim().lower()
+    let now_ms = time_unix_ms()
+    if s.len == 0 {
+        let c = civil_in(z, now_ms / 1000)
+        let t = local_instant(z, c.year, c.month, c.day, 0, 0, 0) else |_| {
+            return invalid
+        }
+        return Instant { secs: t, nanos: 0 }
+    }
+    if s == "now" || s == "today" {
+        return instant_now()
+    }
+    if s == "yesterday" || s == "tomorrow" {
+        let shift = if s == "yesterday" then -86400 else 86400
+        let ms = now_ms + shift * 1000
+        return Instant {
+            secs: floor_div(ms, 1000),
+            nanos: (ms - floor_div(ms, 1000) * 1000) * 1000000,
+        }
+    }
+    if s.starts_with("@") {
+        return seconds_since(s[1..])
+    }
+    // A date first, then perhaps a time; or a time alone.
+    var year = 0
+    var month = 0
+    var day = 0
+    var rest = s
+    if date_shape(s) {
+        let dash1 = s.find("-") else 0
+        year = decimal(s[0..dash1])
+        month = decimal(s[dash1 + 1..dash1 + 3])
+        day = decimal(s[dash1 + 4..dash1 + 6])
+        rest = s[dash1 + 6..]
+        if !day_exists(year, month, day) {
+            return invalid
+        }
+        if rest.len > 0 {
+            if rest.starts_with("t") || rest.starts_with(" ") {
+                rest = rest[1..].trim_start()
+            } else {
+                return unread
+            }
+        }
+    } else if time_start(s) {
+        let c = civil_in(z, now_ms / 1000)
+        year = c.year
+        month = c.month
+        day = c.day
+    } else {
+        return unread
+    }
+    var hour = 0
+    var minute = 0
+    var second = 0
+    var nanos = 0
+    if rest.len > 0 && time_start(rest) {
+        hour = decimal(rest[0..2])
+        minute = decimal(rest[3..5])
+        rest = rest[5..]
+        if rest.starts_with(":") {
+            if rest.len < 3 || !all_digits(rest[1..3]) {
+                return unread
+            }
+            second = decimal(rest[1..3])
+            rest = rest[3..]
+            if rest.starts_with(".") || rest.starts_with(",") {
+                var k = 1
+                var digits = 0
+                var n = 0
+                while k < rest.len && is_digit(rest[k..k + 1]) {
+                    if digits < 9 {
+                        n = n * 10 + decimal(rest[k..k + 1])
+                        digits += 1
+                    }
+                    k += 1
+                }
+                if k == 1 {
+                    return unread
+                }
+                while digits < 9 {
+                    n = n * 10
+                    digits += 1
+                }
+                nanos = n
+                rest = rest[k..]
+            }
+        }
+        if hour > 23 || minute > 59 || second > 59 {
+            return invalid
+        }
+    }
+    rest = rest.trim()
+    if rest.len == 0 {
+        let t = local_instant(z, year, month, day, hour, minute, second) else |_| {
+            return invalid
+        }
+        return Instant { secs: t, nanos: nanos }
+    }
+    let offset = zone_word(rest) else |_| {
+        return unread
+    }
+    let t = epoch_of(year, month, day, hour, minute, second) - offset
+    Instant { secs: t, nanos: nanos }
+}
+
+/// `@SECONDS[.FRACTION]`: a sign, digits, and a fraction cut to nine
+/// digits. A negative instant with a fraction is that much BEFORE the
+/// whole second (`@-1.5` is a second and a half before the epoch).
+fn seconds_since(s: str) -> Instant ! DateFailed {
+    var k = 0
+    var negative = false
+    if s.starts_with("-") || s.starts_with("+") {
+        negative = s.starts_with("-")
+        k = 1
+    }
+    let start = k
+    while k < s.len && is_digit(s[k..k + 1]) {
+        k += 1
+    }
+    if k == start || k - start > 15 {
+        return unread
+    }
+    let whole = decimal(s[start..k])
+    var nanos = 0
+    if k < s.len && (s[k..k + 1] == "." || s[k..k + 1] == ",") {
+        k += 1
+        var digits = 0
+        var n = 0
+        while k < s.len && is_digit(s[k..k + 1]) {
+            if digits < 9 {
+                n = n * 10 + decimal(s[k..k + 1])
+                digits += 1
+            }
+            k += 1
+        }
+        while digits < 9 {
+            n = n * 10
+            digits += 1
+        }
+        nanos = n
+    }
+    if k != s.len {
+        return unread
+    }
+    if !negative {
+        return Instant { secs: whole, nanos: nanos }
+    }
+    if nanos == 0 {
+        return Instant { secs: -whole, nanos: 0 }
+    }
+    Instant { secs: -whole - 1, nanos: 1000000000 - nanos }
+}
+
+/// `YYYY-MM-DD` at the start of `s` (four or more digits of year).
+fn date_shape(s: str) -> bool {
+    let dash = s.find("-") else -1
+    if dash < 4 || s.len < dash + 6 {
+        return false
+    }
+    all_digits(s[0..dash]) &&
+        all_digits(s[dash + 1..dash + 3]) &&
+        s[dash + 3..dash + 4] == "-" &&
+        all_digits(s[dash + 4..dash + 6]) &&
+        (s.len == dash + 6 || !is_digit(s[dash + 6..dash + 7]))
+}
+
+/// `hh:mm` at the start of `s`.
+fn time_start(s: str) -> bool {
+    s.len >= 5 &&
+        all_digits(s[0..2]) &&
+        s[2..3] == ":" &&
+        all_digits(s[3..5]) &&
+        (s.len == 5 || !is_digit(s[5..6]))
+}
+
+/// A zone after a time, as seconds EAST of UTC: `z`, `utc`, `ut`,
+/// `gmt`, `±hh`, `±hhmm`, `±hh:mm`.
+fn zone_word(w: str) -> int ! {unread} {
+    if w == "z" || w == "utc" || w == "ut" || w == "gmt" {
+        return 0
+    }
+    if !(w.starts_with("+") || w.starts_with("-")) {
+        return unread
+    }
+    let sign = if w.starts_with("-") then -1 else 1
+    let body = w[1..]
+    var hours = 0
+    var minutes = 0
+    if body.len == 2 && all_digits(body) {
+        hours = decimal(body)
+    } else if body.len == 4 && all_digits(body) {
+        hours = decimal(body[0..2])
+        minutes = decimal(body[2..4])
+    } else if body.len == 5 &&
+        all_digits(body[0..2]) &&
+        body[2..3] == ":" &&
+        all_digits(body[3..5]) {
+        hours = decimal(body[0..2])
+        minutes = decimal(body[3..5])
+    } else {
+        return unread
+    }
+    if hours > 24 || minutes > 59 {
+        return unread
+    }
+    sign * (hours * 3600 + minutes * 60)
+}
+
+/// Seconds from the epoch of a date and time in UTC.
+pub fn epoch_of(year: int, month: int, day: int, hour: int, minute: int, second: int) -> int {
+    days_from_civil(year, month, day) * 86400 + hour * 3600 + minute * 60 + second
+}
+
+/// The EARLIEST instant at which the clock of zone `z` reads the given
+/// date and time; `invalid` when it never does (a time the clock skips
+/// forward over). Measured: GNU takes the first of an hour that repeats
+/// (`2020-11-01 01:30` in `EST5EDT` is daylight time) and refuses one
+/// that is skipped (`2020-03-29 02:30` in `Europe/Berlin`).
+pub fn local_instant(
+    z: Zone,
+    year: int,
+    month: int,
+    day: int,
+    hour: int,
+    minute: int,
+    second: int,
+) -> int ! {invalid} {
+    let wall = epoch_of(year, month, day, hour, minute, second)
+    var best = 0
+    var found = false
+    var probes = List[int]()
+    (mut probes).push(wall - 172800)
+    (mut probes).push(wall)
+    (mut probes).push(wall + 172800)
+    for probe in probes {
+        let off = zone_offset(z, probe)
+        let t = wall - off
+        if zone_offset(z, t) == off && (!found || t < best) {
+            best = t
+            found = true
+        }
+    }
+    if !found {
+        return invalid
+    }
+    best
+}
+
+/// Whether `year-month-day` is a day of the proleptic Gregorian
+/// calendar.
+fn day_exists(year: int, month: int, day: int) -> bool {
+    if month < 1 || month > 12 || day < 1 {
+        return false
+    }
+    var last = 31
+    if month == 4 || month == 6 || month == 9 || month == 11 {
+        last = 30
+    } else if month == 2 {
+        let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
+        last = if leap then 29 else 28
+    }
+    day <= last
+}
+
+fn is_digit(c: str) -> bool {
+    if c.len != 1 {
+        return false
+    }
+    for b in c.bytes() {
+        return b as int >= 48 && b as int <= 57
+    }
+    false
+}
+
+fn all_digits(s: str) -> bool {
+    if s.len == 0 {
+        return false
+    }
+    for b in s.bytes() {
+        if b as int < 48 || b as int > 57 {
+            return false
+        }
+    }
+    true
+}
+
+/// The decimal value of an all-digit `s`.
+fn decimal(s: str) -> int {
+    var n = 0
+    for b in s.bytes() {
+        n = n * 10 + b as int - 48
+    }
+    n
+}
