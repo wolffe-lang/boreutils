@@ -217,12 +217,20 @@ fn main() -> int {
 fn one(c: Cfg, name: str) -> bool {
     var made_why = ""
     if c.create && c.follow {
-        var there = true
-        let _ = fs_stat(name) else |_| {
-            there = false
+        // GNU opens the file to make it — and opens one that is there
+        // too, so a file this user may not write is `cannot touch`,
+        // with the open's reason, when its times cannot be set either
+        // (measured as a second user in a throwaway container). Not a
+        // directory, a fifo or a device: opening those changes nothing
+        // or waits, and their times are set by name alone.
+        var plain = true
+        let r = fs_stat(name) else |_| {
             List[int]()
         }
-        if !there {
+        if r.len > 0 && bore.rec_kind(r) != bore.kind_file() {
+            plain = false
+        }
+        if plain {
             let fd = fs_open_perm(name, 2, 438) else |_| {
                 made_why = bore.io_error()
                 -1
