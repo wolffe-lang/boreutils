@@ -53,6 +53,7 @@ tools/fetch-toolchain     # wolf + lupin release archives, sha256-checked
 tools/fetch-oracle        # GNU coreutils 9.11, sha256-checked, if needed
 tools/build               # every utility into target/release/
 tools/difftest            # the differential suite against the oracle
+tools/killtest --gnu DIR  # kill where it sends: a throwaway container a case
 tools/bench --scale 0.01  # hyperfine against GNU on generated inputs
 ```
 
@@ -60,7 +61,11 @@ GNU coreutils is the oracle and must be installed: natively on linux,
 `brew install coreutils` on macOS, where the harness uses the
 `g`-prefixed names. It must be the version `gnu-oracle.toml` names, and
 `tools/difftest` says so and stops when it is not — see **The oracle of
-record** below.
+record** below. Since `kill` (bu23) an installed coreutils is not
+enough on any host: no distribution's package holds coreutils' own
+`kill` (the one on your PATH is procps' or util-linux's, and the one
+your shell runs is its builtin), so `tools/fetch-oracle` builds the
+oracle with it and `tools/difftest` refuses any other `kill`.
 
 **Windows is out of scope**: the oracle of record is a unix build of GNU
 coreutils, and CI runs on linux and macOS. (The reason used to be that
@@ -151,14 +156,19 @@ derives no boreutils code from GPL source.
 
 Every utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus, except where a case says otherwise and is
-skipped with its reason. The corpus holds **5,646 cases**; a run in a
-throwaway Ubuntu 24.04 container on kasumi (linux x86-64; the utilities
-that change files are run nowhere else on a lane's host) at this pin
-answers **5,527 passed, 0 failed, 119 skipped**, the same list on the
-release and the dev tier (bu22's figures and CI's are in
-`notes/bu22-the-modes-and-links.md` and its PR). The previous edition
-of this sentence, before bu22's `chmod`, `touch`, `ln`, `mkdir -m` and
-`cp -p`, said: a run on kasumi (linux x86-64) at this pin answers
+skipped with its reason. The corpus holds **6,514 cases**, and `kill`
+has 335 more that SEND, each run in a container of its own
+(`tests/kill/`, `tools/killtest`); a run in a throwaway Ubuntu 24.04
+container on kasumi (linux x86-64; the utilities that change files or
+send signals are run nowhere else on a lane's host) at this pin answers
+**6,252 passed, 0 failed, 262 skipped**, the same list on the release
+and the dev tier, and `tools/killtest` **335 passed, 0 failed** (bu23's
+figures and CI's are in `notes/bu23-the-kill.md` and its PR). The
+edition before bu23's `kill` said 5,646 cases and 5,527 passed, 0
+failed, 119 skipped (bu22's figures and CI's are in
+`notes/bu22-the-modes-and-links.md` and its PR). The edition before
+bu22's `chmod`, `touch`, `ln`, `mkdir -m` and
+`cp -p` said: a run on kasumi (linux x86-64) at this pin answers
 **4,476 passed, 0 failed, 118 skipped** of 4,594, the same list on the
 release and the dev tier, and CI's
 macOS leg skips the `/dev/full` and `/proc` cases besides, because
@@ -254,6 +264,18 @@ start from the inherited environment, which wolf lists only sorted
 found through an empty `PATH` component, which sees `./name` where
 GNU's sees `name` (#689); and six options not written yet (`-S`, `-v`,
 the four signal options), refused by name.
+
+**`kill` adds 143 skips on linux, and 142 of them are one thing: a
+signal the host has and wolf has no meaning for** (bu23). wolf 0.2.29
+names the 28 signals POSIX names; linux has 36 numbers beyond them
+(`STKFLT`, `POLL`, `PWR`, the unnamed 32 and 33 and the real-time range
+34 to 64) and macOS three (`EMT`, `IO`, `INFO`), and each case that
+names one — by number, by name, or by an exit status that decodes to
+one — is skipped on that host by name, where this `kill` says `invalid
+signal`. The other one is a non-UTF-8 argument (#406). The cases that
+SEND are not skipped: where this `kill` refuses by design what GNU does
+(a process group, a signal with no meaning), `tests/kill/cases.toml`
+states both answers and both are asserted.
 
 **The file changers add thirty-five skips, and every one is a thing wolf
 cannot do to a file or an option not written** (bu21, bu22). Since wolf
@@ -1099,6 +1121,7 @@ depth is start-up on both sides.
 | `chmod` | done: octal and symbolic modes, a mode given as an option, `-c`, `-f`, `-v`, `-R`, `-H`, `-L`, `-P`, `-h`, `--reference`, `--preserve-root` | not benched |
 | `touch` | done: `-a`, `-m`, `--time`, `-c`, `-h`, `-r`, `-t`, `-d` for `@SECONDS`, ISO 8601, a time of day and now/today/yesterday/tomorrow, both times to the nanosecond; not `touch -` (#714) or the rest of GNU's date grammar | not benched |
 | `ln` | done: hard and symbolic, `-f` (a replace that never leaves the name missing), `-i`, `-n`, `-T`, `-t`, `-v`, `-P`, `-L`, `-r`, `-d`/`-F`; not `-b` | not benched |
+| `kill` | done: `-s`, `--signal`, `-SIGNAL` by name or by this host's number, `-n`, signal 0, `-l`, `-t`/`-L`, exit statuses as signals, GNU's option rules; the 28 signals wolf has a meaning for, to one process at a time; not a process group, a real-time or host-only signal, or `-t`'s description column | not benched |
 
 ## Drop-in readiness
 
@@ -1163,9 +1186,11 @@ table answers it per utility, from the evidence and from nothing else.
 | `chmod` | 14 / 14 | 532 / 0 | not benched | drop-in on linux; on macOS a link named by `-h`/`-P` or met by `-R` is left alone where GNU changes its own mode |
 | `touch` | 11 / 11 | 156 / 13 | not benched | drop-in for scripts whose `-d` dates are `@SECONDS`, ISO 8601, a time of day or now/today/yesterday/tomorrow (any other is refused by name), that do not `touch -` (#714) or combine `-r` with `-d` |
 | `ln` | 13 / 16 | 145 / 3 | not benched | drop-in for scripts that avoid `-b`/`--backup`/`-S` (refused by name) |
+| `kill` | 5 / 5 | 725 / 143, and 335 / 0 that send | not benched | drop-in for scripts that signal ONE process at a time (PID 0, -1 and a negative id, a process group, are refused by name) with a signal POSIX names (a real-time signal and one only a host has are `invalid signal`), and do not read `-t`'s third column, the host's description, which is left out |
 
-**19 drop-in, 20 drop-in for scripts that avoid a named thing, none not
-yet** (bu22: `mkdir` became drop-in, and `chmod`, `touch` and `ln`
+**19 drop-in, 21 drop-in for scripts that avoid a named thing, none not
+yet** (bu23: `kill` arrived with three named things, each a thing wolf
+cannot express yet; bu22: `mkdir` became drop-in, and `chmod`, `touch` and `ln`
 arrived with a named thing each; `rmdir` arrived drop-in at bu21 and
 `mkdir`, `rm`, `mv` and `cp` with a named thing each; `readlink` arrived drop-in at bu20; `env`, the
 one "not yet", shipped; `wc` became drop-in at bu19, when the host's
@@ -1178,7 +1203,8 @@ it.
 **103 utilities** (its info manual's `invocation` nodes, the four SHA-2
 sums counted as one and `[` as `test`; Arch's build installs 102
 binaries and leaves out `arch`, `chcon`, `runcon`, `hostname`, `kill`
-and `uptime`). boreutils ships **39 of them, 38%**. Effort is not what
+and `uptime`; `kill` is built only when asked for, which the oracle of
+record now does). boreutils ships **40 of them, 39%**. Effort is not what
 blocks most of the other 64: wolf
 0.2.28 has no surface for them, and each gap boreutils has met is filed
 upstream with its witness. The OS surface lane's first cut, s199's
@@ -1212,8 +1238,20 @@ use it (bu15).
 - **#644**, a region's exit frees to `malloc`: a streaming program's
   system time follows glibc's trim heuristics (`cut` on short lines
   moved +42% from an unrelated start-up change).
-- **#423**, no signal disposition but four meanings: `tee -p`/`-i`
-  here; `timeout`, `kill`, `nohup` and `env --ignore-signal` beyond.
+- **#423** and **#141** (closed, wolf 0.2.29, s232): every signal
+  POSIX names has a meaning, a disposition can be read and set, and
+  `os_signal_send`/`os_signal_number` reach any process and this
+  host's numbering; `kill` stands on the last two (bu23). `tee -p`/`-i`
+  here, and `timeout`, `nohup` and `env --ignore-signal`, can be
+  written. **Not filed yet, each met by `kill` and refused there**
+  (the texts are in bu23's report): a signal to a process GROUP
+  (`os_signal_send` takes a pid above 0: `kill 0`, `kill -- -PGID`,
+  `kill -1`, and `timeout`'s group); a meaning for a real-time signal
+  or one only a host has (linux's `STKFLT`, `POLL`, `PWR`, 34 to 64;
+  macOS's `EMT`, `INFO`), or any way to send a signal by its host
+  number; and a signal's description in the host's words
+  (`strsignal`: `kill -t`'s third column, and what a shell prints when
+  a job dies).
 - **#424** (closed, wolf 0.2.22): `fs_fstat`, `fs_seek`, `fs_tell` and
   `fs_read_at` see descriptors 0, 1 and 2; `wc -c` and `tail` on a
   redirected regular file use them (bu15). `cat`'s input-is-output
