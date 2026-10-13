@@ -84,6 +84,10 @@ against GNU. The short form for a new utility:
     tools/difftest-selftest    prove the harness can still see a difference
     tools/roottest             rm, mv and cp handed `/`, each case in a
                                throwaway container (docker or podman)
+    tools/killtest             kill where it SENDS: each case in a
+                               throwaway container, every target a
+                               process the case started (tests/kill/)
+    tools/killtest-selftest    prove killtest can still see a difference
     tools/bench [--scale F]    hyperfine against GNU on generated inputs
                                (`prepare`, `{work}` and `--input` for
                                the programs that change what they run on)
@@ -128,7 +132,8 @@ against GNU. The short form for a new utility:
   handle to a length (`fs_truncate`), and set the umask and be told
   the old one (`os_umask`; reading it is setting it and putting it
   back, `bore.current_umask`). The builtins are called directly:
-  wolf-std's wrappers (wolf-std#62) are not in the std pin yet.
+  they were written before wolf-std's wrappers reached the std pin
+  (they have since, at bu23's `9e5bd6b`).
   NOTHING changes an owner (#701, and no user id: #633), makes a fifo
   or a device (#705), finds a hole (#703), renames without replacing
   (#706), names an entry relative to an open directory (#707), sets a
@@ -170,10 +175,42 @@ against GNU. The short form for a new utility:
   skips on one host by name. The changers' differential runs on a
   lane's host belong in a throwaway container (bu22 ran px12-ubuntu,
   no network, only the lane directory mounted).
-- No pids (wolf-lang#141). The host's
+- The host's
   reason for an fs failure is `bore.io_error()` (`os_error_text`, wolf
   0.2.26): ask it before any other fs call, which clears it, or keep
   `bore.host_code()` and ask `bore.reason_of` later.
+- **Signals and process ids** (wolf 0.2.29, s232, ruling #70; bu23).
+  A signal is named by its MEANING, through `std.signal`'s functions
+  (`signal.terminate()`, `signal.user()`): **never write a meaning's
+  bit, and never a host's signal number.** `os_signal_number(meaning)`
+  is the one way to the number this host gives it (`USR1` is 10 on
+  linux, 30 on macOS), so a table of numbers is built by asking, at
+  run time: `src/bore/signals.lu` is how. `os_signal_send(pid,
+  meaning)` signals one process, `os_pid()`/`os_ppid()` name this one
+  and its parent. What wolf CANNOT do, each refused by `kill` and
+  needing an issue nobody has filed yet (bu23's report has the texts):
+  signal a process GROUP (`pid` must be above 0), send or name a
+  real-time signal or one only a host has (`STKFLT`, `POLL`, `PWR`;
+  `EMT`, `INFO`: no meaning), say a signal's description
+  (`strsignal`), or say why a send failed beyond `not_found` and
+  `denied` (#682).
+- **`kill` sends, so it is tested where a stray signal reaches
+  nothing.** `tools/difftest` refuses the RUN when a `kill` case could
+  signal anything (its first argument is not a list option, `--help`
+  or `--version`, and an argument is a number): `tests/refuse/kill-*`.
+  The sending cases are `tests/kill/cases.toml`, run by
+  `tools/killtest`: one fresh `--network none` container a case, every
+  target a process the case's own script started there with default
+  dispositions, GNU's `kill` beside both tiers. **No test signals a
+  process it did not start, and none runs on a lane's host outside a
+  container**; CI's macOS leg, which has no engine, runs the cases
+  that name only their own children on the runner itself
+  (`--engine none`). The oracle is GNU coreutils' OWN `kill`
+  (`--enable-install-program=kill`, `needs` in `gnu-oracle.toml`),
+  asserted by its `--version` line: the `kill` on a PATH is procps' or
+  util-linux's, and the one a shell runs is its builtin. Read a
+  target's fate in the shell that started it — a `wait` in `$( )`
+  answers 127 for every target, and both sides then agree.
 - A program can become another (`os_exec`) and remove a variable
   (`env_unset`) since wolf 0.2.27 (s225); `env` does. Two things are
   still missing there: `env_vars()` lists the environment only sorted
