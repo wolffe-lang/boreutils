@@ -1,0 +1,623 @@
+#!/usr/bin/env python3
+"""killtest - `kill` where it sends (bu23).
+
+A `kill` that is wrong signals the wrong process, so tools/difftest
+refuses every case of it that could send. This tool runs them where a
+stray signal can reach nothing: a THROWAWAY CONTAINER, one per case,
+made from an image this tool builds (a base image plus the programs,
+copied in) and removes again.
+
+  - no volume and no bind mount, of anything; `--network none`; a
+    process-id namespace of the container's own, so no id a case could
+    name is a process of the host;
+  - EVERY TARGET IS A PROCESS THE CASE ITSELF STARTED, inside that
+    container, with every signal at its default (GNU `env
+    --default-signal`: a shell starts a background job with INT and
+    QUIT ignored, and a target that ignores what it is sent passes
+    for the wrong reason);
+  - nothing under test is ever executed on the host. This tool starts
+    the container engine and reads what the container printed.
+
+Each case runs three programs in turn, each against targets of its own:
+GNU coreutils 9.11's `kill` (given with --gnu: coreutils' OWN, built
+with --enable-install-program=kill; the tool asserts the binary says
+`kill (GNU coreutils) 9.11`, because the `kill` an image ships is
+procps' or util-linux's and the one a shell runs is its builtin), and
+this repository's on both tiers, built static so they run in any image.
+A case passes when each of ours answers as GNU did, on four fields:
+
+  exit     the exit status
+  stdout   byte for byte
+  stderr   byte for byte, every target's process id written `{pidN}`
+  fates    what became of each target: `ended N` (the status its parent
+           read: 128+SIGNAL for a signal's death, 42 for a target that
+           caught the signal it was waiting for), `alive`, `stopped`
+           (the host's state `T`); for a group, how many of its three
+           members are left
+
+Case file (tests/kill/cases.toml), any number of [[case]] tables:
+
+  name = "the default signal"   # required, unique
+  args = ["{pid0}"]             # `{pidN}`: target N's process id.
+                                #   `{pgid}`: the group's id (`group`).
+                                #   `{dead}`: the id of a process of the
+                                #   case's own that has already ended.
+                                #   `{n:USR1}`: the number THIS host
+                                #   gives a signal (asked of GNU's `kill
+                                #   -l`), so a case written once sends
+                                #   30 on macOS and 10 on linux.
+                                #   `{x:USR1}`: 128 plus that number.
+                                #   `{w:0}`: target 0's id plus 2^32, an
+                                #   id a careless reader would wrap.
+  targets = 1                   # how many targets (default 1; 0: none)
+  catch = ["CONT"]              # the targets CATCH these signals and
+                                #   end with status 42, for a signal
+                                #   whose default action leaves no
+                                #   mark (CHLD, URG, WINCH, CONT) or
+                                #   stops nothing in an orphaned group
+                                #   (TSTP, TTIN, TTOU)
+  stopped = true                # the targets are STOPPED before the
+                                #   program runs (the shell's own
+                                #   `kill -STOP`), for CONT
+  group = true                  # container only: three targets in a
+                                #   process group of their own; `fates`
+                                #   is the count of members left
+  other = true                  # container only: the targets are
+                                #   root's and the program runs as an
+                                #   unprivileged user, for the host's
+                                #   refusal (EPERM)
+  env = { POSIXLY_CORRECT = "1" }
+  container = true              # a case that may only run in a
+                                #   container: it names a process
+                                #   group, or a literal id
+  only_on = "Linux"             # a host whose signals the case names
+  gnu = false                   # never handed to GNU, container or not
+  ours = { exit = 1, stderr = "...", fates = ["alive"] }
+                                # where this repository answers
+                                #   differently BY DESIGN (a process
+                                #   group, a signal wolf has no meaning
+                                #   for). The case then asserts `ours`
+                                #   of both tiers and, when it has one,
+  expect = { exit = 0, stderr = "", fates = ["ended 162"] }
+                                #   `expect` of GNU, MEASURED, never
+                                #   remembered (`--record` prints it).
+  compare = ["exit", "fates"]   # the fields compared with GNU (default
+                                #   all four): `--help` prints our own
+                                #   words, so its case compares the rest
+  skip = "reason"
+
+A LITERAL NUMBER in `args` is refused by this tool (status 2, before
+any case runs) unless the case is `container = true`, or the number is
+a signal's (the word after `-s`, `-n` or `--signal`, or `-N` as the
+first argument), or it is 2147483647 or more, which names no process on
+any host. So outside a container no case can name a process it did not
+start.
+
+WITHOUT AN ENGINE (`--engine none`): each case's script is run on this
+machine directly. That is for CI's macOS runner, a throwaway machine
+with no container engine, where the host's own signal numbers are what
+is under test; the `container` cases are skipped there by name, and
+every target is still the case's own child. Never on a shared host.
+
+usage: tools/killtest [--engine docker|podman|none] [--image IMAGE]
+                      [--bin DIR] [--gnu DIR] [--gnu-prefix P]
+                      [--cases FILE] [--record] [NAME-SUBSTRING...]
+
+  --bin DIR   DIR/release and DIR/dev hold `kill` (default: build them
+              here; static, through a `cc` that adds -static, when the
+              engine is a container's)
+  --gnu DIR   a directory holding GNU 9.11's `kill` and `env`, built for
+              IMAGE (required: there is no other oracle for `kill`)
+  --record    run GNU only and print what it answers
+
+Exit status: 0 every case passed, 1 a case failed, 2 the tool could
+not run (no engine, no image, a program that is not there, a case that
+is not safe).
+"""
+
+import os
+import platform
+import re
+import shlex
+import shutil
+import subprocess
+import sys
+import tempfile
+import tomllib
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CASES = os.path.join(ROOT, "tests", "kill", "cases.toml")
+TIERS = (("release", ["--release"]), ("dev", []))
+KEYS = {"name", "args", "targets", "catch", "stopped", "group", "other",
+        "env", "container", "only_on", "gnu", "ours", "expect", "skip",
+        "compare"}
+FIELDS = ("exit", "stdout", "stderr", "fates")
+USER = "4242"
+
+# The script one side of one case runs. `$1` is the program under test,
+# `$2` GNU's env (for --default-signal), `$3` GNU's kill (to ask a
+# signal's number). It prints what the program printed between markers,
+# its status, and each target's fate; and it ends every process it
+# started before it returns.
+PRELUDE = r"""
+ulimit -c 0
+BIN=$1; ENV=$2; GKILL=$3
+T=$(mktemp -d "${TMPDIR:-/tmp}/bore-killtest.XXXXXX") || exit 97
+cd "$T" || exit 97
+state() {
+    if [ -r "/proc/$1/stat" ]; then
+        sed 's/^.*) //' "/proc/$1/stat" 2>/dev/null | cut -c1
+    elif [ -d /proc/1 ]; then
+        echo Z
+    else
+        s=$(ps -o state= -p "$1" 2>/dev/null | tr -d ' ' | cut -c1)
+        echo "${s:-Z}"
+    fi
+}
+name_of() {
+    if [ -r "/proc/$1/comm" ]; then cat "/proc/$1/comm" 2>/dev/null
+    else ps -o comm= -p "$1" 2>/dev/null | sed 's|.*/||'; fi
+}
+# Wait (2 s at most) until target $1 is the program it will be: before
+# its `exec` it is still this shell, with this shell's ignored signals.
+ready() {
+    i=0
+    while [ $i -lt 40 ]; do
+        if [ -n "$2" ]; then [ -e "$2" ] && return 0
+        else [ "$(name_of "$1")" = sleep ] && return 0; fi
+        sleep 0.05; i=$((i + 1))
+    done
+    echo "@unready $1"
+}
+# What became of target $1: 0.6 s for it to end, else how it stands.
+# Called in THIS shell, never in `$( )`: only a target's parent can
+# `wait` for it, and a subshell's `wait` answers 127 for every target,
+# which both sides would then agree on.
+fate() {
+    i=0
+    while [ $i -lt 12 ]; do
+        s=$(state "$1")
+        [ "$s" = Z ] && break
+        sleep 0.05; i=$((i + 1))
+    done
+    s=$(state "$1")
+    if [ "$s" = Z ]; then wait "$1" 2>/dev/null; echo "@fate ended $?"
+    elif [ "$s" = T ]; then echo "@fate stopped"
+    else echo "@fate alive"; fi
+}
+members() {
+    n=0
+    for d in /proc/[0-9]*; do
+        st=$(sed 's/^.*) //' "$d/stat" 2>/dev/null) || continue
+        set -- $st
+        [ "$3" = "$G" ] && [ "$1" != Z ] && n=$((n + 1))
+    done
+    echo "$n"
+}
+"""
+
+
+def die(msg):
+    print(f"killtest: {msg}", file=sys.stderr)
+    sys.exit(2)
+
+
+def numeric(arg):
+    return re.fullmatch(r"\s*[+-]?\d+\s*", arg) is not None
+
+
+def unsafe(case):
+    """Why this case may not run outside a container, or None: a literal
+    number that could be a process's or a group's id (the docstring)."""
+    args = [str(a) for a in case.get("args", [])]
+    after_signal = False
+    for i, a in enumerate(args):
+        bare = re.sub(r"\{[a-z0-9:A-Z+-]+\}", "", a)
+        was_after = after_signal
+        after_signal = a in ("-s", "-n", "--signal")
+        if bare != a:
+            # A placeholder: the case's own process, or a signal's number.
+            if "{pgid}" in a or re.search(r"-\s*\{(pid\d+|dead)\}", a):
+                return f"{a!r} names a process group"
+            continue
+        if not numeric(a):
+            continue
+        if was_after:
+            continue
+        if i == 0 and re.fullmatch(r"-\d+", a):
+            continue
+        if re.fullmatch(r"\d+", a) and int(a) >= 2147483647:
+            continue
+        return f"{a!r} is a literal number that could be a process id"
+    if case.get("group") or case.get("other"):
+        return "it needs a group of its own, or root's targets"
+    return None
+
+
+def quoted(arg, catching):
+    """One argument as shell text, placeholders spliced in as variables."""
+    out = shlex.quote(arg)
+    def var(m):
+        word = m.group(1)
+        if word.startswith("pid"):
+            return f"'\"$P{int(word[3:])}\"'"
+        if word == "pgid":
+            return "'\"$G\"'"
+        if word == "dead":
+            return "'\"$DEAD\"'"
+        kind, _, sig = word.partition(":")
+        if kind == "w":
+            return f"'\"$((4294967296 + $P{int(sig)}))\"'"
+        if kind == "n":
+            return f"'\"$(\"$GKILL\" -l {shlex.quote(sig)})\"'"
+        if kind == "x":
+            return f"'\"$((128 + $(\"$GKILL\" -l {shlex.quote(sig)})))\"'"
+        die(f"unknown placeholder {{{word}}}")
+    return re.sub(r"\{([a-z0-9:A-Z+-]+)\}", var, out)
+
+
+def script(case):
+    """The shell text for one side of `case`."""
+    n = int(case.get("targets", 1))
+    catch = [str(s) for s in case.get("catch", [])]
+    lines = [PRELUDE]
+    asuser = f"setpriv --reuid {USER} --regid {USER} --clear-groups " if case.get("other") else ""
+    if catch:
+        # A target that catches CHLD must start no child of its own: its
+        # `sleep` ending would be the signal it is waiting for. It spins.
+        idle = ":" if "CHLD" in catch else "sleep 0.05"
+        body = (f"trap 'exit 42' {' '.join(catch)}; : > \"$0\"; "
+                f"while :; do {idle}; done")
+    if case.get("group"):
+        # Three members: a shell that waits and its two sleeps.
+        lines.append("setsid \"$ENV\" --default-signal sh -c 'sleep 60 & sleep 60 & wait' &")
+        lines.append("L=$!; i=0; while [ $i -lt 40 ]; do "
+                     "G=$(sed 's/^.*) //' /proc/$L/stat | cut -d' ' -f3); "
+                     "[ \"$G\" = \"$L\" ] && [ \"$(members)\" = 3 ] && break; "
+                     "sleep 0.05; i=$((i + 1)); done")
+        lines.append("echo \"@before $(members)\"")
+    else:
+        for k in range(n):
+            if catch:
+                lines.append(f"\"$ENV\" --default-signal sh -c {shlex.quote(body)} \"$T/ready{k}\" &")
+                lines.append(f"P{k}=$!; ready $P{k} \"$T/ready{k}\"")
+            else:
+                lines.append("\"$ENV\" --default-signal sleep 60 &")
+                lines.append(f"P{k}=$!; ready $P{k} ''")
+            if case.get("stopped"):
+                lines.append(f"kill -STOP $P{k}; i=0; while [ \"$(state $P{k})\" != T ] && [ $i -lt 40 ]; "
+                             "do sleep 0.05; i=$((i + 1)); done")
+    if any("{dead}" in str(a) for a in case.get("args", [])):
+        lines.append("sleep 0 & DEAD=$!; wait $DEAD")
+    env = "".join(f"{k}={shlex.quote(str(v))} " for k, v in sorted(case.get("env", {}).items()))
+    argv = " ".join(quoted(str(a), catch) for a in case.get("args", []))
+    lines.append(f"env LC_ALL=C _POSIX2_VERSION=200112 {env}{asuser}\"$BIN\" {argv} "
+                 "> \"$T/out\" 2> \"$T/err\" < /dev/null")
+    lines.append("echo \"@status $?\"")
+    # The ids, so the reader can write them `{pidN}`.
+    ids = " ".join(f"$P{k}" for k in range(n)) if not case.get("group") else "$G"
+    lines.append(f"echo \"@ids {ids} ${{DEAD:-}}\"")
+    lines.append("echo \"@out $(od -An -v -tx1 \"$T/out\" | tr -d ' \\n')\"")
+    lines.append("echo \"@err $(od -An -v -tx1 \"$T/err\" | tr -d ' \\n')\"")
+    if case.get("group"):
+        lines.append("sleep 0.3; echo \"@fate $(members)\"")
+        lines.append("kill -KILL -- \"-$G\" 2>/dev/null")
+    else:
+        for k in range(n):
+            lines.append(f"fate $P{k}")
+        for k in range(n):
+            lines.append(f"kill -KILL $P{k} 2>/dev/null; wait $P{k} 2>/dev/null")
+    lines.append("cd /; rm -rf \"$T\"; echo @done")
+    return "\n".join(lines) + "\n"
+
+
+def read(text, case, prog):
+    """What one side answered, from its markers; None when it did not
+    finish (the program under test took the script down with it). The
+    path the program was run by is written `kill`, as tools/difftest
+    writes it PROG: GNU names itself by its whole argv[0]."""
+    got = {"exit": None, "stdout": "", "stderr": "", "fates": []}
+    ids, done, unready = [], False, []
+    raw = {}
+    for line in text.splitlines():
+        if line.startswith("@status "):
+            got["exit"] = int(line.split()[1])
+        elif line.startswith("@ids"):
+            ids = line.split()[1:]
+        elif line.startswith("@out ") or line == "@out":
+            raw["stdout"] = bytes.fromhex(line[5:].strip())
+        elif line.startswith("@err ") or line == "@err":
+            raw["stderr"] = bytes.fromhex(line[5:].strip())
+        elif line.startswith("@fate "):
+            got["fates"].append(line[6:].strip())
+        elif line.startswith("@before "):
+            got["before"] = line[8:].strip()
+        elif line.startswith("@unready"):
+            unready.append(line)
+        elif line == "@done":
+            done = True
+    if not done or got["exit"] is None or unready:
+        return None
+    n = 0 if case.get("group") else int(case.get("targets", 1))
+    for field in ("stdout", "stderr"):
+        text = raw.get(field, b"").decode(errors="backslashreplace")
+        text = text.replace(prog, "kill")
+        # Longest id first, so 1234 is not read as 123 and a 4.
+        names = []
+        if case.get("group"):
+            names.append((ids[0] if ids else "", "{pgid}"))
+        else:
+            names += [(ids[k], f"{{pid{k}}}") for k in range(min(n, len(ids)))]
+            names += [(str(4294967296 + int(ids[k])), f"{{w:{k}}}")
+                      for k in range(min(n, len(ids))) if ids[k].isdigit()]
+            if len(ids) > n:
+                names.append((ids[n], "{dead}"))
+        for pid, name in sorted(names, key=lambda p: -len(p[0])):
+            if pid:
+                text = re.sub(r"(?<!\d)" + re.escape(pid) + r"(?!\d)", name, text)
+        got[field] = text
+    if case.get("group") and got.get("before") != "3":
+        return None
+    got.pop("before", None)
+    return got
+
+
+def build(out, static):
+    """`kill` on both tiers: wolf's own build, through a `cc` that adds
+    -static when the programs are for a container (pax's recipe)."""
+    wolf = os.path.join(ROOT, ".wolf-bin", "wolf")
+    if not os.access(wolf, os.X_OK):
+        die("no .wolf-bin/wolf (run tools/fetch-toolchain)")
+    env = dict(os.environ)
+    env["WOLF_STD"] = os.path.join(ROOT, ".wolf-bin", "std")
+    if static:
+        real = shutil.which("cc") or die("no cc on PATH")
+        wrap = os.path.join(out, "cc-static")
+        os.makedirs(wrap, exist_ok=True)
+        with open(os.path.join(wrap, "cc"), "w") as fh:
+            fh.write(f'#!/bin/sh\nexec {real} -static "$@"\n')
+        os.chmod(os.path.join(wrap, "cc"), 0o755)
+        env["PATH"] = wrap + os.pathsep + env.get("PATH", "")
+    for tier, flags in TIERS:
+        os.makedirs(os.path.join(out, tier), exist_ok=True)
+        dest = os.path.join(out, tier, "kill")
+        done = subprocess.run(
+            [wolf, "build"] + flags + ["--no-cache", "--deny-warnings",
+             os.path.join("src", "kill.lu"), "-o", dest], cwd=ROOT, env=env)
+        if done.returncode != 0:
+            die(f"wolf build of kill ({tier}) exited {done.returncode}")
+    return out
+
+
+def is_static(path):
+    with open(path, "rb") as fh:
+        head = fh.read(1 << 16)
+    return b"/ld-linux" not in head and b"/ld-musl" not in head and b"/usr/lib/dyld" not in head
+
+
+DOCKERFILE = """FROM {image}
+COPY t /t
+RUN chmod -R a+rX /t && chmod a+x /t/bin/*/* \\
+ && useradd -m -u {user} bore \\
+ && command -v setpriv && command -v setsid && command -v od
+"""
+
+
+def main(argv):
+    engine = image = bindir = gnudir = None
+    cases_path = CASES
+    prefix = ""
+    record = False
+    only = []
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a in ("--engine", "--image", "--bin", "--gnu", "--gnu-prefix", "--cases"):
+            if i + 1 >= len(argv):
+                die(f"{a} needs a value")
+            v = argv[i + 1]
+            i += 1
+            if a == "--engine":
+                engine = v
+            elif a == "--image":
+                image = v
+            elif a == "--bin":
+                bindir = os.path.abspath(v)
+            elif a == "--gnu":
+                gnudir = os.path.abspath(v)
+            elif a == "--cases":
+                cases_path = os.path.abspath(v)
+            else:
+                prefix = v
+        elif a == "--record":
+            record = True
+        elif a.startswith("--"):
+            die(f"unknown argument {a!r}")
+        else:
+            only.append(a)
+        i += 1
+    engine = engine or ("docker" if shutil.which("docker") else "podman")
+    boxed = engine != "none"
+    if boxed and shutil.which(engine) is None:
+        die(f"no container engine ({engine}) on PATH; `--engine none` is "
+            f"for a throwaway machine only")
+    image = image or "ubuntu:24.04"
+    if gnudir is None:
+        die("--gnu DIR is required: GNU coreutils' own kill and env, "
+            "built with --enable-install-program=kill")
+    with open(cases_path, "rb") as fh:
+        cases = tomllib.load(fh).get("case", [])
+    seen = set()
+    host = platform.system()
+    for c in cases:
+        extra = set(c) - KEYS
+        if "name" not in c or extra:
+            die(f"a case is malformed: {c.get('name', '?')!r} {sorted(extra)}")
+        if c["name"] in seen:
+            die(f"duplicate case name {c['name']!r}")
+        seen.add(c["name"])
+        why = unsafe(c)
+        if why is not None and not c.get("container"):
+            die(f"refusing case {c['name']!r}: {why}, and the case is not "
+                f"`container = true`")
+        for f in c.get("compare", []):
+            if f not in FIELDS:
+                die(f"case {c['name']!r} compares unknown {f!r}")
+        if "ours" not in c and c.get("gnu") is False:
+            die(f"case {c['name']!r} is not handed to GNU and says nothing "
+                f"of what ours must answer")
+    gnu_kill = os.path.join(gnudir, prefix + "kill")
+    gnu_env = os.path.join(gnudir, prefix + "env")
+    for path in (gnu_kill, gnu_env):
+        if not os.access(path, os.X_OK):
+            die(f"no program at {path}")
+    with open(os.path.join(ROOT, "gnu-oracle.toml"), "rb") as fh:
+        oracle = str(tomllib.load(fh)["oracle"]["version"])
+
+    scratch = tempfile.mkdtemp(prefix="bore-killtest.")
+    tag = f"bore-killtest:{os.getpid()}"
+    failed = passed = skipped = 0
+    try:
+        if bindir is None and not record:
+            bindir = build(os.path.join(ROOT, "target", "killtest"), boxed)
+        sides = [("gnu", gnu_kill)]
+        if not record:
+            for tier, _ in TIERS:
+                path = os.path.join(bindir, tier, "kill")
+                if not os.access(path, os.X_OK):
+                    die(f"no program at {path}")
+                sides.append((tier, path))
+                print(f"killtest: {tier}/kill is "
+                      f"{'static' if is_static(path) else 'dynamic'}")
+        if boxed:
+            ctx = os.path.join(scratch, "ctx")
+            for who, path in sides:
+                os.makedirs(os.path.join(ctx, "t", "bin", who))
+                shutil.copy(path, os.path.join(ctx, "t", "bin", who, "kill"))
+            shutil.copy(gnu_env, os.path.join(ctx, "t", "bin", "gnu", "env"))
+            with open(os.path.join(ctx, "Dockerfile"), "w") as fh:
+                fh.write(DOCKERFILE.format(image=image, user=USER))
+            built = subprocess.run([engine, "build", "-q", "-t", tag, ctx],
+                                   capture_output=True, text=True)
+            if built.returncode != 0:
+                die(f"{engine} build failed: {built.stderr.strip()[-600:]}")
+            where = {who: f"/t/bin/{who}/kill" for who, _ in sides}
+            env_at, gkill_at = "/t/bin/gnu/env", "/t/bin/gnu/kill"
+            said = subprocess.run([engine, "run", "--rm", "--network", "none", tag,
+                                   gkill_at, "--version"], capture_output=True, text=True)
+            print(f"killtest: {engine}, image {image}, one fresh container a "
+                  f"case, no mount, no network")
+        else:
+            where = dict(sides)
+            env_at, gkill_at = gnu_env, gnu_kill
+            said = subprocess.run([gnu_kill, "--version"], capture_output=True, text=True)
+            print(f"killtest: NO CONTAINER — on this machine ({host}), which "
+                  f"must be a throwaway; the container cases are skipped")
+        first = (said.stdout.splitlines() or [""])[0]
+        # The oracle of record, asserted BY BINARY where it runs (B44).
+        if said.returncode != 0 or first != f"kill (GNU coreutils) {oracle}":
+            die(f"the kill given as GNU's is not coreutils {oracle}'s own: "
+                f"{first!r} {said.stderr.strip()[:200]!r}")
+        print(f"killtest: gnu = {first} ({gnu_kill})")
+
+        def one(case, who, serial):
+            text = script(case)
+            if boxed:
+                name = f"bore-killtest-{os.getpid()}-{serial}"
+                uid = "0" if case.get("other") else USER
+                cmd = [engine, "run", "--rm", "--name", name, "--network", "none",
+                       "--user", uid, "--workdir", "/tmp", tag,
+                       "sh", "-c", text, "case", where[who], env_at, gkill_at]
+            else:
+                cmd = ["sh", "-c", text, "case", where[who], env_at, gkill_at]
+            try:
+                done = subprocess.run(cmd, capture_output=True, timeout=120,
+                                      stdin=subprocess.DEVNULL)
+            except subprocess.TimeoutExpired:
+                if boxed:
+                    subprocess.run([engine, "rm", "-f", name], capture_output=True)
+                return None, "timed out"
+            out = done.stdout.decode(errors="replace")
+            return read(out, case, where[who]), out + done.stderr.decode(errors="replace")
+
+        serial = 0
+        for c in cases:
+            label = c["name"]
+            if only and not any(o in label for o in only):
+                continue
+            reason = None
+            if "skip" in c:
+                reason = c["skip"]
+            elif "only_on" in c and c["only_on"] != host:
+                reason = f"on {host}: the case names {c['only_on']}'s signals"
+            elif not boxed and (c.get("container") or unsafe(c) is not None):
+                reason = "no container here: the case names a group or a literal id"
+            if reason is not None:
+                skipped += 1
+                print(f"SKIP {label} ({reason})")
+                continue
+            results, logs = {}, {}
+            for who, _ in sides:
+                if who == "gnu" and c.get("gnu") is False:
+                    continue
+                serial += 1
+                results[who], logs[who] = one(c, who, serial)
+            if record:
+                print(f"# {label}: {results.get('gnu')!r}")
+                continue
+            ok = True
+            why = []
+            g = results.get("gnu")
+            if c.get("gnu") is not False:
+                if g is None:
+                    ok = False
+                    why.append(f"gnu did not finish: {logs['gnu'][-300:]!r}")
+                elif "expect" in c:
+                    for f, v in c["expect"].items():
+                        if g[f] != v:
+                            ok = False
+                            why.append(f"gnu {f}: got {g[f]!r}, the case records {v!r}")
+            for tier, _ in TIERS:
+                o = results.get(tier)
+                if o is None:
+                    ok = False
+                    why.append(f"{tier} did not finish: {logs[tier][-300:]!r}")
+                    continue
+                if "ours" in c:
+                    for f, v in c["ours"].items():
+                        if o[f] != v:
+                            ok = False
+                            why.append(f"{tier} {f}: got {o[f]!r}, want {v!r} (by design)")
+                elif g is not None:
+                    for f in c.get("compare", FIELDS):
+                        if o[f] != g[f]:
+                            ok = False
+                            why.append(f"{tier} {f}: {o[f]!r}, gnu {g[f]!r}")
+            if ok:
+                passed += 1
+                print(f"ok   {label}")
+            else:
+                failed += 1
+                print(f"FAIL {label}  args={c.get('args', [])!r}")
+                for line in why:
+                    print(f"    {line}")
+    finally:
+        if boxed:
+            subprocess.run([engine, "rmi", "-f", tag], capture_output=True)
+        shutil.rmtree(scratch, ignore_errors=True)
+    if not record:
+        print(f"killtest: {passed} passed, {failed} failed, {skipped} skipped")
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    sys.stdout.reconfigure(line_buffering=True)
+    try:
+        code = main(sys.argv[1:])
+    except Exception:
+        import traceback
+        sys.stdout.flush()
+        traceback.print_exc()
+        print("killtest: the tool died; no verdict", file=sys.stderr)
+        code = 2
+    sys.exit(code)

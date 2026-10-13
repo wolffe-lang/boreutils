@@ -1,0 +1,7 @@
+# bu23: a sending case that names a LITERAL process id and is not
+# `container = true`. tools/killtest must refuse the run (status 2)
+# before any case starts: outside a container a case may name only the
+# processes it started. (The id is init's; nothing here ever runs.)
+[[case]]
+name = "a literal id"
+args = ["-s", "TERM", "1"]

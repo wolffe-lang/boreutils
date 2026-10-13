@@ -1,0 +1,86 @@
+#!/bin/sh
+# killtest-selftest — prove tools/killtest can see a difference (bu23).
+#
+# A gate nobody has watched fail is not a gate. This runs killtest over
+# tests/kill/selftest.toml with GNU's `true` standing in for this
+# repository's `kill` on both tiers, and passes only when killtest exits
+# 1, every plant is a FAIL line of its own, and the control passes. Then
+# it checks the refusal: a case that names a literal process id outside
+# a container stops the run, status 2, before anything has started.
+#
+# usage: tools/killtest-selftest --gnu DIR [killtest's other options]
+set -eu
+BORE_ROOT=$(cd "$(dirname "$0")/.." && pwd)
+cd "$BORE_ROOT"
+
+gnu=
+prev=
+for a in "$@"; do
+    [ "$prev" = "--gnu" ] && gnu=$a
+    prev=$a
+done
+[ -n "$gnu" ] || { echo "killtest-selftest: --gnu DIR is required" >&2; exit 2; }
+stand=
+for name in true gtrue; do
+    [ -x "$gnu/$name" ] && stand=$gnu/$name && break
+done
+[ -n "$stand" ] || { echo "killtest-selftest: no GNU true in $gnu" >&2; exit 2; }
+
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/bore-killtest-selftest.XXXXXX")
+trap 'rm -rf "$tmp"' EXIT
+mkdir -p "$tmp/release" "$tmp/dev"
+cp "$stand" "$tmp/release/kill"
+cp "$stand" "$tmp/dev/kill"
+
+out=$(tools/killtest "$@" --bin "$tmp" --cases tests/kill/selftest.toml 2>&1) && status=0 || status=$?
+if [ "$status" -ne 1 ]; then
+    echo "killtest-selftest: REFUSED — killtest exited $status over the planted"
+    echo "killtest-selftest: differences; it must exit 1. Output was:"
+    echo "$out"
+    exit 1
+fi
+for planted in "plant: a target one side leaves alive" \
+               "plant: a target that must end by KILL" \
+               "plant: a process that is not there"; do
+    if ! echo "$out" | grep -qF "FAIL $planted"; then
+        echo "killtest-selftest: REFUSED — the plant '$planted' did not fail:"
+        echo "$out"
+        exit 1
+    fi
+done
+# Each plant fails on the field it is about, and GNU's own answer is the
+# measured one: a KILL's death is 137, read by the target's parent.
+for said in "release fates: ['alive'], gnu ['ended 143']" \
+            "release exit: 0, gnu 1"; do
+    if ! echo "$out" | grep -qF "$said"; then
+        echo "killtest-selftest: REFUSED — no line says: $said"
+        echo "$out"
+        exit 1
+    fi
+done
+if echo "$out" | grep -q "gnu fates: got"; then
+    echo "killtest-selftest: REFUSED — GNU's KILL did not end its target with 137:"
+    echo "$out"
+    exit 1
+fi
+if ! echo "$out" | grep -qxF "ok   control: signal 0 leaves the target alone"; then
+    echo "killtest-selftest: REFUSED — the control did not pass:"
+    echo "$out"
+    exit 1
+fi
+echo "$out" | grep -E '^(FAIL|ok  |killtest:)'
+echo "killtest-selftest: the tool saw every planted difference"
+
+out=$(tools/killtest "$@" --bin "$tmp" --cases tests/kill/refuse.toml 2>&1) && status=0 || status=$?
+if [ "$status" -ne 2 ] || ! echo "$out" | grep -q 'killtest: refusing case'; then
+    echo "killtest-selftest: REFUSED — a literal process id was not refused (status $status):"
+    echo "$out"
+    exit 1
+fi
+if echo "$out" | grep -qE '^(ok  |FAIL|SKIP) '; then
+    echo "killtest-selftest: REFUSED — a case ran before the refusal:"
+    echo "$out"
+    exit 1
+fi
+echo "$out" | grep 'refusing case'
+echo "killtest-selftest: the tool refused a literal process id"

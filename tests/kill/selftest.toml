@@ -1,0 +1,30 @@
+# Planted differences for tools/killtest-selftest (bu23). The tool runs
+# these with GNU's `true` standing in for this repository's `kill`: a
+# program that sends nothing, prints nothing and exits 0. tools/killtest
+# passes this file only by FAILING every plant by name, each on the one
+# field it is about, and by passing the control.
+
+# `fates`: GNU ends the target, the stand-in leaves it alive. A harness
+# that could not see what became of a target would pass this.
+[[case]]
+name = "plant: a target one side leaves alive"
+args = ["{pid0}"]
+
+# `fates`, by NUMBER: both sides' targets end, GNU's by the signal and
+# the stand-in's never — so this also fails if a fate were read through
+# a subshell, where every `wait` answers 127 and the two sides agree.
+[[case]]
+name = "plant: a target that must end by KILL"
+args = ["-s", "KILL", "{pid0}"]
+expect = { exit = 0, fates = ["ended 137"] }
+
+# `stderr` and `exit`: GNU reports the process that is not there.
+[[case]]
+name = "plant: a process that is not there"
+args = ["{dead}"]
+targets = 0
+
+# The control, which must PASS: signal 0 sends nothing on either side.
+[[case]]
+name = "control: signal 0 leaves the target alone"
+args = ["-0", "{pid0}"]
