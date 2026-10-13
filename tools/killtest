@@ -101,13 +101,19 @@ every target is still the case's own child. Never on a shared host.
 
 usage: tools/killtest [--engine docker|podman|none] [--image IMAGE]
                       [--bin DIR] [--gnu DIR] [--gnu-prefix P]
-                      [--cases FILE] [--record] [NAME-SUBSTRING...]
+                      [--cases FILE] [--cpus LIST] [--record]
+                      [NAME-SUBSTRING...]
 
   --bin DIR   DIR/release and DIR/dev hold `kill` (default: build them
               here; static, through a `cc` that adds -static, when the
               engine is a container's)
   --gnu DIR   a directory holding GNU 9.11's `kill` and `env`, built for
               IMAGE (required: there is no other oracle for `kill`)
+  --cpus LIST run each case's script under `taskset -c LIST` INSIDE its
+              container (the tool asserts the list took). An engine does
+              not hand its caller's affinity to a container (measured:
+              `taskset -c 0-3 podman run` leaves all 16 allowed), so a
+              run on few processors has to ask from within.
   --record    run GNU only and print what it answers
 
 Exit status: 0 every case passed, 1 a case failed, 2 the tool could
@@ -408,11 +414,12 @@ def main(argv):
     cases_path = CASES
     prefix = ""
     record = False
+    cpus = None
     only = []
     i = 0
     while i < len(argv):
         a = argv[i]
-        if a in ("--engine", "--image", "--bin", "--gnu", "--gnu-prefix", "--cases"):
+        if a in ("--engine", "--image", "--bin", "--gnu", "--gnu-prefix", "--cases", "--cpus"):
             if i + 1 >= len(argv):
                 die(f"{a} needs a value")
             v = argv[i + 1]
@@ -427,6 +434,8 @@ def main(argv):
                 gnudir = os.path.abspath(v)
             elif a == "--cases":
                 cases_path = os.path.abspath(v)
+            elif a == "--cpus":
+                cpus = v
             else:
                 prefix = v
         elif a == "--record":
@@ -519,6 +528,16 @@ def main(argv):
             die(f"the kill given as GNU's is not coreutils {oracle}'s own: "
                 f"{first!r} {said.stderr.strip()[:200]!r}")
         print(f"killtest: gnu = {first} ({gnu_kill})")
+        pin = ["taskset", "-c", cpus] if cpus else []
+        if cpus:
+            ask = pin + ["sh", "-c", "grep Cpus_allowed_list /proc/self/status"]
+            if boxed:
+                ask = [engine, "run", "--rm", "--network", "none", tag] + ask
+            took = subprocess.run(ask, capture_output=True, text=True).stdout.split()
+            if took[-1:] != [cpus]:
+                die(f"--cpus {cpus} did not take: {took!r}")
+            print(f"killtest: every case under taskset -c {cpus} "
+                  f"(Cpus_allowed_list {took[-1]}, read inside)")
 
         def one(case, who, serial):
             text = script(case)
@@ -526,10 +545,10 @@ def main(argv):
                 name = f"bore-killtest-{os.getpid()}-{serial}"
                 uid = "0" if case.get("other") else USER
                 cmd = [engine, "run", "--rm", "--name", name, "--network", "none",
-                       "--user", uid, "--workdir", "/tmp", tag,
+                       "--user", uid, "--workdir", "/tmp", tag] + pin + [
                        "sh", "-c", text, "case", where[who], env_at, gkill_at]
             else:
-                cmd = ["sh", "-c", text, "case", where[who], env_at, gkill_at]
+                cmd = pin + ["sh", "-c", text, "case", where[who], env_at, gkill_at]
             try:
                 done = subprocess.run(cmd, capture_output=True, timeout=120,
                                       stdin=subprocess.DEVNULL)

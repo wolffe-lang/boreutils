@@ -95,6 +95,17 @@ holds_needs() {
     return 0
 }
 
+# THE HOST'S GNU STAYS THE ORACLE FOR WHAT IT HOLDS (bu23). A host of
+# the right version that lacks only `needs` — Homebrew's 9.11, which has
+# no `gkill` — keeps answering for every other utility, and the build
+# is staged for the missing programs ALONE: this tool then prints the
+# empty line, nothing goes on PATH, and `tools/difftest` and
+# `tools/killtest` take `kill` from .gnu-bin/bin by name. Two builds of
+# one tarball do not answer alike (B73), and it was measured again
+# here: on macOS the build this tool makes prints `\u0000` for `printf
+# '\u0000'` where Homebrew's prints a NUL (CI run 38348626720). So a
+# utility never changes oracle because another one needed a build.
+only_needs=
 have=$(host_version "${prefix}true" || true)
 if [ "$have" = "$want" ]; then
     if holds_needs "$prefix"; then
@@ -104,15 +115,23 @@ if [ "$have" = "$want" ]; then
         exit 0
     fi
     say "host has GNU coreutils $want, but not its own: $needs"
+    say "the build is staged for that alone; the host's GNU answers for the rest"
+    only_needs=1
 else
     say "host has GNU coreutils ${have:-none}, the oracle of record is $want"
 fi
+
+# What a caller puts first on PATH: the stage, or nothing when the
+# stage is there only for `needs`.
+answer() {
+    if [ -n "$only_needs" ]; then echo ""; else echo "$stage/bin"; fi
+}
 
 stage=$BORE_ROOT/.gnu-bin
 if [ -x "$stage/bin/true" ] && [ "$("$stage/bin/true" --version | head -1 | awk '{print $NF}')" = "$want" ] &&
     holds_needs "$stage/bin/"; then
     say ".gnu-bin/ already holds GNU coreutils $want"
-    echo "$stage/bin"
+    answer
     exit 0
 fi
 
@@ -149,4 +168,4 @@ case "$built" in
 *) say "built the wrong thing: $built"; exit 1 ;;
 esac
 holds_needs "$stage/bin/" || { say "the build holds no GNU coreutils $want of its own: $needs"; exit 1; }
-echo "$stage/bin"
+answer

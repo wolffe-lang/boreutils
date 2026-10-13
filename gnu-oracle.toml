@@ -113,9 +113,12 @@ sha256 = "394024eda0a5955217ceda9cd1201e65dc8fa3aa29c2951135a49521d57c3cc3"
 # and Fedora, and a builtin in every shell. None of those is the oracle
 # for boreutils' `kill`; Homebrew's coreutils ships no `gkill` either.
 # So the oracle of record is built with its own, and `needs` below
-# makes that part of the pin: a host's GNU of the right version that
-# lacks one of these programs is NOT the oracle, and
-# `tools/fetch-oracle` stages the build instead of trusting it.
+# makes that part of the pin. A host's GNU of the right version that
+# lacks one of these programs still answers for every utility it holds
+# — two builds of one tarball do not answer alike (B73; measured again
+# on macOS, CI run 38348626720: this build prints `\u0000` for `printf
+# '\u0000'` where Homebrew's prints a NUL) — and `tools/fetch-oracle`
+# stages the build for the missing programs alone.
 configure_args = "--disable-nls --without-selinux --enable-install-program=kill"
 
 # Programs the oracle must hold beyond coreutils' default set, each
