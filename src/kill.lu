@@ -1,0 +1,383 @@
+//! member: false
+//!
+//! kill — send a signal to processes, or list the signals.
+//!
+//! References consulted: POSIX.1-2024 `kill`; GNU coreutils 9.11 `kill
+//! --help`, the info manual's `kill invocation` node, and black-box
+//! runs of the GNU binary in throwaway containers (linux x86-64) and on
+//! CI's macOS runner, under `LC_ALL=C`. **Which binary:** GNU
+//! coreutils' own `kill`, built from the oracle tarball with
+//! `--enable-install-program=kill` (coreutils does not install it
+//! otherwise). Not a shell's builtin, which is what `kill` runs in
+//! every shell, and not the `/usr/bin/kill` of procps or util-linux,
+//! which is what most systems ship. Never GNU source, nor any other
+//! `kill`'s. The signal names, numbers and operand rules are
+//! `bore/signals.lu`'s.
+//!
+//! GNU's rules, each measured against 9.11:
+//!
+//! - **Three forms.** `kill [-s SIGNAL | -SIGNAL] PID...` sends;
+//!   `kill -l [SIGNAL]...` converts; `kill -t [SIGNAL]...` prints a
+//!   table. `-L` is `-t`, and `-n SIGNAL` is `-s SIGNAL`; GNU's help
+//!   names neither. The long names are `--signal`, `--list` and
+//!   `--table`.
+//! - **`-SIGNAL`** is an argument whose first character after the `-`
+//!   is an upper-case letter or a digit: the rest of the argument is
+//!   the signal (`-KILL`, `-Kill`, `-SIGkill`, `-9`, `-137`). `-L` is
+//!   the table instead, so no signal can be written starting with it.
+//!   Inside a cluster such a character is no option at all (`-lK` is
+//!   `invalid option -- K`, unquoted, GNU's own wording rather than
+//!   getopt's), and a lower-case word is a cluster (`-term` is `-t`,
+//!   then an invalid `-e`).
+//! - **A digit form is the signal only as the FIRST argument.** Anywhere
+//!   later, `-9` is process group 9 — and option reading stops there,
+//!   which loses every operand that came before it: `kill 123 -9`
+//!   signals group 9 and never touches 123, and `kill -l 5 -9` answers
+//!   for `-9` alone. Kept, because it is what GNU does.
+//! - **One signal, one mode.** A second signal, even the same one, is
+//!   `'X': multiple signals specified`; a second `-l` or `-t` is
+//!   `multiple -l or -t options specified`; a signal with either is
+//!   `cannot combine signal with -l or -t`, said only once every option
+//!   has been read. An unknown signal is `'X': invalid signal`, said
+//!   where it is met. Each is a usage error, status 1.
+//! - **Sending.** The default is `TERM`. Signal 0 (`0`, `EXIT`) sends
+//!   nothing and still asks whether it could. Every PID is tried; one
+//!   that is not a number is `'X': invalid process id`, one the host
+//!   refuses is `'X': REASON` in the host's words, and either makes the
+//!   status 1 without stopping the rest. No PID at all is `no process
+//!   ID specified`, a usage error. Nothing is printed on success.
+//! - **Listing.** `-l` alone prints every name, `EXIT` first, one a
+//!   line; `-t` alone prints the number, right-aligned in two columns,
+//!   and the name. With operands each is answered in turn: `-l` prints
+//!   the name for a number and the number for a name, `-t` the row. An
+//!   operand that names no signal is reported and the rest are still
+//!   answered; the status is then 1, and no `Try` line follows.
+//! - Options permute unless `POSIXLY_CORRECT` is set, when the first
+//!   operand ends them: `kill 12 -l` is then two PIDs.
+//!
+//! **What this `kill` cannot do, each refused, status 1, nothing sent:**
+//!
+//! - **A process group.** The ids `0`, `-1` and every negative id name
+//!   a group or every process, and wolf's `os_signal_send` takes one
+//!   process, an id above 0 (`[os.signal.send]`: "a group … is job
+//!   control's, the next lane's"). Refused by name, where GNU sends.
+//! - **A signal wolf has no meaning for**: real-time signals, and what
+//!   only one host has (`STKFLT`, `POLL`, `PWR`; `EMT`, `INFO`). They
+//!   are `invalid signal` here, by name and by number, where GNU would
+//!   send or name them. So `-l` and `-t` alone print 29 lines, the 28
+//!   signals wolf can send and `EXIT`, in the host's numeric order,
+//!   where GNU prints every signal the host has.
+//! - **A signal's description.** GNU's `-t` has a third column, the
+//!   host's own words for the signal (`strsignal`: `Killed`, and
+//!   `Killed: 9` on macOS). wolf has `os_error_text` for an error
+//!   number and nothing for a signal's, and a table of one C library's
+//!   words would be wrong on the other host. The column is left out.
+//! - **Why a send failed, past the two reasons that have rows.**
+//!   `not_found` is the host's `No such process` and `denied` its
+//!   `Operation not permitted`; any other failure is `io`, and the os
+//!   family leaves no error number behind (wolf-lang#682).
+
+use bore
+
+fn main() -> int {
+    let args = env_args()
+    let posix = !bore.permute()
+    var out = bore.stdout()
+    let table = bore.signal_table()
+    // 0: send. 1: -l. 2: -t.
+    var listing = 0
+    var named = false
+    var meaning = bore.signal_default()
+    var operands = List[str]()
+    var stopped = false
+    var i = 0
+    while i < args.len {
+        let a = args[i]
+        i += 1
+        if stopped {
+            (mut operands).push(a)
+            continue
+        }
+        if a == "--" {
+            stopped = true
+            continue
+        }
+        if a.starts_with("--") {
+            // One long option, read by the shared parser: alone first,
+            // and with the next word only when it asks for one.
+            var one = List[str]()
+            (mut one).push(a)
+            var p = bore.parse(long_options(), one, false)
+            if p.error == "option '--signal' requires an argument" && i < args.len {
+                (mut one).push(args[i])
+                i += 1
+                p = bore.parse(long_options(), one, false)
+            }
+            if !bore.ok(p) {
+                return bore.usage_error("kill", p.error)
+            }
+            let k = p.keys[0]
+            if k == "help" {
+                bore.put(mut out, help()) else |_| {}
+                return bore.finish(mut out, "kill", 0)
+            }
+            if k == "version" {
+                bore.put(mut out, bore.version_text("kill")) else |_| {}
+                return bore.finish(mut out, "kill", 0)
+            }
+            if k == "signal" {
+                let spec = p.values[0]
+                if named {
+                    return bore.usage_error(
+                        "kill",
+                        "{bore.quote(spec)}: multiple signals specified",
+                    )
+                }
+                let entry = bore.signal_entry(table, spec) else |_| {
+                    return bore.usage_error("kill", "{bore.quote(spec)}: invalid signal")
+                }
+                meaning = bore.signal_meaning(table, entry)
+                named = true
+            } else {
+                if listing != 0 {
+                    return bore.usage_error("kill", "multiple -l or -t options specified")
+                }
+                listing = if k == "list" then 1 else 2
+            }
+            continue
+        }
+        if !a.starts_with("-") || a.len == 1 {
+            (mut operands).push(a)
+            if posix {
+                stopped = true
+            }
+            continue
+        }
+        let first = letter_at(a, 1)
+        if is_digit(first) && i != 1 {
+            // Not the first argument, so a process group's id: option
+            // reading stops here and what was permuted before it is
+            // lost, as GNU loses it (the header).
+            operands = List[str]()
+            (mut operands).push(a)
+            stopped = true
+            continue
+        }
+        if is_digit(first) || is_upper(first) && first != "L" {
+            let spec = a[1..]
+            if named {
+                return bore.usage_error("kill", "{bore.quote(spec)}: multiple signals specified")
+            }
+            let entry = bore.signal_entry(table, spec) else |_| {
+                return bore.usage_error("kill", "{bore.quote(spec)}: invalid signal")
+            }
+            meaning = bore.signal_meaning(table, entry)
+            named = true
+            continue
+        }
+        var off = 1
+        while off < a.len {
+            let c = letter_at(a, off)
+            off += c.len
+            if c == "l" || c == "t" || c == "L" {
+                if listing != 0 {
+                    return bore.usage_error("kill", "multiple -l or -t options specified")
+                }
+                listing = if c == "l" then 1 else 2
+            } else if c == "s" || c == "n" {
+                var spec = ""
+                if off < a.len {
+                    spec = a[off..]
+                    off = a.len
+                } else if i < args.len {
+                    spec = args[i]
+                    i += 1
+                } else {
+                    return bore.usage_error("kill", "option requires an argument -- '{c}'")
+                }
+                if named {
+                    return bore.usage_error(
+                        "kill",
+                        "{bore.quote(spec)}: multiple signals specified",
+                    )
+                }
+                let entry = bore.signal_entry(table, spec) else |_| {
+                    return bore.usage_error("kill", "{bore.quote(spec)}: invalid signal")
+                }
+                meaning = bore.signal_meaning(table, entry)
+                named = true
+            } else if is_digit(c) || is_upper(c) {
+                // A signal's first character, where no signal can start.
+                return bore.usage_error("kill", "invalid option -- {c}")
+            } else {
+                return bore.usage_error("kill", "invalid option -- '{c}'")
+            }
+        }
+    }
+    if listing != 0 && named {
+        return bore.usage_error("kill", "cannot combine signal with -l or -t")
+    }
+    if listing != 0 {
+        return list(mut out, table, operands, listing == 2)
+    }
+    if operands.len == 0 {
+        return bore.usage_error("kill", "no process ID specified")
+    }
+    var status = 0
+    for a in operands {
+        let pid = bore.process_id(a) else |_| {
+            bore.warn("kill", "{bore.quote(a)}: invalid process id")
+            status = 1
+            continue
+        }
+        if pid <= 0 {
+            bore.warn(
+                "kill",
+                "{bore.quote(a)}: a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])",
+            )
+            status = 1
+            continue
+        }
+        let why = send(pid, meaning)
+        if why.len > 0 {
+            bore.warn("kill", "{bore.quote(a)}: {why}")
+            status = 1
+        }
+    }
+    bore.finish(mut out, "kill", status)
+}
+
+/// Send `meaning`'s signal to the process `pid`; `""`, or why the host
+/// would not, in its own words where a row names the reason.
+fn send(pid: int, meaning: int) -> str {
+    var why = ""
+    os_signal_send(pid, meaning) else |e| match e {
+        not_found => {
+            why = "No such process"
+        },
+        denied => {
+            why = "Operation not permitted"
+        },
+        invalid => {
+            why = "not a process id wolf can signal ([os.signal.send])"
+        },
+        unsupported => {
+            why = "this host has no signals to send"
+        },
+        io => {
+            why = "cannot be signalled, and wolf does not say why (wolf-lang#682)"
+        },
+    }
+    why
+}
+
+/// `-l` and `-t`: the whole table, or an answer for each operand.
+fn list(mut out: bore.Out, table: bore.SignalTable, operands: List[str], tabular: bool) -> int {
+    var status = 0
+    if operands.len == 0 {
+        var i = -1
+        while i < table.numbers.len {
+            line(mut out, table, i, tabular, true)
+            i += 1
+        }
+        return bore.finish(mut out, "kill", 0)
+    }
+    for a in operands {
+        let entry = bore.signal_entry(table, a) else |_| {
+            bore.warn("kill", "{bore.quote(a)}: invalid signal")
+            status = 1
+            continue
+        }
+        line(mut out, table, entry, tabular, bore.signal_is_number(a))
+    }
+    bore.finish(mut out, "kill", status)
+}
+
+/// One line of a list: the table's row, else the name (`by_name`) or
+/// the number of entry `i`.
+fn line(mut out: bore.Out, table: bore.SignalTable, i: int, tabular: bool, by_name: bool) {
+    let number = bore.signal_number(table, i)
+    let name = bore.signal_name(table, i)
+    if tabular {
+        bore.put(mut out, "{bore.space_padded(number, 2)} {name}\n") else |_| {}
+    } else if by_name {
+        bore.put(mut out, "{name}\n") else |_| {}
+    } else {
+        bore.put(mut out, "{number}\n") else |_| {}
+    }
+}
+
+/// The character of `s` starting at byte `off`, as a `str`; `""` past
+/// the end.
+fn letter_at(s: str, off: int) -> str {
+    if off >= s.len {
+        return ""
+    }
+    for c in s[off..].chars() {
+        return "{c}"
+    }
+    ""
+}
+
+/// The one byte of `c`, or -1 when it is not one byte.
+fn code(c: str) -> int {
+    if c.len != 1 {
+        return -1
+    }
+    for b in c.bytes() {
+        return b as int
+    }
+    -1
+}
+
+fn is_digit(c: str) -> bool {
+    code(c) >= 48 && code(c) <= 57
+}
+
+fn is_upper(c: str) -> bool {
+    code(c) >= 65 && code(c) <= 90
+}
+
+/// The long options, in the order GNU names them when a prefix is
+/// ambiguous (`--=`).
+fn long_options() -> List[bore.Opt] {
+    var s = List[bore.Opt]()
+    (mut s).push(bore.flag("", "list"))
+    (mut s).push(bore.takes("", "signal"))
+    (mut s).push(bore.flag("", "table"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    s
+}
+
+fn help() -> str {
+    """
+    Usage: kill [-s SIGNAL | -SIGNAL] PID...
+      or:  kill -l [SIGNAL]...
+      or:  kill -t [SIGNAL]...
+    Send a signal to each PID (TERM when none is named), or list signals.
+
+      -s, --signal=SIGNAL, -SIGNAL
+                    the signal to send, by name or by number
+      -l, --list    print signal names, or turn each SIGNAL from a name
+                    into its number and from a number into its name
+      -t, --table   print each signal's number and name
+          --help    print this help and exit
+          --version print the version and exit
+
+    SIGNAL is a name such as HUP or SIGHUP, in any case; a number such as
+    1; or the exit status of a process a signal ended. The numbers are
+    this host's. 0, or EXIT, sends nothing and reports whether it could.
+
+    This kill knows the 28 signals wolf can send, every one POSIX names.
+    It refuses a real-time signal and one only this host has; it refuses
+    a process group (PID 0, -1 or any negative id); and -t leaves out the
+    host's description of each signal.
+
+    The status is 1 when a signal could not be sent or a SIGNAL names
+    nothing. Your shell has a kill of its own, which is the one it runs
+    unless this one is named by its path.
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}
