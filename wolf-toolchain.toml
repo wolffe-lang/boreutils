@@ -48,6 +48,49 @@
 #     `List[T]()` and pushes, because lupin 0.1.36 refused list
 #     literals, so the literal's element type is unreachable here.
 #
+# ## The bump to 0.2.29 / 0.1.52 (bu23, 2026-10-13)
+#
+# One release on each half, taken from the release archives by digest
+# as above, each archive hashed twice from two reads; the per-member
+# hashes are in kasumi `~/lanes/bu23/ev/archives.log`. `_wolf` keeps
+# a368c8eccce8b1800c80aa818ae482e541aa9636b676540851e23863d333eb8b in
+# all three wolf archives, so the one-build cross-check holds. lupin
+# 0.1.52's spec pin is still wolf v0.2.24 (`294d626`).
+#
+# What a downstream has to read at this bump:
+#
+#   * The reason for it: s232's signal surface (ruling #70). Every
+#     signal POSIX names has a MEANING — twenty a program may catch,
+#     eight it may only send — and `os_signal_send(pid, meaning)` and
+#     `os_signal_number(meaning)` reach any process and this host's
+#     numbering. A later commit on this branch writes `kill` on them;
+#     the pin commits change no line of `src/`.
+#   * A meaning's bit is permanent and is never written
+#     (`[os.signal.set.stable]`): a program names a meaning, and the
+#     prelude has no constant for one, so the names are `std.signal`'s
+#     functions — which is why `[std]` below moves PAST the archive's
+#     own std (see there).
+#   * Five new prelude names (`os_signal_ignored`, `os_signal_send`,
+#     `os_signal_number`, `os_pid`, `os_ppid`): `src/` declares none,
+#     so no W0304 under `--deny-warnings`.
+#   * `os_signal_send` takes a pid above 0 only: a process group cannot
+#     be signalled, and neither can a real-time signal or one a single
+#     host has (no meaning). `kill` refuses each.
+#   * The parked-task pool (s231) and `wolf lsp`'s std (s235): nothing
+#     here parks a task or runs the language server.
+#   * THE ARCHIVE'S `std/` is wolf-std `d7c2968`. `tools/fetch-toolchain`
+#     still removes the archive's copy before staging the pin.
+#   * Measured in a throwaway px12-ubuntu container on kasumi, no
+#     network, GNU 9.11 built there from the oracle tarball: trunk at
+#     0.2.28 and the pin at 0.2.29 with std 9e5bd6b give the same
+#     verdict list on both tiers, 5527 / 0 / 119, `637ee0857b4eaca9…`
+#     (`~/lanes/bu23/ev/gauntlet-trunk-2ab3651.log`,
+#     `gauntlet-pin-d77ad3a.log`) — bu22's list at its head. B151: std
+#     d7c2968 and 9e5bd6b both build all 39 on both tiers with no
+#     diagnostic (`ev/b151.log`). All 78 binaries differ from 0.2.28's
+#     (the runtime archive carries s231's pool and s232's signal
+#     table).
+#
 # ## The bump to 0.2.28 / 0.1.51 (bu22, 2026-10-12)
 #
 # One release on each half, taken from the release archives by digest
