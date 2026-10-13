@@ -1,0 +1,313 @@
+//! Signals as `kill` names them: a SIGNAL operand, the table behind
+//! `-l` and `-t`, and a PID operand.
+//!
+//! References consulted: POSIX.1-2024 `kill` and `<signal.h>`; GNU
+//! coreutils 9.11 `kill --help`, the info manual's `kill invocation`
+//! and `Signal specifications` nodes, and black-box runs of the GNU
+//! binary — built from the oracle tarball with
+//! `--enable-install-program=kill`, never a shell's builtin and never
+//! procps' or util-linux's `/usr/bin/kill` — in throwaway containers
+//! on linux x86-64 (kasumi `~/lanes/bu23/ev/probe1.log`,
+//! `probe-p2.log` … `probe-p4.log`) and on CI's macOS runner. Never
+//! GNU source, nor any other `kill`'s.
+//!
+//! **Every number here is the host's own.** wolf names a signal by its
+//! MEANING (`[os.signal.set]`): `std.signal`'s functions are the only
+//! spelling, no bit is written in this repository, and
+//! `os_signal_number` is the one way from a meaning to the number this
+//! host gives it (`USR1` is 10 on linux and 30 on macOS). So the table
+//! is built when the program starts, by asking, and is never a list of
+//! linux numbers: what `kill -l 10` prints is decided by the host it
+//! runs on.
+//!
+//! **What the table holds: the 28 signals wolf 0.2.29 has a meaning
+//! for**, every one POSIX names. What a host has beyond them is NOT
+//! here, and GNU's `kill` knows it: on linux `STKFLT` (16), `POLL`/`IO`
+//! (29), `PWR` (30) and the real-time range (`RTMIN` … `RTMAX`, 34–64,
+//! with the unnamed 32 and 33); on macOS `EMT` (7), `IO` (23) and `INFO`
+//! (29). wolf has no meaning for any of them (`[os.signal.set]`:
+//! "`SIGPOLL` has no bit", "real-time signals … are out of scope"), so
+//! each is `invalid` here, by name and by number, where GNU would take
+//! it. No wolf-lang issue asks for them yet; the text is with bu23's
+//! report.
+//!
+//! GNU's rules for a SIGNAL operand, each measured against 9.11:
+//!
+//! - **A name** is matched without regard to case, with or without a
+//!   leading `SIG` (also in any case): `term`, `SigTerm`, `SIGTERM`.
+//!   `EXIT` is signal 0. `IOT` is `ABRT`; `CLD` is `CHLD` where the
+//!   host's C library has that old name, which is linux and not macOS.
+//!   Nothing may come before or after it: ` TERM`, `TERM,` and `T` are
+//!   invalid.
+//! - **A number** is decimal digits and nothing else — no sign, no
+//!   blank, no `0x`; leading zeros are fine (`09` is `KILL` on linux) —
+//!   and must fit a C `int`. A number past the host's last signal is
+//!   read as the EXIT STATUS of a process a signal ended: past 255 only
+//!   the low eight bits count, otherwise only the low seven, so 137,
+//!   265 and 65545 are all signal 9, 128 and 256 are `EXIT`, and 393
+//!   (whose low byte is 137) is invalid. Measured for every number from
+//!   0 to 700.
+//! - A `SIG` prefix may be followed by a number too (`SIG9`).
+
+use std.signal
+
+/// The signals this host and wolf both know, in the host's numeric
+/// order. Three parallel lists: entry `i` is the signal the host
+/// numbers `numbers[i]`, POSIX calls `names[i]` (no `SIG`), and wolf
+/// means by `meanings[i]`. Signal 0 (`EXIT`) is not an entry: it is no
+/// signal, and no meaning.
+pub struct SignalTable {
+    numbers: List[int],
+    names: List[str],
+    meanings: List[int],
+}
+
+/// Ask the host its number for one meaning and file it in order. A
+/// meaning the host does not number is left out (`os_signal_number`'s
+/// `unsupported` row is a host with no signals at all).
+fn file_signal(mut t: SignalTable, name: str, meaning: int) {
+    let n = os_signal_number(meaning) else |_| {
+        return
+    }
+    (mut t.numbers).push(n)
+    (mut t.names).push(name)
+    (mut t.meanings).push(meaning)
+    var k = t.numbers.len - 1
+    while k > 0 && t.numbers[k - 1] > n {
+        t.numbers[k] = t.numbers[k - 1]
+        t.names[k] = t.names[k - 1]
+        t.meanings[k] = t.meanings[k - 1]
+        k -= 1
+    }
+    t.numbers[k] = n
+    t.names[k] = name
+    t.meanings[k] = meaning
+}
+
+/// The table for this host. One line a meaning, every one named by
+/// `std.signal`'s function for it: the twenty a program may catch, then
+/// the eight it may only send.
+pub fn signal_table() -> SignalTable {
+    var t = SignalTable { numbers: List[int](), names: List[str](), meanings: List[int]() }
+    file_signal(mut t, "HUP", signal.reload())
+    file_signal(mut t, "TERM", signal.terminate())
+    file_signal(mut t, "QUIT", signal.quit())
+    file_signal(mut t, "USR2", signal.upgrade())
+    file_signal(mut t, "INT", signal.interrupt())
+    file_signal(mut t, "TSTP", signal.suspend())
+    file_signal(mut t, "TTIN", signal.bg_read())
+    file_signal(mut t, "TTOU", signal.bg_write())
+    file_signal(mut t, "CHLD", signal.child())
+    file_signal(mut t, "USR1", signal.user())
+    file_signal(mut t, "ALRM", signal.alarm())
+    file_signal(mut t, "PIPE", signal.broken_pipe())
+    file_signal(mut t, "ABRT", signal.abort())
+    file_signal(mut t, "CONT", signal.continued())
+    file_signal(mut t, "WINCH", signal.resize())
+    file_signal(mut t, "URG", signal.urgent())
+    file_signal(mut t, "VTALRM", signal.virtual_alarm())
+    file_signal(mut t, "PROF", signal.profile_alarm())
+    file_signal(mut t, "XCPU", signal.cpu_limit())
+    file_signal(mut t, "XFSZ", signal.file_limit())
+    file_signal(mut t, "KILL", signal.kill())
+    file_signal(mut t, "STOP", signal.stop())
+    file_signal(mut t, "SEGV", signal.segment_fault())
+    file_signal(mut t, "BUS", signal.bus_error())
+    file_signal(mut t, "FPE", signal.arithmetic())
+    file_signal(mut t, "ILL", signal.illegal())
+    file_signal(mut t, "TRAP", signal.breakpoint())
+    file_signal(mut t, "SYS", signal.bad_syscall())
+    t
+}
+
+/// The meaning `kill` sends when no signal is named: `TERM`.
+pub fn signal_default() -> int {
+    signal.terminate()
+}
+
+/// The table's entry for the host number `n`, or -1.
+fn entry_numbered(t: SignalTable, n: int) -> int {
+    var i = 0
+    while i < t.numbers.len {
+        if t.numbers[i] == n {
+            return i
+        }
+        i += 1
+    }
+    -1
+}
+
+/// The table's entry named `name` (upper case, no `SIG`), or -1.
+fn entry_named(t: SignalTable, name: str) -> int {
+    var i = 0
+    while i < t.names.len {
+        if t.names[i] == name {
+            return i
+        }
+        i += 1
+    }
+    -1
+}
+
+fn digit_at(b: List[byte], i: int) -> bool {
+    i < b.len && b[i] as int >= 48 && b[i] as int <= 57
+}
+
+/// The decimal number `b[from..]` spells — digits and nothing else, at
+/// least one — when it fits a C `int`.
+fn c_int(b: List[byte], from: int) -> int ! {invalid} {
+    if from >= b.len {
+        return invalid
+    }
+    var v: int = 0
+    var i = from
+    while i < b.len {
+        if !digit_at(b, i) {
+            return invalid
+        }
+        v = v * 10 + (b[i] as int - 48)
+        if v > 2147483647 {
+            return invalid
+        }
+        i += 1
+    }
+    v
+}
+
+/// The entry a signal NUMBER names, -1 for signal 0, after GNU's
+/// exit-status reading (the module header).
+fn entry_for_number(t: SignalTable, v: int) -> int ! {invalid} {
+    let n = if v > 255 then v & 255 else v & 127
+    if n == 0 {
+        return -1
+    }
+    let i = entry_numbered(t, n)
+    if i < 0 {
+        return invalid
+    }
+    i
+}
+
+/// What the SIGNAL operand `spec` names: its entry in `t`, or -1 for
+/// signal 0 (`EXIT`, `0`). `invalid` for everything else — a signal
+/// GNU would refuse on this host too, and a signal the host has that
+/// wolf has no meaning for.
+pub fn signal_entry(t: SignalTable, spec: str) -> int ! {invalid} {
+    let b = spec.bytes()
+    if digit_at(b, 0) {
+        return entry_for_number(t, c_int(b, 0)?)?
+    }
+    // ASCII letters only are folded: a C locale's `toupper` leaves every
+    // other byte alone, and a Unicode fold would read `ſigterm` as a name.
+    var up = List[byte]()
+    for c in b {
+        let n = c as int
+        if n >= 97 && n <= 122 {
+            (mut up).push((n - 32) as byte)
+        } else {
+            (mut up).push(c)
+        }
+    }
+    var from = 0
+    if up.len >= 3 && up[0] as int == 83 && up[1] as int == 73 && up[2] as int == 71 {
+        from = 3
+    }
+    if digit_at(up, from) {
+        return entry_for_number(t, c_int(up, from)?)?
+    }
+    var rest = List[byte]()
+    var i = from
+    while i < up.len {
+        (mut rest).push(up[i])
+        i += 1
+    }
+    let name = str_from_utf8(rest) else |_| {
+        return invalid
+    }
+    if name == "EXIT" {
+        return -1
+    }
+    var i2 = entry_named(t, name)
+    if i2 < 0 && name == "IOT" {
+        i2 = entry_named(t, "ABRT")
+    }
+    if i2 < 0 && name == "CLD" && built_for_linux() {
+        i2 = entry_named(t, "CHLD")
+    }
+    if i2 < 0 {
+        return invalid
+    }
+    i2
+}
+
+/// The host's number for entry `i`; 0 for -1.
+pub fn signal_number(t: SignalTable, i: int) -> int {
+    if i < 0 {
+        return 0
+    }
+    t.numbers[i]
+}
+
+/// The name of entry `i`; `EXIT` for -1.
+pub fn signal_name(t: SignalTable, i: int) -> str {
+    if i < 0 {
+        return "EXIT"
+    }
+    t.names[i]
+}
+
+/// The meaning `os_signal_send` takes for entry `i`; 0, which sends
+/// nothing and still asks, for -1.
+pub fn signal_meaning(t: SignalTable, i: int) -> int {
+    if i < 0 {
+        return 0
+    }
+    t.meanings[i]
+}
+
+/// Whether a SIGNAL operand was written as a number, so that `-l`
+/// answers with the name (a name is answered with the number).
+pub fn signal_is_number(spec: str) -> bool {
+    digit_at(spec.bytes(), 0)
+}
+
+/// The PID operand `a` as GNU reads one (measured: C's `strtol` in base
+/// ten, and all of the word): blanks, then one optional sign, then
+/// digits, and nothing after; it must fit a C `int`. ` 12`, `+12` and
+/// `012` are 12; `12 `, `12x`, `0x10`, `++12`, the empty word and
+/// 2147483648 are `invalid`. Zero and a negative id are a process
+/// group's, and are answered as numbers: what to do with one is the
+/// caller's.
+pub fn process_id(a: str) -> int ! {invalid} {
+    let b = a.bytes()
+    var i = 0
+    while i < b.len && (b[i] as int == 32 || b[i] as int >= 9 && b[i] as int <= 13) {
+        i += 1
+    }
+    var negative = false
+    if i < b.len && (b[i] as int == 43 || b[i] as int == 45) {
+        negative = b[i] as int == 45
+        i += 1
+    }
+    if !digit_at(b, i) {
+        return invalid
+    }
+    var v: int = 0
+    while i < b.len {
+        if !digit_at(b, i) {
+            return invalid
+        }
+        v = v * 10 + (b[i] as int - 48)
+        if v > 2147483648 {
+            return invalid
+        }
+        i += 1
+    }
+    if negative {
+        return -v
+    }
+    if v > 2147483647 {
+        return invalid
+    }
+    v
+}

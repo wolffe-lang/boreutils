@@ -1,0 +1,147 @@
+//! The signal table and the operand readers behind `kill` (bu23), as
+//! functions. Nothing here sends a signal: the table is built by asking
+//! the host its numbers (`os_signal_number`), and every assertion is one
+//! that holds on linux and on macOS alike, because no number is written.
+
+use bore
+use std.signal
+
+fn entry(t: bore.SignalTable, spec: str) -> int {
+    bore.signal_entry(t, spec) else -2
+}
+
+fn pid(a: str) -> int {
+    bore.process_id(a) else -7777777777
+}
+
+fn main() {
+    let t = bore.signal_table()
+    // Every meaning wolf has is numbered by this host, in order, once.
+    assert(t.numbers.len == 28, "28 signals")
+    assert(t.names.len == 28 && t.meanings.len == 28, "three lists of one length")
+    var i = 0
+    while i < t.numbers.len {
+        assert(t.numbers[i] >= 1, "a signal's number is at least 1")
+        if i > 0 {
+            assert(t.numbers[i] > t.numbers[i - 1], "ascending, no number twice")
+        }
+        // A name, its number as text, and both spellings of the prefix
+        // all name the one entry.
+        let name = t.names[i]
+        let n = t.numbers[i]
+        assert(entry(t, name) == i, "by name")
+        assert(entry(t, "SIG{name}") == i, "by SIG and name")
+        assert(entry(t, "sig{name}") == i, "by sig and name")
+        assert(entry(t, "{n}") == i, "by number")
+        assert(entry(t, "0{n}") == i, "by number with a leading zero")
+        assert(entry(t, "SIG{n}") == i, "by SIG and number")
+        assert(entry(t, "{n + 128}") == i, "by the exit status a shell reports")
+        assert(entry(t, "{n + 256}") == i, "by a status past 255: the low byte")
+        assert(entry(t, "{n + 65536}") == i, "by a status past 65535: the low byte")
+        assert(entry(t, "{n + 128 + 256}") == -2, "past 255 the high bit is not dropped")
+        assert(bore.signal_number(t, i) == n, "the number of an entry")
+        assert(bore.signal_name(t, i) == name, "the name of an entry")
+        let asked = os_signal_number(bore.signal_meaning(t, i)) else -1
+        assert(asked == n, "the meaning's number is the host's")
+        i += 1
+    }
+    // The names are POSIX's, whatever the host numbers them.
+    assert(bore.signal_meaning(t, entry(t, "HUP")) == signal.reload(), "HUP")
+    assert(bore.signal_meaning(t, entry(t, "INT")) == signal.interrupt(), "INT")
+    assert(bore.signal_meaning(t, entry(t, "QUIT")) == signal.quit(), "QUIT")
+    assert(bore.signal_meaning(t, entry(t, "KILL")) == signal.kill(), "KILL")
+    assert(bore.signal_meaning(t, entry(t, "TERM")) == signal.terminate(), "TERM")
+    assert(bore.signal_meaning(t, entry(t, "USR1")) == signal.user(), "USR1")
+    assert(bore.signal_meaning(t, entry(t, "USR2")) == signal.upgrade(), "USR2")
+    assert(bore.signal_meaning(t, entry(t, "STOP")) == signal.stop(), "STOP")
+    assert(bore.signal_meaning(t, entry(t, "CONT")) == signal.continued(), "CONT")
+    assert(bore.signal_meaning(t, entry(t, "CHLD")) == signal.child(), "CHLD")
+    assert(bore.signal_meaning(t, entry(t, "PIPE")) == signal.broken_pipe(), "PIPE")
+    assert(bore.signal_meaning(t, entry(t, "WINCH")) == signal.resize(), "WINCH")
+    assert(bore.signal_meaning(t, entry(t, "SEGV")) == signal.segment_fault(), "SEGV")
+    assert(bore.signal_default() == signal.terminate(), "the default is TERM")
+    // Case, and the two other names.
+    assert(entry(t, "term") == entry(t, "TERM"), "lower case")
+    assert(entry(t, "SigTerm") == entry(t, "TERM"), "mixed case")
+    assert(entry(t, "IOT") == entry(t, "ABRT"), "IOT is ABRT")
+    assert(entry(t, "sigiot") == entry(t, "ABRT"), "sigiot is ABRT")
+    if bore.built_for_linux() {
+        assert(entry(t, "CLD") == entry(t, "CHLD"), "CLD is CHLD, on linux")
+    } else {
+        assert(entry(t, "CLD") == -2, "macOS has no CLD")
+    }
+    // Signal 0.
+    assert(entry(t, "EXIT") == -1, "EXIT is signal 0")
+    assert(entry(t, "exit") == -1, "exit is signal 0")
+    assert(entry(t, "SIGEXIT") == -1, "SIGEXIT is signal 0")
+    assert(entry(t, "0") == -1, "0")
+    assert(entry(t, "00") == -1, "00")
+    assert(entry(t, "SIG0") == -1, "SIG0")
+    assert(entry(t, "128") == -1, "128 is an exit status of signal 0")
+    assert(entry(t, "256") == -1, "256 too")
+    assert(bore.signal_number(t, -1) == 0, "signal 0's number")
+    assert(bore.signal_name(t, -1) == "EXIT", "signal 0's name")
+    assert(bore.signal_meaning(t, -1) == 0, "signal 0 is no meaning")
+    // What names nothing.
+    assert(entry(t, "") == -2, "the empty word")
+    assert(entry(t, "FOO") == -2, "FOO")
+    assert(entry(t, "T") == -2, "a prefix of a name")
+    assert(entry(t, "TERMX") == -2, "a name and more")
+    assert(entry(t, " TERM") == -2, "a blank before")
+    assert(entry(t, "TERM ") == -2, "a blank after")
+    assert(entry(t, "SIG") == -2, "the prefix alone")
+    assert(entry(t, "SIGSIGTERM") == -2, "the prefix twice")
+    assert(entry(t, "+9") == -2, "a sign")
+    assert(entry(t, " 9") == -2, "a blank before a number")
+    assert(entry(t, "9 ") == -2, "a blank after a number")
+    assert(entry(t, "9x") == -2, "a number and more")
+    assert(entry(t, "0x9") == -2, "hex")
+    assert(entry(t, "-1") == -2, "a negative number")
+    assert(entry(t, "2147483648") == -2, "past a C int")
+    assert(entry(t, "99999999999999999999") == -2, "far past a C int")
+    assert(entry(t, "255") == -2, "an exit status whose low seven bits are 127")
+    assert(entry(t, "ſigterm") == -2, "a letter that only Unicode folds to S")
+    // No real-time signal, and nothing only one host has: no meaning.
+    assert(entry(t, "RTMIN") == -2, "RTMIN")
+    assert(entry(t, "RTMAX-1") == -2, "RTMAX-1")
+    assert(entry(t, "STKFLT") == -2, "STKFLT")
+    assert(entry(t, "PWR") == -2, "PWR")
+    assert(entry(t, "EMT") == -2, "EMT")
+    assert(entry(t, "INFO") == -2, "INFO")
+    // Whether `-l` answers a name or a number.
+    assert(bore.signal_is_number("9"), "9 is a number")
+    assert(bore.signal_is_number("09"), "09 is a number")
+    assert(!bore.signal_is_number("KILL"), "KILL is a name")
+    assert(!bore.signal_is_number("SIG9"), "SIG9 is answered as a name is")
+    assert(!bore.signal_is_number(""), "the empty word is no number")
+
+    // A PID operand: C's strtol in base ten, and all of the word.
+    assert(pid("12") == 12, "12")
+    assert(pid(" 12") == 12, "a blank before")
+    assert(pid("\t12") == 12, "a tab before")
+    assert(pid("+12") == 12, "a plus")
+    assert(pid("012") == 12, "a leading zero")
+    assert(pid(" +012") == 12, "all three")
+    assert(pid("00000000000000000000012") == 12, "many leading zeros")
+    assert(pid("0") == 0, "0, this process's group")
+    assert(pid("-0") == 0, "-0")
+    assert(pid("-1") == -1, "-1, every process")
+    assert(pid("-12") == -12, "a group")
+    assert(pid("2147483647") == 2147483647, "the last C int")
+    assert(pid("-2147483648") == -2147483648, "the first C int")
+    assert(pid("2147483648") == -7777777777, "one past the last")
+    assert(pid("-2147483649") == -7777777777, "one before the first")
+    assert(pid("4294967308") == -7777777777, "2^32 + 12 does not wrap to 12")
+    assert(pid("99999999999999999999") == -7777777777, "far past")
+    assert(pid("") == -7777777777, "the empty word")
+    assert(pid(" ") == -7777777777, "a blank")
+    assert(pid("12 ") == -7777777777, "a blank after")
+    assert(pid("12x") == -7777777777, "a letter after")
+    assert(pid("0x10") == -7777777777, "hex")
+    assert(pid("1.0") == -7777777777, "a fraction")
+    assert(pid("++12") == -7777777777, "two signs")
+    assert(pid("+-12") == -7777777777, "two different signs")
+    assert(pid("- 12") == -7777777777, "a blank after the sign")
+    assert(pid("abc") == -7777777777, "a word")
+    assert(pid("-") == -7777777777, "a sign alone")
+}

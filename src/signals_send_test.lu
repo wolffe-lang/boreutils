@@ -1,0 +1,61 @@
+//! `os_signal_send`'s rows as `kill` relies on them (bu23), on this
+//! process and on ids that name no process. **Nothing here signals
+//! another process**: meaning 0 sends nothing, the one real signal is
+//! `USR1` to this test's own id while it listens for it, and the other
+//! ids are refused for their shape or name nobody.
+//!
+//! lupin refuses `os_signal_send` by name (ruling #70 R9: no `kill(2)`
+//! without `unsafe`), so this file is `unsupported` there; the table and
+//! the operand readers are `signals_test.lu`, which it runs.
+
+use bore
+use std.signal
+
+fn row(pid: int, meaning: int) -> str {
+    var said = "ok"
+    os_signal_send(pid, meaning) else |e| match e {
+        not_found => {
+            said = "not_found"
+        },
+        denied => {
+            said = "denied"
+        },
+        invalid => {
+            said = "invalid"
+        },
+        unsupported => {
+            said = "unsupported"
+        },
+        io => {
+            said = "io"
+        },
+    }
+    said
+}
+
+fn main() {
+    let t = bore.signal_table()
+    let term = bore.signal_meaning(t, bore.signal_entry(t, "TERM") else -1)
+    assert(term == signal.terminate(), "TERM's meaning")
+    let me = os_pid()
+    assert(me > 0, "this process has an id")
+    // Signal 0 asks and sends nothing.
+    assert(row(me, 0) == "ok", "signal 0 to this process")
+    // What `kill` refuses before the call, the call refuses too: a group.
+    assert(row(0, term) == "invalid", "id 0 is a group's")
+    assert(row(-1, term) == "invalid", "id -1 is every process")
+    assert(row(-me, term) == "invalid", "a negative id is a group's")
+    assert(row(0, 0) == "invalid", "even to ask")
+    // An id no process has (past every host's largest).
+    assert(row(2147483647, 0) == "not_found", "no such process, asked")
+    assert(row(2147483647, term) == "not_found", "no such process, sent")
+    // One real signal, to this process, which is listening for it.
+    let usr1 = bore.signal_meaning(t, bore.signal_entry(t, "USR1") else -1)
+    assert(usr1 == signal.user(), "USR1's meaning")
+    signal.listen(usr1) else |_| {
+        assert(false, "listen for USR1")
+    }
+    assert(row(me, usr1) == "ok", "USR1 to this process")
+    let heard = signal.wait(usr1) else 0
+    assert(heard == usr1, "and it arrived as USR1")
+}
