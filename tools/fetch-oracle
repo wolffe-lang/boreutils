@@ -61,6 +61,8 @@ digest=$(toml_oracle sha256)
 # B73: which BUILD of the pinned source, stated in the pin file rather
 # than here, because it is part of what "the oracle of record" means.
 configure_args=$(toml_oracle configure_args)
+# bu23: what the oracle must hold beyond the default set (`kill`).
+needs=$(toml_oracle needs)
 [ -n "$want" ] || { say "gnu-oracle.toml names no version"; exit 2; }
 
 prefix=${BORE_GNU_PREFIX-}
@@ -81,17 +83,34 @@ host_version() {
     env "$1" --version 2>/dev/null | head -1 | awk '{print $NF}'
 }
 
+# Whether every program `needs` names is GNU coreutils' own, of the
+# oracle's version, under the path prefix $1 (`g`, `/dir/`, or nothing
+# for PATH). A `kill` on PATH is procps' or util-linux's on most hosts,
+# and says so on its first `--version` line.
+holds_needs() {
+    for p in $needs; do
+        line=$(env "$1$p" --version 2>/dev/null | head -1) || return 1
+        [ "$line" = "$p (GNU coreutils) $want" ] || return 1
+    done
+    return 0
+}
+
 have=$(host_version "${prefix}true" || true)
 if [ "$have" = "$want" ]; then
-    say "the host already ships the oracle of record (GNU coreutils $want)"
-    # Nothing to prepend: difftest finds it where it already is.
-    echo ""
-    exit 0
+    if holds_needs "$prefix"; then
+        say "the host already ships the oracle of record (GNU coreutils $want)"
+        # Nothing to prepend: difftest finds it where it already is.
+        echo ""
+        exit 0
+    fi
+    say "host has GNU coreutils $want, but not its own: $needs"
+else
+    say "host has GNU coreutils ${have:-none}, the oracle of record is $want"
 fi
-say "host has GNU coreutils ${have:-none}, the oracle of record is $want"
 
 stage=$BORE_ROOT/.gnu-bin
-if [ -x "$stage/bin/true" ] && [ "$("$stage/bin/true" --version | head -1 | awk '{print $NF}')" = "$want" ]; then
+if [ -x "$stage/bin/true" ] && [ "$("$stage/bin/true" --version | head -1 | awk '{print $NF}')" = "$want" ] &&
+    holds_needs "$stage/bin/"; then
     say ".gnu-bin/ already holds GNU coreutils $want"
     echo "$stage/bin"
     exit 0
@@ -129,4 +148,5 @@ case "$built" in
 *" $want") say "staged $built into .gnu-bin/" ;;
 *) say "built the wrong thing: $built"; exit 1 ;;
 esac
+holds_needs "$stage/bin/" || { say "the build holds no GNU coreutils $want of its own: $needs"; exit 1; }
 echo "$stage/bin"

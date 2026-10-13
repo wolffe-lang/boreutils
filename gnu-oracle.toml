@@ -106,7 +106,22 @@ sha256 = "394024eda0a5955217ceda9cd1201e65dc8fa3aa29c2951135a49521d57c3cc3"
 # it does NOT set `--enable-...` anything about POSIX2, deliberately —
 # the staged build takes the default and `[oracle.env]` below is what
 # makes the default unreachable.
-configure_args = "--disable-nls --without-selinux"
+#
+# `--enable-install-program=kill` (bu23): GNU coreutils builds a `kill`
+# of its own and does NOT install it unless asked, because every system
+# already has one — procps' on Debian and Ubuntu, util-linux's on Arch
+# and Fedora, and a builtin in every shell. None of those is the oracle
+# for boreutils' `kill`; Homebrew's coreutils ships no `gkill` either.
+# So the oracle of record is built with its own, and `needs` below
+# makes that part of the pin: a host's GNU of the right version that
+# lacks one of these programs is NOT the oracle, and
+# `tools/fetch-oracle` stages the build instead of trusting it.
+configure_args = "--disable-nls --without-selinux --enable-install-program=kill"
+
+# Programs the oracle must hold beyond coreutils' default set, each
+# asserted by its own first `--version` line (`kill (GNU coreutils)
+# 9.11`): a program of the same name from another package is no oracle.
+needs = "kill"
 
 # What the field ships, for the record, measured 2026-09-18 and
 # re-measured 2026-09-24. Neither is the oracle; the first is why this
