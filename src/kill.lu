@@ -224,10 +224,6 @@ fn main() -> int {
         return bore.usage_error("kill", "no process ID specified")
     }
     var status = 0
-    // PLANT (bu23, reverted next): whatever signal was named, TERM is sent.
-    if named && meaning != 0 {
-        meaning = bore.signal_default()
-    }
     for a in operands {
         let pid = bore.process_id(a) else |_| {
             bore.warn("kill", "{bore.quote(a)}: invalid process id")
@@ -244,8 +240,8 @@ fn main() -> int {
         }
         let why = send(pid, meaning)
         if why.len > 0 {
-            // PLANT (bu23, reverted next): a failed send leaves the status 0.
             bore.warn("kill", "{bore.quote(a)}: {why}")
+            status = 1
         }
     }
     bore.finish(mut out, "kill", status)
