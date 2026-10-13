@@ -500,5 +500,17 @@ aarch64-unknown-linux-gnu = "ac612122681136eeb9e4b64d42ae83859df1cf7e8af75308e74
 # all three). wolf-std#62 (s230's `fs.set_mode`, `symlink`, `link`,
 # `set_times`, `env.umask` wrappers) is still a draft and is not in it,
 # so the utilities call the eight builtins directly.
+# MOVED AT THE 0.2.29 BUMP to wolf-std trunk 9e5bd6b (sc60, std at
+# 0.2.29 / 0.1.52), PAST the commit the 0.2.29 archive bundles
+# (d7c2968, sc59), B151 first: both d7c2968 and 9e5bd6b build all 39
+# utilities under 0.2.29 with --deny-warnings on both tiers (kasumi
+# `~/lanes/bu23/ev/b151.log`). The reason is `std.signal`: d7c2968's
+# names nine of the meanings, and 0.2.29's CHANGELOG tells a program to
+# "write the new bits as numbers" until wolf-std catches up. 9e5bd6b
+# has caught up — a function for each of the 28 meanings — and `kill`
+# (`src/bore/signals.lu`) names every signal through it, so no bit is
+# written in this repository (`[os.signal.set.stable]`). sc60's
+# spellings (`continued()`, the eight send-only names) are rulings
+# owed: a re-spelling there is a one-line change here.
 repo = "wolffe-lang/wolf-std"
-rev = "98e1b7bcac3a6167fba18a4d37adcf9e8a76e704"
+rev = "9e5bd6b16beeab1708a95c75d43b9926dd95f31e"
