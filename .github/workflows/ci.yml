@@ -16,7 +16,10 @@
 # version, so this cannot quietly stop being true.
 #
 # The oracle is a BINARY WE RUN, never a source we read: building a
-# released tarball derives no boreutils code from GPL source.
+# released tarball derives no boreutils code from GPL source. Since bu23
+# it is built with coreutils' own `kill` (`needs` in gnu-oracle.toml),
+# which no distribution's coreutils package installs, so both hosts
+# build it: Homebrew's has no `gkill`.
 #
 # The `field` job below is the other half of the ruling and is
 # INFORMATION, not a verdict: it runs the distro's own GNU so the
@@ -139,6 +142,31 @@ jobs:
       - name: rm, mv and cp where / is disposable (a throwaway container)
         if: runner.os == 'Linux'
         run: tools/roottest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin
+
+      # bu23. `kill` sends, so tools/difftest refuses every case of it
+      # that could, and the sending cases run here: one throwaway
+      # container a case, nothing mounted, no network, a process-id
+      # namespace of its own, every target a process the case's script
+      # started inside it, GNU 9.11's OWN kill beside both tiers (the
+      # oracle is built with --enable-install-program=kill; the tool
+      # refuses a `kill` that is procps' or util-linux's). The selftest
+      # first: the tool must fail three planted differences by name.
+      - name: kill where it sends (a throwaway container a case)
+        if: runner.os == 'Linux'
+        run: |
+          tools/killtest-selftest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin
+          tools/killtest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin
+
+      # macOS has no container engine, and its signal NUMBERS are the
+      # ones a linux list gets wrong (USR1 is 30 here). The runner is
+      # itself a throwaway machine: the cases that name only processes
+      # they started run on it directly, and the ones that name a
+      # process group or a literal id are skipped by name.
+      - name: kill where it sends (this runner, the test's own children)
+        if: runner.os == 'macOS'
+        run: |
+          tools/killtest-selftest --engine none --gnu .gnu-bin/bin
+          tools/killtest --engine none --gnu .gnu-bin/bin
 
       - name: smoke bench
         run: tools/bench --scale 0.0005 --runs 3
