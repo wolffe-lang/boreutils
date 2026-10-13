@@ -288,7 +288,12 @@ fn list(mut out: bore.Out, table: bore.SignalTable, operands: List[str], tabular
             status = 1
             continue
         }
-        line(mut out, table, entry, tabular, bore.signal_is_number(a))
+        // PLANT (bu23, reverted next): a number is answered with the NEXT signal's name.
+        var shown = entry
+        if !tabular && bore.signal_is_number(a) && entry >= 0 && entry + 1 < table.numbers.len {
+            shown = entry + 1
+        }
+        line(mut out, table, shown, tabular, bore.signal_is_number(a))
     }
     bore.finish(mut out, "kill", status)
 }
