@@ -23,3 +23,25 @@ args = ["n=5 tail"]
 gnu_util = "printf"
 mask = ["n=[0-9]+"]
 compare = ["stdout"]
+
+# A planted difference INSIDE what `gnu_keep` keeps (bu23): boreutils
+# `echo 3` prints one line, GNU `seq 3` prints three, and the case keeps
+# GNU's lines `2` and `3`. The harness passes this file only by failing
+# the case on the kept line ours lacks: a `gnu_keep` that kept only what
+# the other side has would pass it.
+[[case]]
+name = "a kept line the other side lacks"
+args = ["3"]
+gnu_util = "seq"
+gnu_keep = "^[23]$"
+compare = ["stdout"]
+
+# Its control, which must PASS: the same two programs, keeping GNU's
+# line `2` alone, against boreutils `echo 2`. A `gnu_keep` that filtered
+# nothing would fail it on the line `1`.
+[[case]]
+name = "kept lines alike"
+args = ["2"]
+gnu_util = "seq"
+gnu_keep = "^2$"
+compare = ["stdout"]

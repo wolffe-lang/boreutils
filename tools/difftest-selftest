@@ -26,13 +26,16 @@ fi
 # The `files` plants (bu14) are the gate on the scratch directory, and
 # the `offset` plant (bu15) the gate on a shared standard input, and the
 # `tty` plant (bu19) the gate on reading a pseudo-terminal at all, and
-# the `mask` plant (bu20) the gate on a mask hiding only its match.
+# the `mask` plant (bu20) the gate on a mask hiding only its match, and
+# the `gnu_keep` plant (bu23) the gate on a kept table still failing on
+# a row one side lacks.
 for planted in "true: true is not false" \
                "tee: a file one side writes" \
                "tee: a file whose bytes differ" \
                "head: an offset one side moves" \
                "echo: what a terminal received" \
                "echo: a mask hides only what it names" \
+               "echo: a kept line the other side lacks" \
                "tee: two names of one file" \
                "tee: a time one side sets"; do
     if ! echo "$out" | grep -qF "FAIL $planted"; then
@@ -45,7 +48,10 @@ done
 # a key of the harness, to mean anything. The `tree` plant above fails
 # on a link count; its twin compared on bytes alone must not fail. And
 # the two `umask` controls pass only when the mask reached both sides.
+# The `gnu_keep` control (bu23) passes only when the lines the case does
+# not keep were really dropped.
 for control in "tee: two names of one file, by bytes alone" \
+               "echo: kept lines alike" \
                "tee: a mask reaches our side" \
                "tee: a mask reaches both sides or neither" \
                "tee: times both sides leave alike"; do
@@ -65,6 +71,11 @@ echo "difftest-selftest: the harness saw every planted difference"
 # refusal ever broken, `mkdir /` fails and harms nothing — which is why
 # no plant here names `rm`). And the scratch root itself is refused when
 # it is `/` or a home directory.
+#
+# The `kill-*` plants (bu23) are the same gate for `kill`, which sends:
+# a case of it that could signal a process refuses the run. Each names
+# an id no host has (were the refusal ever broken, GNU's `kill` answers
+# `No such process` and signals nothing).
 for plant in tests/refuse/*/; do
     name=$(basename "$plant")
     out=$(tools/difftest --cases "$plant" 2>&1) && status=0 || status=$?

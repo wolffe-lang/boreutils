@@ -205,6 +205,19 @@ Case file (TOML, one file per utility, any number of [[case]] tables):
                                  #   byte for byte, and
                                  #   tests/selftest/echo.toml is the gate
                                  #   on that.
+  gnu_keep = "^(EXIT|HUP)$"      # optional (bu23): a regular expression;
+                                 #   only the lines of GNU's standard
+                                 #   output that it matches (`re.search`,
+                                 #   a line at a time) are compared, in
+                                 #   their order. For a TABLE one side can
+                                 #   print only part of: `kill -l` on GNU
+                                 #   names every signal the host has, and
+                                 #   this repository's the ones wolf has a
+                                 #   meaning for. The rows both have are
+                                 #   still compared, byte for byte and in
+                                 #   order, and a row GNU lacks still
+                                 #   fails. tests/selftest/echo.toml is
+                                 #   the gate on it.
   tree = "basic"                 # optional (bu18): start from the file's
                                  #   [tree.basic] table, which holds any of
                                  #   the scratch keys above; the case's own
@@ -252,6 +265,26 @@ business), a regular file's size, and its modification time WHEN THAT
 IS OLDER THAN THE CASE (a time some side or the fixture set, since a
 time of "just now" differs between the two sides by the clock). `files`
 sees names and bytes; `tree` sees what `ls -l` would.
+
+`kill` SENDS, AND THIS HARNESS RUNS ON HOSTS (bu23). A case of `kill`
+is run here only when it cannot signal anything: its first argument is
+`-l`, `-t`, `-L`, `--list`, `--table`, `--help` or `--version` (measured
+against GNU 9.11: once one of those has been read, nothing later makes
+it send), or else no argument of it is a number, signed or not, so that
+no operand can name a process or a process group. Any other case
+refuses the whole RUN, status 2, before anything has run — the changers'
+rule. The cases that send are tests/kill/cases.toml and run from
+tools/killtest: one fresh container a case, no network, every target a
+process the case itself started. tests/refuse/kill-* holds the plants.
+
+And for `kill` the oracle is asserted BY BINARY, not only by version:
+most hosts ship a `kill` that is not GNU coreutils' (procps', or
+util-linux's; a shell's builtin is neither), and coreutils installs its
+own only when configured with `--enable-install-program=kill`, which
+gnu-oracle.toml now does. The program this harness is about to call
+GNU's must say `kill (GNU coreutils) VERSION`, or the run is refused;
+on the `field` leg, where the distro's own `kill` is the finding, its
+cases are skipped by name instead.
 
 The environment is built from scratch for every run: PATH, then
 `[oracle.env]` from gnu-oracle.toml, then the case's env (which may
@@ -316,7 +349,7 @@ KEYS = {"name", "args", "stdin", "stdin_file", "stdin_offset", "requires",
         "cwd", "tree", "tty", "scratch_fifos", "scratch_sockets",
         "scratch_hardlinks", "scratch_atimes", "scratch_time_all",
         "scratch_keep", "mask", "scratch_sizes", "accounts", "umask",
-        "times", "skip_on"}
+        "times", "skip_on", "gnu_keep"}
 # Naming any of these gives a case a scratch directory and a `files` field.
 SCRATCH = ("scratch", "scratch_dirs", "scratch_links", "scratch_modes",
            "scratch_times", "cwd", "scratch_fifos", "scratch_sockets",
@@ -413,6 +446,24 @@ def assert_probe(table, prefix, env, loose):
         f"coreutils answers differently from the oracle of record and no "
         f"verdict is possible against it. Set BORE_ORACLE_ANY=1 to run "
         f"against it for information.")
+
+
+def not_coreutils(name, want, loose):
+    """Why the program `name` on PATH is not GNU coreutils' own, or None.
+    For a utility other packages ship too (`kill`: procps, util-linux)."""
+    exe = shutil.which(name)
+    if exe is None:
+        return (f"GNU '{name}' not found on PATH: coreutils installs it only "
+                f"when configured with --enable-install-program (tools/fetch-oracle)")
+    said = subprocess.run([exe, "--version"], capture_output=True, text=True,
+                          errors="replace")
+    first = (said.stdout.splitlines() or [""])[0]
+    if re.fullmatch(r"\S+ \(GNU coreutils\) \S+", first) is None:
+        return (f"{exe} is not GNU coreutils' ({first!r}): another package's "
+                f"program of the same name is no oracle")
+    if not loose and not first.endswith(" " + want):
+        return f"{exe} is {first!r}, and the oracle of record is {want}"
+    return None
 
 
 def gnu_prefix():
@@ -529,6 +580,22 @@ def unsafe(arg):
             inside = path.startswith("{scratch}/") or path == "{scratch}"
             if not inside:
                 return f"{arg!r} is absolute and outside the scratch directory"
+    return None
+
+
+# What makes a `kill` case safe on a host (bu23): see the docstring.
+KILL_LISTS = ("-l", "-t", "-L", "--list", "--table", "--help", "--version")
+
+
+def could_signal(args):
+    """Why this `kill` case could signal a process, or None."""
+    if args and args[0] in KILL_LISTS:
+        return None
+    for a in args:
+        if re.fullmatch(r"\s*[+-]?\d+\s*", a):
+            return f"{a!r} is a number, and so could be a process id"
+        if "{" in a:
+            return f"{a!r} holds a placeholder"
     return None
 
 
@@ -1002,6 +1069,13 @@ def load(path, util=None):
                 if why is not None:
                     die(f"{path}: refusing case {c.get('name', '?')!r}: {why} "
                         f"({util} changes the file system)")
+    if util == "kill":
+        for c in cases:
+            why = could_signal([str(a) for a in c.get("args", [])])
+            if why is not None:
+                die(f"{path}: refusing case {c.get('name', '?')!r}: {why} "
+                    f"(kill sends: such a case belongs to tools/killtest, "
+                    f"in a container)")
     for c in cases:
         extra = set(c) - KEYS - {"_changer"}
         if "name" not in c or extra:
@@ -1124,7 +1198,16 @@ def main(argv):
         bore = os.path.join(bindir, util)
         if not os.access(bore, os.X_OK):
             die(f"no boreutils binary at {bore} (run tools/build)")
+        foreign = None
+        if util == "kill":
+            foreign = not_coreutils(prefix + util, want, loose)
+            if foreign is not None and not loose:
+                die(foreign)
         for case in entries:
+            if foreign is not None:
+                skipped += 1
+                print(f"SKIP {util}: {case['name']} ({foreign})")
+                continue
             oracle = util
             if "gnu_util" in case:
                 if not os.environ.get("BORE_SELFTEST"):
@@ -1207,6 +1290,11 @@ def main(argv):
                 if top is not None:
                     unlock(holder)
                     shutil.rmtree(holder, ignore_errors=True)
+            if g is not None and "gnu_keep" in case:
+                keep = re.compile(case["gnu_keep"].encode())
+                g["stdout"] = b"".join(
+                    line for line in g["stdout"].splitlines(keepends=True)
+                    if keep.search(line.rstrip(b"\n")))
             ok = (b is not None and g is not None
                   and all(b[f] == g[f] for f in fields))
             if ok:

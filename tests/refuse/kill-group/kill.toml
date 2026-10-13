@@ -1,0 +1,5 @@
+# bu23: a `kill` case that names a process GROUP after `--`. Refused as
+# the number it is. The group names nothing on any host.
+[[case]]
+name = "a group"
+args = ["-s", "0", "--", "-2147483647"]

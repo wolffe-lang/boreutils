@@ -1,0 +1,7 @@
+# bu23: a `kill` case whose operand is a number. tools/difftest must
+# refuse the RUN (status 2) before anything starts: `kill` sends, and
+# this harness runs on hosts. The number names no process on any host
+# (were the refusal ever broken, GNU's `kill` says `No such process`).
+[[case]]
+name = "a number"
+args = ["2147483647"]

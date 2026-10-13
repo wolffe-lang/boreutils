@@ -1,0 +1,7 @@
+# bu23: a list option that is NOT the first argument does not make a
+# case safe: under POSIXLY_CORRECT `kill abc 2147483647 -l` is three
+# process ids. Refused for the number.
+[[case]]
+name = "a list option after an operand"
+args = ["abc", "2147483647", "-l"]
+env = { POSIXLY_CORRECT = "1" }
