@@ -1,0 +1,13 @@
+//! member: false
+//!
+//! chown — change the owner and group of files.
+//!
+//! The program is `bore.owner_main` (`src/bore/owner.lu`), shared with
+//! `chgrp`: GNU's rules, the references consulted and what it
+//! cannot do are written there, measured against GNU coreutils 9.11.
+
+use bore
+
+fn main() -> int {
+    bore.owner_main(false)
+}

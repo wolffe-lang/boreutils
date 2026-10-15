@@ -1,0 +1,38 @@
+//! `fs_set_owner`'s rows as `chown` and `chgrp` rely on them (bu24),
+//! apart from the id reads so that lupin, which serves the owner calls
+//! and refuses the reads by name (ruling #78), answers this file.
+//! **Nothing here changes an owner**: every call is refused for its
+//! shape, before the host is asked, or names no file.
+
+fn row(path: str, uid: int, gid: int) -> str {
+    var said = "ok"
+    fs_set_owner(path, uid, gid, true) else |e| match e {
+        not_found => {
+            said = "not_found"
+        },
+        denied => {
+            said = "denied"
+        },
+        invalid => {
+            said = "invalid"
+        },
+        unsupported => {
+            said = "unsupported"
+        },
+        io => {
+            said = "io"
+        },
+    }
+    said
+}
+
+fn main() {
+    assert(row("bu24-no-such-file", -2, -1) == "invalid", "an id below -1")
+    assert(row("bu24-no-such-file", 4294967295, -1) == "invalid", "-1 spelled unsigned")
+    assert(row("bu24-no-such-file", -1, 4294967296) == "invalid", "a group out of range")
+    assert(row("bu24-no-such-dir/bu24-no-such-file", -1, -1) == "not_found", "no such file")
+    assert(
+        row("bu24-no-such-dir/bu24-no-such-file", 0, 0) == "not_found",
+        "no such file, ids given",
+    )
+}

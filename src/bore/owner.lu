@@ -1,0 +1,733 @@
+//! owner — `chown` and `chgrp`: one program with two front ends (bu24).
+//!
+//! References consulted: POSIX.1-2024 `chown` and `chgrp`; GNU coreutils
+//! 9.11 `chown --help`, `chgrp --help` and the info manual's `chown
+//! invocation`, `chgrp invocation` and `Traversing symlinks` nodes;
+//! black-box runs of GNU's binaries in throwaway `--network none`
+//! containers whose accounts this lane defined, as root and as users,
+//! every tree's owners and modes read back after each run (kasumi
+//! `~/lanes/bu24/probes/p3.sh`), under `LC_ALL=C`. Never GNU source,
+//! nor any other implementation's.
+//!
+//! GNU's rules, each measured against 9.11:
+//!
+//! - **The OWNER spec** (`chown`): `USER`, `USER:GROUP`, `USER:` (the
+//!   user's login group), `:GROUP`, `:` or nothing (no change at all,
+//!   and the host is still asked). A user or group is a NAME first, then
+//!   a number (`+` allowed, `007` is 7, at most 4294967294). `1002:` is
+//!   `invalid spec` (a number has no login group). A user that is
+//!   neither is `invalid user: 'SPEC'`, a group `invalid group: 'SPEC'`,
+//!   the whole spec quoted. With no `:`, a `.` that is not part of a
+//!   user's name splits the spec as a `:` would, with `warning: '.'
+//!   should be ':': 'SPEC'`; when that split fails it is `invalid user`.
+//!   `chgrp`'s spec is a GROUP alone; an empty one changes nothing.
+//! - **The call is always made**, for an unchanged owner too (the host
+//!   then still clears a file's set-user-ID and set-group-ID bits),
+//!   unless `--from=SPEC` names a current owner or group the file does
+//!   not have.
+//! - **What `-v` says** (`-c` only the first): `changed ownership of 'F'
+//!   from OLD to NEW`, `ownership of 'F' retained as OLD`, `failed to
+//!   change ownership of 'F' from OLD to NEW`; `chgrp` says `group`.
+//!   OLD is `user` when the spec names only a user and `user:group`
+//!   otherwise, each by name or number; NEW is the spec's own words
+//!   (`1002`, never `bob`; `:pack`; `alice:alice` for `alice:`), or under
+//!   `--reference` the reference's names. A spec with neither part says
+//!   `ownership of 'F' retained`. A file that cannot be reached says
+//!   `failed to change ownership of 'F' to NEW`.
+//! - **Errors** (each status 1, the next FILE still done; `-f` keeps
+//!   them off standard error): `cannot access 'F': REASON`, `cannot
+//!   dereference 'F': REASON` (a link to nothing, followed),
+//!   `changing ownership of 'F': REASON` (`changing group of` when the
+//!   spec names no user), `cannot read directory 'D': REASON`.
+//! - **Links.** Without `-R` a link handed in is followed unless `-h`.
+//!   Under `-R`, `-P` (the default) follows no link, `-H` the ones handed
+//!   in, `-L` every one; a link not followed is changed itself. `-h`
+//!   changes the link itself whatever is walked (`-RLh` walks through
+//!   links and changes each link); `--dereference` under `-R` needs `-H`
+//!   or `-L`.
+//! - **`-R` changes a directory AFTER what is in it**, in the directory's
+//!   own order, and says OLD as the directory was when the walk reached
+//!   it. A directory met again below itself (`-L` through `..`) is
+//!   changed and not entered.
+//! - `--preserve-root` refuses `-R` on `/` (GNU's default is not to).
+//!
+//! **GNU prints an uninitialized number.** For a link to nothing that it
+//! is asked to follow, GNU 9.11 says `failed to change ownership of 'F'
+//! from N to …` where N is a different large number on every run
+//! (2445336480, 3978735576, …). This one says `failed to change ownership
+//! of 'F' to …`, its shape for any file it cannot reach.
+//!
+//! **What this cannot do:** the walk is by path (wolf-lang#707), as
+//! `chmod`'s; a name that is not UTF-8 is reported and skipped
+//! (wolf-lang#687); a name is found only in `/etc/passwd` and
+//! `/etc/group`.
+
+/// What was asked of one run.
+pub struct OwnerCfg {
+    prog: str,
+    chgrp: bool,
+    uid: int,
+    gid: int,
+    /// The spec named a user, a group (or was a reference).
+    has_user: bool,
+    has_group: bool,
+    /// `-v` speaks of the group alone (`chgrp`, or `chown :2000`).
+    group_style: bool,
+    /// What `-v` calls the new owner.
+    new_text: str,
+    from_uid: int,
+    from_gid: int,
+    verbose: bool,
+    changes: bool,
+    quiet: bool,
+    recursive: bool,
+    /// 0 `-P`, 1 `-H`, 2 `-L`.
+    walk: int,
+    /// 0 neither, 1 `-h`, 2 `--dereference`.
+    deref: int,
+}
+
+/// A spec read, or why not.
+pub struct Spec {
+    uid: int,
+    gid: int,
+    /// The user's and the group's NAME when the spec wrote it as one
+    /// (or `USER:` gave the login group's), else `""`: GNU words NEW from
+    /// these, and a part written as a number has none.
+    user_name: str,
+    group_name: str,
+    error: str,
+    warning: str,
+}
+
+fn no_spec() -> Spec {
+    Spec { uid: -1, gid: -1, user_name: "", group_name: "", error: "", warning: "" }
+}
+
+/// `chown`'s OWNER[:[GROUP]], read against the account files.
+pub fn owner_spec(a: Accounts, s: str) -> Spec {
+    var colon = -1
+    var dot = -1
+    var i = 0
+    for b in s.bytes() {
+        let n = b as int
+        if n == 58 && colon < 0 {
+            colon = i
+        }
+        if n == 46 && dot < 0 {
+            dot = i
+        }
+        i += 1
+    }
+    if colon >= 0 {
+        return split_spec(a, s, s[..colon], s[colon + 1..], true)
+    }
+    if dot >= 0 && user_named(a, s) < 0 {
+        var r = split_spec(a, s, s[..dot], s[dot + 1..], true)
+        if r.error.len > 0 {
+            r.error = "invalid user: {quote(s)}"
+            return r
+        }
+        r.warning = "warning: '.' should be ':': {quote(s)}"
+        return r
+    }
+    split_spec(a, s, s, "", false)
+}
+
+/// USER and GROUP of a spec `whole`; `sep` says a separator was there.
+fn split_spec(a: Accounts, whole: str, user: str, group: str, sep: bool) -> Spec {
+    var r = no_spec()
+    var login = -1
+    if user.len > 0 {
+        let k = user_named(a, user)
+        if k >= 0 {
+            r.uid = a.users[k].uid
+            login = a.users[k].gid
+            r.user_name = user
+        } else {
+            if sep && group.len == 0 {
+                r.error = "invalid spec: {quote(whole)}"
+                return r
+            }
+            let n = id_number(user)
+            if n < 0 {
+                r.error = "invalid user: {quote(whole)}"
+                return r
+            }
+            r.uid = n
+        }
+    }
+    if group.len > 0 {
+        let k = group_named(a, group)
+        if k >= 0 {
+            r.gid = a.groups[k].gid
+            r.group_name = group
+        } else {
+            let n = id_number(group)
+            if n < 0 {
+                r.error = "invalid group: {quote(whole)}"
+                return r
+            }
+            r.gid = n
+        }
+    } else if sep && user.len > 0 {
+        r.gid = login
+        r.group_name = name_of_group(a, login)
+    }
+    r
+}
+
+/// `chgrp`'s GROUP.
+pub fn group_spec(a: Accounts, s: str) -> Spec {
+    var r = no_spec()
+    if s.len == 0 {
+        return r
+    }
+    let k = group_named(a, s)
+    if k >= 0 {
+        r.gid = a.groups[k].gid
+        r.group_name = s
+    } else {
+        let n = id_number(s)
+        if n < 0 {
+            r.error = "invalid group: {quote(s)}"
+            return r
+        }
+        r.gid = n
+    }
+    r
+}
+
+/// Set the ids and the words `-v` uses from a spec (or a reference).
+///
+/// Measured (kasumi `~/lanes/bu24/probes/p4.sh`): GNU keeps a NAME only
+/// for a part the spec wrote as one. NEW is then the user's name and
+/// `:` and the group's name or number (`1001:pack` says `:pack`, the
+/// user written as a number left out; `alice:2000` says `alice:2000`);
+/// with no name at all it is the numbers (`1001:2000`, `7`); and a spec
+/// that names only a group BY NUMBER (`:2000`) is worded as `chgrp`
+/// words it: `changed group of 'F' from root to 2000`.
+fn take_spec(mut c: OwnerCfg, s: Spec) {
+    c.uid = s.uid
+    c.gid = s.gid
+    c.has_user = s.uid >= 0
+    c.has_group = s.gid >= 0
+    c.group_style = c.chgrp || s.uid < 0 && s.gid >= 0 && s.group_name.len == 0
+    var g = s.group_name
+    if g.len == 0 {
+        g = "{s.gid}"
+    }
+    if c.group_style {
+        c.new_text = copy g
+    } else if s.user_name.len > 0 || s.group_name.len > 0 {
+        c.new_text = copy s.user_name
+        if s.gid >= 0 {
+            c.new_text = copy "{c.new_text}:{g}"
+        }
+    } else if s.uid >= 0 {
+        c.new_text = copy "{s.uid}"
+        if s.gid >= 0 {
+            c.new_text = copy "{c.new_text}:{s.gid}"
+        }
+    }
+}
+
+/// The whole program; `chgrp` says which front end.
+pub fn owner_main(chgrp: bool) -> int {
+    var prog = "chown"
+    if chgrp {
+        prog = "chgrp"
+    }
+    let p = parse(owner_options(), env_args(), permute())
+    var out = stdout()
+    var c = OwnerCfg {
+        prog: prog,
+        chgrp: chgrp,
+        uid: -1,
+        gid: -1,
+        has_user: false,
+        has_group: false,
+        group_style: chgrp,
+        new_text: "",
+        from_uid: -1,
+        from_gid: -1,
+        verbose: false,
+        changes: false,
+        quiet: false,
+        recursive: false,
+        walk: 0,
+        deref: 0,
+    }
+    var reference = ""
+    var has_reference = false
+    var from = ""
+    var has_from = false
+    var preserve = false
+    var k = 0
+    while k < p.keys.len {
+        let key = p.keys[k]
+        if key == "help" {
+            put(mut out, owner_help(chgrp)) else |_| {}
+            return finish(mut out, prog, 0)
+        }
+        if key == "version" {
+            put(mut out, version_text(prog)) else |_| {}
+            return finish(mut out, prog, 0)
+        }
+        if key == "changes" {
+            // One setting: the last of -c and -v wins (measured: `-vc`
+            // says nothing of an owner retained).
+            c.changes = true
+            c.verbose = false
+        } else if key == "silent" || key == "quiet" {
+            c.quiet = true
+        } else if key == "verbose" {
+            c.verbose = true
+            c.changes = false
+        } else if key == "recursive" {
+            c.recursive = true
+        } else if key == "reference" {
+            reference = p.values[k]
+            has_reference = true
+        } else if key == "from" {
+            from = p.values[k]
+            has_from = true
+        } else if key == "H" {
+            c.walk = 1
+        } else if key == "L" {
+            c.walk = 2
+        } else if key == "P" {
+            c.walk = 0
+        } else if key == "no-dereference" {
+            c.deref = 1
+        } else if key == "dereference" {
+            c.deref = 2
+        } else if key == "preserve-root" {
+            preserve = true
+        } else if key == "no-preserve-root" {
+            preserve = false
+        }
+        k += 1
+    }
+    if !ok(p) {
+        return usage_error(prog, p.error)
+    }
+    if c.recursive && c.deref == 2 && c.walk == 0 {
+        warn(prog, "-R --dereference requires either -H or -L")
+        return 1
+    }
+    let a = read_accounts()
+    if has_from {
+        let f = owner_spec(a, from)
+        if f.error.len > 0 {
+            warn(prog, f.error)
+            return 1
+        }
+        if f.warning.len > 0 {
+            warn(prog, f.warning)
+        }
+        c.from_uid = f.uid
+        c.from_gid = f.gid
+    }
+    var files = copy p.operands
+    var spec_text = ""
+    if !has_reference {
+        if files.len == 0 {
+            return usage_error(prog, "missing operand")
+        }
+        spec_text = files[0]
+        files = files[1..]
+        if files.len == 0 {
+            return usage_error(prog, "missing operand after {quote(spec_text)}")
+        }
+    } else if files.len == 0 {
+        return usage_error(prog, "missing operand")
+    }
+    if has_reference {
+        var why = ""
+        let r = fs_stat(reference) else |_| {
+            why = io_error()
+            List[int]()
+        }
+        if why.len > 0 {
+            warn(prog, "failed to get attributes of {quote_always(reference)}: {why}")
+            return 1
+        }
+        var s = no_spec()
+        s.gid = rec_gid(r)
+        s.group_name = name_of_group(a, s.gid)
+        if !chgrp {
+            s.uid = rec_uid(r)
+            s.user_name = name_of_user(a, s.uid)
+        }
+        take_spec(mut c, s)
+    } else {
+        var s = no_spec()
+        if chgrp {
+            s = group_spec(a, spec_text)
+        } else {
+            s = owner_spec(a, spec_text)
+        }
+        if s.error.len > 0 {
+            warn(prog, s.error)
+            return 1
+        }
+        if s.warning.len > 0 {
+            warn(prog, s.warning)
+        }
+        take_spec(mut c, s)
+    }
+    var status = 0
+    for f in files {
+        if c.recursive && preserve && names_root(f) {
+            if f == "/" {
+                warn(prog, "it is dangerous to operate recursively on '/'")
+            } else {
+                warn(
+                    prog,
+                    "it is dangerous to operate recursively on {quote_always(f)} (same as '/')",
+                )
+            }
+            warn(prog, "use --no-preserve-root to override this failsafe")
+            status = 1
+            continue
+        }
+        var above = List[int]()
+        if !owner_entry(mut out, c, a, f, true, mut above) {
+            status = 1
+        }
+    }
+    finish(mut out, prog, status)
+}
+
+/// Whether the change itself follows a link at this entry. Measured:
+/// without `-R` a link is followed unless `-h`; under `-R` every link is
+/// followed for the change unless `-P` or `-h` — `-RH` changes what an
+/// inner link names (`d/up`'s `..`) without walking it.
+fn follows_change(c: OwnerCfg) -> bool {
+    if c.deref == 1 {
+        return false
+    }
+    if c.deref == 2 || !c.recursive {
+        return true
+    }
+    c.walk != 0
+}
+
+/// Whether the walk follows a link here: `-L` every one, `-H` one
+/// handed in.
+fn follows_walk(c: OwnerCfg, top: bool) -> bool {
+    if !c.recursive {
+        return false
+    }
+    c.walk == 2 || c.walk == 1 && top
+}
+
+/// One FILE, and under `-R` what is in it. False on any failure.
+///
+/// OLD is said from the record the WALK holds (measured: under `-RLh`
+/// a link to an alice-owned file is `retained as alice` while the link
+/// itself, bob's, is what changes; a link to nothing falls back to the
+/// link's own record), and without `-R` from what is changed.
+fn owner_entry(
+    mut out: Out,
+    c: OwnerCfg,
+    a: Accounts,
+    name: str,
+    top: bool,
+    mut above: List[int],
+) -> bool {
+    var why = ""
+    let own = fs_lstat(name) else |_| {
+        why = io_error()
+        List[int]()
+    }
+    if why.len > 0 {
+        if !c.quiet {
+            warn(c.prog, "cannot access {quote_always(name)}: {why}")
+        }
+        unreached(mut out, c, name)
+        return false
+    }
+    let link = rec_kind(own) == kind_link()
+    let change_through = link && follows_change(c)
+    let walk_through = link && follows_walk(c, top)
+    var target = List[int]()
+    var dangling = false
+    if link && (change_through || walk_through) {
+        target = fs_stat(name) else |_| {
+            why = io_error()
+            List[int]()
+        }
+        if why.len > 0 {
+            dangling = true
+        }
+    }
+    // The record the walk holds, and the one OLD is said from.
+    var held = copy own
+    if walk_through && !dangling {
+        held = copy target
+    }
+    var shown = copy held
+    if !c.recursive && change_through && !dangling {
+        shown = copy target
+    }
+    if change_through && dangling {
+        if !c.quiet {
+            warn(c.prog, "cannot dereference {quote_always(name)}: {why}")
+        }
+        unreached(mut out, c, name)
+        return false
+    }
+    var ok = true
+    if c.recursive && rec_kind(held) == kind_dir() {
+        if pair_of(above, held) {
+            return set_owner(mut out, c, a, name, shown, link && !change_through)
+        }
+        let walked = owner_walk(mut out, c, a, name, held, mut above)
+        if walked == 2 {
+            // Measured: a directory that cannot be listed is not
+            // changed at all; `-v` says it could not be.
+            unreached(mut out, c, name)
+            return false
+        }
+        if walked != 0 {
+            ok = false
+        }
+    }
+    if !set_owner(mut out, c, a, name, shown, link && !change_through) {
+        ok = false
+    }
+    ok
+}
+
+/// Whether `rec`'s device and inode are on the stack `pairs`.
+fn pair_of(pairs: List[int], rec: List[int]) -> bool {
+    var k = 0
+    while k + 1 < pairs.len {
+        if pairs[k] == rec_dev(rec) && pairs[k + 1] == rec_ino(rec) {
+            return true
+        }
+        k += 2
+    }
+    false
+}
+
+/// Everything in the directory `dir`, in its own order.
+/// 0 every entry done, 1 one failed, 2 the directory could not be read.
+fn owner_walk(
+    mut out: Out,
+    c: OwnerCfg,
+    a: Accounts,
+    dir: str,
+    rec: List[int],
+    mut above: List[int],
+) -> int {
+    var why = ""
+    let entries = fs_read_dir_entries(dir) else |_| {
+        why = io_error()
+        List[List[byte]]()
+    }
+    if why.len > 0 {
+        if !c.quiet {
+            warn(c.prog, "cannot read directory {quote_always(dir)}: {why}")
+        }
+        return 2
+    }
+    (mut above).push(rec_dev(rec))
+    (mut above).push(rec_ino(rec))
+    var ok = true
+    for e in entries {
+        var raw = List[byte]()
+        var i = 1
+        while i < e.len {
+            (mut raw).push(e[i])
+            i += 1
+        }
+        var named = true
+        let base = str_from_utf8(raw) else |_| {
+            named = false
+            ""
+        }
+        if !named {
+            warn(
+                c.prog,
+                "cannot change an entry of {quote_always(dir)}: its name is not UTF-8, and wolf cannot name it (wolf-lang#687)",
+            )
+            ok = false
+            continue
+        }
+        if !owner_entry(mut out, c, a, join_name(dir, base), false, mut above) {
+            ok = false
+        }
+    }
+    let _ = (mut above).pop() else 0
+    let _ = (mut above).pop() else 0
+    if ok {
+        return 0
+    }
+    1
+}
+
+/// Say, under `-v`, that `name` could not be reached.
+fn unreached(mut out: Out, c: OwnerCfg, name: str) {
+    if c.verbose {
+        put(
+            mut out,
+            "failed to change {noun(c)} of {quote_always(name)} to {c.new_text}\n",
+        ) else |_| {}
+    }
+}
+
+fn noun(c: OwnerCfg) -> str {
+    if c.group_style && c.has_group {
+        return "group"
+    }
+    "ownership"
+}
+
+fn said_user(a: Accounts, uid: int) -> str {
+    let n = name_of_user(a, uid)
+    if n.len > 0 {
+        return n
+    }
+    "{uid}"
+}
+
+fn said_group(a: Accounts, gid: int) -> str {
+    let n = name_of_group(a, gid)
+    if n.len > 0 {
+        return n
+    }
+    "{gid}"
+}
+
+/// The owner `rec` has, in the words `-v` uses for this spec.
+fn old_text(c: OwnerCfg, a: Accounts, rec: List[int]) -> str {
+    if c.group_style {
+        return said_group(a, rec_gid(rec))
+    }
+    if c.has_group {
+        return "{said_user(a, rec_uid(rec))}:{said_group(a, rec_gid(rec))}"
+    }
+    said_user(a, rec_uid(rec))
+}
+
+/// Change `name` (record `rec`; `own` the link itself) and say so.
+fn set_owner(mut out: Out, c: OwnerCfg, a: Accounts, name: str, rec: List[int], own: bool) -> bool {
+    let old = old_text(c, a, rec)
+    let plain = !c.has_user && !c.has_group
+    if c.from_uid >= 0 && rec_uid(rec) != c.from_uid ||
+        c.from_gid >= 0 && rec_gid(rec) != c.from_gid {
+        if c.verbose {
+            if plain {
+                put(mut out, "ownership of {quote_always(name)} retained\n") else |_| {}
+            } else {
+                put(mut out, "{noun(c)} of {quote_always(name)} retained as {old}\n") else |_| {}
+            }
+        }
+        return true
+    }
+    var why = ""
+    fs_set_owner(name, c.uid, c.gid, !own) else |_| {
+        why = io_error()
+    }
+    if why.len > 0 {
+        if !c.quiet {
+            if c.has_user {
+                warn(c.prog, "changing ownership of {quote_always(name)}: {why}")
+            } else {
+                warn(c.prog, "changing group of {quote_always(name)}: {why}")
+            }
+        }
+        if c.verbose {
+            if plain {
+                put(mut out, "failed to change ownership of {quote_always(name)}\n") else |_| {}
+            } else {
+                put(
+                    mut out,
+                    "failed to change {noun(c)} of {quote_always(name)} from {old} to {c.new_text}\n",
+                ) else |_| {}
+            }
+        }
+        return false
+    }
+    if plain {
+        if c.verbose {
+            put(mut out, "ownership of {quote_always(name)} retained\n") else |_| {}
+        }
+        return true
+    }
+    let same = (c.uid < 0 || c.uid == rec_uid(rec)) && (c.gid < 0 || c.gid == rec_gid(rec))
+    if same {
+        if c.verbose {
+            put(mut out, "{noun(c)} of {quote_always(name)} retained as {old}\n") else |_| {}
+        }
+    } else if c.verbose || c.changes {
+        put(
+            mut out,
+            "changed {noun(c)} of {quote_always(name)} from {old} to {c.new_text}\n",
+        ) else |_| {}
+    }
+    true
+}
+
+fn owner_options() -> List[Opt] {
+    var s = List[Opt]()
+    (mut s).push(flag("c", "changes"))
+    (mut s).push(flag("f", "silent"))
+    (mut s).push(flag("", "quiet"))
+    (mut s).push(flag("v", "verbose"))
+    (mut s).push(flag("", "dereference"))
+    (mut s).push(flag("h", "no-dereference"))
+    (mut s).push(takes("", "from"))
+    (mut s).push(flag("", "no-preserve-root"))
+    (mut s).push(flag("", "preserve-root"))
+    (mut s).push(takes("", "reference"))
+    (mut s).push(flag("R", "recursive"))
+    (mut s).push(flag("H", ""))
+    (mut s).push(flag("L", ""))
+    (mut s).push(flag("P", ""))
+    (mut s).push(flag("", "help"))
+    (mut s).push(flag("", "version"))
+    s
+}
+
+fn owner_help(chgrp: bool) -> str {
+    var head = """
+        Usage: chown [OPTION]... [OWNER][:[GROUP]] FILE...
+          or:  chown [OPTION]... --reference=RFILE FILE...
+        Make OWNER the owner of each FILE and GROUP its group, or copy
+        RFILE's. A name or a number; OWNER: means OWNER's login group.
+        """
+    if chgrp {
+        head = """
+            Usage: chgrp [OPTION]... GROUP FILE...
+              or:  chgrp [OPTION]... --reference=RFILE FILE...
+            Make GROUP the group of each FILE, or copy RFILE's.
+            """
+    }
+    let rest = """
+
+          -c, --changes          say which owners changed
+          -f, --silent, --quiet  say nothing about files that fail
+          -v, --verbose          say what was done to every FILE
+              --dereference      change what a link names (the default)
+          -h, --no-dereference   change a link itself
+              --from=OWNER:GROUP  change only a FILE that has these now
+              --no-preserve-root  let -R walk '/' (the default)
+              --preserve-root    refuse -R on '/'
+              --reference=RFILE  copy RFILE's owner and group
+          -R, --recursive        also change what each directory holds
+          -H                     under -R, walk a link handed in
+          -L                     under -R, follow every link
+          -P                     under -R, follow no link (the default)
+              --help             print this help and exit
+              --version          print the version and exit
+
+        Names come from /etc/passwd and /etc/group.
+
+        boreutils: https://github.com/wolffe-lang/boreutils
+        """
+    "{head}{rest}"
+}

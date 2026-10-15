@@ -1,0 +1,75 @@
+# tests/cases/chgrp.toml — written by notes/bu24/gen/host_cases.py.
+# Run on a HOST by tools/difftest, as whoever runs it: nothing here
+# changes an owner (tools/difftest refuses a chown/chgrp case naming
+# a file). As root and as other users: tests/ids/, tools/idtest.
+
+[[case]]
+name = "(none)"
+args = []
+
+[[case]]
+name = "x"
+args = ["x"]
+
+[[case]]
+name = "-R"
+args = ["-R"]
+
+[[case]]
+name = "-R x"
+args = ["-R", "x"]
+
+[[case]]
+name = "-v x"
+args = ["-v", "x"]
+
+[[case]]
+name = "-x"
+args = ["-x"]
+
+[[case]]
+name = "--frob"
+args = ["--frob"]
+
+[[case]]
+name = "-x y"
+args = ["-x", "y"]
+
+[[case]]
+name = "--from"
+args = ["--from"]
+
+[[case]]
+name = "--from=nosuch-bu24 x"
+args = ["--from=nosuch-bu24", "x"]
+
+[[case]]
+name = "-R --dereference x"
+args = ["-R", "--dereference", "x"]
+
+[[case]]
+name = "-- x"
+args = ["--", "x"]
+
+[[case]]
+name = "-h"
+args = ["-h"]
+
+[[case]]
+name = "--preserve-root x"
+args = ["--preserve-root", "x"]
+
+[[case]]
+name = "--help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "--version"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "--help >&-"
+args = ["--help"]
+stdout_closed = true
