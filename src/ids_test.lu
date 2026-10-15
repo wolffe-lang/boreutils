@@ -1,0 +1,101 @@
+//! The account reader and the OWNER spec (bu24), on tables built here:
+//! pure functions, so every machine answers them — the checked machine,
+//! native, release and lupin alike. Nothing here reads an id of this
+//! process or changes an owner (`ids_rows_test.lu` asks the host).
+
+use bore
+
+fn accounts() -> bore.Accounts {
+    var users = List[bore.User]()
+    (mut users).push(bore.User { name: "root", uid: 0, gid: 0 })
+    (mut users).push(bore.User { name: "alice", uid: 1001, gid: 1001 })
+    (mut users).push(bore.User { name: "bob", uid: 1002, gid: 2000 })
+    (mut users).push(bore.User { name: "twin", uid: 1001, gid: 1001 })
+    (mut users).push(bore.User { name: "dot.ty", uid: 1004, gid: 4243 })
+    var groups = List[bore.Group]()
+    (mut groups).push(bore.Group { name: "root", gid: 0, members: List[str]() })
+    var pack = List[str]()
+    (mut pack).push("alice")
+    (mut groups).push(bore.Group { name: "pack", gid: 2000, members: pack })
+    var crew = List[str]()
+    (mut crew).push("alice")
+    (mut crew).push("bob")
+    (mut groups).push(bore.Group { name: "crew", gid: 2001, members: crew })
+    (mut groups).push(bore.Group { name: "alice", gid: 1001, members: List[str]() })
+    var zeta = List[str]()
+    (mut zeta).push("alice")
+    (mut groups).push(bore.Group { name: "zeta", gid: 1500, members: zeta })
+    var crew2 = List[str]()
+    (mut crew2).push("alice")
+    (mut groups).push(bore.Group { name: "crew2", gid: 2001, members: crew2 })
+    bore.Accounts { users: users, groups: groups }
+}
+
+fn same(a: List[int], b: List[int]) -> bool {
+    if a.len != b.len {
+        return false
+    }
+    var i = 0
+    while i < a.len {
+        if a[i] != b[i] {
+            return false
+        }
+        i += 1
+    }
+    true
+}
+
+fn main() {
+    assert(bore.id_number("0") == 0, "0")
+    assert(bore.id_number("007") == 7, "leading zeros")
+    assert(bore.id_number("+1002") == 1002, "a plus")
+    assert(bore.id_number("4294967294") == 4294967294, "the largest id")
+    assert(bore.id_number("4294967295") == -1, "-1 is no id")
+    assert(bore.id_number("") == -1, "empty")
+    assert(bore.id_number("+") == -1, "a plus alone")
+    assert(bore.id_number(" 1") == -1, "a blank")
+    assert(bore.id_number("0x10") == -1, "hex")
+    assert(bore.id_number("-1") == -1, "a minus")
+    let a = accounts()
+    assert(bore.name_of_user(a, 1001) == "alice", "the first line for an id")
+    assert(bore.user_named(a, "twin") == 3, "a name is its own line")
+    assert(bore.name_of_group(a, 2001) == "crew", "the first group line")
+    assert(bore.name_of_user(a, 4242) == "", "an id with no name")
+    var want = List[int]()
+    (mut want).push(1001)
+    (mut want).push(2000)
+    (mut want).push(2001)
+    (mut want).push(1500)
+    assert(same(bore.groups_of(a, "alice", 1001), want), "login group, then file order, once")
+    var bob = List[int]()
+    (mut bob).push(2000)
+    (mut bob).push(2001)
+    assert(same(bore.groups_of(a, "bob", 2000), bob), "bob")
+    var add = List[int]()
+    bore.add_once(mut add, 3)
+    bore.add_once(mut add, 3)
+    assert(add.len == 1, "add_once")
+    // The spec, as GNU 9.11 reads it (kasumi ~/lanes/bu24/probes/p3.sh, p4.sh).
+    let s1 = bore.owner_spec(a, "alice:pack")
+    assert(s1.uid == 1001 && s1.gid == 2000 && s1.error == "", "alice:pack")
+    let s2 = bore.owner_spec(a, "bob:")
+    assert(s2.uid == 1002 && s2.gid == 2000, "a login group")
+    let s3 = bore.owner_spec(a, "1002:")
+    assert(s3.error == "invalid spec: '1002:'", "a number has no login group")
+    let s4 = bore.owner_spec(a, "alice.pack")
+    assert(s4.gid == 2000 && s4.warning.len > 0, "the old dot")
+    let s5 = bore.owner_spec(a, "dot.ty")
+    assert(s5.uid == 1004 && s5.gid == -1 && s5.warning == "", "a name with a dot")
+    let s6 = bore.owner_spec(a, "alice.nosuch")
+    assert(s6.error == "invalid user: 'alice.nosuch'", "a dot that does not split")
+    let s7 = bore.owner_spec(a, ":nosuch")
+    assert(s7.error == "invalid group: ':nosuch'", "no such group")
+    let s8 = bore.owner_spec(a, "")
+    assert(s8.uid == -1 && s8.gid == -1 && s8.error == "", "nothing")
+    let s9 = bore.owner_spec(a, "4294967295")
+    assert(s9.error == "invalid user: '4294967295'", "-1 is not a user")
+    let g1 = bore.group_spec(a, "+2000")
+    assert(g1.gid == 2000 && g1.group_name == "", "a group by number")
+    let g2 = bore.group_spec(a, "pack")
+    assert(g2.group_name == "pack", "a group by name")
+}

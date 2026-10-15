@@ -109,3 +109,237 @@ fn take_line(mut table: Map[int, str], bytes: List[byte], start: int, end: int) 
     }
     table[id] = name
 }
+
+// ------------------------------------------------------------ accounts
+//
+// bu24: the identity tools need more of the two files than a name for an
+// id — an id for a name, a user's login group, and the groups a user is
+// listed in. `Accounts` keeps every well-formed line, in file order.
+//
+// What the C library answers, measured black-box against GNU 9.11 in a
+// container whose files this lane wrote (`id`, `groups`, `chown`): a name
+// is the FIRST line carrying it, and an id's name is the first line
+// carrying the id (`twin:x:1001:…` after `alice:x:1001:…` makes `id twin`
+// print `uid=1001(alice)`); a user's groups are its login group, then
+// every `/etc/group` line that lists the user by name, in file order, an
+// id already taken not repeated (`id carol` with `crew2:x:2001:carol`
+// prints `2001(crew)`). References consulted: `passwd(5)`, `group(5)`,
+// POSIX.1-2024 `id`. Never any implementation's source.
+
+/// One line of `/etc/passwd`: name, user id, login group id.
+pub struct User {
+    name: str,
+    uid: int,
+    gid: int,
+}
+
+/// One line of `/etc/group`: name, group id, the users it lists.
+pub struct Group {
+    name: str,
+    gid: int,
+    members: List[str],
+}
+
+/// Both files, every line kept, in file order.
+pub struct Accounts {
+    users: List[User],
+    groups: List[Group],
+}
+
+/// Both files, read once. A file that cannot be read holds no line.
+pub fn read_accounts() -> Accounts {
+    var a = Accounts { users: List[User](), groups: List[Group]() }
+    for f in fields_of("/etc/passwd") {
+        if f.len >= 4 {
+            let uid = id_field(f[2])
+            let gid = id_field(f[3])
+            if f[0].len > 0 && uid >= 0 && gid >= 0 {
+                (mut a.users).push(User { name: f[0], uid: uid, gid: gid })
+            }
+        }
+    }
+    for f in fields_of("/etc/group") {
+        if f.len >= 3 {
+            let gid = id_field(f[2])
+            if f[0].len > 0 && gid >= 0 {
+                var members = List[str]()
+                if f.len >= 4 {
+                    members = split_on(f[3], 44)
+                }
+                (mut a.groups).push(Group { name: f[0], gid: gid, members: members })
+            }
+        }
+    }
+    a
+}
+
+/// The index of the first user named `name`, or -1.
+pub fn user_named(a: Accounts, name: str) -> int {
+    var i = 0
+    while i < a.users.len {
+        if a.users[i].name == name {
+            return i
+        }
+        i += 1
+    }
+    -1
+}
+
+/// The index of the first user whose id is `uid`, or -1.
+pub fn user_with_id(a: Accounts, uid: int) -> int {
+    var i = 0
+    while i < a.users.len {
+        if a.users[i].uid == uid {
+            return i
+        }
+        i += 1
+    }
+    -1
+}
+
+/// The index of the first group named `name`, or -1.
+pub fn group_named(a: Accounts, name: str) -> int {
+    var i = 0
+    while i < a.groups.len {
+        if a.groups[i].name == name {
+            return i
+        }
+        i += 1
+    }
+    -1
+}
+
+/// The index of the first group whose id is `gid`, or -1.
+pub fn group_with_id(a: Accounts, gid: int) -> int {
+    var i = 0
+    while i < a.groups.len {
+        if a.groups[i].gid == gid {
+            return i
+        }
+        i += 1
+    }
+    -1
+}
+
+/// The name of user id `uid`, or `""`.
+pub fn name_of_user(a: Accounts, uid: int) -> str {
+    let i = user_with_id(a, uid)
+    if i < 0 {
+        return ""
+    }
+    a.users[i].name
+}
+
+/// The name of group id `gid`, or `""`.
+pub fn name_of_group(a: Accounts, gid: int) -> str {
+    let i = group_with_id(a, gid)
+    if i < 0 {
+        return ""
+    }
+    a.groups[i].name
+}
+
+/// The groups of the user named `name` whose login group is `gid`: `gid`,
+/// then each group that lists `name`, in file order, no id twice.
+pub fn groups_of(a: Accounts, name: str, gid: int) -> List[int] {
+    var out = List[int]()
+    (mut out).push(gid)
+    for g in a.groups {
+        for m in g.members {
+            if m == name {
+                add_once(mut out, g.gid)
+            }
+        }
+    }
+    out
+}
+
+/// Append `id` unless `ids` already holds it.
+pub fn add_once(mut ids: List[int], id: int) {
+    for x in ids {
+        if x == id {
+            return
+        }
+    }
+    (mut ids).push(id)
+}
+
+/// An id as the C library reads one written as a number: an optional
+/// `+`, then decimal digits, `0..=4294967294` (4294967295 is `-1`, "no
+/// id"). -1 for anything else.
+pub fn id_number(text: str) -> int {
+    var s = text
+    if s.starts_with("+") {
+        s = s[1..]
+    }
+    if s.len == 0 {
+        return -1
+    }
+    var n: int = 0
+    for b in s.bytes() {
+        let d = b as int - 48
+        if d < 0 || d > 9 {
+            return -1
+        }
+        n = n * 10 + d
+        if n > 4294967294 {
+            return -1
+        }
+    }
+    n
+}
+
+/// A file's id field: digits only, as the files write them.
+fn id_field(s: str) -> int {
+    if s.starts_with("+") {
+        return -1
+    }
+    id_number(s)
+}
+
+/// Each line of `path` that is UTF-8, split on `:`.
+fn fields_of(path: str) -> List[List[str]] {
+    var out = List[List[str]]()
+    let bytes = fs_read_bytes(path) else |_| {
+        return out
+    }
+    var start = 0
+    while start < bytes.len {
+        var end = start
+        while end < bytes.len && bytes[end] as int != 10 {
+            end += 1
+        }
+        if end > start {
+            var ok = true
+            let line = str_from_utf8(bytes[start..end]) else |_| {
+                ok = false
+                ""
+            }
+            if ok {
+                (mut out).push(split_on(line, 58))
+            }
+        }
+        start = end + 1
+    }
+    out
+}
+
+/// `s` split on the byte `sep`; an empty `s` is no field at all.
+fn split_on(s: str, sep: int) -> List[str] {
+    var out = List[str]()
+    if s.len == 0 {
+        return out
+    }
+    var from = 0
+    var i = 0
+    let b = s.bytes()
+    while i < b.len {
+        if b[i] as int == sep {
+            (mut out).push(s[from..i])
+            from = i + 1
+        }
+        i += 1
+    }
+    (mut out).push(s[from..])
+    out
+}
