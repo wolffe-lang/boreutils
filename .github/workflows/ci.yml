@@ -168,6 +168,29 @@ jobs:
           tools/killtest-selftest --engine none --gnu .gnu-bin/bin
           tools/killtest --engine none --gnu .gnu-bin/bin
 
+      # bu24. `id`, `whoami`, `groups` and `logname` answer for WHO runs
+      # them, and `chown` and `chgrp` change owners: tools/difftest runs
+      # only what changes nothing, and refuses a chown/chgrp case that
+      # names a file. Here: one throwaway container a case, nothing
+      # mounted, no network, the accounts the image's own, each case run
+      # as root and as users of that image, both tiers built static, GNU
+      # 9.11 beside them, every owner and mode read back. The selftest
+      # first: four planted differences must fail by name.
+      - name: the identity tools as root and as users (a throwaway container a case)
+        if: runner.os == 'Linux'
+        run: |
+          tools/idtest-selftest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin
+          tools/idtest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin
+
+      # macOS has no container engine. The runner is itself a throwaway
+      # machine: the `self` cases run on it as its own user, on trees the
+      # case makes in a fresh temporary directory, changing only to ids
+      # and groups that user already has (idtest refuses this mode
+      # anywhere GITHUB_ACTIONS is not true).
+      - name: the identity tools on this runner, as its own user
+        if: runner.os == 'macOS'
+        run: tools/idtest --engine none --gnu .gnu-bin/bin
+
       - name: smoke bench
         run: tools/bench --scale 0.0005 --runs 3
 
