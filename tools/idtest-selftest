@@ -16,31 +16,31 @@ out=$(tools/idtest "$@" --cases tests/ids/selftest.toml 2>&1) && status=0 || sta
 if [ "$status" -ne 1 ]; then
     echo "idtest-selftest: REFUSED — idtest exited $status over the planted"
     echo "idtest-selftest: differences; it must exit 1. Output was:"
-    echo "$out"
+    printf '%s\n' "$out"
     exit 1
 fi
 for planted in "plant: an owner one side changes" \
                "plant: an account one side cannot see" \
                "plant: the actor took" \
                "plant: the terminal and its record reached ours"; do
-    if ! echo "$out" | grep -qF "FAIL $planted"; then
+    if ! printf '%s\n' "$out" | grep -qF "FAIL $planted"; then
         echo "idtest-selftest: REFUSED — the plant '$planted' did not fail:"
-        echo "$out"
+        printf '%s\n' "$out"
         exit 1
     fi
 done
 for said in "release tree:" "release exit: 1, gnu 0" "release stdout: '1001\\n', want '0\\n'" \
             "release stdout: 'alice\\n', want ''"; do
-    if ! echo "$out" | grep -qF "$said"; then
+    if ! printf '%s\n' "$out" | grep -qF "$said"; then
         echo "idtest-selftest: REFUSED — no line says: $said"
-        echo "$out"
+        printf '%s\n' "$out"
         exit 1
     fi
 done
-if ! echo "$out" | grep -qF "ok   control: the actor's own id"; then
+if ! printf '%s\n' "$out" | grep -qF "ok   control: the actor's own id"; then
     echo "idtest-selftest: REFUSED — the control did not pass:"
-    echo "$out"
+    printf '%s\n' "$out"
     exit 1
 fi
-echo "$out" | grep -E '^(FAIL|ok  )'
+printf '%s\n' "$out" | grep -E '^(FAIL|ok  )'
 echo "idtest-selftest: idtest saw every planted difference and passed the control"
