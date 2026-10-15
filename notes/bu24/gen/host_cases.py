@@ -38,7 +38,14 @@ for u in ("root", "0", "+0", "root root", "nosuch-bu24", "", "-", "4294967295",
           "99999999999"):
     args = u.split(" ") if " " in u else [u]
     known = u in ("root", "0", "+0", "root root")
-    case("id", args, **({"accounts": True} if known else {}))
+    extra = {"accounts": True} if known else {}
+    if u == "nosuch-bu24":
+        # Measured on CI's macOS runner (run 38749117948): GNU there says
+        # `'nosuch-bu24': no such user: Invalid argument` — the errno
+        # macOS's getpwnam leaves behind — and not for `''`, `-` or a
+        # number. Not this program's to copy.
+        extra = {"skip_on": {"Darwin": "GNU appends the errno macOS's getpwnam leaves (': Invalid argument'); measured in CI run 38749117948"}}
+    case("id", args, **extra)
     if not u.startswith("+") and not u.isdigit() and " " not in u:
         case("groups", args, **({"accounts": True} if known else {}))
 for f in (["-u"], ["-g"], ["-G"], ["-Gn"], ["-un"]):

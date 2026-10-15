@@ -208,6 +208,7 @@ accounts = true
 [[case]]
 name = "nosuch-bu24"
 args = ["nosuch-bu24"]
+skip_on = { Darwin = "GNU appends the errno macOS's getpwnam leaves (': Invalid argument'); measured in CI run 38749117948" }
 
 [[case]]
 name = "''"
