@@ -354,12 +354,36 @@ wolf-interp): none exists for 1 or 2; 3 and 4 are open.
    (built `--without-selinux`) refuses it; a context-aware `id` needs
    an extended-attribute read (#685).
 
-For the orchestrator, **two boreutils issues, not filed**: (1) `kill -l
-N` (and so `kill PID -l`) on macOS names a signal for some N past 255
-where GNU 9.11 says `invalid signal` — a pid-dependent flake in
-`killtest`'s `placing: {pid0} -l` (run 38751387617, attempt 1); (2) CI's
-macOS runners now differ in their Homebrew coreutils (9.11 and 9.12),
-so boreutils#31's `printf` case goes red on some runs and not others.
+For the orchestrator, **one boreutils issue, not filed**: `kill -l N`
+(and so `kill PID -l`) on macOS names a signal for some N past 255 where
+GNU 9.11 says `invalid signal` — a pid-dependent flake in `killtest`'s
+`placing: {pid0} -l` (run 38751387617, attempt 1).
+
+### Ruling #83 and two drifts on CI's macOS runners (2026-10-15)
+
+- **Homebrew coreutils 9.12.** Runs 38749187354 and 38761140234 (both
+  attempts) drew macOS runners whose Homebrew ships 9.12, so
+  `tools/fetch-oracle` built 9.11 from source for every utility, and
+  that build prints `\u0000` for `printf '\u0000'` where GNU 9.11 on
+  linux and Homebrew's 9.11 print a NUL (boreutils#31). **Ruling #83**
+  (the maintainer, under B44): hold the real NUL. `5cc32ca`:
+  `tools/difftest` gains `oracle_build_differs = { HOST = "why" }`, a
+  named SKIP on that host ONLY when GNU's program is the staged source
+  build (`.gnu-bin/`), and the one `printf` case carries it with the
+  ruling and #31; boreutils' `printf` is unchanged; on linux and against
+  Homebrew's 9.11 the case still runs (kasumi box: `ok printf: \u for a
+  NUL and DEL`, 270 / 0 / 0). Seen as the named skip in run 38777228646
+  (macOS 6,326 / 0 / 319). B44 stands. boreutils#31 closes at merge.
+- **hyperfine 2.0.0.** The same run's macOS runner poured hyperfine
+  2.0.0 (the green run 38751387617 had 1.20.0), and `tools/bench`
+  crashed (`KeyError: 'boreutils'`): 2.0.0 runs a command without a
+  shell unless asked, and its JSON (schema 2) keeps the `-n` name in
+  `name` and the times under `summary.time_wall_clock`. `7b09f02`
+  fix: `--shell default` for 2.x, and both
+  schemas read by name. Measured on kasumi with each version on `cat`,
+  `wc` and `ls`: 36 table rows each (`ev/bench-hyperfine.log`; 2.0.0 is
+  the release's musl binary, sha256 `38e59087bd65…`, read from the
+  release API).
 
 ## 5. Done-when
 
@@ -372,6 +396,7 @@ so boreutils#31's `printf` case goes red on some runs and not others.
 - [x] Static binaries for PAX and their system calls (§4).
 - [x] Plants red in CI (38749187354, 38751408576), on their own branches, never merged.
 - [x] boreutils#28: unmoved, open. boreutils#32: closes at merge, by hand.
-- [x] CI green at `efb51c3` (38751387617); the head's own run and the audit's exit status are in the PR.
+- [x] CI green at `efb51c3` (38751387617); after ruling #83 and the hyperfine fix, the head's own run and the audit's exit status are in the PR.
+- [x] Ruling #83 (boreutils#31): the real NUL held; a named skip only against macOS's source-built oracle.
 - Utility count: **46** of GNU's 103.
-- No issue filed or closed. For the orchestrator: two wolf issues to file (a login-name call; accounts beyond the two files), two boreutils issues (macOS `kill -l N`; the macOS runners' mixed coreutils), and one more sighting of wolf-interp#173.
+- No issue filed or closed (#32 and #31 close at merge, by hand). For the orchestrator: two wolf issues to file (a login-name call; accounts beyond the two files), one boreutils issue (macOS `kill -l N`), and one more sighting of wolf-interp#173.
