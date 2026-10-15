@@ -1,0 +1,5 @@
+# bu24: a `chgrp` case under --reference, which makes every operand a
+# FILE. Neither file exists anywhere.
+[[case]]
+name = "a reference"
+args = ["--reference=bu24-no-such-file", "bu24-no-such-file"]

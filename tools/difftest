@@ -277,6 +277,15 @@ rule. The cases that send are tests/kill/cases.toml and run from
 tools/killtest: one fresh container a case, no network, every target a
 process the case itself started. tests/refuse/kill-* holds the plants.
 
+`chown` AND `chgrp` CHANGE OWNERS, AND THIS HARNESS RUNS ON HOSTS (bu24).
+A case of either is run here only when it names no FILE: its first
+argument is `--help` or `--version`, or it has at most one operand (the
+OWNER or GROUP, so a usage error) and no `--reference` (which makes
+every operand a file). Any other case refuses the whole RUN, status 2.
+The cases that change an owner are tests/ids/cases.toml and run from
+tools/idtest: one fresh container a case, no network, the accounts the
+image's own. tests/refuse/owner-* holds the plants.
+
 And for `kill` the oracle is asserted BY BINARY, not only by version:
 most hosts ship a `kill` that is not GNU coreutils' (procps', or
 util-linux's; a shell's builtin is neither), and coreutils installs its
@@ -611,6 +620,30 @@ def could_signal(args):
             return f"{a!r} is a number, and so could be a process id"
         if "{" in a:
             return f"{a!r} holds a placeholder"
+    return None
+
+
+# What makes a `chown`/`chgrp` case safe on a host (bu24): see the docstring.
+OWNER_SAFE = ("--help", "--version")
+
+
+def could_own(args):
+    """Why this `chown`/`chgrp` case could change an owner, or None."""
+    if args and args[0] in OWNER_SAFE:
+        return None
+    operands = []
+    ended = False
+    for a in args:
+        if "{" in a:
+            return f"{a!r} holds a placeholder"
+        if ended or a == "-" or not a.startswith("-"):
+            operands.append(a)
+        elif a == "--":
+            ended = True
+        elif a.startswith("--ref") or a.startswith("--reference"):
+            return f"{a!r} makes every operand a FILE"
+    if len(operands) >= 2:
+        return f"{operands[1]!r} is a FILE operand"
     return None
 
 
@@ -1091,6 +1124,13 @@ def load(path, util=None):
                 die(f"{path}: refusing case {c.get('name', '?')!r}: {why} "
                     f"(kill sends: such a case belongs to tools/killtest, "
                     f"in a container)")
+    if util in ("chown", "chgrp"):
+        for c in cases:
+            why = could_own([str(a) for a in c.get("args", [])])
+            if why is not None:
+                die(f"{path}: refusing case {c.get('name', '?')!r}: {why} "
+                    f"({util} changes an owner: such a case belongs to "
+                    f"tools/idtest, in a container)")
     for c in cases:
         extra = set(c) - KEYS - {"_changer"}
         if "name" not in c or extra:

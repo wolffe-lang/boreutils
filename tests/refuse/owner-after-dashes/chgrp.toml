@@ -1,0 +1,5 @@
+# bu24: a `chgrp` case whose FILE comes after `--`. The group is in no
+# account file anywhere.
+[[case]]
+name = "after dashes"
+args = ["--", "bu24-no-such-group", "bu24-no-such-file"]

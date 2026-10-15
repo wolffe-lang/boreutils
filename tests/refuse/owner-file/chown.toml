@@ -1,0 +1,6 @@
+# bu24: a `chown` case that names a FILE. Refused as the file operand it
+# is. Were the refusal broken, the user is in no account file anywhere:
+# `invalid user`, and nothing changes.
+[[case]]
+name = "a file"
+args = ["bu24-no-such-user", "bu24-no-such-file"]

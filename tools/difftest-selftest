@@ -76,6 +76,10 @@ echo "difftest-selftest: the harness saw every planted difference"
 # a case of it that could signal a process refuses the run. Each names
 # an id no host has (were the refusal ever broken, GNU's `kill` answers
 # `No such process` and signals nothing).
+#
+# The `owner-*` plants (bu24) are the gate for `chown` and `chgrp`: a
+# case of either that names a FILE refuses the run. Each names a user or
+# group, and files, that no host has.
 for plant in tests/refuse/*/; do
     name=$(basename "$plant")
     out=$(tools/difftest --cases "$plant" 2>&1) && status=0 || status=$?
