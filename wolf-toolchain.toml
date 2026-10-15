@@ -48,6 +48,43 @@
 #     `List[T]()` and pushes, because lupin 0.1.36 refused list
 #     literals, so the literal's element type is unreachable here.
 #
+# ## The bump to 0.2.30 / 0.1.53 (bu24, 2026-10-15)
+#
+# One release on each half, from the release archives by digest, each
+# archive hashed twice from two reads and equal to the release API's
+# digests (kasumi `~/lanes/bu24/ev/archives.log`). `_wolf` keeps
+# a368c8eccce8b1800c80aa818ae482e541aa9636b676540851e23863d333eb8b in
+# all three wolf archives.
+#
+# What a downstream has to read at this bump:
+#
+#   * The reason for it: s236's ids (ruling #78). `os_uid`, `os_euid`,
+#     `os_gid`, `os_egid`, `os_groups` read who a process runs as;
+#     `fs_set_owner(path, uid, gid, follow)` and `fs_set_owner_fd` set
+#     an owner (`-1` leaves one). A later commit on this branch writes
+#     `id`, `whoami`, `groups`, `logname`, `chown` and `chgrp` on them;
+#     the pin commits change no line of `src/`.
+#   * Eleven new prelude names (s236's eight, s234's three terminal
+#     calls): `src/` declares none, so no W0304 under
+#     `--deny-warnings`.
+#   * s233's frame rule for procs (E1010) and s755's crash fix: nothing
+#     here spawns a proc, and no build changed its diagnostics.
+#   * THE ARCHIVE'S `std/` is wolf-std `fd6bcdc` (sc60 + sc61), and
+#     `[std]` moves to it. It has no wrappers for the eleven (wolf-std#65
+#     is a draft), so the builtins are called directly, and
+#     `std.os.users` is not in it: owner and group names stay
+#     boreutils' own reader (`src/bore/ids.lu`).
+#     `tools/fetch-toolchain` still removes the archive's copy first.
+#   * Measured in a throwaway px12-ubuntu container on kasumi, no
+#     network, GNU 9.11 built there from the oracle tarball: trunk at
+#     0.2.29 with std 9e5bd6b, the pin with std 9e5bd6b and the pin with
+#     std fd6bcdc give one verdict list on both tiers, 6252 / 0 / 262,
+#     `4cca7ca46318f541…` (`~/lanes/bu24/ev/gauntlet-trunk-9819e44.log`,
+#     `gauntlet-pin-ecdf2f2.log`, `gauntlet-pin-ecdf2f2-fd6bcdc.log`),
+#     bu23's list at its head. B151: both stds build all 40 on both
+#     tiers with no diagnostic. All 80 binaries differ from 0.2.29's;
+#     40 of 80 differ between the two stds.
+#
 # ## The bump to 0.2.29 / 0.1.52 (bu23, 2026-10-13)
 #
 # One release on each half, taken from the release archives by digest
