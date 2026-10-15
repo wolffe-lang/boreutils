@@ -1,0 +1,333 @@
+//! member: false
+//!
+//! id — print the user and group ids of this process, or of a user.
+//!
+//! References consulted: POSIX.1-2024 `id`; GNU coreutils 9.11 `id
+//! --help` and the info manual's `id invocation` node; `passwd(5)` and
+//! `group(5)`; black-box runs of GNU's binary (built from the oracle
+//! tarball) in throwaway `--network none` containers whose accounts this
+//! lane defined, as root, as users, and under split real and effective
+//! ids (kasumi `~/lanes/bu24/probes/p1.sh`), under `LC_ALL=C`. Never GNU
+//! source, nor the C library's, nor any other implementation's.
+//!
+//! GNU's rules, each measured against 9.11:
+//!
+//! - No option: `uid=U(name) gid=G(name)`, then ` euid=…` when the
+//!   effective user id is not the real one and ` egid=…` likewise, then
+//!   ` groups=` and the list joined by commas. An id with no name is its
+//!   number bare, silently. The process's list is the effective group,
+//!   then every group `getgroups` answers, no id twice; a USER's list
+//!   is its login group, then each group naming it (`bore.groups_of`).
+//! - `-u`, `-g`, `-G` print one thing: the effective user or group id
+//!   (`-r` the real one), or every group — for the process the REAL
+//!   group, the effective one, then the list, no id twice. `-n` names
+//!   each; an id with no name prints as its number, says `cannot find
+//!   name for user ID N` (or `group ID`) and makes the status 1. Entries
+//!   are separated by a space and the line ends in a newline; `-z` ends
+//!   EACH entry with a NUL instead, and under `-Gz` with more than one
+//!   USER each user's list ends with one more.
+//! - Refusals, each status 1: `-Z` (this oracle is built without SELinux:
+//!   `--context (-Z) works only on an SELinux-enabled kernel`); two of
+//!   `-u -g -G` (`cannot print "only" of more than one choice`); `-n` or
+//!   `-r` without one (`printing only names or real IDs requires -u, -g,
+//!   or -G`); `-z` without one (`option --zero not permitted in default
+//!   format`). `-a` is accepted and ignored.
+//! - A USER operand is a name, or else a number (`+` allowed) naming the
+//!   first line with that id; one with neither is `'X': no such user`,
+//!   status 1, and the next operand is still printed. Each user is one
+//!   line.
+//!
+//! **What this cannot see:** any account outside `/etc/passwd` and
+//! `/etc/group` (LDAP, NIS, systemd's dynamic users, macOS's directory
+//! service, which keeps every ordinary account on a Mac): such a user is
+//! `no such user` here, and such an id prints as a number.
+
+use bore
+
+struct Cfg {
+    user: bool,
+    group: bool,
+    groups: bool,
+    name: bool,
+    real: bool,
+    zero: bool,
+}
+
+fn main() -> int {
+    let p = bore.parse(options(), env_args(), bore.permute())
+    var out = bore.stdout()
+    var c = Cfg { user: false, group: false, groups: false, name: false, real: false, zero: false }
+    var context = false
+    var k = 0
+    while k < p.keys.len {
+        let key = p.keys[k]
+        if key == "help" {
+            bore.put(mut out, help()) else |_| {}
+            return bore.finish(mut out, "id", 0)
+        }
+        if key == "version" {
+            bore.put(mut out, bore.version_text("id")) else |_| {}
+            return bore.finish(mut out, "id", 0)
+        }
+        if key == "user" {
+            c.user = true
+        } else if key == "group" {
+            c.group = true
+        } else if key == "groups" {
+            c.groups = true
+        } else if key == "name" {
+            c.name = true
+        } else if key == "real" {
+            c.real = true
+        } else if key == "zero" {
+            c.zero = true
+        } else if key == "context" {
+            context = true
+        }
+        k += 1
+    }
+    if !bore.ok(p) {
+        return bore.usage_error("id", p.error)
+    }
+    if context {
+        bore.warn("id", "--context (-Z) works only on an SELinux-enabled kernel")
+        return 1
+    }
+    var only = 0
+    if c.user {
+        only += 1
+    }
+    if c.group {
+        only += 1
+    }
+    if c.groups {
+        only += 1
+    }
+    if only > 1 {
+        bore.warn("id", "cannot print \"only\" of more than one choice")
+        return 1
+    }
+    if only == 0 && (c.name || c.real) {
+        bore.warn("id", "printing only names or real IDs requires -u, -g, or -G")
+        return 1
+    }
+    if only == 0 && c.zero {
+        bore.warn("id", "option --zero not permitted in default format")
+        return 1
+    }
+    let a = bore.read_accounts()
+    var status = 0
+    if p.operands.len == 0 {
+        let ruid = os_uid() else |_| {
+            return refused(mut out)
+        }
+        let euid = os_euid() else |_| {
+            return refused(mut out)
+        }
+        let rgid = os_gid() else |_| {
+            return refused(mut out)
+        }
+        let egid = os_egid() else |_| {
+            return refused(mut out)
+        }
+        let host = os_groups() else |_| {
+            return refused(mut out)
+        }
+        // `-G`: the real group, the effective one, then the host's list;
+        // the default format: the effective group, then the list.
+        var every = List[int]()
+        if c.groups {
+            (mut every).push(rgid)
+        }
+        bore.add_once(mut every, egid)
+        for g in host {
+            bore.add_once(mut every, g)
+        }
+        if !show(mut out, c, a, ruid, euid, rgid, egid, every) {
+            status = 1
+        }
+        return bore.finish(mut out, "id", status)
+    }
+    for who in p.operands {
+        var i = bore.user_named(a, who)
+        if i < 0 {
+            let n = bore.id_number(who)
+            if n >= 0 {
+                i = bore.user_with_id(a, n)
+            }
+        }
+        if i < 0 {
+            bore.warn("id", "{bore.quote(who)}: no such user")
+            status = 1
+            continue
+        }
+        let u = copy a.users[i]
+        let every = bore.groups_of(a, u.name, u.gid)
+        if !show(mut out, c, a, u.uid, u.uid, u.gid, u.gid, every) {
+            status = 1
+        }
+        // Measured: `-Gz` with more than one USER ends each user's list
+        // with one more NUL; `-uz` and `-gz` do not.
+        if c.groups && c.zero && p.operands.len > 1 {
+            bore.put_byte(mut out, 0 as byte) else |_| {}
+        }
+    }
+    bore.finish(mut out, "id", status)
+}
+
+/// The five reads answered `unsupported` (a host without ids: windows).
+fn refused(mut out: bore.Out) -> int {
+    bore.warn("id", "this host has no user or group ids for wolf to read")
+    bore.finish(mut out, "id", 1)
+}
+
+/// Print one line for these ids. Answers false when `-n` met an id with
+/// no name.
+fn show(
+    mut out: bore.Out,
+    c: Cfg,
+    a: bore.Accounts,
+    ruid: int,
+    euid: int,
+    rgid: int,
+    egid: int,
+    every: List[int],
+) -> bool {
+    var ok = true
+    if c.user || c.group {
+        var id = 0
+        if c.user {
+            id = euid
+            if c.real {
+                id = ruid
+            }
+        } else {
+            id = egid
+            if c.real {
+                id = rgid
+            }
+        }
+        if !one(mut out, c, a, id, c.user) {
+            ok = false
+        }
+        end_entry(mut out, c)
+        if !c.zero {
+            bore.put(mut out, "\n") else |_| {}
+        }
+        return ok
+    }
+    if c.groups {
+        var first = true
+        for g in every {
+            if !first && !c.zero {
+                bore.put(mut out, " ") else |_| {}
+            }
+            first = false
+            if !one(mut out, c, a, g, false) {
+                ok = false
+            }
+            end_entry(mut out, c)
+        }
+        if !c.zero {
+            bore.put(mut out, "\n") else |_| {}
+        }
+        return ok
+    }
+    bore.put(mut out, "uid={labelled(bore.name_of_user(a, ruid), ruid)}") else |_| {}
+    bore.put(mut out, " gid={labelled(bore.name_of_group(a, rgid), rgid)}") else |_| {}
+    if euid != ruid {
+        bore.put(mut out, " euid={labelled(bore.name_of_user(a, euid), euid)}") else |_| {}
+    }
+    if egid != rgid {
+        bore.put(mut out, " egid={labelled(bore.name_of_group(a, egid), egid)}") else |_| {}
+    }
+    bore.put(mut out, " groups=") else |_| {}
+    var first = true
+    for g in every {
+        if !first {
+            bore.put(mut out, ",") else |_| {}
+        }
+        first = false
+        bore.put(mut out, labelled(bore.name_of_group(a, g), g)) else |_| {}
+    }
+    bore.put(mut out, "\n") else |_| {}
+    ok
+}
+
+/// `-z` ends each entry with a NUL.
+fn end_entry(mut out: bore.Out, c: Cfg) {
+    if c.zero {
+        bore.put_byte(mut out, 0 as byte) else |_| {}
+    }
+}
+
+/// One id, by name under `-n`. Answers false for a name that is missing.
+fn one(mut out: bore.Out, c: Cfg, a: bore.Accounts, id: int, user: bool) -> bool {
+    if !c.name {
+        bore.put(mut out, "{id}") else |_| {}
+        return true
+    }
+    var name = ""
+    if user {
+        name = bore.name_of_user(a, id)
+    } else {
+        name = bore.name_of_group(a, id)
+    }
+    if name.len > 0 {
+        bore.put(mut out, name) else |_| {}
+        return true
+    }
+    if user {
+        bore.warn("id", "cannot find name for user ID {id}")
+    } else {
+        bore.warn("id", "cannot find name for group ID {id}")
+    }
+    bore.put(mut out, "{id}") else |_| {}
+    false
+}
+
+/// `1001(alice)`, or `4242` for an id with no name.
+fn labelled(name: str, id: int) -> str {
+    if name.len == 0 {
+        return "{id}"
+    }
+    "{id}({name})"
+}
+
+fn options() -> List[bore.Opt] {
+    var s = List[bore.Opt]()
+    (mut s).push(bore.flag("a", ""))
+    (mut s).push(bore.flag("Z", "context"))
+    (mut s).push(bore.flag("g", "group"))
+    (mut s).push(bore.flag("G", "groups"))
+    (mut s).push(bore.flag("n", "name"))
+    (mut s).push(bore.flag("r", "real"))
+    (mut s).push(bore.flag("u", "user"))
+    (mut s).push(bore.flag("z", "zero"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    s
+}
+
+fn help() -> str {
+    """
+    Usage: id [OPTION]... [USER]...
+    Print the user and group ids of each USER, or of this process when
+    no USER is named.
+
+      -a             accepted, and does nothing
+      -Z, --context  refused: no security context is kept
+      -g, --group    only the effective group id
+      -G, --groups   every group id
+      -n, --name     a name for each id, with -u, -g or -G
+      -r, --real     the real id, with -u, -g or -G
+      -u, --user     only the effective user id
+      -z, --zero     end each entry with NUL, with -u, -g or -G
+          --help     print this help and exit
+          --version  print the version and exit
+
+    Names come from /etc/passwd and /etc/group.
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}

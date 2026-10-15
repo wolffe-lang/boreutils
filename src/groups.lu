@@ -1,0 +1,126 @@
+//! member: false
+//!
+//! groups — print the groups a user is in.
+//!
+//! References consulted: GNU coreutils 9.11 `groups --help` and the info
+//! manual's `groups invocation` node (groups is not in POSIX); black-box
+//! runs of GNU's binary in throwaway containers whose accounts this lane
+//! defined (kasumi `~/lanes/bu24/probes/p1.sh`), under `LC_ALL=C`. Never
+//! GNU source.
+//!
+//! GNU's rules, measured against 9.11:
+//!
+//! - No operand: the process's groups by name, as `id -Gn` prints them
+//!   (the real group, the effective one, then `getgroups`, no id twice).
+//! - Each USERNAME: `NAME : g1 g2 …`, its login group, then each group
+//!   naming it. A user is found by NAME only — `groups 1002` is `'1002':
+//!   no such user`, where `id 1002` finds the user — and one not found
+//!   is that, status 1, the next still printed.
+//! - A group with no name prints as its number and says `cannot find
+//!   name for group ID N`, status 1.
+
+use bore
+
+fn main() -> int {
+    let p = bore.parse(options(), env_args(), bore.permute())
+    var out = bore.stdout()
+    for key in p.keys {
+        if key == "help" {
+            bore.put(mut out, help()) else |_| {}
+            return bore.finish(mut out, "groups", 0)
+        }
+        if key == "version" {
+            bore.put(mut out, bore.version_text("groups")) else |_| {}
+            return bore.finish(mut out, "groups", 0)
+        }
+    }
+    if !bore.ok(p) {
+        return bore.usage_error("groups", p.error)
+    }
+    let a = bore.read_accounts()
+    var status = 0
+    if p.operands.len == 0 {
+        let rgid = os_gid() else |_| {
+            return refused(mut out)
+        }
+        let egid = os_egid() else |_| {
+            return refused(mut out)
+        }
+        let host = os_groups() else |_| {
+            return refused(mut out)
+        }
+        var every = List[int]()
+        (mut every).push(rgid)
+        bore.add_once(mut every, egid)
+        for g in host {
+            bore.add_once(mut every, g)
+        }
+        if !names(mut out, a, every) {
+            status = 1
+        }
+        return bore.finish(mut out, "groups", status)
+    }
+    for who in p.operands {
+        let i = bore.user_named(a, who)
+        if i < 0 {
+            bore.warn("groups", "{bore.quote(who)}: no such user")
+            status = 1
+            continue
+        }
+        let u = copy a.users[i]
+        bore.put(mut out, "{who} : ") else |_| {}
+        if !names(mut out, a, bore.groups_of(a, u.name, u.gid)) {
+            status = 1
+        }
+    }
+    bore.finish(mut out, "groups", status)
+}
+
+fn refused(mut out: bore.Out) -> int {
+    bore.warn("groups", "this host has no group ids for wolf to read")
+    bore.finish(mut out, "groups", 1)
+}
+
+/// The groups `ids` by name, one line. False when one has no name.
+fn names(mut out: bore.Out, a: bore.Accounts, ids: List[int]) -> bool {
+    var ok = true
+    var first = true
+    for g in ids {
+        if !first {
+            bore.put(mut out, " ") else |_| {}
+        }
+        first = false
+        let name = bore.name_of_group(a, g)
+        if name.len == 0 {
+            bore.warn("groups", "cannot find name for group ID {g}")
+            bore.put(mut out, "{g}") else |_| {}
+            ok = false
+        } else {
+            bore.put(mut out, name) else |_| {}
+        }
+    }
+    bore.put(mut out, "\n") else |_| {}
+    ok
+}
+
+fn options() -> List[bore.Opt] {
+    var s = List[bore.Opt]()
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    s
+}
+
+fn help() -> str {
+    """
+    Usage: groups [OPTION]... [USERNAME]...
+    Print the groups each USERNAME is in, or those of this process when
+    no USERNAME is named.
+
+          --help     print this help and exit
+          --version  print the version and exit
+
+    Names come from /etc/passwd and /etc/group.
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}

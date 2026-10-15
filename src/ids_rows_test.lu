@@ -1,0 +1,50 @@
+//! The id builtins as the identity tools rely on them (bu24), asked of
+//! this process. **Nothing here changes an id or an owner**: the five
+//! reads, and `fs_set_owner`'s refusals that come before the host is
+//! asked (an id out of range) or that name no file.
+//!
+//! lupin refuses the five reads by name (ruling #78: no `getuid` without
+//! `unsafe`), so this file is `unsupported` there; the pure reader and
+//! the spec are `ids_test.lu`, which it runs.
+
+fn owner_row(path: str, uid: int, gid: int) -> str {
+    var said = "ok"
+    fs_set_owner(path, uid, gid, true) else |e| match e {
+        not_found => {
+            said = "not_found"
+        },
+        denied => {
+            said = "denied"
+        },
+        invalid => {
+            said = "invalid"
+        },
+        unsupported => {
+            said = "unsupported"
+        },
+        io => {
+            said = "io"
+        },
+    }
+    said
+}
+
+fn main() {
+    let uid = os_uid() else -1
+    let euid = os_euid() else -1
+    let gid = os_gid() else -1
+    let egid = os_egid() else -1
+    assert(uid >= 0 && uid <= 4294967294, "a real user id")
+    assert(euid >= 0 && euid <= 4294967294, "an effective user id")
+    assert(gid >= 0 && egid >= 0, "the group ids")
+    let groups = os_groups() else List[int]()
+    for g in groups {
+        assert(g >= 0 && g <= 4294967294, "each group an id")
+    }
+    // The shape rows, before the host is asked: nothing is touched.
+    assert(owner_row("bu24-no-such-file", -2, -1) == "invalid", "an id below -1")
+    assert(owner_row("bu24-no-such-file", 4294967295, -1) == "invalid", "-1 spelled unsigned")
+    assert(owner_row("bu24-no-such-file", -1, 4294967296) == "invalid", "a group out of range")
+    // A path that names nothing.
+    assert(owner_row("bu24-no-such-dir/bu24-no-such-file", -1, -1) == "not_found", "no such file")
+}

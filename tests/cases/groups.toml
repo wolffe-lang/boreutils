@@ -1,0 +1,60 @@
+# tests/cases/groups.toml — written by notes/bu24/gen/host_cases.py.
+# Run on a HOST by tools/difftest, as whoever runs it: nothing here
+# changes an owner (tools/difftest refuses a chown/chgrp case naming
+# a file). As root and as other users: tests/ids/, tools/idtest.
+
+[[case]]
+name = "root"
+args = ["root"]
+accounts = true
+
+[[case]]
+name = "nosuch-bu24"
+args = ["nosuch-bu24"]
+
+[[case]]
+name = "''"
+args = [""]
+
+[[case]]
+name = "-"
+args = ["-"]
+
+[[case]]
+name = "(none)"
+args = []
+accounts = true
+
+[[case]]
+name = "0"
+args = ["0"]
+
+[[case]]
+name = "-- root"
+args = ["--", "root"]
+accounts = true
+
+[[case]]
+name = "root nosuch-bu24"
+args = ["root", "nosuch-bu24"]
+accounts = true
+
+[[case]]
+name = "-x"
+args = ["-x"]
+
+[[case]]
+name = "--help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "--version"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "(none) >&-"
+args = []
+stdout_closed = true
+accounts = true

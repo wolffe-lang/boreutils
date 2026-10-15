@@ -1,0 +1,287 @@
+# tests/cases/id.toml — written by notes/bu24/gen/host_cases.py.
+# Run on a HOST by tools/difftest, as whoever runs it: nothing here
+# changes an owner (tools/difftest refuses a chown/chgrp case naming
+# a file). As root and as other users: tests/ids/, tools/idtest.
+
+[[case]]
+name = "(none)"
+args = []
+accounts = true
+
+[[case]]
+name = "-a"
+args = ["-a"]
+accounts = true
+
+[[case]]
+name = "-u"
+args = ["-u"]
+
+[[case]]
+name = "-ur"
+args = ["-ur"]
+
+[[case]]
+name = "-g"
+args = ["-g"]
+
+[[case]]
+name = "-gr"
+args = ["-gr"]
+
+[[case]]
+name = "-G"
+args = ["-G"]
+
+[[case]]
+name = "-Gr"
+args = ["-Gr"]
+
+[[case]]
+name = "-uz"
+args = ["-uz"]
+
+[[case]]
+name = "-gz"
+args = ["-gz"]
+
+[[case]]
+name = "-Gz"
+args = ["-Gz"]
+
+[[case]]
+name = "--user"
+args = ["--user"]
+
+[[case]]
+name = "--group --real"
+args = ["--group", "--real"]
+
+[[case]]
+name = "--groups --zero"
+args = ["--groups", "--zero"]
+
+[[case]]
+name = "-un"
+args = ["-un"]
+accounts = true
+
+[[case]]
+name = "-urn"
+args = ["-urn"]
+accounts = true
+
+[[case]]
+name = "-gn"
+args = ["-gn"]
+accounts = true
+
+[[case]]
+name = "-grn"
+args = ["-grn"]
+accounts = true
+
+[[case]]
+name = "-Gn"
+args = ["-Gn"]
+accounts = true
+
+[[case]]
+name = "-Grn"
+args = ["-Grn"]
+accounts = true
+
+[[case]]
+name = "-Gnz"
+args = ["-Gnz"]
+accounts = true
+
+[[case]]
+name = "-unz"
+args = ["-unz"]
+accounts = true
+
+[[case]]
+name = "-n"
+args = ["-n"]
+
+[[case]]
+name = "-r"
+args = ["-r"]
+
+[[case]]
+name = "-z"
+args = ["-z"]
+
+[[case]]
+name = "-nz"
+args = ["-nz"]
+
+[[case]]
+name = "-rz"
+args = ["-rz"]
+
+[[case]]
+name = "-ug"
+args = ["-ug"]
+
+[[case]]
+name = "-uG"
+args = ["-uG"]
+
+[[case]]
+name = "-Gg"
+args = ["-Gg"]
+
+[[case]]
+name = "-ugG"
+args = ["-ugG"]
+
+[[case]]
+name = "-ugn"
+args = ["-ugn"]
+
+[[case]]
+name = "-ugz"
+args = ["-ugz"]
+
+[[case]]
+name = "-Z"
+args = ["-Z"]
+
+[[case]]
+name = "-Zu"
+args = ["-Zu"]
+
+[[case]]
+name = "-uZ"
+args = ["-uZ"]
+
+[[case]]
+name = "--context"
+args = ["--context"]
+
+[[case]]
+name = "-x"
+args = ["-x"]
+
+[[case]]
+name = "--us"
+args = ["--us"]
+
+[[case]]
+name = "--na"
+args = ["--na"]
+
+[[case]]
+name = "-n nosuch-bu24"
+args = ["-n", "nosuch-bu24"]
+
+[[case]]
+name = "-z root"
+args = ["-z", "root"]
+
+[[case]]
+name = "--frob"
+args = ["--frob"]
+
+[[case]]
+name = "root"
+args = ["root"]
+accounts = true
+
+[[case]]
+name = "0"
+args = ["0"]
+accounts = true
+
+[[case]]
+name = "+0"
+args = ["+0"]
+accounts = true
+
+[[case]]
+name = "root root"
+args = ["root", "root"]
+accounts = true
+
+[[case]]
+name = "nosuch-bu24"
+args = ["nosuch-bu24"]
+
+[[case]]
+name = "''"
+args = [""]
+
+[[case]]
+name = "-"
+args = ["-"]
+
+[[case]]
+name = "4294967295"
+args = ["4294967295"]
+
+[[case]]
+name = "99999999999"
+args = ["99999999999"]
+
+[[case]]
+name = "-u root"
+args = ["-u", "root"]
+accounts = true
+
+[[case]]
+name = "-g root"
+args = ["-g", "root"]
+accounts = true
+
+[[case]]
+name = "-G root"
+args = ["-G", "root"]
+accounts = true
+
+[[case]]
+name = "-Gn root"
+args = ["-Gn", "root"]
+accounts = true
+
+[[case]]
+name = "-un root"
+args = ["-un", "root"]
+accounts = true
+
+[[case]]
+name = "root nosuch-bu24"
+args = ["root", "nosuch-bu24"]
+accounts = true
+
+[[case]]
+name = "nosuch-bu24 root"
+args = ["nosuch-bu24", "root"]
+accounts = true
+
+[[case]]
+name = "--help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "--version"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "(none) >&-"
+args = []
+stdout_closed = true
+accounts = true
+
+[[case]]
+name = "-u >&-"
+args = ["-u"]
+stdout_closed = true
+
+[[case]]
+name = "-u > /dev/full"
+args = ["-u"]
+stdout_file = "/dev/full"

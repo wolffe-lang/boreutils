@@ -1,0 +1,70 @@
+//! member: false
+//!
+//! whoami — print the name of the effective user.
+//!
+//! References consulted: GNU coreutils 9.11 `whoami --help` and the
+//! info manual's `whoami invocation` node (whoami is not in POSIX);
+//! black-box runs of GNU's binary in throwaway containers, as root and
+//! as users the container defined (kasumi `~/lanes/bu24/probes/p1.sh`),
+//! under `LC_ALL=C`. Never GNU source.
+//!
+//! GNU's rules, measured against 9.11: the effective user's name and a
+//! newline; an id with no name is `cannot find name for user ID N`,
+//! status 1, nothing on standard output; an operand is `extra operand
+//! 'X'`, a usage error. The name is the first `/etc/passwd` line with
+//! the id (`bore.read_accounts`), so a user kept anywhere else (macOS's
+//! directory service, LDAP) has no name here.
+
+use bore
+
+fn main() -> int {
+    let p = bore.parse(options(), env_args(), bore.permute())
+    var out = bore.stdout()
+    for key in p.keys {
+        if key == "help" {
+            bore.put(mut out, help()) else |_| {}
+            return bore.finish(mut out, "whoami", 0)
+        }
+        if key == "version" {
+            bore.put(mut out, bore.version_text("whoami")) else |_| {}
+            return bore.finish(mut out, "whoami", 0)
+        }
+    }
+    if !bore.ok(p) {
+        return bore.usage_error("whoami", p.error)
+    }
+    if p.operands.len > 0 {
+        return bore.usage_error("whoami", "extra operand {bore.quote(p.operands[0])}")
+    }
+    let euid = os_euid() else |_| {
+        bore.warn("whoami", "this host has no user ids for wolf to read")
+        return bore.finish(mut out, "whoami", 1)
+    }
+    let name = bore.name_of_user(bore.read_accounts(), euid)
+    if name.len == 0 {
+        bore.warn("whoami", "cannot find name for user ID {euid}")
+        return bore.finish(mut out, "whoami", 1)
+    }
+    bore.put(mut out, "{name}\n") else |_| {}
+    bore.finish(mut out, "whoami", 0)
+}
+
+fn options() -> List[bore.Opt] {
+    var s = List[bore.Opt]()
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    s
+}
+
+fn help() -> str {
+    """
+    Usage: whoami [OPTION]...
+    Print the name of the user this process runs as (its effective
+    user id), as id -un does.
+
+          --help     print this help and exit
+          --version  print the version and exit
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}

@@ -1,0 +1,51 @@
+# tests/cases/whoami.toml — written by notes/bu24/gen/host_cases.py.
+# Run on a HOST by tools/difftest, as whoever runs it: nothing here
+# changes an owner (tools/difftest refuses a chown/chgrp case naming
+# a file). As root and as other users: tests/ids/, tools/idtest.
+
+[[case]]
+name = "(none)"
+args = []
+accounts = true
+
+[[case]]
+name = "x"
+args = ["x"]
+
+[[case]]
+name = "x y"
+args = ["x", "y"]
+
+[[case]]
+name = "-x"
+args = ["-x"]
+
+[[case]]
+name = "--"
+args = ["--"]
+accounts = true
+
+[[case]]
+name = "-- x"
+args = ["--", "x"]
+
+[[case]]
+name = "--help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "--version"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "--he"
+args = ["--he"]
+compare = ["exit"]
+
+[[case]]
+name = "(none) >&-"
+args = []
+stdout_closed = true
+accounts = true
