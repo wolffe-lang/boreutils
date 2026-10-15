@@ -1,0 +1,501 @@
+#!/usr/bin/env python3
+"""idtest - the identity tools as root and as users, where it is safe (bu24).
+
+`id`, `whoami`, `groups` and `logname` answer for WHO runs them, and
+`chown` and `chgrp` change who owns a file. Neither can be measured on a
+shared host: this lane may not run as another user there or change an
+owner there. So every case here runs in a THROWAWAY CONTAINER, one per
+case, made from an image this tool builds and removes again:
+
+  - no volume and no bind mount, of anything; `--network none`;
+  - the ACCOUNTS are the image's own: the users and groups below are
+    written into its /etc/passwd and /etc/group, and exist nowhere else;
+  - each case starts as the container's root, lays out a tree under
+    /work (owners, set-ID bits, links), and runs the program as the
+    case's ACTOR — root, or a user of the image, by `setpriv`;
+  - three sides in turn, each on a fresh tree: GNU coreutils 9.11's own
+    binary (--gnu DIR, asserted by its --version line) and this
+    repository's on both tiers, built static so they run in any image.
+
+A case passes when each of ours answers as GNU did, on four fields:
+
+  exit    the exit status
+  stdout  byte for byte
+  stderr  byte for byte
+  tree    every entry under /work after the run: owner, group, mode
+          bits (the host clears set-ID bits when an owner changes) and
+          kind, a link's own (compared for chown and chgrp only)
+
+Case file (tests/ids/cases.toml), any number of [[case]] tables:
+
+  name = "chown: a user by name"   # required, unique
+  util = "chown"                   # id whoami groups logname chown chgrp
+  args = ["-v", "alice", "f"]
+  as = "alice"                     # the actor (default root); ACTORS below
+  setup = "chmod 0700 d"           # shell run as root in /work after the
+                                   #   tree is laid out, before the program
+  tty = true                       # standard INPUT is a terminal (`script`)
+  utmp = [[7, "{tty}", "alice"]]   # records written to /var/run/utmp
+                                   #   first: type, line, user; `{tty}` is
+                                   #   the terminal's line (`pts/0`)
+  env = { POSIXLY_CORRECT = "1" }
+  compare = ["exit", "stderr"]     # the fields compared (default all)
+  ours = { exit = 1, stdout = "" } # where this repository answers
+                                   #   differently BY DESIGN; asserted of
+                                   #   both tiers in place of GNU's
+  expect = { exit = 1 }            # what GNU answers, measured, for a
+                                   #   case with `ours`
+  gnu_sub = true                   # GNU's `failed to change … from OLD to`
+                                   #   says an UNINITIALIZED record's ids
+                                   #   for a link to nothing it was asked
+                                   #   to follow (a different user id each
+                                   #   run; the group word reads 0, so
+                                   #   `root`); on GNU's side ` from OLD`
+                                   #   is cut from every `failed to
+                                   #   change` line before comparing, and
+                                   #   ours never prints one there. Any
+                                   #   other failure line in such a case
+                                   #   still differs, so nothing hides
+  self = true                      # also safe on a throwaway machine with
+                                   #   no engine (`--engine none`): the
+                                   #   actor is that machine's own user
+                                   #   and the tree is the case's own
+  skip = "reason"
+
+WITHOUT AN ENGINE (`--engine none`) only `self` cases run, as the
+machine's own user, on a tree under a fresh temporary directory, with
+`{uid}`, `{gid}` and `{g2}` (this user's id, its group, and a second
+group it is in) in `args`. That is for CI's macOS runner, a machine that
+exists for one job; the tool refuses it anywhere `GITHUB_ACTIONS` is not
+`true`, so it never changes an owner on a machine anyone keeps.
+
+usage: tools/idtest [--engine docker|podman|none] [--image IMAGE]
+                    [--bin DIR] [--gnu DIR] [--gnu-prefix P]
+                    [--cases FILE] [--record] [NAME-SUBSTRING...]
+
+Exit status: 0 every case passed, 1 a case failed, 2 the tool could not
+run (no engine, no image, a program that is not there, a malformed case).
+"""
+
+import os
+import platform
+import re
+import shlex
+import shutil
+import subprocess
+import sys
+import tempfile
+import tomllib
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CASES = os.path.join(ROOT, "tests", "ids", "cases.toml")
+TIERS = (("release", ["--release"]), ("dev", []))
+UTILS = ("id", "whoami", "groups", "logname", "chown", "chgrp")
+KEYS = {"name", "util", "args", "as", "setup", "tty", "utmp", "env",
+        "compare", "ours", "expect", "self", "skip", "gnu_sub"}
+FIELDS = ("exit", "stdout", "stderr", "tree")
+
+# The accounts, the image's own. alice is in two groups and in zeta, a
+# group with a LOWER id listed later; bob's login group is pack; carol is
+# named by a second line for crew's id (crew2) and pack's (pack2); twin
+# repeats alice's id; dot.ty has a dot in its name; ghost is a group no
+# user is in; 4242 and 4243 are ids nothing names.
+ACCOUNTS = r"""groupadd -g 2000 pack && groupadd -g 2001 crew && groupadd -g 2002 empty \
+ && useradd -M -u 1001 -U alice && useradd -M -u 1002 -g pack bob \
+ && useradd -M -u 1003 -U carol && useradd -M -u 1004 -U dot.ty \
+ && groupadd -g 1500 zeta \
+ && usermod -aG pack,crew,zeta alice && usermod -aG crew bob \
+ && echo 'ghost:x:3000:' >> /etc/group \
+ && echo 'twin:x:1001:1001::/:/bin/sh' >> /etc/passwd \
+ && echo 'crew2:x:2001:carol' >> /etc/group \
+ && echo 'pack2:x:2000:carol,bob' >> /etc/group"""
+
+ACTORS = {
+    "root": "",
+    "rootgroups": "setpriv --groups 4,27,2000",
+    "alice": "setpriv --reuid alice --regid alice --init-groups",
+    "bob": "setpriv --reuid bob --regid pack --init-groups",
+    "carol": "setpriv --reuid carol --regid carol --init-groups",
+    "dotty": "setpriv --reuid dot.ty --regid dot.ty --init-groups",
+    "nobody": "setpriv --reuid 4242 --regid 4242 --clear-groups",
+    "gid4242": "setpriv --reuid alice --regid 4242 --groups 3000,4243,2000",
+    "split": "setpriv --ruid alice --euid bob --rgid alice --egid pack --groups 2001",
+    "splitg": "setpriv --ruid alice --euid alice --rgid alice --egid crew --groups 2000,1001,2000",
+    "nogroups": "setpriv --reuid alice --regid alice --clear-groups",
+    "twin": "setpriv --reuid 1001 --regid 1001 --groups 1500",
+}
+
+# The tree every case starts from, made by root in /work.
+TREE = r"""
+mkdir -p d/e && echo f > f && echo g > g && echo x > d/x && echo y > d/e/y
+ln -s f l && ln -s d dl && ln -s nowhere dang && ln -s .. d/up && ln -s ../f d/lf
+chown alice:alice g && chown -h bob:pack l && chown alice:pack d/e
+chmod 4755 f && chmod 2755 g
+"""
+
+SIDE = r"""
+side() {
+  who=$1
+  rm -rf /work; mkdir /work; cd /work || exit 97
+  %(tree)s
+  %(setup)s
+  rm -f /var/run/utmp /tmp/o /tmp/e /tmp/rc
+  P=/t/bin/$who
+  RUN=$(printf '%%s' "$RUNT" | sed "s|@P@|$P|")
+  if [ -n "%(tty)s" ]; then
+    # One terminal session: its line is read, the records written (as
+    # root), and the program run as the actor with that terminal on 0.
+    printf '%%s\n' "$TTYPRE" "$RUN; echo \$? > /tmp/rc" > /tmp/run.sh
+    script -qec 'sh /tmp/run.sh' /dev/null > /dev/null 2>&1 < /dev/null
+    rc=$(cat /tmp/rc 2>/dev/null || echo 98)
+  else
+    sh -c "$RUN" < /dev/null
+    rc=$?
+  fi
+  cd /work
+  echo "@$who status $rc"
+  echo "@$who out $(od -An -v -tx1 /tmp/o | tr -d ' \n')"
+  echo "@$who err $(od -An -v -tx1 /tmp/e | tr -d ' \n')"
+  echo "@$who tree $(find . -printf '%%U:%%G %%m %%y %%p\n' | LC_ALL=C sort -k4 | od -An -v -tx1 | tr -d ' \n')"
+}
+"""
+
+# A utmp record (utmp(5), linux, 384 bytes): type, line, user.
+UTMP_FN = r"""
+pad() { printf '%s' "$1"; head -c $(( $2 - ${#1} )) /dev/zero; }
+rec() { printf "\\$(printf %03o "$1")\\000\\000\\000"; head -c 4 /dev/zero; pad "$2" 32; head -c 4 /dev/zero; pad "$3" 32; head -c 308 /dev/zero; }
+"""
+
+
+def die(msg):
+    print(f"idtest: {msg}", file=sys.stderr)
+    sys.exit(2)
+
+
+def script(case, sides):
+    """The shell text one container runs: every side, in turn."""
+    util = case["util"]
+    argv = " ".join(shlex.quote(str(a)) for a in case.get("args", []))
+    env = " ".join(f"{k}={shlex.quote(str(v))}" for k, v in sorted(case.get("env", {}).items()))
+    pre = ["L=$(readlink /proc/self/fd/0); L=${L#/dev/}"]
+    if case.get("utmp"):
+        pre += UTMP_FN.strip().splitlines()
+        recs = "; ".join(
+            f"rec {int(t)} {shlex.quote(str(line)).replace('{tty}', chr(39) + '$L' + chr(39))} "
+            f"{shlex.quote(str(user))}"
+            for t, line, user in case["utmp"])
+        pre.append("{ " + recs + "; } > /var/run/utmp")
+    body = SIDE % {
+        "tree": TREE if util in ("chown", "chgrp") else ":",
+        "setup": case.get("setup", ":"),
+        "tty": "1" if case.get("tty") else "",
+        "env": env, "util": util, "argv": argv,
+        "actor": ACTORS[case.get("as", "root")],
+    }
+    run = (f"cd /work; {ACTORS[case.get('as', 'root')]} env -i PATH=@P@:/usr/bin:/bin LC_ALL=C "
+           f"_POSIX2_VERSION=200112 {env} {util} {argv} > /tmp/o 2> /tmp/e")
+    lines = ["ulimit -c 0", "TTYPRE=" + shlex.quote("\n".join(pre)),
+             "RUNT=" + shlex.quote(run), body]
+    for who in sides:
+        lines.append(f"side {who}")
+    lines.append("echo @done")
+    return "\n".join(lines) + "\n"
+
+
+def read(text, sides):
+    got = {w: {} for w in sides}
+    done = False
+    for line in text.splitlines():
+        if line == "@done":
+            done = True
+            continue
+        if not line.startswith("@"):
+            continue
+        parts = line[1:].split(" ", 2)
+        if len(parts) < 2 or parts[0] not in got:
+            continue
+        who, field = parts[0], parts[1]
+        value = parts[2] if len(parts) > 2 else ""
+        if field == "status":
+            got[who]["exit"] = int(value)
+        elif field in ("out", "err", "tree"):
+            name = {"out": "stdout", "err": "stderr", "tree": "tree"}[field]
+            got[who][name] = bytes.fromhex(value.strip()).decode(errors="backslashreplace")
+    if not done:
+        return None
+    for w in sides:
+        if set(got[w]) != set(FIELDS):
+            return None
+    return got
+
+
+def build(out, static):
+    """The six on both tiers, static when they go into a container."""
+    wolf = os.path.join(ROOT, ".wolf-bin", "wolf")
+    if not os.access(wolf, os.X_OK):
+        die("no .wolf-bin/wolf (run tools/fetch-toolchain)")
+    env = dict(os.environ)
+    env["WOLF_STD"] = os.path.join(ROOT, ".wolf-bin", "std")
+    if static:
+        real = shutil.which("cc") or die("no cc on PATH")
+        wrap = os.path.join(out, "cc-static")
+        os.makedirs(wrap, exist_ok=True)
+        with open(os.path.join(wrap, "cc"), "w") as fh:
+            fh.write(f'#!/bin/sh\nexec {real} -static "$@"\n')
+        os.chmod(os.path.join(wrap, "cc"), 0o755)
+        env["PATH"] = wrap + os.pathsep + env.get("PATH", "")
+    for tier, flags in TIERS:
+        os.makedirs(os.path.join(out, tier), exist_ok=True)
+        for u in UTILS:
+            dest = os.path.join(out, tier, u)
+            done = subprocess.run(
+                [wolf, "build"] + flags + ["--no-cache", "--deny-warnings",
+                 os.path.join("src", f"{u}.lu"), "-o", dest], cwd=ROOT, env=env)
+            if done.returncode != 0:
+                die(f"wolf build of {u} ({tier}) exited {done.returncode}")
+    return out
+
+
+DOCKERFILE = """FROM {image}
+COPY t /t
+RUN chmod -R a+rX /t && chmod a+x /t/bin/*/* \\
+ && {accounts} \\
+ && command -v setpriv && command -v script && command -v find && command -v od
+"""
+
+
+def self_script(case, sides, where):
+    """`--engine none`: one side on this machine, as this user, in a fresh
+    temporary directory holding the case's own tree."""
+    argv = " ".join(shlex.quote(str(a)) for a in case.get("args", []))
+    env = " ".join(f"{k}={shlex.quote(str(v))}" for k, v in sorted(case.get("env", {}).items()))
+    lines = ["ulimit -c 0", "U=$(id -u); G=$(id -g); G2=$(id -G | tr ' ' '\\n' | grep -vx \"$G\" | head -1)"]
+    for who in sides:
+        lines += [
+            "W=$(mktemp -d \"${TMPDIR:-/tmp}/bore-idtest.XXXXXX\") || exit 97",
+            "cd \"$W\" || exit 97",
+            "mkdir -p d/e && echo f > f && echo g > g && echo x > d/x && echo y > d/e/y",
+            "ln -s f l && ln -s d dl && ln -s nowhere dang && ln -s .. d/up && ln -s ../f d/lf",
+            case.get("setup", ":"),
+            f"env LC_ALL=C _POSIX2_VERSION=200112 {env} {shlex.quote(where[who])} "
+            + argv.replace("'{uid}'", "\"$U\"").replace("'{gid}'", "\"$G\"").replace("'{g2}'", "\"$G2\"")
+                  .replace("{uid}", "'\"$U\"'").replace("{gid}", "'\"$G\"'").replace("{g2}", "'\"$G2\"'")
+            + " > \"$W.o\" 2> \"$W.e\" < /dev/null",
+            f"echo \"@{who} status $?\"",
+            f"echo \"@{who} out $(od -An -v -tx1 \"$W.o\" | tr -d ' \\n')\"",
+            f"echo \"@{who} err $(od -An -v -tx1 \"$W.e\" | tr -d ' \\n')\"",
+            # BSD find has no -printf: the owners by `stat -f`.
+            f"echo \"@{who} tree $(find . | LC_ALL=C sort | while read p; do "
+            "if stat -f '%u:%g %Lp %HT' \"$p\" >/dev/null 2>&1; then stat -f '%u:%g %Lp %HT' \"$p\"; "
+            "else stat -c '%u:%g %a %F' \"$p\"; fi | tr '\\n' ' '; echo \"$p\"; done "
+            "| sed \"s/$U:/U:/; s/:$G /:G /; s/:$G2 /:G2 /\" | od -An -v -tx1 | tr -d ' \\n')\"",
+            "cd /; rm -rf \"$W\" \"$W.o\" \"$W.e\"",
+        ]
+    lines.append("echo @done")
+    return "\n".join(lines) + "\n"
+
+
+def main(argv):
+    engine = image = bindir = gnudir = None
+    cases_path = CASES
+    prefix = ""
+    record = False
+    only = []
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a in ("--engine", "--image", "--bin", "--gnu", "--gnu-prefix", "--cases"):
+            if i + 1 >= len(argv):
+                die(f"{a} needs a value")
+            v = argv[i + 1]
+            i += 1
+            if a == "--engine":
+                engine = v
+            elif a == "--image":
+                image = v
+            elif a == "--bin":
+                bindir = os.path.abspath(v)
+            elif a == "--gnu":
+                gnudir = os.path.abspath(v)
+            elif a == "--cases":
+                cases_path = os.path.abspath(v)
+            else:
+                prefix = v
+        elif a == "--record":
+            record = True
+        elif a.startswith("--"):
+            die(f"unknown argument {a!r}")
+        else:
+            only.append(a)
+        i += 1
+    engine = engine or ("docker" if shutil.which("docker") else "podman")
+    boxed = engine != "none"
+    if boxed and shutil.which(engine) is None:
+        die(f"no container engine ({engine}) on PATH")
+    if not boxed and os.environ.get("GITHUB_ACTIONS") != "true":
+        die("--engine none changes owners on this machine as its own user, "
+            "and is for a CI runner that exists for one job: GITHUB_ACTIONS "
+            "is not `true` here, so it is refused")
+    image = image or "ubuntu:24.04"
+    if gnudir is None:
+        die("--gnu DIR is required: GNU coreutils 9.11's id, whoami, groups, "
+            "logname, chown and chgrp")
+    with open(cases_path, "rb") as fh:
+        cases = tomllib.load(fh).get("case", [])
+    seen = set()
+    for c in cases:
+        extra = set(c) - KEYS
+        if "name" not in c or "util" not in c or extra:
+            die(f"a case is malformed: {c.get('name', '?')!r} {sorted(extra)}")
+        if c["util"] not in UTILS:
+            die(f"case {c['name']!r}: unknown util {c['util']!r}")
+        if c.get("as", "root") not in ACTORS:
+            die(f"case {c['name']!r}: unknown actor {c.get('as')!r}")
+        if c["name"] in seen:
+            die(f"duplicate case name {c['name']!r}")
+        seen.add(c["name"])
+        for f in c.get("compare", []):
+            if f not in FIELDS:
+                die(f"case {c['name']!r} compares unknown {f!r}")
+    with open(os.path.join(ROOT, "gnu-oracle.toml"), "rb") as fh:
+        oracle = str(tomllib.load(fh)["oracle"]["version"])
+    gnu = {u: os.path.join(gnudir, prefix + u) for u in UTILS}
+    for u, path in gnu.items():
+        if not os.access(path, os.X_OK):
+            die(f"no program at {path}")
+        said = subprocess.run([path, "--version"], capture_output=True, text=True)
+        first = (said.stdout.splitlines() or [""])[0]
+        # The oracle of record, asserted BY BINARY (B44).
+        if said.returncode != 0 or first != f"{u} (GNU coreutils) {oracle}":
+            die(f"the {u} given as GNU's is not coreutils {oracle}'s: {first!r}")
+    print(f"idtest: gnu = GNU coreutils {oracle} ({gnudir})")
+
+    scratch = tempfile.mkdtemp(prefix="bore-idtest.")
+    tag = f"bore-idtest:{os.getpid()}"
+    failed = passed = skipped = 0
+    try:
+        if bindir is None and not record:
+            bindir = build(os.path.join(ROOT, "target", "idtest"), boxed)
+        sides = ["gnu"] if record else ["gnu"] + [t for t, _ in TIERS]
+        paths = {"gnu": gnu}
+        for tier, _ in TIERS:
+            if not record:
+                paths[tier] = {u: os.path.join(bindir, tier, u) for u in UTILS}
+                for p in paths[tier].values():
+                    if not os.access(p, os.X_OK):
+                        die(f"no program at {p}")
+        if boxed:
+            ctx = os.path.join(scratch, "ctx")
+            for who in sides:
+                os.makedirs(os.path.join(ctx, "t", "bin", who))
+                for u in UTILS:
+                    shutil.copy(paths[who][u], os.path.join(ctx, "t", "bin", who, u))
+            with open(os.path.join(ctx, "Dockerfile"), "w") as fh:
+                fh.write(DOCKERFILE.format(image=image, accounts=ACCOUNTS))
+            built = subprocess.run([engine, "build", "-q", "-t", tag, ctx],
+                                   capture_output=True, text=True)
+            if built.returncode != 0:
+                die(f"{engine} build failed: {built.stderr.strip()[-800:]}")
+            print(f"idtest: {engine}, image {image}, one fresh container a case, "
+                  f"no mount, no network; the accounts are the image's own")
+        else:
+            print(f"idtest: NO CONTAINER — on this CI runner ({platform.system()}), "
+                  f"as its own user; only the `self` cases run")
+
+        serial = 0
+        for c in cases:
+            label = c["name"]
+            if only and not any(o in label for o in only):
+                continue
+            reason = c.get("skip")
+            if reason is None and not boxed and not c.get("self"):
+                reason = "no container here: the case runs as an account of the image"
+            if reason is None and boxed and c.get("self"):
+                reason = "a case for a CI runner's own user (--engine none)"
+            if reason is not None:
+                skipped += 1
+                print(f"SKIP {label} ({reason})")
+                continue
+            serial += 1
+            if boxed:
+                text = script(c, sides)
+                name = f"bore-idtest-{os.getpid()}-{serial}"
+                cmd = [engine, "run", "--rm", "--name", name, "--network", "none",
+                       "--user", "0", tag, "sh", "-c", text]
+            else:
+                where = {w: paths[w][c["util"]] for w in sides}
+                cmd = ["sh", "-c", self_script(c, sides, where)]
+            try:
+                done = subprocess.run(cmd, capture_output=True, timeout=180,
+                                      stdin=subprocess.DEVNULL)
+                raw = done.stdout.decode(errors="replace")
+                got = read(raw, sides)
+            except subprocess.TimeoutExpired:
+                if boxed:
+                    subprocess.run([engine, "rm", "-f", name], capture_output=True)
+                got, raw = None, "timed out"
+            if got is None:
+                failed += 1
+                print(f"FAIL {label}  (the case did not finish: "
+                      f"{(raw + done.stderr.decode(errors='replace'))[-400:]!r})")
+                continue
+            if record:
+                print(f"# {label}: {got['gnu']!r}")
+                continue
+            compare = c.get("compare", FIELDS if c["util"] in ("chown", "chgrp")
+                            else ("exit", "stdout", "stderr"))
+            ok, why = True, []
+            g = got["gnu"]
+            if c.get("gnu_sub"):
+                g["stdout"] = re.sub(
+                    r"(?m)^(failed to change (?:ownership|group) of '[^']*') from \S+ to ",
+                    r"\1 to ", g["stdout"])
+            if "ours" in c:
+                for f, v in c.get("expect", {}).items():
+                    if g[f] != v:
+                        ok = False
+                        why.append(f"gnu {f}: {g[f]!r}, the case records {v!r}")
+            for tier, _ in TIERS:
+                o = got[tier]
+                if "ours" in c:
+                    for f, v in c["ours"].items():
+                        if o[f] != v:
+                            ok = False
+                            why.append(f"{tier} {f}: {o[f]!r}, want {v!r} (by design)")
+                    rest = [f for f in compare if f not in c["ours"]]
+                else:
+                    rest = compare
+                for f in rest:
+                    if o[f] != g[f]:
+                        ok = False
+                        why.append(f"{tier} {f}: {o[f]!r}, gnu {g[f]!r}")
+            if ok:
+                passed += 1
+                print(f"ok   {label}")
+            else:
+                failed += 1
+                print(f"FAIL {label}  args={c.get('args', [])!r} as={c.get('as', 'root')}")
+                for line in why:
+                    print(f"    {line}")
+    finally:
+        if boxed:
+            subprocess.run([engine, "rmi", "-f", tag], capture_output=True)
+        shutil.rmtree(scratch, ignore_errors=True)
+    if not record:
+        print(f"idtest: {passed} passed, {failed} failed, {skipped} skipped")
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    sys.stdout.reconfigure(line_buffering=True)
+    try:
+        code = main(sys.argv[1:])
+    except SystemExit:
+        raise
+    except Exception:
+        import traceback
+        sys.stdout.flush()
+        traceback.print_exc()
+        print("idtest: the tool died; no verdict", file=sys.stderr)
+        code = 2
+    sys.exit(code)
