@@ -88,6 +88,11 @@ against GNU. The short form for a new utility:
                                throwaway container, every target a
                                process the case started (tests/kill/)
     tools/killtest-selftest    prove killtest can still see a difference
+    tools/idtest               id, whoami, groups, logname, chown, chgrp
+                               as root and as users: one throwaway
+                               container a case, the accounts the
+                               image's own (tests/ids/)
+    tools/idtest-selftest      prove idtest can still see a difference
     tools/bench [--scale F]    hyperfine against GNU on generated inputs
                                (`prepare`, `{work}` and `--input` for
                                the programs that change what they run on)
@@ -134,7 +139,7 @@ against GNU. The short form for a new utility:
   back, `bore.current_umask`). The builtins are called directly:
   they were written before wolf-std's wrappers reached the std pin
   (they have since, at bu23's `9e5bd6b`).
-  NOTHING changes an owner (#701, and no user id: #633), makes a fifo
+  An owner is changed by `fs_set_owner` (0.2.30, bu24). Nothing makes a fifo
   or a device (#705), finds a hole (#703), renames without replacing
   (#706), names an entry relative to an open directory (#707), sets a
   link's own mode, sets times through a handle (#714) or reads a
@@ -244,9 +249,27 @@ against GNU. The short form for a new utility:
   (#687), and the listing leaves out `.` and `..`, so `ls -f` cannot
   place them (#692).
 - Owner and group NAMES come from `/etc/passwd` and `/etc/group`
-  (`src/bore/ids.lu`): wolf has no account lookup. A case that prints
-  one is `accounts = true` and has a numeric twin, because macOS keeps
-  its users elsewhere.
+  (`src/bore/ids.lu`): wolf has no account lookup, and the pinned std
+  has no `std.os.users` (wolf-std#65). `bore.read_accounts` keeps every
+  line in file order for the identity tools (a name is its first line,
+  a user's groups are its login group then each group naming it). A case
+  that prints one is `accounts = true` and has a numeric twin, because
+  macOS keeps its users elsewhere.
+- **Who runs, and who owns** (wolf 0.2.30, s236, ruling #78; bu24).
+  `os_uid`, `os_euid`, `os_gid`, `os_egid` and `os_groups` read the
+  process's ids; `fs_set_owner(path, uid, gid, follow)` is `chown`
+  (`-1` keeps one; `follow` false is a link's own). The builtins are
+  called directly: the pinned std has no wrappers yet. **No test runs as
+  another user or changes an owner on a host**: `tools/difftest` runs
+  the readers as whoever runs it and refuses a `chown`/`chgrp` case that
+  names a file (`tests/refuse/owner-*`); everything else is
+  `tests/ids/cases.toml`, run by `tools/idtest` in a fresh container a
+  case, as root and as the image's own users (CI's macOS leg, with no
+  engine, runs only the `self` cases, as the runner, on its own files).
+  Write an unannotated integer local that can pass 2^31 as `var n: int`:
+  lupin keeps `var n = 0` an `i32` (wolf-interp#173). `logname` reads
+  `/proc/self/loginuid` and `utmp` as files; on macOS it is refused by
+  name (no call for the kernel's login name).
 - Local time is read from the zone's TZif file and its POSIX rule
   (`src/bore/clock.lu`); a canonical path is walked a component at a
   time (`src/bore/paths.lu`). Neither is a builtin.
