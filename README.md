@@ -54,6 +54,7 @@ tools/fetch-oracle        # GNU coreutils 9.11, sha256-checked, if needed
 tools/build               # every utility into target/release/
 tools/difftest            # the differential suite against the oracle
 tools/killtest --gnu DIR  # kill where it sends: a throwaway container a case
+tools/idtest --gnu DIR    # the identity tools as root and as users: the same
 tools/bench --scale 0.01  # hyperfine against GNU on generated inputs
 ```
 
@@ -156,15 +157,20 @@ derives no boreutils code from GPL source.
 
 Every utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus, except where a case says otherwise and is
-skipped with its reason. The corpus holds **6,514 cases**, and `kill`
-has 335 more that SEND, each run in a container of its own
-(`tests/kill/`, `tools/killtest`); a run in a throwaway Ubuntu 24.04
-container on kasumi (linux x86-64; the utilities that change files or
-send signals are run nowhere else on a lane's host) at this pin answers
-**6,252 passed, 0 failed, 262 skipped**, the same list on the release
-and the dev tier, and `tools/killtest` **335 passed, 0 failed** (bu23's
-figures and CI's are in `notes/bu23-the-kill.md` and its PR). The
-edition before bu23's `kill` said 5,646 cases and 5,527 passed, 0
+skipped with its reason. The corpus holds **6,645 cases**; `kill` has
+335 more that SEND, each run in a container of its own (`tests/kill/`,
+`tools/killtest`), and the six identity tools 1,126 more that run as
+root and as users or change an owner (`tests/ids/`, `tools/idtest`: 28
+of them only on CI's macOS runner). A run in a throwaway Ubuntu 24.04
+container on kasumi (linux x86-64; the utilities that change files,
+owners or send signals are run nowhere else on a lane's host) at this
+pin answers **6,383 passed, 0 failed, 262 skipped**, the same list on
+the release and the dev tier, and `tools/idtest` **1,098 passed, 0
+failed** (615 as root, 483 as users; bu24's figures and CI's are in
+`notes/bu24-the-ids.md` and its PR). The edition before bu24 said 6,514
+cases and 6,252 passed, 0 failed, 262 skipped, and `tools/killtest`
+335 passed, 0 failed (bu23's figures are in `notes/bu23-the-kill.md`).
+The edition before bu23's `kill` said 5,646 cases and 5,527 passed, 0
 failed, 119 skipped (bu22's figures and CI's are in
 `notes/bu22-the-modes-and-links.md` and its PR). The edition before
 bu22's `chmod`, `touch`, `ln`, `mkdir -m` and
@@ -1122,6 +1128,12 @@ depth is start-up on both sides.
 | `touch` | done: `-a`, `-m`, `--time`, `-c`, `-h`, `-r`, `-t`, `-d` for `@SECONDS`, ISO 8601, a time of day and now/today/yesterday/tomorrow, both times to the nanosecond; not `touch -` (#714) or the rest of GNU's date grammar | not benched |
 | `ln` | done: hard and symbolic, `-f` (a replace that never leaves the name missing), `-i`, `-n`, `-T`, `-t`, `-v`, `-P`, `-L`, `-r`, `-d`/`-F`; not `-b` | not benched |
 | `kill` | done: `-s`, `--signal`, `-SIGNAL` by name or by this host's number, `-n`, signal 0, `-l`, `-t`/`-L`, exit statuses as signals, GNU's option rules; the 28 signals wolf has a meaning for, to one process at a time; not a process group, a real-time or host-only signal, or `-t`'s description column | not benched |
+| `id` | done: `-u`, `-g`, `-G`, `-n`, `-r`, `-z`, `-a`, the default line with `euid=`/`egid=`, USER operands by name or number; `-Z` refused as the oracle (no SELinux) refuses it; names from `/etc/passwd` and `/etc/group` only | not benched |
+| `whoami` | done | not benched |
+| `groups` | done: the process's groups and USERNAME operands | not benched |
+| `logname` | done on linux: `/proc/self/loginuid`, then the utmp record of standard input's terminal; refused by name on macOS (no call for the kernel's login name) | not benched |
+| `chown` | done: OWNER[:[GROUP]] by name or number, `USER:`, the old `.`, `--from`, `--reference`, `-c`, `-f`, `-v`, `-h`, `--dereference`, `-R` with `-H`/`-L`/`-P`, `--preserve-root` | not benched |
+| `chgrp` | done: as `chown`, for the group | not benched |
 
 ## Drop-in readiness
 
@@ -1187,9 +1199,16 @@ table answers it per utility, from the evidence and from nothing else.
 | `touch` | 11 / 11 | 156 / 13 | not benched | drop-in for scripts whose `-d` dates are `@SECONDS`, ISO 8601, a time of day or now/today/yesterday/tomorrow (any other is refused by name), that do not `touch -` (#714) or combine `-r` with `-d` |
 | `ln` | 13 / 16 | 145 / 3 | not benched | drop-in for scripts that avoid `-b`/`--backup`/`-S` (refused by name) |
 | `kill` | 5 / 5 | 725 / 143, and 335 / 0 that send | not benched | drop-in for scripts that signal ONE process at a time (PID 0, -1 and a negative id, a process group, are refused by name) with a signal POSIX names (a real-time signal and one only a host has are `invalid signal`), and do not read `-t`'s third column, the host's description, which is left out |
+| `id` | 7 / 8 | 64 / 0, and 428 / 0 as root and as users | not benched | drop-in where the accounts are in `/etc/passwd` and `/etc/group` (not macOS's directory service, LDAP or NIS); `-Z` is refused as GNU without SELinux refuses it |
+| `whoami` | 0 / 0 | 10 / 0, and 19 / 0 | not benched | drop-in where the accounts are in `/etc/passwd` |
+| `groups` | 0 / 0 | 12 / 0, and 62 / 0 | not benched | drop-in where the accounts are in `/etc/passwd` and `/etc/group` |
+| `logname` | 0 / 0 | 11 / 0, and 46 / 0 | not benched | drop-in on linux; refused by name on macOS |
+| `chown` | 13 / 13 | 17 / 0, and 373 / 0 as root and as users | not benched | drop-in where the accounts are in `/etc/passwd` and `/etc/group`; `-v` on a link to nothing it follows says `failed to change ownership of 'F' to …` where GNU prints an uninitialized owner |
+| `chgrp` | 13 / 13 | 17 / 0, and 170 / 0 | not benched | as `chown` |
 
-**19 drop-in, 21 drop-in for scripts that avoid a named thing, none not
-yet** (bu23: `kill` arrived with three named things, each a thing wolf
+**19 drop-in, 27 drop-in for scripts that avoid a named thing, none not
+yet** (bu24: the six identity tools arrived with a named thing each —
+accounts only in the two files, and `logname` on macOS; bu23: `kill` arrived with three named things, each a thing wolf
 cannot express yet; bu22: `mkdir` became drop-in, and `chmod`, `touch` and `ln`
 arrived with a named thing each; `rmdir` arrived drop-in at bu21 and
 `mkdir`, `rm`, `mv` and `cp` with a named thing each; `readlink` arrived drop-in at bu20; `env`, the
@@ -1204,7 +1223,7 @@ it.
 sums counted as one and `[` as `test`; Arch's build installs 102
 binaries and leaves out `arch`, `chcon`, `runcon`, `hostname`, `kill`
 and `uptime`; `kill` is built only when asked for, which the oracle of
-record now does). boreutils ships **40 of them, 39%**. Effort is not what
+record now does). boreutils ships **46 of them, 45%**. Effort is not what
 blocks most of the other 64: wolf
 0.2.28 has no surface for them, and each gap boreutils has met is filed
 upstream with its witness. The OS surface lane's first cut, s199's
