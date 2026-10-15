@@ -54,6 +54,7 @@ usage: tools/bench [--scale F] [--runs N] [--keep] [--dir D] [--bin DIR]
 
 import json
 import os
+import re
 import platform
 import random
 import shutil
@@ -69,6 +70,37 @@ SIZES = {"big": 1024 * MIB, "lines": 64 * MIB, "noise": 256 * MIB,
          "tree": 10000}
 SEEDS = {"big": 0xB0BE, "lines": 0x11E5, "noise": 0x5EED, "tree": 0x7EE5}
 BLOCK = 4 * MIB
+
+
+def timings(doc, util):
+    """{name: {"mean", "stddev"}} in seconds, from either export schema.
+    hyperfine 1.x: each result's "command" is its `-n` name, with "mean"
+    and "stddev" beside it. hyperfine 2.0.0 (schema_version 2; Homebrew,
+    CI's macOS runner, 2026-10-15): the name is "name" and the times are
+    under summary.time_wall_clock, unit stated."""
+    out = {}
+    for r in doc.get("results", []):
+        if "summary" in r:
+            t = r["summary"].get("time_wall_clock", {})
+            if t.get("unit") != "second":
+                die(f"{util}: hyperfine's wall-clock unit is {t.get('unit')!r}, not second")
+            out[r.get("name")] = {"mean": t["mean"], "stddev": t["stddev"]}
+        else:
+            out[r.get("command")] = {"mean": r["mean"], "stddev": r["stddev"]}
+    if set(out) != {"boreutils", "gnu"}:
+        die(f"{util}: hyperfine's results name {sorted(map(str, out))}, not boreutils and gnu")
+    return out
+
+
+def shell_args():
+    """hyperfine 2.0.0 (Homebrew, CI's macOS runner, 2026-10-15) runs a
+    command WITHOUT a shell unless asked, and every bench here redirects;
+    1.x always used one and has no `default` shell to name."""
+    said = subprocess.run(["hyperfine", "--version"], capture_output=True, text=True).stdout
+    m = re.search(r"hyperfine (\d+)\.", said)
+    if m is None:
+        die(f"cannot read hyperfine's version from {said!r}")
+    return ["--shell", "default"] if int(m.group(1)) >= 2 else []
 
 
 def die(msg):
@@ -257,7 +289,7 @@ def main(argv):
                 if "{work}" in b["command"] or "prepare" in b:
                     guard_work(work, scratch)
                 subprocess.run(
-                    ["hyperfine", "--style", "none", "--warmup", "1",
+                    ["hyperfine"] + shell_args() + ["--style", "none", "--warmup", "1",
                      "--runs", str(runs), "--export-json", export] + extra +
                     ["-n", "boreutils", cmds[0], "-n", "gnu", cmds[1]],
                     check=True, stdout=subprocess.DEVNULL)
@@ -269,7 +301,7 @@ def main(argv):
                     else:
                         os.unlink(work)
                 with open(export) as fh:
-                    res = {r["command"]: r for r in json.load(fh)["results"]}
+                    res = timings(json.load(fh), util)
                 bm = res["boreutils"]["mean"] * 1000
                 gm = res["gnu"]["mean"] * 1000
                 bs = res["boreutils"]["stddev"] * 1000
