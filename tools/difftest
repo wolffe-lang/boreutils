@@ -187,6 +187,20 @@ Case file (TOML, one file per utility, any number of [[case]] tables):
                                  #   everywhere else: for a difference
                                  #   one host makes and the other does
                                  #   not, named where it is met.
+  oracle_build_differs = { Darwin = "why" }
+                                 # optional (bu24, ruling #83): a SKIP,
+                                 #   with the reason given, on the named
+                                 #   host ONLY when GNU's program there
+                                 #   is the staged source build
+                                 #   (.gnu-bin/, tools/fetch-oracle) — a
+                                 #   build that answers otherwise than
+                                 #   the oracle of record does (B73) —
+                                 #   and a run against the host's own
+                                 #   GNU everywhere else. boreutils#31:
+                                 #   the macOS source build prints
+                                 #   `\u0000` for printf '\u0000' where
+                                 #   GNU 9.11 on linux and Homebrew's
+                                 #   print a NUL.
   accounts = true                # optional (bu20): the case prints an
                                  #   owner's or a group's NAME. boreutils
                                  #   reads names from /etc/passwd and
@@ -361,7 +375,7 @@ KEYS = {"name", "args", "stdin", "stdin_file", "stdin_offset", "requires",
         "cwd", "tree", "tty", "scratch_fifos", "scratch_sockets",
         "scratch_hardlinks", "scratch_atimes", "scratch_time_all",
         "scratch_keep", "mask", "scratch_sizes", "accounts", "umask",
-        "times", "skip_on", "gnu_keep"}
+        "times", "skip_on", "gnu_keep", "oracle_build_differs"}
 # Naming any of these gives a case a scratch directory and a `files` field.
 SCRATCH = ("scratch", "scratch_dirs", "scratch_links", "scratch_modes",
            "scratch_times", "cwd", "scratch_fifos", "scratch_sockets",
@@ -1293,6 +1307,13 @@ def main(argv):
             if host in case.get("skip_on", {}):
                 skipped += 1
                 print(f"SKIP {label} (on {host}: {case['skip_on'][host]})")
+                continue
+            built = os.path.realpath(os.path.join(ROOT, ".gnu-bin"))
+            if host in case.get("oracle_build_differs", {}) and \
+                    os.path.realpath(gnu).startswith(built + os.sep):
+                skipped += 1
+                print(f"SKIP {label} (on {host}, against the source-built oracle "
+                      f"{gnu}: {case['oracle_build_differs'][host]})")
                 continue
             need = case.get("requires")
             if need is not None and not os.path.exists(need):

@@ -164,6 +164,12 @@ args = ["\\u0041\\u0024\\u0060\\u0040\\u0023|"]
 [[case]]
 name = "\\u for a NUL and DEL"
 args = ["\\u0000\\u007f|"]
+# Ruling #83 (2026-10-15, under B44; boreutils#31): the oracle's answer is
+# the real NUL, as GNU 9.11 prints on linux and in Homebrew's macOS build.
+# The macOS SOURCE build that tools/fetch-oracle stages when Homebrew ships
+# another version prints `\u0000` literally: a build artifact, so the case
+# is a named skip there and runs against every other GNU 9.11.
+oracle_build_differs = { Darwin = "the macOS source build prints \\u0000 literally where GNU 9.11 prints a NUL: a build artifact, not the oracle (ruling #83, boreutils#31)" }
 
 [[case]]
 name = "\\u past ASCII in the C locale"
