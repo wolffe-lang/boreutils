@@ -1165,7 +1165,7 @@ table answers it per utility, from the evidence and from nothing else.
 | `basename` | 5 / 5 | 48 / 0 | start-up 0.80x | drop-in |
 | `dirname` | 3 / 3 | 27 / 0 | start-up 0.80x | drop-in |
 | `yes` | 2 / 2 | 18 / 0 | 0.63x | drop-in |
-| `cat` | 12 / 12 | 119 / 0 | 0.27x to 0.97x | drop-in for scripts that never make an input its own output: `cat f >> f` and `cat < f >> f` refuse in GNU (`input file is output file`, status 1) and grow `f` without end here, because nothing in wolf can tell that two descriptors name one file (wolf-lang#424, #536); no case can reach it |
+| `cat` | 12 / 12 | 119 / 0, and 104 / 0 in containers (`tools/inouttest`) | 0.27x to 0.97x | drop-in on linux, GNU's input-is-output refusal included (bu25); on macOS drop-in for scripts that avoid reading a READ-WRITE standard output's own file at or behind its offset (`cat f 1<> f`), which is refused there where GNU copies, because no call reads a descriptor's append flag (wolf-lang#722); on a linux with no `/proc` nothing is refused (#536) |
 | `wc` | 10 / 10 | 158 / 2 | 0.04x to 0.99x | drop-in; the skips are the hosts' `wcwidth` |
 | `head` | 7 / 7 | 160 / 0 | 0.14x to 0.90x | drop-in |
 | `tail` | 12 / 14 | 183 / 2 | 0.45x to 7.11x; a file at start-up (0.31 ms against 0.21 ms) | drop-in for scripts that avoid 9.11's `--debug` (refused) and `--max-unchanged-stats` (accepted, no case); the skips are follows that never end |
