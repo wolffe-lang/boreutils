@@ -301,7 +301,10 @@ jobs:
     name: the terminal read, measured (boreutils#27)
     if: github.event_name == 'workflow_dispatch' && inputs.only == 'ttyprobe'
     runs-on: macos-latest
-    timeout-minutes: 30
+    # A reader that loses a child's output waits 0.6 s at each loss (the
+    # close it makes on itself), so the report alone takes about twenty
+    # minutes against the reader as it was (run 39036256039 reached 30).
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v4
       - name: the probe, every reader (a report)
