@@ -1,0 +1,407 @@
+#!/usr/bin/env python3
+"""inouttest - `cat` where its input is its output (bu25, boreutils#28).
+
+`cat f >> f` without its refusal copies until the file system is full,
+so no case of it runs where a disk can fill. Each case runs in a
+THROWAWAY CONTAINER, one per case, made from an image this tool builds
+(a base image plus the programs, copied in) and removes again:
+
+  - no volume and no bind mount, of anything; `--network none`;
+  - every file a case touches is on a SIZE-LIMITED tmpfs at /work
+    (8 MiB), every side under a file-size limit (`ulimit -f`) and an
+    alarm (5 s), so a side that copies into itself stops at the limit
+    and says so in its status (SIGXFSZ, 153) instead of filling
+    anything;
+  - three sides in turn, each on a fresh /work: GNU coreutils 9.11's
+    own `cat` (--gnu DIR, asserted by its --version line) and this
+    repository's on both tiers, built static so they run in any image;
+  - each case as container root and as `alice`, a user the image
+    defines (`setpriv`), the files made by the actor.
+
+A case passes when each of ours answers as GNU did, on four fields:
+
+  exit    the exit status
+  stdout  byte for byte (what the line did not send to a file)
+  stderr  byte for byte
+  files   every regular file under /work: its name, size and `cksum`
+
+Case file (tests/inout/cases.toml), any number of [[case]] tables:
+
+  name = "f >> f"                  # required, unique
+  run = "cat f >> f"               # a shell line; `cat` is the side's
+                                   #   program. Helpers: `in_at N` and
+                                   #   `out_at N` move standard input's
+                                   #   and output's SHARED offset (dd)
+  setup = "ln f h"                 # shell run first, by the actor, after
+                                   #   the default tree: f = "one\\ntwo\\n"
+                                   #   (8 bytes), a = "A", b = "B"
+                                   #   (`$who` is the side: gnu, release,
+                                   #   dev, in `setup` and in `run`; only
+                                   #   tests/inout/selftest.toml uses it)
+  as = ["root"]                    # the actors (default both)
+  darwin_refuses = ["-"]           # on macOS, where the output's append
+                                   #   flag cannot be read (wolf-lang#722),
+                                   #   ours refuses these operands BY
+                                   #   DESIGN where GNU copies: asserted
+                                   #   there (status 1, one message each,
+                                   #   every file as the setup left it)
+  skip = "reason"
+
+WITHOUT AN ENGINE (`--engine none`) every case runs on this machine as
+its own user, in a fresh temporary directory, under the same file-size
+limit and alarm. That is for CI's macOS runner, a machine that exists
+for one job and has no container engine; the tool refuses it anywhere
+`GITHUB_ACTIONS` is not `true`.
+
+usage: tools/inouttest [--engine docker|podman|none] [--image IMAGE]
+                       [--bin DIR] [--gnu DIR] [--gnu-prefix P]
+                       [--cases FILE] [NAME-SUBSTRING...]
+
+Exit status: 0 every case passed, 1 a case failed, 2 the tool could not
+run (no engine, no image, a program that is not there, a malformed case).
+"""
+
+import os
+import platform
+import shlex
+import shutil
+import subprocess
+import sys
+import tempfile
+import tomllib
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CASES = os.path.join(ROOT, "tests", "inout", "cases.toml")
+TIERS = (("release", ["--release"]), ("dev", []))
+KEYS = {"name", "run", "setup", "as", "darwin_refuses", "skip"}
+FIELDS = ("exit", "stdout", "stderr", "files")
+ACTORS = {"root": "", "alice": "setpriv --reuid alice --regid alice --clear-groups"}
+TREE = "printf 'one\\ntwo\\n' > f; printf A > a; printf B > b"
+# A side's limits: the file-size limit in 512-byte blocks (4096 is 2 MiB
+# under POSIX's unit, 4 MiB under bash's), and the alarm in seconds.
+FSIZE = 4096
+ALARM = 5
+
+# One side. `$W` is its fresh directory, `$P` the directory holding the
+# side's `cat`, `$ACT` the actor's prefix. The helpers are defined in the
+# shell that runs the line, so the line can use them.
+SIDE = r"""
+side() {
+  who=$1; P=$2
+  rm -rf "$W"; mkdir -p "$W" || exit 97
+  chmod 1777 "$W"
+  cd "$W" || exit 97
+  rm -f "$O" "$E"
+  $ACT env who="$who" sh -c "$PRE; $TREE; $SETUP" < /dev/null > /dev/null 2>&1
+  echo "@$who before $(listing)"
+  $ACT env -i PATH="$P:$TOOLS" LC_ALL=C HOME=/ who="$who" \
+    perl -e 'alarm shift; exec @ARGV' %(alarm)d sh -c "ulimit -f %(fsize)d; $PRE; $RUN" < /dev/null > "$O" 2> "$E"
+  rc=$?
+  cd "$W"
+  echo "@$who status $rc"
+  echo "@$who out $(od -An -v -tx1 "$O" | tr -d ' \n')"
+  echo "@$who err $(od -An -v -tx1 "$E" | tr -d ' \n')"
+  echo "@$who files $(listing)"
+}
+listing() {
+  find . -type f | LC_ALL=C sort | while read -r p; do printf '%%s %%s\n' "$p" "$(cksum < "$p")"; done | od -An -v -tx1 | tr -d ' \n'
+}
+"""
+
+# The offset helpers: dd moves the SHARED offset of the descriptor it is
+# handed (skip= on standard input, seek= on standard output, conv=notrunc
+# so nothing is cut), and writes nothing.
+PRE = ("in_at() { dd bs=1 skip=\"$1\" count=0 2>/dev/null; }; "
+       "out_at() { dd bs=1 seek=\"$1\" count=0 conv=notrunc 2>/dev/null; }")
+
+
+def die(msg):
+    print(f"inouttest: {msg}", file=sys.stderr)
+    sys.exit(2)
+
+
+def script(case, sides, where, workdir, outs, act, tools):
+    """The shell text one case runs: every side, in turn. `outs` is where
+    a side's standard output and error go: OFF the size-limited file
+    system, so a side that fills it still reports, and each bounded by
+    the side's own file-size limit."""
+    lines = [
+        "ulimit -c 0",
+        "W=" + shlex.quote(workdir),
+        "O=" + shlex.quote(outs + ".o"),
+        "E=" + shlex.quote(outs + ".e"),
+        "ACT=" + shlex.quote(act),
+        "TOOLS=" + shlex.quote(tools),
+        "PRE=" + shlex.quote(PRE),
+        "TREE=" + shlex.quote(TREE),
+        "SETUP=" + shlex.quote(case.get("setup", ":")),
+        "RUN=" + shlex.quote(case["run"]),
+        SIDE % {"alarm": ALARM, "fsize": FSIZE},
+    ]
+    for who in sides:
+        lines.append(f"side {who} {shlex.quote(where[who])}")
+    lines.append("cd /; rm -rf \"$W\" \"$O\" \"$E\"")
+    lines.append("echo @done")
+    return "\n".join(lines) + "\n"
+
+
+def read(text, sides):
+    got = {w: {} for w in sides}
+    done = False
+    for line in text.splitlines():
+        if line == "@done":
+            done = True
+            continue
+        if not line.startswith("@"):
+            continue
+        parts = line[1:].split(" ", 2)
+        if len(parts) < 2 or parts[0] not in got:
+            continue
+        who, field = parts[0], parts[1]
+        value = parts[2] if len(parts) > 2 else ""
+        if field == "status":
+            got[who]["exit"] = int(value)
+        elif field in ("out", "err", "files", "before"):
+            name = {"out": "stdout", "err": "stderr", "files": "files", "before": "before"}[field]
+            got[who][name] = bytes.fromhex(value.strip()).decode(errors="backslashreplace")
+    if not done:
+        return None
+    for w in sides:
+        if set(got[w]) != set(FIELDS) | {"before"}:
+            return None
+    return got
+
+
+def build(out, static):
+    """`cat` on both tiers, static when it goes into a container."""
+    wolf = os.path.join(ROOT, ".wolf-bin", "wolf")
+    if not os.access(wolf, os.X_OK):
+        die("no .wolf-bin/wolf (run tools/fetch-toolchain)")
+    env = dict(os.environ)
+    env["WOLF_STD"] = os.path.join(ROOT, ".wolf-bin", "std")
+    if static:
+        real = shutil.which("cc") or die("no cc on PATH")
+        wrap = os.path.join(out, "cc-static")
+        os.makedirs(wrap, exist_ok=True)
+        with open(os.path.join(wrap, "cc"), "w") as fh:
+            fh.write(f'#!/bin/sh\nexec {real} -static "$@"\n')
+        os.chmod(os.path.join(wrap, "cc"), 0o755)
+        env["PATH"] = wrap + os.pathsep + env.get("PATH", "")
+    for tier, flags in TIERS:
+        os.makedirs(os.path.join(out, tier), exist_ok=True)
+        dest = os.path.join(out, tier, "cat")
+        done = subprocess.run(
+            [wolf, "build"] + flags + ["--no-cache", "--deny-warnings",
+             os.path.join("src", "cat.lu"), "-o", dest], cwd=ROOT, env=env)
+        if done.returncode != 0:
+            die(f"wolf build of cat ({tier}) exited {done.returncode}")
+    return out
+
+
+DOCKERFILE = """FROM {image}
+COPY t /t
+RUN chmod -R a+rX /t && chmod a+x /t/bin/*/cat \\
+ && useradd -M -u 1001 -U alice \\
+ && command -v setpriv && command -v perl && command -v dd && command -v cksum && command -v od
+"""
+
+
+def main(argv):
+    engine = image = bindir = gnudir = None
+    cases_path = CASES
+    prefix = ""
+    only = []
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a in ("--engine", "--image", "--bin", "--gnu", "--gnu-prefix", "--cases"):
+            if i + 1 >= len(argv):
+                die(f"{a} needs a value")
+            v = argv[i + 1]
+            i += 1
+            if a == "--engine":
+                engine = v
+            elif a == "--image":
+                image = v
+            elif a == "--bin":
+                bindir = os.path.abspath(v)
+            elif a == "--gnu":
+                gnudir = os.path.abspath(v)
+            elif a == "--cases":
+                cases_path = os.path.abspath(v)
+            else:
+                prefix = v
+        elif a.startswith("--"):
+            die(f"unknown argument {a!r}")
+        else:
+            only.append(a)
+        i += 1
+    engine = engine or ("docker" if shutil.which("docker") else "podman")
+    boxed = engine != "none"
+    if boxed and shutil.which(engine) is None:
+        die(f"no container engine ({engine}) on PATH")
+    if not boxed and os.environ.get("GITHUB_ACTIONS") != "true":
+        die("--engine none runs copies that may grow on this machine's own "
+            "disk (under a file-size limit), and is for a CI runner that "
+            "exists for one job: GITHUB_ACTIONS is not `true` here, so it "
+            "is refused")
+    image = image or "ubuntu:24.04"
+    if gnudir is None:
+        die("--gnu DIR is required: GNU coreutils 9.11's cat")
+    with open(cases_path, "rb") as fh:
+        cases = tomllib.load(fh).get("case", [])
+    seen = set()
+    for c in cases:
+        extra = set(c) - KEYS
+        if "name" not in c or "run" not in c or extra:
+            die(f"a case is malformed: {c.get('name', '?')!r} {sorted(extra)}")
+        for who in c.get("as", ACTORS):
+            if who not in ACTORS:
+                die(f"case {c['name']!r}: unknown actor {who!r}")
+        if not isinstance(c.get("darwin_refuses", []), list):
+            die(f"case {c['name']!r}: darwin_refuses is a list of operand names")
+        if c["name"] in seen:
+            die(f"duplicate case name {c['name']!r}")
+        seen.add(c["name"])
+    with open(os.path.join(ROOT, "gnu-oracle.toml"), "rb") as fh:
+        oracle = str(tomllib.load(fh)["oracle"]["version"])
+    gnu_cat = os.path.join(gnudir, prefix + "cat")
+    if not os.access(gnu_cat, os.X_OK):
+        die(f"no program at {gnu_cat}")
+    said = subprocess.run([gnu_cat, "--version"], capture_output=True, text=True)
+    first = (said.stdout.splitlines() or [""])[0]
+    # The oracle of record, asserted BY BINARY (B44).
+    if said.returncode != 0 or first != f"cat (GNU coreutils) {oracle}":
+        die(f"the cat given as GNU's is not coreutils {oracle}'s: {first!r}")
+    print(f"inouttest: gnu = GNU coreutils {oracle} ({gnu_cat})")
+
+    darwin = platform.system() == "Darwin"
+    scratch = tempfile.mkdtemp(prefix="bore-inouttest.")
+    tag = f"bore-inouttest:{os.getpid()}"
+    failed = passed = skipped = 0
+    sides = ["gnu"] + [t for t, _ in TIERS]
+    try:
+        if bindir is None:
+            bindir = build(os.path.join(ROOT, "target", "inouttest"), boxed)
+        paths = {"gnu": gnu_cat}
+        for tier, _ in TIERS:
+            paths[tier] = os.path.join(bindir, tier, "cat")
+            if not os.access(paths[tier], os.X_OK):
+                die(f"no program at {paths[tier]}")
+        # Each side's `cat` is a file NAMED cat in a directory of its own,
+        # so every side is run as `cat` and names itself alike.
+        if boxed:
+            ctx = os.path.join(scratch, "ctx")
+            for who in sides:
+                os.makedirs(os.path.join(ctx, "t", "bin", who))
+                shutil.copy(paths[who], os.path.join(ctx, "t", "bin", who, "cat"))
+            with open(os.path.join(ctx, "Dockerfile"), "w") as fh:
+                fh.write(DOCKERFILE.format(image=image))
+            built = subprocess.run([engine, "build", "-q", "-t", tag, ctx],
+                                   capture_output=True, text=True)
+            if built.returncode != 0:
+                die(f"{engine} build failed: {built.stderr.strip()[-800:]}")
+            where = {who: f"/t/bin/{who}" for who in sides}
+            tools = "/usr/bin:/bin"
+            print(f"inouttest: {engine}, image {image}, one fresh container a case, "
+                  f"no mount, no network, /work a {8} MiB tmpfs; ulimit -f {FSIZE}, "
+                  f"alarm {ALARM} s a side")
+        else:
+            where = {}
+            for who in sides:
+                d = os.path.join(scratch, "bin", who)
+                os.makedirs(d)
+                os.symlink(paths[who], os.path.join(d, "cat"))
+                where[who] = d
+            tools = "/usr/bin:/bin:/usr/sbin:/sbin"
+            print(f"inouttest: NO CONTAINER — on this CI runner ({platform.system()}), "
+                  f"as its own user; ulimit -f {FSIZE}, alarm {ALARM} s a side")
+
+        serial = 0
+        for c in cases:
+            for who in c.get("as", list(ACTORS)):
+                label = f"{c['name']} (as {who})"
+                if only and not any(o in label for o in only):
+                    continue
+                reason = c.get("skip")
+                if reason is None and not boxed and who != "root":
+                    reason = "no container here: one user, the runner's own"
+                if reason is not None:
+                    skipped += 1
+                    print(f"SKIP {label} ({reason})")
+                    continue
+                serial += 1
+                if boxed:
+                    text = script(c, sides, where, "/work/c", "/tmp/side", ACTORS[who], tools)
+                    name = f"bore-inouttest-{os.getpid()}-{serial}"
+                    cmd = [engine, "run", "--rm", "--name", name, "--network", "none",
+                           "--user", "0", "--tmpfs", "/work:size=8m,mode=1777",
+                           tag, "sh", "-c", text]
+                else:
+                    work = os.path.join(scratch, f"w{serial}")
+                    text = script(c, sides, where, work, work, "", tools)
+                    cmd = ["sh", "-c", text]
+                try:
+                    done = subprocess.run(cmd, capture_output=True, timeout=120,
+                                          stdin=subprocess.DEVNULL)
+                    raw = done.stdout.decode(errors="replace")
+                    tail = done.stderr.decode(errors="replace")
+                    got = read(raw, sides)
+                except subprocess.TimeoutExpired:
+                    if boxed:
+                        subprocess.run([engine, "rm", "-f", name], capture_output=True)
+                    got, raw, tail = None, "timed out", ""
+                if got is None:
+                    failed += 1
+                    print(f"FAIL {label}  (the case did not finish: {(raw + tail)[-400:]!r})")
+                    continue
+                ok, why = True, []
+                g = got["gnu"]
+                refused = c.get("darwin_refuses") if darwin else None
+                for tier, _ in TIERS:
+                    o = got[tier]
+                    if refused is not None:
+                        # By design: refused, and nothing written.
+                        want = {"exit": 1, "stdout": "",
+                                "stderr": "".join(f"cat: {n}: input file is output file\n"
+                                                  for n in refused),
+                                "files": o["before"]}
+                        for f in FIELDS:
+                            if o[f] != want[f]:
+                                ok = False
+                                why.append(f"{tier} {f}: {o[f]!r}, want {want[f]!r} "
+                                           f"(by design on macOS, wolf-lang#722)")
+                        continue
+                    for f in FIELDS:
+                        if o[f] != g[f]:
+                            ok = False
+                            why.append(f"{tier} {f}: {o[f]!r}, gnu {g[f]!r}")
+                if ok:
+                    passed += 1
+                    print(f"ok   {label}")
+                else:
+                    failed += 1
+                    print(f"FAIL {label}  run={c['run']!r}")
+                    for line in why:
+                        print(f"    {line}")
+    finally:
+        if boxed:
+            subprocess.run([engine, "rmi", "-f", tag], capture_output=True)
+        shutil.rmtree(scratch, ignore_errors=True)
+    print(f"inouttest: {passed} passed, {failed} failed, {skipped} skipped")
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    sys.stdout.reconfigure(line_buffering=True)
+    try:
+        code = main(sys.argv[1:])
+    except SystemExit:
+        raise
+    except Exception:
+        import traceback
+        sys.stdout.flush()
+        traceback.print_exc()
+        print("inouttest: the tool died; no verdict", file=sys.stderr)
+        code = 2
+    sys.exit(code)
