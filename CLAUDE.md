@@ -93,6 +93,14 @@ against GNU. The short form for a new utility:
                                container a case, the accounts the
                                image's own (tests/ids/)
     tools/idtest-selftest      prove idtest can still see a difference
+    tools/inouttest            cat with its input as its output (#28):
+                               one throwaway container a case, every file
+                               on a small tmpfs, every side under a
+                               file-size limit and an alarm (tests/inout/)
+    tools/inouttest-selftest   prove inouttest can still see a difference
+                               and that the limit and the alarm stop a side
+    tools/ttyprobe [--gate]    the `tty` cases' read of a quick child,
+                               the race widened on purpose (#27)
     tools/bench [--scale F]    hyperfine against GNU on generated inputs
                                (`prepare`, `{work}` and `--input` for
                                the programs that change what they run on)
@@ -143,7 +151,10 @@ against GNU. The short form for a new utility:
   or a device (#705), finds a hole (#703), renames without replacing
   (#706), names an entry relative to an open directory (#707), sets a
   link's own mode, sets times through a handle (#714) or reads a
-  handle's open flags. A utility whose core operation is missing is
+  handle's open flags (#722) or identity (#536). `cat`'s input-is-output
+  refusal reads standard output's identity through a PATH naming the
+  descriptor instead (`/proc/self/fd/1`, `/dev/fd/1`): `src/bore/inout.lu`
+  says what that costs on each host. A utility whose core operation is missing is
   left out, never faked; an option that needs one is refused by name.
   `fs_remove_dir_all` is never called: a recursive removal is `rm`'s
   own walk.
