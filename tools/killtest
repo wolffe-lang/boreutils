@@ -86,8 +86,9 @@ Case file (tests/kill/cases.toml), any number of [[case]] tables:
                                 #   words, so its case compares the rest
   skip = "reason"
 
-A LITERAL NUMBER in `args` is refused by this tool (status 2, before
-any case runs) unless the case is `container = true`, or the number is
+A LITERAL NUMBER in `args` (a signal's `{n:…}` and `{x:…}` count as
+one) is refused by this tool (status 2, before any case runs) unless
+the case is `container = true`, or the number is
 a signal's (the word after `-s`, `-n` or `--signal`, or `-N` as the
 first argument), or it is 2147483647 or more, which names no process on
 any host. So outside a container no case can name a process it did not
@@ -215,14 +216,19 @@ def numeric(arg):
 def unsafe(case):
     """Why this case may not run outside a container, or None: a literal
     number that could be a process's or a group's id (the docstring)."""
-    args = [str(a) for a in case.get("args", [])]
+    # A signal's NUMBER (`{n:SIG}`, `{x:SIG}`) is a literal number like
+    # any other: where it is no signal's place it could be a process id
+    # (bu26). Only the case's own ids are placeholders that name nothing
+    # else.
+    written = [str(a) for a in case.get("args", [])]
+    args = [re.sub(r"\{[nx]:[A-Za-z0-9+-]+\}", "1", a) for a in written]
     after_signal = False
     for i, a in enumerate(args):
         bare = re.sub(r"\{[a-z0-9:A-Z+-]+\}", "", a)
         was_after = after_signal
         after_signal = a in ("-s", "-n", "--signal")
         if bare != a:
-            # A placeholder: the case's own process, or a signal's number.
+            # A placeholder: the case's own process.
             if "{pgid}" in a or re.search(r"-\s*\{(pid\d+|dead)\}", a):
                 return f"{a!r} names a process group"
             continue
@@ -234,7 +240,7 @@ def unsafe(case):
             continue
         if re.fullmatch(r"\d+", a) and int(a) >= 2147483647:
             continue
-        return f"{a!r} is a literal number that could be a process id"
+        return f"{written[i]!r} is a literal number that could be a process id"
     if case.get("group") or case.get("other"):
         return "it needs a group of its own, or root's targets"
     return None

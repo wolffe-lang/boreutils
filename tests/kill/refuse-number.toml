@@ -1,0 +1,8 @@
+# bu26: a signal's NUMBER where a process id stands, in a case that is
+# not `container = true`. `{n:HUP}` is 1 on linux and on macOS, which is
+# init's id: tools/killtest must refuse the run (status 2) before any
+# case starts, as it refuses the literal `1` (refuse.toml). Nothing here
+# ever runs.
+[[case]]
+name = "a signal's number as an id"
+args = ["-s", "TERM", "{n:HUP}"]

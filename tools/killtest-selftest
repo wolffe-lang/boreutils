@@ -5,8 +5,9 @@
 # tests/kill/selftest.toml with GNU's `true` standing in for this
 # repository's `kill` on both tiers, and passes only when killtest exits
 # 1, every plant is a FAIL line of its own, and the control passes. Then
-# it checks the refusal: a case that names a literal process id outside
-# a container stops the run, status 2, before anything has started.
+# it checks the refusals: a case that names a literal process id outside
+# a container, or a signal's number where an id stands, stops the run,
+# status 2, before anything has started.
 #
 # usage: tools/killtest-selftest --gnu DIR [killtest's other options]
 set -eu
@@ -71,16 +72,20 @@ fi
 echo "$out" | grep -E '^(FAIL|ok  |killtest:)'
 echo "killtest-selftest: the tool saw every planted difference"
 
-out=$(tools/killtest "$@" --bin "$tmp" --cases tests/kill/refuse.toml 2>&1) && status=0 || status=$?
-if [ "$status" -ne 2 ] || ! echo "$out" | grep -q 'killtest: refusing case'; then
-    echo "killtest-selftest: REFUSED — a literal process id was not refused (status $status):"
-    echo "$out"
-    exit 1
-fi
-if echo "$out" | grep -qE '^(ok  |FAIL|SKIP) '; then
-    echo "killtest-selftest: REFUSED — a case ran before the refusal:"
-    echo "$out"
-    exit 1
-fi
-echo "$out" | grep 'refusing case'
-echo "killtest-selftest: the tool refused a literal process id"
+# Two refusals: a literal id, and a signal's number where a process id
+# stands (`{n:HUP}` is 1 on both hosts, init's id: bu26).
+for refuse in tests/kill/refuse.toml tests/kill/refuse-number.toml; do
+    out=$(tools/killtest "$@" --bin "$tmp" --cases "$refuse" 2>&1) && status=0 || status=$?
+    if [ "$status" -ne 2 ] || ! echo "$out" | grep -q 'killtest: refusing case'; then
+        echo "killtest-selftest: REFUSED — $refuse was not refused (status $status):"
+        echo "$out"
+        exit 1
+    fi
+    if echo "$out" | grep -qE '^(ok  |FAIL|SKIP) '; then
+        echo "killtest-selftest: REFUSED — a case of $refuse ran before the refusal:"
+        echo "$out"
+        exit 1
+    fi
+    echo "$out" | grep 'refusing case'
+done
+echo "killtest-selftest: the tool refused a literal process id and a signal's number in its place"
