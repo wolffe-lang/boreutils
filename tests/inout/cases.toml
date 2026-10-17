@@ -204,6 +204,10 @@ darwin_refuses = ["-", "-"]
 [[case]]
 name = "1<>, /dev/stdin, input 3, output 1"
 run = "{ in_at 3; out_at 1; cat /dev/stdin; } < f 1<> f"
+# linux opens /dev/stdin afresh, at 0, so GNU refuses (output 1 is past
+# it); macOS's /dev/stdin shares descriptor 0's offset, 3, and GNU copies
+# (CI run 39031596793). Ours refuses there by design.
+darwin_refuses = ["/dev/stdin"]
 
 # --- not the same file, or not a regular file: copied -------------------
 
