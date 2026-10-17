@@ -104,3 +104,97 @@ their archives exist; signals only to processes the test started.
 **Seen red.** A plant restores the pid-per-side comparison (the old
 case) and a dispatch shows it red on macOS; and, if 5 holds, a plant of
 the old number rule shows the probe red on macOS.
+
+## 3a. The prediction, scored
+
+§3 above is as it was committed (`87fa8e2`), before GNU's `kill` was run
+by this lane on any number and before the first change. Scored in place,
+by line. "kasumi" is a fresh `--network none` container a case of
+`ubuntu:24.04` (killtest, podman, `--cpus 0-3` asserted inside) or of
+`localhost/px12-ubuntu` (the gauntlet and killprobe, `probes/box.sh`);
+"GNU" is bu25's build of 9.11 copied to `~/lanes/bu26/gnu/`
+(`kill` `a78a3c72…`, `env` `2f5617c0…`). The CI runs are one-job
+dispatches of the new `kill` job (`only: kill-macos` / `kill-ubuntu`).
+
+| # | predicted | measured | verdict |
+|---|---|---|---|
+| 1 | the cause is each side's own pid, nothing in `kill` | right. Every red line of the five runs is `placing: {pid0} -l` with the two sides on different numbers; the retired case, counted in each dispatch (it never gates), is red in 13 / 30 (39075023384) and 10 / 30 (39077061677) on macOS and 5 / 30 on ubuntu (39077031801), and every one of those reds names two different signals or one signal and `invalid` — never ours wrong about one number (§#34) | right |
+| 2 | one fixed number both sides share; outside a container one that names no process; a small one only in a container | right, and one thing not predicted. Four cases replace the one: `2147483647 -l` and `4294967305 -l` (both `kill: 'N': invalid signal`, status 1, on both hosts), `9 -l` and `265 -l` (`KILL`, container only). **Not predicted:** the first version kept a target "to be left alone", and on ubuntu GNU's target was pid 9 twice in twenty runs, so the reader wrote GNU's `'4294967305'` as `'{w:0}'` (2^32 + its pid) and ours, whose target was another pid, as the number (39075042695, 2 of 23 runs red). The cases now name no target (`8e2b506`), and killtest gained the rule that made the fix safe: a signal's number (`{n:…}`, `{x:…}`) where a process id stands is a literal number, refused outside a container (`4aab3d7`; `tests/kill/refuse-number.toml`, gated by the selftest) | right, one collision found and fixed |
+| 3 | 0 red at the fix; the old case red on macOS in 2–5 of 10, rarely on ubuntu | at the fix: 0 of 23 killtest runs red in each of 39075023384 (macOS, `86d952f`), 39077061677 (macOS, `8e2b506`), 39077031801 (ubuntu, `8e2b506`) and in the earlier macOS run 39073021758 (`1dc2381`, 23 of 23 green before its retired step stopped at `bash -e`, fixed in `86d952f`); kasumi: killtest 338 / 0 / 0 (`ev/killtest-full-86d952f.log`), and there the old case was green 20 of 20 (`ev/killtest-old-x20.log`: podman hands both sides the same small pids). The old case: macOS 13 / 30 and 10 / 30 (4.3 and 3.3 in 10), ubuntu **5 / 30** (1.7 in 10, not "rarely": the docker pids differ by one or more often enough) | right on macOS, wrong on ubuntu's rate |
+| 4 | #34 is #36's shadow: GNU and ours agree on every N 0..140,000 and a sample above | **right.** `tools/killprobe` on macos-latest (Darwin arm64; 39073021758, 39075023384, 39077061677, the same numbers each time): 240,578 numbers, `-l` and `-t`, both tiers: 237,775 alike and 2,803 by design (GNU names `EMT`, `IO`, `INFO` and their exit-status forms, which wolf has no meaning for), 0 parted. GNU names a signal for 30,176 of them. No line of `src/` changes | right |
+| 5 | (if 4 were wrong) the fix in the exit-status reading | not reached | — |
+| 6 | linux agrees for every N 0..140,000 | right: kasumi (`ev/killprobe-linux-trunk.log`) and ubuntu-latest (39075042695, 39077031801): 206,533 alike, 34,045 by design (`STKFLT`, `POLL`, `PWR`, `32`, `33`, the real-time names and their exit-status forms), 0 parted, on both tiers and both flags | right |
+| 7 | the pin to 0.2.31 / 0.1.54 / std `d37c911` moves no verdict | **WRONG — the pin was not moved.** The archives are as the release API says (each hashed twice, kasumi `~/lanes/bu26/ev/archives.log`; `_wolf` `a368c8ec…` in all three), and on the release tier the difftest list is trunk's (`4644afb15f38b6d3`, 6,383 / 0 / 262). On the **dev tier five cases fail** (`ev/gauntlet-pin-0231.log`, list `0b39c06054e54b11`, 6,378 / 5 / 262): `cat` and `wc` with descriptor 1 closed (`>&-`) no longer see it closed. Cause, measured (`notes/bu26/probes/`): at 0.2.31 a dev-tier program that imports `std.signal` — every boreutils utility, through `bore` — makes the runtime's signal hub before `main` (s243), and the hub's pipes take the lowest free descriptors, so a closed 1 is a pipe by the time `main` runs (`fd 1: open … fs_fstat(1): ok`); the release tier and 0.2.30 do not (`probe-0230.log`), and the old std `fd6bcdc` under 0.2.31 does the same (`probe-0231-stdfd6.log`), so it is the compiler's runtime, not the std. The contract's rule "no regression in the existing 46 utilities' cases" decides it: **boreutils stays on 0.2.30 / 0.1.53 / `fd6bcdc`**, and the finding is for wolf-lang (§5) | wrong: the bump would regress five dev-tier cases |
+| 8 | CI green at the head; killtest's count moves only by this lane's cases | the PR's run is named in the PR. killtest 335 → 338 (one case out, four in), 338 / 0 / 0 on ubuntu, 278 / 0 / 60 on macOS (two more container-only skips) | see the PR |
+| seen red | the old case restored, red on macOS by dispatch | **red**: plant `c0c4322` on `bu26-plant-pid` (the old case back beside the four), run 39077060088 (macOS, one job): killtest 9 of 23 runs red, every red line `placing: {pid0} -l` (`dev stdout: 'TTOU\n', gnu ''`, `release stdout: 'USR1\n', gnu ''`, …), the job failed. The killtest rule (`4aab3d7`) seen red on kasumi: the old `tools/killtest` under the new selftest refuses nothing for `{n:HUP}` and the selftest says `REFUSED — tests/kill/refuse-number.toml was not refused (status 0)` (`ev/plantB-selftest.log`; in a container, where that case's `kill -s TERM 1` reached only the container's own first process) | red, both |
+
+## 4. Evidence index
+
+kasumi `~/lanes/bu26/` (prune list in §5):
+
+- `ev/archives.log` — the six 0.2.31 / 0.1.54 archives, each hashed
+  twice, sizes, `_wolf`, the version lines, `std/STD-REV` `d37c911`.
+- `ev/gauntlet-trunk-1dc2381.log` — the gauntlet at 0.2.30 on this
+  branch's `src/` (= trunk's; the tree was `87fa8e2` plus the killtest
+  files as later committed): 6,383 / 0 / 262 both tiers, `4644afb1…`.
+- `ev/gauntlet-pin-0231.log`, `difftest-dev-pin-0231.log` — the pin
+  tried: release `4644afb1…`, dev 5 FAIL (§3a line 7).
+- `ev/fd1/` and `notes/bu26/probes/probe-*.log` — the descriptor 1
+  witness at 0.2.30, at 0.2.31, and at 0.2.31 with std `fd6bcdc`.
+- `ev/killprobe-linux-trunk.log` — killprobe on linux, both tiers.
+- `ev/killtest-placing-w1.log`, `killtest-record-placing.log`,
+  `killtest-old-x20.log`, `killtest-full-86d952f.log` (338 / 0 / 0),
+  `killtest-selftest-w1.log`, `plantB-selftest.log`.
+
+CI (`kill` job, one a dispatch): 39073021758 (macOS `1dc2381`; probe
+and 23 killtest runs green, the retired step stopped at `bash -e`),
+39075023384 (macOS `86d952f`, green), 39075042695 (ubuntu `86d952f`,
+red on the `{w:0}` collision), 39077031801 (ubuntu `8e2b506`, green),
+39077061677 (macOS `8e2b506`, green), 39077060088 (macOS, the plant,
+red). The PR's runs, and the repeated dispatches at the PR's head, are
+listed in the PR.
+
+## 5. Findings, and what was not verified
+
+**For wolf-lang (not filed: a lane files nothing).** *0.2.31: on the dev
+tier the signal hub is made before `main` in any program that imports
+`std.signal`, and its descriptors take a closed 0, 1 or 2.* Witness
+`notes/bu26/probes/fd1s.lu` (imports `std.signal`, calls
+`signal.terminate()`, lists `/proc/self/fd/0..7` and `fs_fstat(1)`), run
+with `>&-`: release tier `fd 1` not open, `fs_fstat(1): io`; dev tier
+`fd 1`, 3, 4, 5 open pipes, `fs_fstat(1): ok`. 0.2.30 neither. Two
+asks: the hub (and the readiness set) never land on 0–2 (a duplicate at
+3 or more), and the dev tier decides "names `os_signal_wait`" by what is
+reached, as release does. Until then boreutils cannot take 0.2.31: its
+closed-standard-output rule (`bore.stdout()`, GNU's `standard output:
+Bad file descriptor`) is wrong on the dev tier for every utility.
+
+**For boreutils.**
+- The `macos-suite` dispatch job (bu25) counts its red runs under the
+  runner's `bash -e`, which stops at the first red, so "N of 10 runs
+  red" can never print a number above 0 (the same bug this lane's `kill`
+  job had, `86d952f`). One line, `set +e`.
+- killtest's reader writes `{pidN}` and `{w:N}` over any matching digits
+  in a case's output; a case about a fixed number now names no target,
+  and CLAUDE.md says why, but the tool does not refuse a literal that
+  could collide. Left as written.
+- wolf-std `d37c911` has `std.os.users` (wolf-std#65 landed); boreutils'
+  own `/etc/passwd` reader (`src/bore/ids.lu`) can move to it at the
+  0.2.31-or-later pin.
+
+**Issues.** #36: fixed here (the case, and killtest's rule). #34: no
+fault — measured equal on both hosts over 240,578 numbers; it was #36's
+two-pid comparison. Both close at merge, by hand.
+
+**Not verified.** killprobe's sample above 140,000 is 100,000 numbers
+(seed 34) and the edges, not all 2^31; linux aarch64; the retired case's
+red rate on ubuntu beyond 30 runs; the pin bump on macOS (stopped on
+linux's dev tier first); whether 0.2.31's release tier makes the hub
+early in a program that REACHES a wait (boreutils has none).
+
+**Housekeeping.** kasumi `~/lanes/bu26/` keeps `ev/` (cited), `gnu/`
+(bu25's build, 33 M), `bin/trunk/` (static `kill`, both tiers, 28 M) and
+`probes/`; the archives, the `fd6bcdc` std clone, every `target/` and the
+probe binaries were removed, and the lane's clone (`boreutils/`, 365 M
+with its staged toolchain) is removed at hand-back. Branch
+`bu26-plant-pid` is kept on origin: §3a cites it.
