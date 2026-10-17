@@ -1,0 +1,28 @@
+# tests/inout/selftest.toml — run by tools/inouttest-selftest, never by
+# CI's inouttest step. Each `plant:` case makes the sides differ ON
+# PURPOSE and must FAIL by name; the control must pass. `$who` is the
+# side being run (gnu, release, dev).
+
+[[case]]
+name = "plant: the bytes one side leaves"
+run = "cat a > g; [ \"$who\" = gnu ] || printf x >> g"
+as = ["root"]
+
+[[case]]
+name = "plant: a status one side changes"
+run = "cat f >> f; [ \"$who\" = gnu ] || exit 7"
+as = ["root"]
+
+[[case]]
+name = "plant: a copy that grows is stopped by the file-size limit"
+run = "if [ \"$who\" = gnu ]; then cat a >> g; else cat /dev/zero >> g; fi"
+as = ["root"]
+
+[[case]]
+name = "plant: a side that never ends is stopped by the alarm"
+run = "if [ \"$who\" = gnu ]; then cat a > g; else while :; do sleep 1; done; fi"
+as = ["root"]
+
+[[case]]
+name = "control: f >> f, refused on every side"
+run = "cat f >> f"

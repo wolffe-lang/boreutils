@@ -1,0 +1,48 @@
+#!/bin/sh
+# inouttest-selftest — prove tools/inouttest can see a difference (bu25).
+#
+# A gate nobody has watched fail is not a gate. This runs inouttest over
+# tests/inout/selftest.toml, whose plants make the sides differ on
+# purpose (the bytes a side leaves, its status, a copy that grows, a side
+# that never ends), and passes only when inouttest exits 1, every plant is
+# a FAIL line of its own on the field it is about — the file-size limit
+# and the alarm each seen to stop a side — and the control passes.
+#
+# usage: tools/inouttest-selftest [inouttest's options]
+set -eu
+BORE_ROOT=$(cd "$(dirname "$0")/.." && pwd)
+cd "$BORE_ROOT"
+
+out=$(tools/inouttest "$@" --cases tests/inout/selftest.toml 2>&1) && status=0 || status=$?
+if [ "$status" -ne 1 ]; then
+    echo "inouttest-selftest: REFUSED — inouttest exited $status over the planted"
+    echo "inouttest-selftest: differences; it must exit 1. Output was:"
+    printf '%s\n' "$out"
+    exit 1
+fi
+for planted in "plant: the bytes one side leaves" \
+               "plant: a status one side changes" \
+               "plant: a copy that grows is stopped by the file-size limit" \
+               "plant: a side that never ends is stopped by the alarm"; do
+    if ! printf '%s\n' "$out" | grep -qF "FAIL $planted"; then
+        echo "inouttest-selftest: REFUSED — the plant '$planted' did not fail:"
+        printf '%s\n' "$out"
+        exit 1
+    fi
+done
+# 153 is 128 + SIGXFSZ and 142 is 128 + SIGALRM on linux and on macOS.
+for said in "release files:" "release exit: 7, gnu 0" "release exit: 153, gnu 0" \
+            "release exit: 142, gnu 0"; do
+    if ! printf '%s\n' "$out" | grep -qF "$said"; then
+        echo "inouttest-selftest: REFUSED — no line says: $said"
+        printf '%s\n' "$out"
+        exit 1
+    fi
+done
+if ! printf '%s\n' "$out" | grep -qF "ok   control: f >> f, refused on every side (as root)"; then
+    echo "inouttest-selftest: REFUSED — the control did not pass:"
+    printf '%s\n' "$out"
+    exit 1
+fi
+printf '%s\n' "$out" | grep -E '^(FAIL|ok  )'
+echo "inouttest-selftest: inouttest saw every planted difference and passed the control"
