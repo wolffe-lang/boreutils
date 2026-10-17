@@ -427,7 +427,8 @@ jobs:
       - name: killtest, three times whole and twenty times its placing cases (boreutils#36)
         shell: bash
         run: |
-          set -uo pipefail
+          # Not -e (the runner's `bash -e` default): a red run is counted.
+          set +e -uo pipefail
           if [ "$RUNNER_OS" = "macOS" ]; then
             kt="tools/killtest --engine none --gnu .gnu-bin/bin"
           else
@@ -458,7 +459,8 @@ jobs:
       - name: the retired case, thirty times (information, not a verdict)
         shell: bash
         run: |
-          set -uo pipefail
+          # Not -e (the runner's `bash -e` default): a red run is counted.
+          set +e -uo pipefail
           if [ "$RUNNER_OS" = "macOS" ]; then
             kt="tools/killtest --engine none --gnu .gnu-bin/bin"
           else
