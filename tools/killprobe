@@ -1,0 +1,237 @@
+#!/usr/bin/env python3
+"""killprobe - `kill -l N` against GNU for every N in a range (bu26,
+boreutils#34).
+
+A number past the host's last signal is read by `kill -l` as the exit
+status of a process a signal ended (`src/bore/signals.lu`), and the
+reading depends on the host's numbering: linux's last signal is 64,
+macOS's 31. This tool hands ONE list of numbers to GNU coreutils 9.11's
+own `kill -l` and to each of ours, and compares the answer for every
+number. Nothing is sent to anything: every run is `kill -l N1 N2 ...`,
+whose first argument is the list option, so the tool may run on any
+host, a lane's included.
+
+The numbers: every N from 0 to --upto (default 140000), then every
+number the C `int` edges and a few wrap points name, then --sample
+(default 100000) numbers drawn from (--upto, 2^31) with a fixed seed, so
+two runs probe the same numbers. They are asked --batch at a time
+(default 4000): `kill -l` answers each operand in turn, the name on
+standard output for one it can read and `kill: 'N': invalid signal` on
+standard error for one it cannot, so a batch's answer is rebuilt per
+number from the two streams. A batch whose streams do not account for
+every operand is asked again one number at a time.
+
+usage: tools/killprobe --gnu PROGRAM [--upto N] [--sample N] [--batch N]
+                       [--seed N] [--table] PROGRAM...
+
+  --gnu PROGRAM  GNU 9.11's own `kill` (its --version line is asserted)
+  PROGRAM...     the programs compared with it (our two tiers)
+  --table        ask `-t` as well, on the numbers that name a signal,
+                 and compare its first two columns
+
+A number GNU reads as a signal wolf has no meaning for (linux's STKFLT,
+POLL, PWR and the real-time range, which GNU names `32`, `RTMIN+1` …;
+macOS's EMT, IO, INFO) is `invalid signal` here BY DESIGN
+(`src/bore/signals.lu`): such a parting is counted apart, as `by
+design`, and is no failure. Any other parting is.
+
+Exit status: 0 every number answered alike or by design, 1 a number
+parted otherwise (each run of them is listed), 2 the tool could not run.
+"""
+
+import os
+import random
+import subprocess
+import sys
+import tomllib
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ENV = dict(os.environ, LC_ALL="C", _POSIX2_VERSION="200112")
+ENV.pop("POSIXLY_CORRECT", None)
+
+
+def die(msg):
+    print(f"killprobe: {msg}", file=sys.stderr)
+    sys.exit(2)
+
+
+def numbers(upto, sample, seed):
+    ns = list(range(0, upto + 1))
+    edges = set()
+    for base in (255, 256, 511, 512, 65535, 65536, 2 ** 24, 2 ** 31 - 1, 2 ** 31,
+                 2 ** 32, 2 ** 63 - 1, 2 ** 63, 2 ** 64):
+        for d in range(-3, 4):
+            if base + d > upto:
+                edges.add(base + d)
+    for k in (2 ** 31 - 256, 2 ** 32, 2 ** 32 + 128, 2 ** 64):
+        for r in range(0, 140):
+            edges.add(k + r)
+    rng = random.Random(seed)
+    drawn = set()
+    while len(drawn) < sample and upto + 1 < 2 ** 31:
+        drawn.add(rng.randrange(upto + 1, 2 ** 31))
+    return ns + sorted(edges | drawn)
+
+
+def ask(prog, flag, batch):
+    """{N: answer} for one program over `batch`; an answer is the stdout
+    line, or `invalid: <stderr text after the program's name>`."""
+    argv = [prog, flag] + [str(n) for n in batch]
+    done = subprocess.run(argv, capture_output=True, env=ENV, stdin=subprocess.DEVNULL)
+    out = done.stdout.decode(errors="backslashreplace").splitlines()
+    err = done.stderr.decode(errors="backslashreplace").splitlines()
+    bad = {}
+    for line in err:
+        _, sep, rest = line.partition(": ")
+        if not sep or not rest.startswith("'"):
+            return None
+        word = rest[1:].split("'", 1)[0]
+        bad[word] = "invalid: " + rest
+    good = [n for n in batch if str(n) not in bad]
+    if len(good) != len(out) or len(bad) + len(good) != len(batch):
+        return None
+    if (done.returncode != 0) != bool(bad):
+        return None
+    got = {n: line for n, line in zip(good, out)}
+    for n in batch:
+        if str(n) in bad:
+            got[n] = bad[str(n)]
+    return got
+
+
+def answers(prog, flag, ns, size):
+    got = {}
+    for i in range(0, len(ns), size):
+        batch = ns[i:i + size]
+        one = ask(prog, flag, batch)
+        if one is None:
+            one = {}
+            for n in batch:
+                single = ask(prog, flag, [n])
+                if single is None:
+                    die(f"{prog} {flag} {n}: an answer this tool cannot read")
+                one.update(single)
+        got.update(one)
+    return got
+
+
+# The 28 signals wolf has a meaning for, and EXIT (`src/bore/signals.lu`).
+WOLF = {"EXIT", "HUP", "INT", "QUIT", "ILL", "TRAP", "ABRT", "BUS", "FPE", "KILL",
+        "USR1", "SEGV", "USR2", "PIPE", "ALRM", "TERM", "CHLD", "CONT", "STOP",
+        "TSTP", "TTIN", "TTOU", "URG", "XCPU", "XFSZ", "VTALRM", "PROF", "WINCH", "SYS"}
+
+
+def two_columns(v):
+    return v if v.startswith("invalid") else " ".join(v.split()[:2])
+
+
+def by_design(ours, gnu):
+    """GNU names a signal wolf has no meaning for, and ours refuses it."""
+    if not ours.startswith("invalid") or gnu.startswith("invalid"):
+        return False
+    return gnu.split()[-1] not in WOLF
+
+
+def runs(ns):
+    """Consecutive numbers grouped: [(first, last), ...]."""
+    out = []
+    for n in ns:
+        if out and out[-1][1] == n - 1:
+            out[-1] = (out[-1][0], n)
+        else:
+            out.append((n, n))
+    return out
+
+
+def main(argv):
+    gnu = None
+    upto, sample, size, seed = 140000, 100000, 4000, 34
+    table = False
+    progs = []
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a in ("--gnu", "--upto", "--sample", "--batch", "--seed"):
+            if i + 1 >= len(argv):
+                die(f"{a} needs a value")
+            v = argv[i + 1]
+            i += 1
+            if a == "--gnu":
+                gnu = v
+            elif a == "--upto":
+                upto = int(v)
+            elif a == "--sample":
+                sample = int(v)
+            elif a == "--batch":
+                size = int(v)
+            else:
+                seed = int(v)
+        elif a == "--table":
+            table = True
+        elif a.startswith("--"):
+            die(f"unknown argument {a!r}")
+        else:
+            progs.append(a)
+        i += 1
+    if gnu is None or not progs:
+        die("usage: tools/killprobe --gnu PROGRAM [options] PROGRAM...")
+    for p in [gnu] + progs:
+        if not os.access(p, os.X_OK):
+            die(f"no program at {p}")
+    with open(os.path.join(ROOT, "gnu-oracle.toml"), "rb") as fh:
+        oracle = str(tomllib.load(fh)["oracle"]["version"])
+    said = subprocess.run([gnu, "--version"], capture_output=True, text=True, env=ENV)
+    first = (said.stdout.splitlines() or [""])[0]
+    if said.returncode != 0 or first != f"kill (GNU coreutils) {oracle}":
+        die(f"the kill given as GNU's is not coreutils {oracle}'s own: {first!r}")
+    print(f"killprobe: gnu = {first} ({gnu}); host {os.uname().sysname} {os.uname().machine}")
+    ns = numbers(upto, sample, seed)
+    print(f"killprobe: {len(ns)} numbers: 0..{upto}, then {len(ns) - upto - 1} edges and a "
+          f"sample of the int range (seed {seed}), {size} an invocation; nothing is sent")
+    flags = ["-l"] + (["-t"] if table else [])
+    parted = 0
+    for flag in flags:
+        g = answers(gnu, flag, ns, size)
+        if flag == "-t":
+            # The rows GNU names, two columns: wolf has no signal's words.
+            g = {n: two_columns(v) for n, v in g.items()}
+        names = sum(1 for v in g.values() if not v.startswith("invalid"))
+        print(f"killprobe: gnu {flag}: {names} numbers name a signal, "
+              f"{len(ns) - names} are invalid")
+        for prog in progs:
+            o = answers(prog, flag, ns, size)
+            if flag == "-t":
+                o = {n: two_columns(v) for n, v in o.items()}
+            unlike = [n for n in ns if o[n] != g[n]]
+            design = [n for n in unlike if by_design(o[n], g[n])]
+            diff = [n for n in unlike if not by_design(o[n], g[n])]
+            if not diff:
+                print(f"agree {prog} {flag}: {len(ns) - len(design)} numbers alike, "
+                      f"{len(design)} by design (GNU names a signal wolf has no meaning for)")
+                continue
+            parted += len(diff)
+            print(f"PART  {prog} {flag}: {len(diff)} of {len(ns)} numbers")
+            shown = 0
+            for lo, hi in runs(diff):
+                if shown == 40:
+                    print("    ...")
+                    break
+                span = f"{lo}" if lo == hi else f"{lo}..{hi} ({hi - lo + 1})"
+                print(f"    {span}: ours {o[lo]!r}, gnu {g[lo]!r}")
+                shown += 1
+    print(f"killprobe: {'every number answered alike' if not parted else f'{parted} answers parted'}")
+    return 1 if parted else 0
+
+
+if __name__ == "__main__":
+    sys.stdout.reconfigure(line_buffering=True)
+    try:
+        code = main(sys.argv[1:])
+    except SystemExit:
+        raise
+    except Exception:
+        import traceback
+        traceback.print_exc()
+        print("killprobe: the tool died; no verdict", file=sys.stderr)
+        code = 2
+    sys.exit(code)
