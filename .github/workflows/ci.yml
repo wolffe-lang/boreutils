@@ -39,13 +39,23 @@ on:
   push:
     branches: [trunk]
   pull_request:
+  # A dispatch runs the whole matrix unless it names ONE job (bu25): the
+  # runners are shared org-wide, so a reproduction or a plant asks for
+  # the job it is about and nothing else.
   workflow_dispatch:
+    inputs:
+      only:
+        description: "all (the matrix), ttyprobe (macOS: boreutils#27's probe), macos-suite (macOS: the ls suite, repeated)"
+        type: choice
+        options: [all, ttyprobe, macos-suite]
+        default: all
 
 permissions:
   contents: read
 
 jobs:
   gauntlet:
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all'
     strategy:
       fail-fast: false
       matrix:
@@ -225,6 +235,7 @@ jobs:
   # under it is an ANNOUNCED ADVISORY.
   field:
     name: the field's GNU (information, not a verdict)
+    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all'
     runs-on: ubuntu-latest
     # NO `continue-on-error` on the job any more (B98). It made the leg
     # non-blocking about everything, including its own death: in run
@@ -274,3 +285,63 @@ jobs:
       - name: what that exit code MEANS (B98)
         shell: bash
         run: tools/field-verdict '${{ steps.differential.outputs.code }}'
+
+  # boreutils#27, by dispatch only (`only: ttyprobe`): the terminal read
+  # measured on the runner it fails on, the race widened on purpose.
+  ttyprobe:
+    name: the terminal read, measured (boreutils#27)
+    if: github.event_name == 'workflow_dispatch' && inputs.only == 'ttyprobe'
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: the probe, every reader (a report)
+        run: tools/ttyprobe --trials 200 --settle 0,1,5,20 --bytes 24,1000
+      - name: the probe, the harness's reader (the gate)
+        run: tools/ttyprobe --trials 200 --settle 0,5 --bytes 24,1000 --readers harness --gate
+
+  # boreutils#27, by dispatch only (`only: macos-suite`): `ls`'s cases,
+  # 33 of them on a terminal, ten times over on one macOS runner.
+  macos-suite:
+    name: the ls suite, repeated (boreutils#27)
+    if: github.event_name == 'workflow_dispatch' && inputs.only == 'macos-suite'
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: macOS's GNU
+        run: brew install --quiet coreutils
+      - name: the oracle of record, cached
+        uses: actions/cache@v4
+        with:
+          path: .gnu-bin
+          key: gnu-oracle-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gnu-oracle.toml') }}
+      - name: the oracle of record, by digest
+        shell: bash
+        run: |
+          set -euo pipefail
+          dir=$(BORE_GNU_PREFIX=g tools/fetch-oracle)
+          prefix=g
+          if [ -n "$dir" ]; then
+            echo "$dir" >> "$GITHUB_PATH"
+            prefix=""
+          fi
+          echo "BORE_GNU_PREFIX=$prefix" >> "$GITHUB_ENV"
+      - name: the pinned toolchain, by digest
+        run: tools/fetch-toolchain
+      - name: build ls (release)
+        run: tools/build ls
+      - name: the ls suite, ten times; every run's verdict kept
+        shell: bash
+        run: |
+          set -uo pipefail
+          bad=0
+          for n in 1 2 3 4 5 6 7 8 9 10; do
+            tools/difftest ls > "ls-$n.log" 2>&1
+            code=$?
+            echo "run $n: exit $code; $(grep -E '^difftest: ' "ls-$n.log")"
+            grep -A6 '^FAIL' "ls-$n.log" || true
+            [ "$code" -eq 0 ] || bad=$((bad + 1))
+          done
+          echo "the ls suite: $bad of 10 runs red"
+          [ "$bad" -eq 0 ]
