@@ -338,9 +338,18 @@ for name, form in (("a leading space", " {pid0}"), ("a leading +", "+{pid0}"), (
 
 k.note("Where an option may stand.")
 for args in (["{pid0}", "-s", "KILL"], ["{pid0}", "-KILL"], ["--", "{pid0}"], ["-s", "INT", "--", "{pid0}"],
-             ["-INT", "--", "{pid0}"], ["-{n:KILL}", "--", "{pid0}"], ["{pid0}", "--signal=HUP"],
-             ["{pid0}", "-l"]):
+             ["-INT", "--", "{pid0}"], ["-{n:KILL}", "--", "{pid0}"], ["{pid0}", "--signal=HUP"]):
     k.case("placing: " + label(args), args)
+# `kill N -l` is `kill -l N` (options permute): N is a SIGNAL then, so
+# both sides must be handed ONE number. `{pid0} -l` asked each side about
+# its own target's id and parted on the runner's pids (boreutils#36, bu26).
+# Outside a container N must name no process (2147483647 or more), so a
+# `kill` that stopped permuting would signal nothing; a small N that names
+# a signal runs only in a container. The target is there to be left alone.
+for args in (["2147483647", "-l"], ["4294967305", "-l"]):
+    k.case("placing: " + label(args), args)
+for args in (["9", "-l"], ["265", "-l"]):
+    k.case("placing: " + label(args), args, container=True)
 for args in (["{pid0}", "--help"], ["{pid0}", "--version"]):
     k.case("placing: " + label(args), args, compare=["exit", "stderr", "fates"])
 for args in (["{pid0}", "-s", "KILL"], ["{pid0}", "-KILL"], ["{pid0}", "-l"], ["-s", "INT", "{pid0}"],

@@ -1034,8 +1034,22 @@ name = "placing: {pid0} --signal=HUP"
 args = ["{pid0}", "--signal=HUP"]
 
 [[case]]
-name = "placing: {pid0} -l"
-args = ["{pid0}", "-l"]
+name = "placing: 2147483647 -l"
+args = ["2147483647", "-l"]
+
+[[case]]
+name = "placing: 4294967305 -l"
+args = ["4294967305", "-l"]
+
+[[case]]
+name = "placing: 9 -l"
+args = ["9", "-l"]
+container = true
+
+[[case]]
+name = "placing: 265 -l"
+args = ["265", "-l"]
+container = true
 
 [[case]]
 name = "placing: {pid0} --help"
