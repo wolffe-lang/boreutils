@@ -1,0 +1,213 @@
+#!/usr/bin/env python3
+"""ttyprobe - does the harness keep what a quick child wrote to a terminal?
+(bu25, boreutils#27)
+
+`tools/difftest`'s `tty` cases run a program with standard output on a
+pseudo-terminal and read the controller end. On CI's macOS runner a case
+has now and then read NOTHING from a program that exited 0 having
+written its output (runs 38124794804, 38126188058, 38348626720,
+38355253341; on either side, never on ubuntu). This tool measures that
+read, many times, where the race can be widened on purpose:
+
+  - the CHILD is `printf` of a payload, so it writes and exits at once;
+  - the READER can be made to wait `--settle` milliseconds after the
+    child starts before it reads (a loaded runner, on demand) — by
+    wrapping `subprocess.Popen` from outside, so the harness's own code
+    is what runs and nothing in it is a test hook.
+
+Two readers are measured on the same children:
+
+  trunk    the read `run_tty` did at boreutils trunk 23ea8dd, kept here
+           verbatim as the control: close the terminal end, then read
+           the controller until EIO or end of file;
+  harness  `tools/difftest`'s `run_tty` as it is in this tree, called.
+
+For each, trials are counted as WHOLE (every byte), SHORT or EMPTY, and
+for the trunk reader the first read's outcome is recorded (bytes, end of
+file, or EIO) with whether the child had already exited — the evidence
+that names the cause.
+
+usage: tools/ttyprobe [--trials N] [--settle MS,MS,...] [--bytes N,N,...]
+                      [--readers trunk,harness] [--gate]
+
+With --gate the exit status is 1 when the HARNESS reader lost a byte in
+any trial (0 otherwise); without it the tool only reports (0), or 2 when
+it could not run.
+"""
+
+import importlib.machinery
+import importlib.util
+import os
+import platform
+import select
+import shutil
+import subprocess
+import sys
+import time
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def load_difftest():
+    loader = importlib.machinery.SourceFileLoader(
+        "difftest_under_probe", os.path.join(ROOT, "tools", "difftest"))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    mod = importlib.util.module_from_spec(spec)
+    loader.exec_module(mod)
+    return mod
+
+
+class Settled(subprocess.Popen):
+    """Popen that returns only `delay` seconds after the child started:
+    the reader then meets a child that has (very likely) already exited."""
+    delay = 0.0
+
+    def __init__(self, *a, **k):
+        super().__init__(*a, **k)
+        if Settled.delay > 0:
+            time.sleep(Settled.delay)
+
+
+def trunk_reader(exe, args, timeout, cols):
+    """`run_tty`'s read as it stood at trunk 23ea8dd, plus what it saw
+    first. Returns (bytes, first) where first is 'data', 'eof', 'eio'
+    and whether the child had exited before the first read."""
+    import fcntl
+    import pty
+    import struct
+    import termios
+    master, slave = pty.openpty()
+    fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, cols, 0, 0))
+    proc = Settled([exe] + args, stdin=subprocess.DEVNULL, stdout=slave,
+                   stderr=subprocess.PIPE, restore_signals=True)
+    os.close(slave)
+    out = b""
+    first = None
+    try:
+        while True:
+            ready, _, _ = select.select([master], [], [], timeout)
+            if not ready:
+                proc.kill()
+                proc.wait()
+                return None, "timeout"
+            exited = proc.poll() is not None if first is None else None
+            try:
+                chunk = os.read(master, 65536)
+            except OSError as e:
+                if first is None:
+                    first = ("eio" if e.errno == 5 else f"errno{e.errno}", exited)
+                break
+            if not chunk:
+                if first is None:
+                    first = ("eof", exited)
+                break
+            if first is None:
+                first = ("data", exited)
+            out += chunk
+        proc.stderr.read()
+        proc.wait(timeout=timeout)
+    finally:
+        os.close(master)
+    return out, first
+
+
+def harness_reader(mod, exe, args, timeout, cols):
+    case = {"args": args}
+    env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin")}
+    mod.subprocess.Popen = Settled
+    try:
+        r = mod.run_tty(exe, os.path.basename(exe), case, env, ROOT,
+                        subprocess.DEVNULL, None, timeout, cols, None)
+    finally:
+        mod.subprocess.Popen = subprocess.Popen
+    if r is None:
+        return None, "timeout"
+    return r["stdout"], None
+
+
+def main(argv):
+    trials = 300
+    settles = [0, 1, 5, 20]
+    sizes = [24, 1000]
+    readers = ["trunk", "harness"]
+    gate = False
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a in ("--trials", "--settle", "--bytes", "--readers"):
+            if i + 1 >= len(argv):
+                print(f"ttyprobe: {a} needs a value", file=sys.stderr)
+                return 2
+            v = argv[i + 1]
+            i += 1
+            if a == "--trials":
+                trials = int(v)
+            elif a == "--settle":
+                settles = [float(x) for x in v.split(",")]
+            elif a == "--bytes":
+                sizes = [int(x) for x in v.split(",")]
+            else:
+                readers = v.split(",")
+        elif a == "--gate":
+            gate = True
+        else:
+            print(f"ttyprobe: unknown argument {a!r}", file=sys.stderr)
+            return 2
+        i += 1
+    printf = shutil.which("printf") or "/usr/bin/printf"
+    mod = load_difftest()
+    print(f"ttyprobe: {platform.system()} {platform.release()} {platform.machine()}, "
+          f"python {platform.python_version()}, {os.cpu_count()} cpus; child {printf}; "
+          f"{trials} trials a row")
+    print(f"{'reader':8} {'bytes':>5} {'settle':>6} {'whole':>6} {'short':>6} {'empty':>6}  "
+          f"first read (trunk reader): outcome/child-exited counts")
+    lost = 0
+    for size in sizes:
+        payload = ("x" * (size - 1)) + "\n"
+        want = payload.replace("\n", "\r\n").encode()
+        for settle in settles:
+            Settled.delay = settle / 1000.0
+            for reader in readers:
+                whole = short = empty = timeouts = 0
+                firsts = {}
+                for _ in range(trials):
+                    if reader == "trunk":
+                        got, first = trunk_reader(printf, [payload], 10, 80)
+                    else:
+                        got, first = harness_reader(mod, printf, [payload], 10, 80)
+                    if got is None:
+                        timeouts += 1
+                        continue
+                    if first is not None:
+                        key = f"{first[0]}/{'exited' if first[1] else 'running'}"
+                        firsts[key] = firsts.get(key, 0) + 1
+                    if got == want:
+                        whole += 1
+                    elif got == b"":
+                        empty += 1
+                    else:
+                        short += 1
+                if reader == "harness":
+                    lost += short + empty + timeouts
+                seen = " ".join(f"{k}={v}" for k, v in sorted(firsts.items()))
+                extra = f" timeouts={timeouts}" if timeouts else ""
+                print(f"{reader:8} {size:5} {settle:6g} {whole:6} {short:6} {empty:6}  {seen}{extra}")
+    if gate:
+        if lost:
+            print(f"ttyprobe: FAIL — the harness's reader lost a child's output in {lost} trials")
+            return 1
+        print("ttyprobe: ok — the harness's reader kept every byte of every trial")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.stdout.reconfigure(line_buffering=True)
+    try:
+        code = main(sys.argv[1:])
+    except Exception:
+        import traceback
+        sys.stdout.flush()
+        traceback.print_exc()
+        print("ttyprobe: the tool died; no verdict", file=sys.stderr)
+        code = 2
+    sys.exit(code)
