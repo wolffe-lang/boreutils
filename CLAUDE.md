@@ -88,6 +88,10 @@ against GNU. The short form for a new utility:
                                throwaway container, every target a
                                process the case started (tests/kill/)
     tools/killtest-selftest    prove killtest can still see a difference
+    tools/killprobe            `kill -l`/`-t` of every number 0..140000
+                               and a sample of the int range, one list
+                               handed to GNU and to ours (sends nothing;
+                               boreutils#34)
     tools/idtest               id, whoami, groups, logname, chown, chgrp
                                as root and as users: one throwaway
                                container a case, the accounts the
@@ -226,7 +230,12 @@ against GNU. The short form for a new utility:
   asserted by its `--version` line: the `kill` on a PATH is procps' or
   util-linux's, and the one a shell runs is its builtin. Read a
   target's fate in the shell that started it — a `wait` in `$( )`
-  answers 127 for every target, and both sides then agree.
+  answers 127 for every target, and both sides then agree. **Hand both
+  sides ONE number** (bu26, boreutils#36): each side runs its own
+  targets, so a case whose answer is ABOUT a target's id (`kill {pid0}
+  -l`) compares two different numbers; a case about a fixed number names
+  no target, because the reader writes a target's id (and that id plus
+  2^32) as `{pid0}` (`{w:0}`) wherever it appears in the output.
 - A program can become another (`os_exec`) and remove a variable
   (`env_unset`) since wolf 0.2.27 (s225); `env` does. Two things are
   still missing there: `env_vars()` lists the environment only sorted
