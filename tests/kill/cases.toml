@@ -1036,19 +1036,23 @@ args = ["{pid0}", "--signal=HUP"]
 [[case]]
 name = "placing: 2147483647 -l"
 args = ["2147483647", "-l"]
+targets = 0
 
 [[case]]
 name = "placing: 4294967305 -l"
 args = ["4294967305", "-l"]
+targets = 0
 
 [[case]]
 name = "placing: 9 -l"
 args = ["9", "-l"]
+targets = 0
 container = true
 
 [[case]]
 name = "placing: 265 -l"
 args = ["265", "-l"]
+targets = 0
 container = true
 
 [[case]]

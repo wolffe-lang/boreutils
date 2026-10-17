@@ -345,11 +345,14 @@ for args in (["{pid0}", "-s", "KILL"], ["{pid0}", "-KILL"], ["--", "{pid0}"], ["
 # its own target's id and parted on the runner's pids (boreutils#36, bu26).
 # Outside a container N must name no process (2147483647 or more), so a
 # `kill` that stopped permuting would signal nothing; a small N that names
-# a signal runs only in a container. The target is there to be left alone.
+# a signal runs only in a container. NO TARGET: the reader writes a
+# target's id, and its id plus 2^32, as `{pid0}` and `{w:0}` wherever they
+# appear, so with a target at pid 9, GNU's `'4294967305'` read `'{w:0}'`
+# (bu26, run 39075042695): a case about a fixed number names no process.
 for args in (["2147483647", "-l"], ["4294967305", "-l"]):
-    k.case("placing: " + label(args), args)
+    k.case("placing: " + label(args), args, targets=0)
 for args in (["9", "-l"], ["265", "-l"]):
-    k.case("placing: " + label(args), args, container=True)
+    k.case("placing: " + label(args), args, targets=0, container=True)
 for args in (["{pid0}", "--help"], ["{pid0}", "--version"]):
     k.case("placing: " + label(args), args, compare=["exit", "stderr", "fates"])
 for args in (["{pid0}", "-s", "KILL"], ["{pid0}", "-KILL"], ["{pid0}", "-l"], ["-s", "INT", "{pid0}"],
