@@ -978,9 +978,24 @@ def run_tty(exe, argv0, case, env, cwd, stdin, data, timeout, cols, top, now=0):
     The pty is made here and its size set before the child starts, so a
     program that asks the terminal's width (GNU's `ls`, TIOCGWINSZ) and
     one that cannot (this repository's, which takes COLUMNS or 80) are
-    measured against the same terminal. The parent closes its copy of
-    the terminal end and reads the other until the child has gone (EIO
-    or EOF); stderr is a pipe, read after."""
+    measured against the same terminal. stderr is a pipe.
+
+    THE TERMINAL END STAYS OPEN HERE UNTIL THE CHILD HAS GONE AND ITS
+    OUTPUT HAS BEEN READ (boreutils#27). This harness used to close its
+    copy at once and read the controller until EIO or end of file. On
+    macOS the LAST close of a terminal end waits a while for what is
+    buffered to be read (0.6 s, measured) and then discards it, and the
+    controller answers end of file. When the child had already written
+    and exited, that last close was this harness's own, made before its
+    first read: it waited on a reader that was itself, and the bytes
+    went (`tools/ttyprobe`, CI run 39026452370 on macos-latest: with the
+    reader 5 ms late, 200 of 200 trials empty, every first read end of
+    file with the child gone and every close 0.6 s; with no delay, 1 in
+    200; on linux, 0 at any delay). So: read while the child runs, wait
+    for it, read until the controller has been quiet a moment, and only
+    then close the terminal end and read to the end — linux hands bytes
+    over to the controller asynchronously and keeps them past the last
+    close, so that final read is where linux's last bytes arrive."""
     import fcntl
     import pty
     import struct
@@ -991,34 +1006,58 @@ def run_tty(exe, argv0, case, env, cwd, stdin, data, timeout, cols, top, now=0):
         [argv0] + [substitute(a, top) for a in case.get("args", [])],
         executable=exe, env=env, stdin=stdin, stdout=slave,
         stderr=subprocess.PIPE, cwd=cwd, restore_signals=True)
-    os.close(slave)
     if data is not None:
         feed(proc, data)
-    out = b""
+    errfd = proc.stderr.fileno()
+    out = bytearray()
+    err = bytearray()
+    deadline = time.monotonic() + timeout
+
+    def take(fd, into):
+        """One read of `fd` into `into`; False at its end (or EIO)."""
+        try:
+            chunk = os.read(fd, 65536)
+        except OSError:
+            return False
+        if not chunk:
+            return False
+        into += chunk
+        return True
     try:
-        while True:
-            ready, _, _ = select.select([master], [], [], timeout)
-            if not ready:
+        # While the child runs: both streams, as they come.
+        reading = [master, errfd]
+        while proc.poll() is None:
+            if time.monotonic() > deadline:
                 proc.kill()
                 proc.wait()
                 return None
-            try:
-                chunk = os.read(master, 65536)
-            except OSError:
+            ready, _, _ = select.select(reading, [], [], 0.05)
+            for fd in ready:
+                if not take(fd, out if fd == master else err):
+                    reading.remove(fd)
+        # Gone. What it wrote is buffered behind the controller and this
+        # harness still holds the terminal end, so it cannot be lost:
+        # read until nothing has arrived for a while.
+        while True:
+            ready, _, _ = select.select([master], [], [], 0.05)
+            if not ready or not take(master, out):
                 break
-            if not chunk:
+        os.close(slave)
+        slave = None
+        while True:
+            ready, _, _ = select.select([master], [], [], max(0.0, deadline - time.monotonic()))
+            if not ready or not take(master, out):
                 break
-            out += chunk
-        err = proc.stderr.read()
-        proc.wait(timeout=timeout)
-    except subprocess.TimeoutExpired:
-        proc.kill()
-        proc.wait()
-        return None
+        while take(errfd, err):
+            pass
     finally:
+        if slave is not None:
+            os.close(slave)
         os.close(master)
         if hasattr(stdin, "close"):
             stdin.close()
+    out = bytes(out)
+    err = bytes(err)
     result = {"stdout": masked(out, case), "stderr": masked(normalize(err, argv0, case.get("_util")), case),
               "exit": status(proc.returncode)}
     if top is not None:
