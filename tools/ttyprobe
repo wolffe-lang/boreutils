@@ -24,8 +24,9 @@ Two readers are measured on the same children:
 
 For each, trials are counted as WHOLE (every byte), SHORT or EMPTY, and
 for the trunk reader the first read's outcome is recorded (bytes, end of
-file, or EIO) with whether the child had already exited — the evidence
-that names the cause.
+file, or EIO) with whether the child had already exited, and how many of
+its closes of the terminal end took 0.1 s or more — the evidence that
+names the cause.
 
 usage: tools/ttyprobe [--trials N] [--settle MS,MS,...] [--bytes N,N,...]
                       [--readers trunk,harness] [--gate]
@@ -80,7 +81,12 @@ def trunk_reader(exe, args, timeout, cols):
     fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, cols, 0, 0))
     proc = Settled([exe] + args, stdin=subprocess.DEVNULL, stdout=slave,
                    stderr=subprocess.PIPE, restore_signals=True)
+    # How long the harness's own close of the terminal end takes: when it
+    # is the LAST one (the child has gone), a host may hold it while the
+    # output waits for a reader that is, here, the closer itself.
+    began = time.monotonic()
     os.close(slave)
+    trunk_reader.closed = time.monotonic() - began
     out = b""
     first = None
     try:
@@ -168,7 +174,7 @@ def main(argv):
         for settle in settles:
             Settled.delay = settle / 1000.0
             for reader in readers:
-                whole = short = empty = timeouts = 0
+                whole = short = empty = timeouts = slow = 0
                 firsts = {}
                 for _ in range(trials):
                     if reader == "trunk":
@@ -178,6 +184,8 @@ def main(argv):
                     if got is None:
                         timeouts += 1
                         continue
+                    if reader == "trunk" and trunk_reader.closed >= 0.1:
+                        slow += 1
                     if first is not None:
                         key = f"{first[0]}/{'exited' if first[1] else 'running'}"
                         firsts[key] = firsts.get(key, 0) + 1
@@ -191,6 +199,8 @@ def main(argv):
                     lost += short + empty + timeouts
                 seen = " ".join(f"{k}={v}" for k, v in sorted(firsts.items()))
                 extra = f" timeouts={timeouts}" if timeouts else ""
+                if reader == "trunk":
+                    extra += f" close>=0.1s={slow}"
                 print(f"{reader:8} {size:5} {settle:6g} {whole:6} {short:6} {empty:6}  {seen}{extra}")
     if gate:
         if lost:
