@@ -191,6 +191,29 @@ jobs:
         if: runner.os == 'macOS'
         run: tools/idtest --engine none --gnu .gnu-bin/bin
 
+      # bu25. `cat f >> f` without its refusal copies until the disk is
+      # full (boreutils#28), so no case of it runs where a disk can fill:
+      # one throwaway container a case, nothing mounted, no network, every
+      # file on an 8 MiB tmpfs, every side under a file-size limit and an
+      # alarm, as root and as a user, GNU 9.11's cat beside both tiers. The
+      # selftest first: the limit and the alarm must each be seen to stop
+      # a side, and two planted differences must fail by name.
+      - name: cat where its input is its output (a throwaway container a case)
+        if: runner.os == 'Linux'
+        run: |
+          tools/inouttest-selftest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin
+          tools/inouttest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin
+
+      # macOS has no container engine. The runner is itself a throwaway
+      # machine: the cases run on it as its own user, in a fresh temporary
+      # directory, under the same file-size limit and alarm (inouttest
+      # refuses this mode anywhere GITHUB_ACTIONS is not true).
+      - name: cat where its input is its output (this runner, under a file-size limit)
+        if: runner.os == 'macOS'
+        run: |
+          tools/inouttest-selftest --engine none --gnu .gnu-bin/bin
+          tools/inouttest --engine none --gnu .gnu-bin/bin
+
       - name: smoke bench
         run: tools/bench --scale 0.0005 --runs 3
 
