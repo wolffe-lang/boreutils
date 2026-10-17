@@ -45,9 +45,9 @@ on:
   workflow_dispatch:
     inputs:
       only:
-        description: "all (the matrix), ttyprobe (macOS: boreutils#27's probe), macos-suite (macOS: the ls suite, repeated)"
+        description: "all (the matrix), ttyprobe (macOS: boreutils#27's probe), macos-suite (macOS: the ls suite, repeated), inout (ubuntu: tools/inouttest)"
         type: choice
-        options: [all, ttyprobe, macos-suite]
+        options: [all, ttyprobe, macos-suite, inout]
         default: all
 
 permissions:
@@ -133,6 +133,15 @@ jobs:
       # killed outright still leaves every case it had already decided.
       - name: the report survives the process (boreutils#10)
         run: tools/difftest-evidence
+
+      # boreutils#27. A `tty` case read nothing, now and then on macOS,
+      # from a program that had written and exited: the harness's own
+      # last close of the terminal end discarded it. The gate widens the
+      # race on purpose (the reader 5 ms late) and every byte of every
+      # trial must arrive; against the harness as it was, 394 of 800
+      # trials were lost on macos-latest (run 39026452370).
+      - name: the terminal read keeps a quick child's output (boreutils#27)
+        run: tools/ttyprobe --trials 100 --settle 0,5 --bytes 24,1000 --readers harness --gate
 
       # B98. The `field` leg's ruling is a shell script, so it is tested
       # like one: every exit code the leg can produce, judged, plus a
@@ -345,3 +354,26 @@ jobs:
           done
           echo "the ls suite: $bad of 10 runs red"
           [ "$bad" -eq 0 ]
+
+  # boreutils#28, by dispatch only (`only: inout`): tools/inouttest alone,
+  # for a plant.
+  inout:
+    name: cat where its input is its output (boreutils#28)
+    if: github.event_name == 'workflow_dispatch' && inputs.only == 'inout'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: the oracle of record, cached
+        uses: actions/cache@v4
+        with:
+          path: .gnu-bin
+          key: gnu-oracle-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gnu-oracle.toml') }}
+      - name: the oracle of record, by digest
+        run: tools/fetch-oracle
+      - name: the pinned toolchain, by digest
+        run: tools/fetch-toolchain
+      - name: inouttest (a throwaway container a case)
+        run: |
+          tools/inouttest-selftest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin
+          tools/inouttest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin
