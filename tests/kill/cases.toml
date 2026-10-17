@@ -1034,6 +1034,10 @@ name = "placing: {pid0} --signal=HUP"
 args = ["{pid0}", "--signal=HUP"]
 
 [[case]]
+name = "placing: {pid0} -l"
+args = ["{pid0}", "-l"]
+
+[[case]]
 name = "placing: 2147483647 -l"
 args = ["2147483647", "-l"]
 targets = 0
