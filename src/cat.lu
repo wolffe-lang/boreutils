@@ -32,6 +32,11 @@
 //! - A missing, unreadable or directory operand prints
 //!   `cat: NAME: REASON` and sets status 1, and the operands after it
 //!   still run. NAME is quoted only when it has to be (`bore.quote_name`).
+//! - An operand that is standard output's own file, where the copy
+//!   would write where it has not read (`cat f >> f`), is refused:
+//!   `cat: f: input file is output file`, status 1, and the operands
+//!   after it still run. The rule and what wolf can read of it are
+//!   `bore.inout`'s header (bu25, boreutils#28).
 //! - Options permute with operands unless `POSIXLY_CORRECT` is set.
 //! - A usage error is status 1, not 2 (GNU's whole basename/dirname/yes
 //!   family answers 1).
@@ -157,8 +162,11 @@ fn main() -> int {
     let plain = !f.ends && !f.tabs && !f.nonprint && !f.number && !f.nonblank && !f.squeeze
     var st = State { line_start: true, pending_cr: false, blanks: 0, num: 1 }
     var status = 0
+    // Read once: what standard output IS, for the input-is-output
+    // refusal (`bore.inout`, boreutils#28).
+    let target = bore.output_identity()
     for path in paths {
-        let s = one(out, path, f, mut st, plain)
+        let s = one(out, path, f, mut st, plain, target)
         if s.unwritable {
             bore.write_error_code(out, "cat", "write error", s.code)
             return 1
@@ -214,12 +222,18 @@ fn read_size() -> int {
 
 /// Copy one operand. Answers `""` on success, or GNU's reason for the
 /// failure, which the caller reports and counts.
-fn one(out: bore.Out, path: str, f: Fmt, mut st: State, plain: bool) -> Stop {
+fn one(out: bore.Out, path: str, f: Fmt, mut st: State, plain: bool, target: bore.Output) -> Stop {
     let src = bore.open_input(path) else |e| match e {
         not_found => { return input_stop(bore.no_such_file()) },
         denied => { return input_stop(bore.permission_denied()) },
         is_dir => { return input_stop(bore.directory_reason()) },
         io => { return input_stop(bore.io_error()) },
+    }
+    // After the open (a missing or a directory operand is reported as
+    // that, measured) and before the first byte.
+    if bore.input_is_output(target, src, path) {
+        bore.close_input(src)
+        return input_stop("input file is output file")
     }
     var s = Stop { why: "", unwritable: false, code: 0 }
     if plain {
