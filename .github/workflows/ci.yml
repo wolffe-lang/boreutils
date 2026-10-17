@@ -45,9 +45,9 @@ on:
   workflow_dispatch:
     inputs:
       only:
-        description: "all (the matrix), ttyprobe (macOS: boreutils#27's probe), macos-suite (macOS: the ls suite, repeated), inout (ubuntu: tools/inouttest)"
+        description: "all (the matrix), ttyprobe (macOS: boreutils#27's probe), macos-suite (macOS: the ls suite, repeated), inout (ubuntu: tools/inouttest), kill-macos / kill-ubuntu (one host: tools/killprobe and tools/killtest, repeated)"
         type: choice
-        options: [all, ttyprobe, macos-suite, inout]
+        options: [all, ttyprobe, macos-suite, inout, kill-macos, kill-ubuntu]
         default: all
 
 permissions:
@@ -380,3 +380,96 @@ jobs:
         run: |
           tools/inouttest-selftest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin
           tools/inouttest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin
+
+  # boreutils#36 and #34, by dispatch only (`only: kill-macos` or
+  # `kill-ubuntu`, one job on one host). killprobe hands one list of
+  # numbers to GNU's `kill -l` / `-t` and to ours (nothing is sent);
+  # then killtest, whole, three times, and its `placing:` cases twenty
+  # times, every run's verdict kept. Last, and NOT a verdict: the case
+  # #36 retired (`{pid0} -l`, each side asked about its own target's id)
+  # thirty times, its reds counted, so the dispatch that shows the fix
+  # stable also shows what it fixed.
+  kill:
+    name: kill, measured and repeated (boreutils#36, #34)
+    if: github.event_name == 'workflow_dispatch' && (inputs.only == 'kill-macos' || inputs.only == 'kill-ubuntu')
+    runs-on: ${{ inputs.only == 'kill-macos' && 'macos-latest' || 'ubuntu-latest' }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: macOS's GNU
+        if: runner.os == 'macOS'
+        run: brew install --quiet coreutils
+      - name: the oracle of record, cached
+        uses: actions/cache@v4
+        with:
+          path: .gnu-bin
+          key: gnu-oracle-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gnu-oracle.toml') }}
+      - name: the oracle of record, by digest
+        shell: bash
+        run: |
+          set -euo pipefail
+          prefix=""
+          [ "$RUNNER_OS" = "macOS" ] && prefix=g
+          dir=$(BORE_GNU_PREFIX="$prefix" tools/fetch-oracle)
+          if [ -n "$dir" ]; then
+            echo "$dir" >> "$GITHUB_PATH"
+            prefix=""
+          fi
+          echo "BORE_GNU_PREFIX=$prefix" >> "$GITHUB_ENV"
+      - name: the pinned toolchain, by digest
+        run: tools/fetch-toolchain
+      - name: build kill (both tiers)
+        run: |
+          tools/build kill
+          tools/build --dev kill
+      - name: kill -l and -t of every number, against GNU (boreutils#34)
+        run: tools/killprobe --table --gnu .gnu-bin/bin/kill target/release/kill target/dev/kill
+      - name: killtest, three times whole and twenty times its placing cases (boreutils#36)
+        shell: bash
+        run: |
+          set -uo pipefail
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            kt="tools/killtest --engine none --gnu .gnu-bin/bin"
+          else
+            kt="tools/killtest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin"
+          fi
+          $kt --record placing: | grep '^#' || true
+          bad=0
+          # The first whole run builds both tiers into target/killtest
+          # (static on linux); every later run takes those.
+          for n in 1 2 3; do
+            bin=""
+            [ "$n" -eq 1 ] || bin="--bin target/killtest"
+            $kt $bin > "whole-$n.log" 2>&1
+            code=$?
+            echo "whole run $n: exit $code; $(grep -E '^killtest: [0-9]+ passed' "whole-$n.log")"
+            grep -A4 '^FAIL' "whole-$n.log" || true
+            [ "$code" -eq 0 ] || bad=$((bad + 1))
+          done
+          for n in $(seq 1 20); do
+            $kt --bin target/killtest placing: > "placing-$n.log" 2>&1
+            code=$?
+            echo "placing run $n: exit $code; $(grep -E '^killtest: [0-9]+ passed' "placing-$n.log")"
+            grep -A4 '^FAIL' "placing-$n.log" || true
+            [ "$code" -eq 0 ] || bad=$((bad + 1))
+          done
+          echo "killtest: $bad of 23 runs red"
+          [ "$bad" -eq 0 ]
+      - name: the retired case, thirty times (information, not a verdict)
+        shell: bash
+        run: |
+          set -uo pipefail
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            kt="tools/killtest --engine none --gnu .gnu-bin/bin"
+          else
+            kt="tools/killtest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin"
+          fi
+          printf '[[case]]\nname = "retired: {pid0} -l"\nargs = ["{pid0}", "-l"]\n' > "$RUNNER_TEMP/retired.toml"
+          red=0
+          for n in $(seq 1 30); do
+            out=$($kt --bin target/killtest --cases "$RUNNER_TEMP/retired.toml" 2>&1)
+            code=$?
+            [ "$code" -eq 0 ] || red=$((red + 1))
+            echo "retired run $n: exit $code; $(echo "$out" | grep -E '^    ' | tr '\n' ' ')"
+          done
+          echo "the retired case: $red of 30 runs red"
