@@ -1,0 +1,241 @@
+# tests/inout/cases.toml — `cat` where its input is its output (bu25,
+# boreutils#28), run by tools/inouttest: one throwaway container a case,
+# /work a size-limited tmpfs, every side under a file-size limit and an
+# alarm. Every shape here was first measured against GNU coreutils 9.11's
+# binary by hand (notes/bu25-cat-and-difftest.md, probes p1 and p3). The
+# default tree is f = "one\ntwo\n" (8 bytes), a = "A", b = "B".
+#
+# GNU's rule, as measured: refused when standard output is a regular file,
+# the operand is that file, and the copy writes where it has not read —
+# with `>>` while bytes remain after the input's offset, otherwise when
+# the output's offset is past the input's.
+
+# --- appended to itself: refused ---------------------------------------
+
+[[case]]
+name = "f >> f"
+run = "cat f >> f"
+
+[[case]]
+name = "< f >> f (standard input)"
+run = "cat < f >> f"
+
+[[case]]
+name = "- < f >> f"
+run = "cat - < f >> f"
+
+[[case]]
+name = "/dev/stdin < f >> f"
+run = "cat /dev/stdin < f >> f"
+
+[[case]]
+name = "a hard link >> f"
+setup = "ln f h"
+run = "cat h >> f"
+
+[[case]]
+name = "a symbolic link >> f"
+setup = "ln -s f s"
+run = "cat s >> f"
+
+[[case]]
+name = "append, standard input at 3"
+run = "{ in_at 3; cat; } < f >> f"
+
+[[case]]
+name = "f f >> f: refused twice"
+run = "cat f f >> f"
+
+[[case]]
+name = "- - < f >> f: refused twice"
+run = "cat - - < f >> f"
+
+[[case]]
+name = "a f b >> f: the others copied"
+run = "cat a f b >> f"
+
+[[case]]
+name = "f a >> f"
+run = "cat f a >> f"
+
+[[case]]
+name = "a - < f >> f"
+run = "cat a - < f >> f"
+
+[[case]]
+name = "a missing operand, then f"
+run = "cat nope f >> f"
+
+[[case]]
+name = "a directory >> f"
+setup = "mkdir d"
+run = "cat d >> f"
+
+[[case]]
+name = "-n f >> f"
+run = "cat -n f >> f"
+
+[[case]]
+name = "-A f >> f"
+run = "cat -A f >> f"
+
+[[case]]
+name = "-s f >> f"
+run = "cat -s f >> f"
+
+[[case]]
+name = "-u f >> f"
+run = "cat -u f >> f"
+
+[[case]]
+name = "-b -E -T -v f >> f"
+run = "cat -bETv f >> f"
+
+[[case]]
+name = "f >> f with /dev/null after"
+run = "cat f /dev/null >> f"
+
+# --- appended, nothing left to read: copied -----------------------------
+
+[[case]]
+name = "an empty file >> itself"
+setup = ": > f"
+run = "cat f >> f"
+
+[[case]]
+name = "an empty standard input >> itself"
+setup = ": > f"
+run = "cat < f >> f"
+
+[[case]]
+name = "append, standard input at its end"
+run = "{ in_at 8; cat; } < f >> f"
+
+[[case]]
+name = "append, standard input past its end"
+run = "{ in_at 9; cat; } < f >> f"
+
+# --- truncated by the shell: copied (nothing is) ------------------------
+
+[[case]]
+name = "f > f"
+run = "cat f > f"
+
+[[case]]
+name = "< f > f"
+run = "cat < f > f"
+
+# --- read-write, no append: refused only with the output ahead ----------
+
+[[case]]
+name = "f 1<> f, both at 0"
+run = "cat f 1<> f"
+darwin_refuses = ["f"]
+
+[[case]]
+name = "< f 1<> f, both at 0"
+run = "cat < f 1<> f"
+darwin_refuses = ["-"]
+
+[[case]]
+name = "1<>, input 3, output 0 (behind)"
+run = "{ in_at 3; cat; } < f 1<> f"
+darwin_refuses = ["-"]
+
+[[case]]
+name = "1<>, input 8, output 0"
+run = "{ in_at 8; cat; } < f 1<> f"
+
+[[case]]
+name = "1<>, input 0, output 2 (ahead)"
+run = "{ out_at 2; cat; } < f 1<> f"
+
+[[case]]
+name = "1<>, operand, output 2 (ahead)"
+run = "{ out_at 2; cat f; } 1<> f"
+
+[[case]]
+name = "1<>, input 3, output 3"
+run = "{ in_at 3; out_at 3; cat; } < f 1<> f"
+darwin_refuses = ["-"]
+
+[[case]]
+name = "1<>, input 3, output 4"
+run = "{ in_at 3; out_at 4; cat; } < f 1<> f"
+
+[[case]]
+name = "1<>, input 0, output 8"
+run = "{ out_at 8; cat; } < f 1<> f"
+
+[[case]]
+name = "1<>, input 8, output 8"
+run = "{ in_at 8; out_at 8; cat; } < f 1<> f"
+
+[[case]]
+name = "1<>, input 8, output 9"
+run = "{ in_at 8; out_at 9; cat; } < f 1<> f"
+
+[[case]]
+name = "1<>, input 7, output 8"
+run = "{ in_at 7; out_at 8; cat; } < f 1<> f"
+
+[[case]]
+name = "1<>, input 0, output 9 (past the end)"
+run = "{ out_at 9; cat; } < f 1<> f"
+
+[[case]]
+name = "1<>, a then f: what was written counts"
+run = "cat a f 1<> f"
+
+[[case]]
+name = "1<>, -n a then f"
+run = "cat -n a f 1<> f"
+
+[[case]]
+name = "1<>, f f: the first copied, the second refused"
+run = "cat f f 1<> f"
+darwin_refuses = ["f", "f"]
+
+[[case]]
+name = "1<>, - - from 0: both copied"
+run = "cat - - < f 1<> f"
+darwin_refuses = ["-", "-"]
+
+[[case]]
+name = "1<>, /dev/stdin, input 3, output 1"
+run = "{ in_at 3; out_at 1; cat /dev/stdin; } < f 1<> f"
+
+# --- not the same file, or not a regular file: copied -------------------
+
+[[case]]
+name = "another file >> f"
+run = "cat a >> f"
+
+[[case]]
+name = "f >> another file"
+run = "cat f >> a"
+
+[[case]]
+name = "f's other descriptor is not standard output"
+run = "exec 3>> f; cat f > g"
+
+[[case]]
+name = "a pipe out"
+run = "cat f f | wc -c"
+
+[[case]]
+name = "/dev/null to /dev/null"
+run = "cat /dev/null > /dev/null"
+
+[[case]]
+name = "/dev/null >> f"
+run = "cat /dev/null >> f"
+
+[[case]]
+name = "f to /dev/null"
+run = "cat f > /dev/null"
+
+[[case]]
+name = "a copy of f >> f"
+setup = "cp f g"
+run = "cat g >> f"
