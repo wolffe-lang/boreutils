@@ -1,0 +1,44 @@
+//! `bore.inout`'s verdict and its fdinfo reader (bu25, boreutils#28), as
+//! functions: every row below is a shape measured against GNU 9.11's
+//! `cat` (notes/bu25-cat-and-difftest.md, probes p1 and p3). The calls
+//! that read a descriptor are exercised by `tools/inouttest`.
+
+use bore
+
+fn main() {
+    // Append: refused while bytes remain after the input's offset.
+    assert(bore.would_read_back(1, 8, 0, 0), "cat f >> f")
+    assert(bore.would_read_back(1, 8, 3, 0), "append, input at 3")
+    assert(!bore.would_read_back(1, 8, 8, 0), "append, input at its end")
+    assert(!bore.would_read_back(1, 8, 9, 0), "append, input past its end")
+    assert(!bore.would_read_back(1, 0, 0, 0), "an empty file appended to itself")
+    // Not append: refused when the output's offset is past the input's.
+    assert(!bore.would_read_back(0, 0, 0, 0), "cat f > f, emptied by the shell")
+    assert(!bore.would_read_back(0, 8, 0, 0), "cat f 1<> f, both at 0")
+    assert(!bore.would_read_back(0, 8, 3, 0), "1<>, output behind")
+    assert(!bore.would_read_back(0, 8, 3, 3), "1<>, both at 3")
+    assert(!bore.would_read_back(0, 8, 8, 8), "1<>, both at the end")
+    assert(bore.would_read_back(0, 8, 0, 2), "1<>, output 2 ahead")
+    assert(bore.would_read_back(0, 8, 3, 4), "1<>, output 1 ahead")
+    assert(bore.would_read_back(0, 8, 8, 9), "1<>, input at its end, output past it")
+    assert(bore.would_read_back(0, 8, 0, 9), "1<>, output past the end")
+    // Unknown (macOS): both halves, so every refusal above holds...
+    assert(bore.would_read_back(-1, 8, 0, 0), "unknown: cat f >> f")
+    assert(bore.would_read_back(-1, 8, 0, 2), "unknown: output ahead")
+    assert(bore.would_read_back(-1, 8, 8, 9), "unknown: output past an input at its end")
+    // ...and what GNU copies with no data left to read is still copied.
+    assert(!bore.would_read_back(-1, 0, 0, 0), "unknown: cat f > f")
+    assert(!bore.would_read_back(-1, 8, 8, 0), "unknown: input at its end")
+    assert(!bore.would_read_back(-1, 8, 8, 8), "unknown: both at the end")
+
+    // The fdinfo reader: linux's format, `flags:` in octal.
+    let shown = "pos:\t0\nflags:\t0102001\nmnt_id:\t57\nino:\t237039380\n".bytes()
+    assert(bore.fdinfo_flags(shown) == 0o102001, "flags read in octal")
+    assert(bore.fdinfo_flags(shown) & 1024 != 0, "O_APPEND is 0o2000")
+    let plain = "pos:\t5\nflags:\t0100001\n".bytes()
+    assert(bore.fdinfo_flags(plain) & 1024 == 0, "no O_APPEND")
+    assert(bore.fdinfo_flags("pos:\t0\n".bytes()) == -1, "no flags line")
+    assert(bore.fdinfo_flags("xflags:\t01\n".bytes()) == -1, "only at a line's start")
+    assert(bore.fdinfo_flags("flags:\t\n".bytes()) == -1, "no digits")
+    assert(bore.fdinfo_flags("".bytes()) == -1, "an empty file")
+}

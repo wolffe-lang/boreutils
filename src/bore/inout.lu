@@ -1,0 +1,203 @@
+//! bore.inout — an input that is also standard output (bu25,
+//! boreutils#28).
+//!
+//! `cat f >> f` reads what it appends and, unchecked, copies until the
+//! file system is full. GNU's `cat` refuses the operand with `cat: f:
+//! input file is output file`, status 1, and goes on to the next.
+//!
+//! **GNU's rule, measured** (coreutils 9.11's binary on linux, as root
+//! and as a user, 60 shapes, `notes/bu25-cat-and-difftest.md`; never
+//! its source). An operand is refused when standard output is a REGULAR
+//! file, the operand is that same file (a hard link, a symbolic link,
+//! `-` and `/dev/stdin` included), and the copy would write where it has
+//! not yet read:
+//!
+//! - output opened to APPEND (`>>`): refused when bytes remain after the
+//!   input's offset (`size > in`). An empty file, or an input already
+//!   at its end, is copied (nothing is).
+//! - otherwise (`>`, `1<>`): refused when the output's offset is past
+//!   the input's (`out > in`). `cat f > f` (the shell emptied it) and
+//!   `cat f 1<> f` (both at 0) are copied; `{ printf AB; cat f; } 1<> f`
+//!   is refused.
+//!
+//! The output's offset counts what this program has already written:
+//! `cat a f 1<> f` writes `a`, and then `f` is refused.
+//!
+//! **What wolf 0.2.30 cannot say, and what this reads instead.** No
+//! builtin answers a DESCRIPTOR's identity (`fs_fstat` is three words:
+//! wolf-lang#536's second half) or its open flags (wolf-lang#722). So
+//! standard output's identity is read through a PATH that names the
+//! descriptor, with `fs_stat`'s full record:
+//!
+//! - linux: `/proc/self/fd/N` resolves to the open file itself, so its
+//!   `dev` and `ino` are the file's, and the append flag is the `flags:`
+//!   line of `/proc/self/fdinfo/1` (`O_APPEND` is `0o2000`).
+//! - macOS: `/dev/fd/N` answers the open file's `ino`, size, times,
+//!   link count and owner, but the descriptor file system's own `dev`
+//!   (measured on nomad-1 and CI's runner), so a file is the same when
+//!   every one of those words agrees at the moment of the check. Nothing
+//!   reads the append flag: when it is unknown, BOTH halves of the rule
+//!   apply, which refuses everything GNU refuses and also a read-write
+//!   output at or behind the input (`cat f 1<> f`), where GNU copies.
+//!   That over-refusal is the price of #722, and the copy it refuses
+//!   would have ended.
+//! - a linux with no `/proc` mounted: the identity cannot be read, and
+//!   nothing is refused (the copy behaves as before this check).
+//!
+//! The input's record is read by its path after the open, so a file
+//! renamed in between is a different file to the check; a handle's own
+//! record (#536) would close that.
+
+/// What is known about standard output, read once before the operands.
+pub struct Output {
+    /// A regular file whose record could be read.
+    checked: bool,
+    /// 1 opened to append, 0 not, -1 unknown.
+    append: int,
+}
+
+/// Standard output, as this check needs it.
+pub fn output_identity() -> Output {
+    let none = Output { checked: false, append: -1 }
+    let k = fs_fstat(1) else |_| {
+        return none
+    }
+    if k[0] != 0 {
+        return none
+    }
+    let _ = fs_stat(descriptor_path(1)) else |_| {
+        return none
+    }
+    Output { checked: true, append: append_flag() }
+}
+
+/// The path naming descriptor `fd` on this host.
+fn descriptor_path(fd: int) -> str {
+    if built_for_linux() {
+        return "/proc/self/fd/{fd}"
+    }
+    "/dev/fd/{fd}"
+}
+
+/// Whether descriptor 1 was opened to append: 1, 0, or -1 when this
+/// host cannot say (macOS, or linux without `/proc`).
+fn append_flag() -> int {
+    if !built_for_linux() {
+        return -1
+    }
+    let raw = fs_read_bytes("/proc/self/fdinfo/1") else |_| {
+        return -1
+    }
+    let flags = fdinfo_flags(raw)
+    if flags < 0 {
+        return -1
+    }
+    if flags / 1024 % 2 == 1 {
+        return 1
+    }
+    0
+}
+
+/// The octal number on the `flags:` line of an fdinfo file, or -1.
+pub fn fdinfo_flags(raw: List[byte]) -> int {
+    let key = "flags:"
+    var i = 0
+    var line_start = true
+    while i < raw.len {
+        if line_start && starts_at(raw, i, key) {
+            var j = i + key.len
+            while j < raw.len && (raw[j] as int == 9 || raw[j] as int == 32) {
+                j += 1
+            }
+            var n = 0
+            var digits = 0
+            while j < raw.len && raw[j] as int >= 48 && raw[j] as int <= 55 {
+                n = n * 8 + (raw[j] as int - 48)
+                digits += 1
+                j += 1
+            }
+            if digits == 0 {
+                return -1
+            }
+            return n
+        }
+        line_start = raw[i] as int == 10
+        i += 1
+    }
+    -1
+}
+
+fn starts_at(raw: List[byte], at: int, s: str) -> bool {
+    let b = s.bytes()
+    if at + b.len > raw.len {
+        return false
+    }
+    var k = 0
+    while k < b.len {
+        if raw[at + k] != b[k] {
+            return false
+        }
+        k += 1
+    }
+    true
+}
+
+/// GNU's verdict on one operand, the identity already established:
+/// whether copying from an input at offset `at_in` of a file of `size`
+/// bytes onto an output at offset `at_out` writes where it has not yet
+/// read. `append` is the output's flag (1, 0, or -1 unknown).
+pub fn would_read_back(append: int, size: int, at_in: int, at_out: int) -> bool {
+    if append == 1 {
+        return size > at_in
+    }
+    if append == 0 {
+        return at_out > at_in
+    }
+    size > at_in || at_out > at_in
+}
+
+/// Whether the operand `i` (named `path`, or `-`) is refused because it
+/// is standard output (the rule above). Asked after the open and before
+/// the first byte is read.
+pub fn input_is_output(o: Output, i: In, path: str) -> bool {
+    if !o.checked {
+        return false
+    }
+    let mine = if i.fd == 0 then descriptor_path(0) else path
+    let a = fs_stat(mine) else |_| {
+        return false
+    }
+    let b = fs_stat(descriptor_path(1)) else |_| {
+        return false
+    }
+    if !same_output(a, b) {
+        return false
+    }
+    let at_in = fs_tell(i.fd) else |_| {
+        return false
+    }
+    let at_out = fs_tell(1) else |_| {
+        return false
+    }
+    would_read_back(o.append, a[1], at_in, at_out)
+}
+
+/// Whether two `fs_stat` records name one regular file. linux compares
+/// the identity itself (`dev`, `ino`); macOS cannot (see the header) and
+/// compares every word that names the file and not the descriptor.
+pub fn same_output(a: List[int], b: List[int]) -> bool {
+    if a[0] != 0 || b[0] != 0 {
+        return false
+    }
+    if built_for_linux() {
+        return a[9] == b[9] && a[10] == b[10]
+    }
+    // ino, size, nlink, uid, gid, mtime and ctime to the nanosecond.
+    let words = [10, 1, 5, 6, 7, 14, 15, 16, 17]
+    for w in words {
+        if a[w] != b[w] {
+            return false
+        }
+    }
+    true
+}
