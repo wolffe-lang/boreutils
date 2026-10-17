@@ -54,6 +54,7 @@ tools/fetch-oracle        # GNU coreutils 9.11, sha256-checked, if needed
 tools/build               # every utility into target/release/
 tools/difftest            # the differential suite against the oracle
 tools/killtest --gnu DIR  # kill where it sends: a throwaway container a case
+tools/killprobe --gnu K P # kill -l of every number 0..140000 and a sample above, against GNU
 tools/idtest --gnu DIR    # the identity tools as root and as users: the same
 tools/bench --scale 0.01  # hyperfine against GNU on generated inputs
 ```
@@ -158,8 +159,9 @@ derives no boreutils code from GPL source.
 Every utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus, except where a case says otherwise and is
 skipped with its reason. The corpus holds **6,645 cases**; `kill` has
-335 more that SEND, each run in a container of its own (`tests/kill/`,
-`tools/killtest`), and the six identity tools 1,126 more that run as
+338 more that SEND, each run in a container of its own (`tests/kill/`,
+`tools/killtest`: **338 passed, 0 failed** on kasumi at bu26, where
+`kill N -l` hands both sides one number, boreutils#36), and the six identity tools 1,126 more that run as
 root and as users or change an owner (`tests/ids/`, `tools/idtest`: 28
 of them only on CI's macOS runner). A run in a throwaway Ubuntu 24.04
 container on kasumi (linux x86-64; the utilities that change files,
