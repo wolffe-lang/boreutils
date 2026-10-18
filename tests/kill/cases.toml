@@ -1438,11 +1438,14 @@ runner = true
 container = true
 expect = { exit = 0, stderr = "", fates = ["3"] }
 
+# Not on the runner: on macOS a group whose members have all ended and are not
+# yet reaped answers EPERM ([os.signal.send.group], s240), so the second send's
+# answer is decided by how soon it follows the first (macOS dispatch
+# 39159010081, run 3; PR run 39159832576).
 [[case]]
 name = "group: -s KILL -{pgid} -{pgid}"
 args = ["-s", "KILL", "-{pgid}", "-{pgid}"]
 group = true
-runner = true
 container = true
 expect = { exit = 0, stderr = "", fates = ["0"] }
 
@@ -1453,11 +1456,13 @@ group = true
 runner = true
 container = true
 
+# Not on the runner: each side reads its OWN group's id as a signal number, and
+# on macOS those ids are large and differ, so the two sides are asked about two
+# numbers (boreutils#36's shape; macOS dispatch 39159010081, runs 1 and 2).
 [[case]]
 name = "group: -PGID alone is read as a signal, not a group"
 args = ["-{pgid}"]
 group = true
-runner = true
 container = true
 
 [[case]]
