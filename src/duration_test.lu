@@ -1,0 +1,53 @@
+//! A DURATION as `sleep` and `timeout` read it (`bore/duration.lu`,
+//! bu27): the grammar's rows, and `tiny` for a number too small for a
+//! double.
+
+use bore
+
+fn secs(a: str) -> f64 {
+    let d = bore.duration_of(a) else |_| {
+        return -1.0
+    }
+    d.secs
+}
+
+fn tiny(a: str) -> bool {
+    let d = bore.duration_of(a) else |_| {
+        return false
+    }
+    d.tiny
+}
+
+fn main() {
+    assert(secs("1") == 1.0, "1")
+    assert(secs("0.5s") == 0.5, "0.5s")
+    assert(secs("2m") == 120.0, "2m")
+    assert(secs("1h") == 3600.0, "1h")
+    assert(secs("1d") == 86400.0, "1d")
+    assert(secs(" 1") == 1.0, "a blank before")
+    assert(secs("+1") == 1.0, "a plus")
+    assert(secs("0x10") == 16.0, "hex")
+    assert(secs("0x1d") == 29.0, "d is a hex digit")
+    assert(secs("0x1p-1") == 0.5, "a binary exponent")
+    assert(secs("-0") == 0.0, "-0 is not negative")
+    assert(secs("inf") >= bore.duration_forever(), "inf")
+    assert(secs("INFINITY") >= bore.duration_forever(), "INFINITY")
+    assert(secs("1e999") >= bore.duration_forever(), "past a double")
+    assert(secs("1 ") == -1.0, "a blank after")
+    assert(secs("-1") == -1.0, "negative")
+    assert(secs("1S") == -1.0, "an upper-case unit")
+    assert(secs("1ss") == -1.0, "two units")
+    assert(secs("nan") == -1.0, "a NaN")
+    assert(secs("") == -1.0, "nothing")
+    assert(secs("0x") == -1.0, "0x alone")
+    assert(secs("1.5.2") == -1.0, "two points")
+    // Too small for a double: 0 seconds, and tiny, which `timeout`
+    // takes as the shortest duration there is rather than as none.
+    assert(secs("1e-400") == 0.0, "1e-400 is 0 seconds")
+    assert(tiny("1e-400"), "and tiny")
+    assert(tiny("0x1p-99999"), "a hex one too")
+    assert(!tiny("0"), "0 is not tiny")
+    assert(!tiny("0e-400"), "nor are zeros with an exponent")
+    assert(!tiny("1"), "nor is 1")
+    assert(!tiny("-1e-400"), "a negative one is not")
+}
