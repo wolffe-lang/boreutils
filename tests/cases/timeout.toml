@@ -1,0 +1,473 @@
+# timeout — GNU coreutils 9.11, black-box, on linux x86-64 and macOS arm64.
+#
+# NO CASE IN THIS FILE STARTS A COMMAND, and tools/difftest refuses the run
+# if one could (bu27): every case is `--help`, `--version`, a usage error,
+# or a COMMAND no host can run (`/`, `/etc/passwd`, `/nonexistent/...`),
+# so timeout answers 125, 126 or 127 before any child exists and nothing
+# is signalled. What runs a command is tests/timeout/cases.toml, run by
+# tools/timeouttest in a fresh container a case.
+#
+# A valid DURATION is seen here by the command it then fails to run (127,
+# `failed to run command`); an invalid one by 125 before it. Not here: a
+# DURATION too small for a double (`1e-400`) with a command that cannot
+# run, where GNU's timer kills its own child before the child can report
+# the failed exec (124, measured) and wolf's spawn reports it at once
+# (127): a race of GNU's, decided by its timer. The help and version TEXT
+# is ours, so those cases compare the exit only.
+
+
+[[case]]
+name = "help: --help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "help: --version"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "help: --help after an option"
+args = ["-v", "--help"]
+compare = ["exit"]
+
+[[case]]
+name = "help: --help with standard output closed"
+args = ["--help"]
+compare = ["exit", "stderr"]
+stdout_closed = true
+
+[[case]]
+name = "help: --version to a full device"
+args = ["--version"]
+compare = ["exit", "stderr"]
+stdout_file = "/dev/full"
+
+[[case]]
+name = "help: an option that is wrong before --help"
+args = ["-s", "FOO", "--help"]
+
+[[case]]
+name = "usage: too few operands: none"
+args = []
+
+[[case]]
+name = "usage: too few operands: 1"
+args = ["1"]
+
+[[case]]
+name = "usage: too few operands: -v"
+args = ["-v"]
+
+[[case]]
+name = "usage: too few operands: -s KILL"
+args = ["-s", "KILL"]
+
+[[case]]
+name = "usage: too few operands: -k 1"
+args = ["-k", "1"]
+
+[[case]]
+name = "usage: too few operands: --"
+args = ["--"]
+
+[[case]]
+name = "usage: too few operands: -- 1"
+args = ["--", "1"]
+
+[[case]]
+name = "usage: too few operands: -f -p -v 1"
+args = ["-f", "-p", "-v", "1"]
+
+[[case]]
+name = "usage: an unknown option"
+args = ["--bogus", "1", "/"]
+
+[[case]]
+name = "usage: an unknown short option"
+args = ["-x", "1", "/"]
+
+[[case]]
+name = "usage: -s without its argument"
+args = ["-s"]
+
+[[case]]
+name = "usage: -k without its argument"
+args = ["-k"]
+
+[[case]]
+name = "usage: --signal without its argument"
+args = ["--signal"]
+
+[[case]]
+name = "usage: --kill-after without its argument"
+args = ["--kill-after"]
+
+[[case]]
+name = "usage: --verbose=x"
+args = ["--verbose=x", "1", "/"]
+
+[[case]]
+name = "usage: --v is ambiguous"
+args = ["--v", "1", "/"]
+
+[[case]]
+name = "usage: --fo is --foreground"
+args = ["--fo", "1", "/nonexistent/x"]
+
+[[case]]
+name = "usage: -1 is an option"
+args = ["-1", "true"]
+
+[[case]]
+name = "usage: -0.5 is an option"
+args = ["-0.5", "true"]
+
+[[case]]
+name = "usage: POSIXLY_CORRECT changes nothing"
+args = ["-s", "KILL", "1", "/"]
+env = { POSIXLY_CORRECT = "1" }
+
+[[case]]
+name = "duration: invalid [x]"
+args = ["x", "/nonexistent/x"]
+
+[[case]]
+name = "duration: invalid [0.1 ]"
+args = ["0.1 ", "/nonexistent/x"]
+
+[[case]]
+name = "duration: invalid [nan]"
+args = ["nan", "/nonexistent/x"]
+
+[[case]]
+name = "duration: invalid [NaN]"
+args = ["NaN", "/nonexistent/x"]
+
+[[case]]
+name = "duration: invalid [0x]"
+args = ["0x", "/nonexistent/x"]
+
+[[case]]
+name = "duration: invalid [1.5.2]"
+args = ["1.5.2", "/nonexistent/x"]
+
+[[case]]
+name = "duration: invalid []"
+args = ["", "/nonexistent/x"]
+
+[[case]]
+name = "duration: invalid [ss]"
+args = ["ss", "/nonexistent/x"]
+
+[[case]]
+name = "duration: invalid [1ss]"
+args = ["1ss", "/nonexistent/x"]
+
+[[case]]
+name = "duration: invalid [0.1S]"
+args = ["0.1S", "/nonexistent/x"]
+
+[[case]]
+name = "duration: invalid [0.1x]"
+args = ["0.1x", "/nonexistent/x"]
+
+[[case]]
+name = "duration: invalid [1,5]"
+args = ["1,5", "/nonexistent/x"]
+
+[[case]]
+name = "duration: invalid [1e]"
+args = ["1e", "/nonexistent/x"]
+
+[[case]]
+name = "duration: invalid [1e+]"
+args = ["1e+", "/nonexistent/x"]
+
+[[case]]
+name = "duration: invalid [0x.]"
+args = ["0x.", "/nonexistent/x"]
+
+[[case]]
+name = "duration: invalid [inf1]"
+args = ["inf1", "/nonexistent/x"]
+
+[[case]]
+name = "duration: invalid [1 s]"
+args = ["1 s", "/nonexistent/x"]
+
+[[case]]
+name = "duration: invalid [--1]"
+args = ["--1", "/nonexistent/x"]
+
+[[case]]
+name = "duration: [0.1]"
+args = ["0.1", "/nonexistent/x"]
+
+[[case]]
+name = "duration: [.1]"
+args = [".1", "/nonexistent/x"]
+
+[[case]]
+name = "duration: [0.1s]"
+args = ["0.1s", "/nonexistent/x"]
+
+[[case]]
+name = "duration: [1e-1]"
+args = ["1e-1", "/nonexistent/x"]
+
+[[case]]
+name = "duration: [0x.2]"
+args = ["0x.2", "/nonexistent/x"]
+
+[[case]]
+name = "duration: [0x1p-3]"
+args = ["0x1p-3", "/nonexistent/x"]
+
+[[case]]
+name = "duration: [ 0.1]"
+args = [" 0.1", "/nonexistent/x"]
+
+[[case]]
+name = "duration: [\t1]"
+args = ["\t1", "/nonexistent/x"]
+
+[[case]]
+name = "duration: [+0.1]"
+args = ["+0.1", "/nonexistent/x"]
+
+[[case]]
+name = "duration: [1d]"
+args = ["1d", "/nonexistent/x"]
+
+[[case]]
+name = "duration: [1m]"
+args = ["1m", "/nonexistent/x"]
+
+[[case]]
+name = "duration: [1h]"
+args = ["1h", "/nonexistent/x"]
+
+[[case]]
+name = "duration: [inf]"
+args = ["inf", "/nonexistent/x"]
+
+[[case]]
+name = "duration: [infinity]"
+args = ["infinity", "/nonexistent/x"]
+
+[[case]]
+name = "duration: [INF]"
+args = ["INF", "/nonexistent/x"]
+
+[[case]]
+name = "duration: [Infinity]"
+args = ["Infinity", "/nonexistent/x"]
+
+[[case]]
+name = "duration: [1e100]"
+args = ["1e100", "/nonexistent/x"]
+
+[[case]]
+name = "duration: [99999999999999999999]"
+args = ["99999999999999999999", "/nonexistent/x"]
+
+[[case]]
+name = "duration: [0]"
+args = ["0", "/nonexistent/x"]
+
+[[case]]
+name = "duration: [00]"
+args = ["00", "/nonexistent/x"]
+
+[[case]]
+name = "duration: [0.0]"
+args = ["0.0", "/nonexistent/x"]
+
+[[case]]
+name = "duration: [-0] after --"
+args = ["--", "-0", "/nonexistent/x"]
+
+[[case]]
+name = "duration: [1e999]"
+args = ["1e999", "/nonexistent/x"]
+
+[[case]]
+name = "duration: [0x1d]"
+args = ["0x1d", "/nonexistent/x"]
+
+[[case]]
+name = "duration: [1.]"
+args = ["1.", "/nonexistent/x"]
+
+[[case]]
+name = "duration: [5s]"
+args = ["5s", "/nonexistent/x"]
+
+[[case]]
+name = "kill-after: invalid [x]"
+args = ["-k", "x", "1", "/nonexistent/x"]
+
+[[case]]
+name = "kill-after: invalid [-1]"
+args = ["-k", "-1", "1", "/nonexistent/x"]
+
+[[case]]
+name = "kill-after: invalid [nan]"
+args = ["-k", "nan", "1", "/nonexistent/x"]
+
+[[case]]
+name = "kill-after: invalid [1S]"
+args = ["-k", "1S", "1", "/nonexistent/x"]
+
+[[case]]
+name = "kill-after: attached"
+args = ["-k0.5", "1", "/nonexistent/x"]
+
+[[case]]
+name = "kill-after: --kill-after="
+args = ["--kill-after=", "1", "/nonexistent/x"]
+
+[[case]]
+name = "kill-after: an invalid one after an invalid signal"
+args = ["-s", "FOO", "-k", "x", "1", "/"]
+
+[[case]]
+name = "kill-after: an invalid signal after an invalid one"
+args = ["-k", "x", "-s", "FOO", "1", "/"]
+
+[[case]]
+name = "signal: invalid [FOO]"
+args = ["-s", "FOO", "1", "/nonexistent/x"]
+
+[[case]]
+name = "signal: invalid [-1]"
+args = ["-s", "-1", "1", "/nonexistent/x"]
+
+[[case]]
+name = "signal: invalid [SIGFOO]"
+args = ["-s", "SIGFOO", "1", "/nonexistent/x"]
+
+[[case]]
+name = "signal: invalid [0x9]"
+args = ["-s", "0x9", "1", "/nonexistent/x"]
+
+[[case]]
+name = "signal: invalid [9x]"
+args = ["-s", "9x", "1", "/nonexistent/x"]
+
+[[case]]
+name = "signal: invalid [65]"
+args = ["-s", "65", "1", "/nonexistent/x"]
+
+[[case]]
+name = "signal: invalid [RTMIN+31]"
+args = ["-s", "RTMIN+31", "1", "/nonexistent/x"]
+
+[[case]]
+name = "signal: invalid [ TERM]"
+args = ["-s", " TERM", "1", "/nonexistent/x"]
+
+[[case]]
+name = "signal: invalid []"
+args = ["-s", "", "1", "/nonexistent/x"]
+
+[[case]]
+name = "signal: [TERM] --foreground"
+args = ["--foreground", "-s", "TERM", "1", "/nonexistent/x"]
+
+[[case]]
+name = "signal: [term] --foreground"
+args = ["--foreground", "-s", "term", "1", "/nonexistent/x"]
+
+[[case]]
+name = "signal: [SIGTERM] --foreground"
+args = ["--foreground", "-s", "SIGTERM", "1", "/nonexistent/x"]
+
+[[case]]
+name = "signal: [9] --foreground"
+args = ["--foreground", "-s", "9", "1", "/nonexistent/x"]
+
+[[case]]
+name = "signal: [KILL] --foreground"
+args = ["--foreground", "-s", "KILL", "1", "/nonexistent/x"]
+
+[[case]]
+name = "signal: [0] --foreground"
+args = ["--foreground", "-s", "0", "1", "/nonexistent/x"]
+
+[[case]]
+name = "signal: [EXIT] --foreground"
+args = ["--foreground", "-s", "EXIT", "1", "/nonexistent/x"]
+
+[[case]]
+name = "signal: [HUP] --foreground"
+args = ["--foreground", "-s", "HUP", "1", "/nonexistent/x"]
+
+[[case]]
+name = "signal: [USR1] --foreground"
+args = ["--foreground", "-s", "USR1", "1", "/nonexistent/x"]
+
+[[case]]
+name = "signal: [137] --foreground"
+args = ["--foreground", "-s", "137", "1", "/nonexistent/x"]
+
+[[case]]
+name = "signal: [CONT] --foreground"
+args = ["--foreground", "-s", "CONT", "1", "/nonexistent/x"]
+
+[[case]]
+name = "signal: [RTMIN] --foreground"
+args = ["--foreground", "-s", "RTMIN", "1", "/nonexistent/x"]
+
+[[case]]
+name = "signal: [RTMAX-1] --foreground"
+args = ["--foreground", "-s", "RTMAX-1", "1", "/nonexistent/x"]
+
+[[case]]
+name = "signal: [STKFLT] --foreground"
+args = ["--foreground", "-s", "STKFLT", "1", "/nonexistent/x"]
+
+[[case]]
+name = "signal: --signal=HUP"
+args = ["--signal=HUP", "1", "/nonexistent/x"]
+
+[[case]]
+name = "signal: -sKILL"
+args = ["-sKILL", "1", "/nonexistent/x"]
+
+[[case]]
+name = "signal: two, the last wins"
+args = ["-s", "HUP", "-s", "FOO", "1", "/"]
+
+[[case]]
+name = "command: not found"
+args = ["5", "/nonexistent/x"]
+
+[[case]]
+name = "command: not found, with arguments"
+args = ["5", "/nonexistent/x", "a", "b"]
+
+[[case]]
+name = "command: a directory"
+args = ["5", "/"]
+
+[[case]]
+name = "command: a file that is not executable"
+args = ["5", "/etc/passwd"]
+
+[[case]]
+name = "command: a directory, --foreground"
+args = ["--foreground", "5", "/"]
+
+[[case]]
+name = "command: not found, -v -p"
+args = ["-v", "-p", "5", "/nonexistent/x"]
+
+[[case]]
+name = "command: not found, 0"
+args = ["0", "/nonexistent/x"]
+
+[[case]]
+name = "command: after --"
+args = ["--", "5", "/nonexistent/x"]
