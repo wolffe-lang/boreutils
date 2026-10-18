@@ -1,0 +1,74 @@
+//! member: false
+//!
+//! bu27 probe 1: can a timeout be built from a task's sleep, a raise of
+//! ALARM, the poll of the children and a signal wait? usage: p1 MS CMD ARG...
+use std.signal
+
+fn main() -> int {
+    let args = env_args()
+    os_set_pgid(0) else |e| {
+        eprint("p1: os_set_pgid(0): {e}")
+    }
+    eprint("p1: pid {os_pid()} pgid {os_pgid() else -1}")
+    let set = signal.child() | signal.alarm() | signal.terminate() | signal.interrupt()
+    os_signal_listen(set) else |e| {
+        eprint("p1: listen: {e}")
+        return 1
+    }
+    var rest = List[str]()
+    var i = 2
+    while i < args.len {
+        (mut rest).push(args[i])
+        i += 1
+    }
+    var map = List[int]()
+    (mut map).push(0)
+    (mut map).push(0)
+    let h = os_spawn_job(args[1], rest, map, -1, -1, 0) else |e| {
+        eprint("p1: spawn: {e}")
+        return 127
+    }
+    eprint("p1: child {os_proc_pid(h) else -1}")
+    let ms = args[0].to_int() else 1000
+    let t0 = time_now_ms()
+    scope s {
+        s.spawn(fn() {
+            time_sleep_ms(ms)
+            os_signal_raise(signal.alarm()) else |_| {}
+        })
+        loop {
+            let (k, st) = os_wait_poll() else |e| {
+                eprint("p1: poll: {e}")
+                os_exit(125)
+                (-2, 0)
+            }
+            if k >= 0 {
+                eprint("p1: child {k} status {st} after {time_now_ms() - t0} ms")
+                if st < 256 {
+                    os_exit(if st < 0 then 128 - st else st)
+                }
+                continue
+            }
+            let m = os_signal_wait(set) else |e| {
+                eprint("p1: wait: {e}")
+                os_exit(125)
+                0
+            }
+            eprint("p1: meaning {m} after {time_now_ms() - t0} ms")
+            if m == signal.alarm() {
+                os_signal_ignore(signal.terminate()) else |e| {
+                    eprint("p1: ignore: {e}")
+                }
+                let g = os_pgid() else -1
+                os_signal_send_group(g, signal.terminate()) else |e| {
+                    eprint("p1: send_group {g}: {e}")
+                }
+                os_signal_listen(set) else |e| {
+                    eprint("p1: relisten: {e}")
+                }
+                eprint("p1: sent TERM to group {g}")
+            }
+        }
+    }
+    0
+}

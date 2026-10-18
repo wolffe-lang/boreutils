@@ -1,0 +1,23 @@
+//! member: false
+//!
+//! bu27 probe 2: what `os_spawn_job` answers for each kind of command
+//! `timeout` may be handed, and what the child sees. usage: p2 CMD ARG...
+fn main() -> int {
+    let args = env_args()
+    var rest = List[str]()
+    var i = 1
+    while i < args.len {
+        (mut rest).push(args[i])
+        i += 1
+    }
+    var map = List[int]()
+    (mut map).push(0)
+    (mut map).push(0)
+    let h = os_spawn_job(args[0], rest, map, -1, -1, 0) else |e| {
+        eprint("p2: {args[0]}: {e} (os_error {os_error()})")
+        return 1
+    }
+    let st = os_wait_status(h) else -999
+    eprint("p2: {args[0]}: status {st}")
+    0
+}
