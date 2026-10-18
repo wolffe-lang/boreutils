@@ -626,11 +626,6 @@ args = ["5", "sh", "-c", "grep SigIgn /proc/$PPID/status"]
 only_on = "Linux"
 
 [[case]]
-name = "run: no shebang, by /bin/sh"
-args = ["5", "./noshebang"]
-skip = "needs the file in the case directory"
-
-[[case]]
 name = "run: a bare name not on PATH"
 args = ["5", "no-such-command-bu27"]
 
