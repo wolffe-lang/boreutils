@@ -1,0 +1,14 @@
+#!/bin/sh
+# tools/timeouttest-selftest's stand-in for `timeout` (bu27): it reads
+# timeout's options and DURATION and runs the command with no timeout at
+# all, so every case about an expiry, a group or a signal must FAIL.
+while [ $# -gt 0 ]; do
+    case $1 in
+        -s|-k|--signal|--kill-after) shift 2 ;;
+        --) shift; break ;;
+        -*) shift ;;
+        *) break ;;
+    esac
+done
+shift
+exec "$@"

@@ -1,0 +1,31 @@
+# Planted differences for tools/timeouttest-selftest (bu27). The tool runs
+# these with tests/timeout/stand-in standing in for this repository's
+# `timeout` on both tiers: a script that runs the command with no timeout
+# at all. tools/timeouttest passes this file only by FAILING every plant
+# by name, each on the field it is about, and by passing the control.
+
+# `status` and `elapsed`: GNU ends the command at 0.3 s (124), the
+# stand-in lets it run to its end (0, at 1 s).
+[[case]]
+name = "plant: the expiry"
+args = ["0.3", "sleep", "1"]
+
+# `grandchild`: GNU's signal reaches the command's own child through the
+# group timeout leads; the stand-in leaves it alive.
+[[case]]
+name = "plant: the group"
+args = ["0.3", "sh", "-c", "sleep 30 & echo $! > gc; sleep 1"]
+grandchild = true
+
+# The reading of a raw wait status: GNU's timeout ENDS by TERM here, and
+# the case records an exit status of 143, which a shell's `$?` could not
+# tell from it. The tool must say GNU's answer is not the recorded one.
+[[case]]
+name = "plant: a death by a signal is not an exit status"
+args = ["5", "sh", "-c", "kill -TERM $$"]
+expect = { status = "exit 143" }
+
+# The control, which must PASS: a command that ends by itself.
+[[case]]
+name = "control: a command that ends by itself"
+args = ["5", "sh", "-c", "echo hi; exit 3"]

@@ -1,0 +1,53 @@
+#!/bin/sh
+# timeouttest-selftest — prove tools/timeouttest can see a difference (bu27).
+#
+# A gate nobody has watched fail is not a gate. This runs timeouttest over
+# tests/timeout/selftest.toml with tests/timeout/stand-in (a script that
+# runs the command with no timeout) standing in for this repository's
+# `timeout` on both tiers, and passes only when timeouttest exits 1, every
+# plant is a FAIL line of its own on the field it is about, and the
+# control passes.
+#
+# usage: tools/timeouttest-selftest --gnu DIR [timeouttest's other options]
+set -eu
+BORE_ROOT=$(cd "$(dirname "$0")/.." && pwd)
+cd "$BORE_ROOT"
+
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/bore-timeouttest-selftest.XXXXXX")
+trap 'rm -rf "$tmp"' EXIT
+mkdir -p "$tmp/release" "$tmp/dev"
+cp tests/timeout/stand-in "$tmp/release/timeout"
+cp tests/timeout/stand-in "$tmp/dev/timeout"
+
+out=$(tools/timeouttest "$@" --bin "$tmp" --cases tests/timeout/selftest.toml 2>&1) && status=0 || status=$?
+if [ "$status" -ne 1 ]; then
+    echo "timeouttest-selftest: REFUSED — timeouttest exited $status over the planted"
+    echo "timeouttest-selftest: differences; it must exit 1. Output was:"
+    echo "$out"
+    exit 1
+fi
+for planted in "plant: the expiry" "plant: the group" \
+               "plant: a death by a signal is not an exit status"; do
+    if ! echo "$out" | grep -qF "FAIL $planted"; then
+        echo "timeouttest-selftest: REFUSED — the plant '$planted' did not fail:"
+        echo "$out"
+        exit 1
+    fi
+done
+for said in "release status: 'exit 0', gnu 'exit 124'" \
+            "release elapsed:" \
+            "release grandchild: 'alive', gnu 'gone'" \
+            "gnu status: got 'signal TERM', the case records 'exit 143'"; do
+    if ! echo "$out" | grep -qF "$said"; then
+        echo "timeouttest-selftest: REFUSED — no line says: $said"
+        echo "$out"
+        exit 1
+    fi
+done
+if ! echo "$out" | grep -qxF "ok   control: a command that ends by itself"; then
+    echo "timeouttest-selftest: REFUSED — the control did not pass:"
+    echo "$out"
+    exit 1
+fi
+echo "$out" | grep -E '^(FAIL|ok  |timeouttest:)'
+echo "timeouttest-selftest: the tool saw every planted difference"
