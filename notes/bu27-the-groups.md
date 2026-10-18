@@ -172,3 +172,131 @@ the part most likely to be wrong.
 B: `timeout` without `os_set_pgid(0)` and sending to the command alone;
 the cases about the command's children go red. Each is a branch, red in
 a one-job CI dispatch.
+
+## 3a. The prediction, scored
+
+§3 above is as committed (`e45e20f`), before GNU's `kill` or `timeout`
+ran a case and before the first change. Scored in place, by line.
+"kasumi" is a fresh `--network none` container a case: `ubuntu:24.04`
+for killtest, idtest, inouttest and timeouttest (podman, `--cpus 0-3`
+asserted inside where named), `localhost/px12-ubuntu` for the gauntlet
+and the probes (`box.sh`). GNU is bu25's build of 9.11, copied to
+`~/lanes/bu27/gnu/` (`timeout (GNU coreutils) 9.11`). The `ev/` paths
+are committed under `notes/bu27/ev/`; kasumi `~/lanes/bu27/ev/` holds
+them and the full difftest logs.
+
+| # | predicted | measured | verdict |
+|---|---|---|---|
+| 1 | the pin's difftest 6383 / 0 / 262 on both tiers, trunk's list | **6383 / 0 / 262 on both tiers, list `4644afb15f38b6d3`**, the list trunk gives at 0.2.30 (`ev/gauntlet-trunk-e45e20f.log`) and the pin at 0.2.32 (`ev/gauntlet-pin-1405665.log`); the five `>&-` cases pass on the dev tier | right |
+| 2 | no W0304; every binary differs; killtest 338/0/0, inouttest 104/0/0, idtest unchanged | no diagnostic in either tier's build (`grep -c` 0); **92 of 92 binaries differ** from 0.2.30's (kasumi `ev/bins-*.txt`); killtest **338 / 0 / 0**, inouttest **104 / 0 / 0**, idtest **1,098 / 0 / 28** (`ev/suites-pin-1405665.log`) | right |
+| 3 | GNU: a group ends, exit 0; a group nobody is in, `No such process`; `kill 0` ends the targets and GNU's `kill` (143); `kill -0 0` exit 0; `kill -- -1` ends every target and spares process 1, exit 0; with no other process `No such process` | each so (`ev/killtest-record-groups.log`; `expect` asserted of GNU on every run). Not predicted: GNU's `kill 0` in group 1 also prints the shell's `Terminated`, and `kill -1` as a user beside root's processes is exit 0 with nothing sent (the host found some process) | right |
+| 4 | all 33 group refusals retire into GNU-compared cases; killtest 0 failed on ubuntu; the macOS runner runs the `group` cases | **26 of 33 retire** (21 groups and the 5 `-1` cases); **7 stay `ours`, BY DESIGN, not predicted**: killtest's script is the container's process 1, so `kill` runs in process group 1, and wolf never names group 1 (`[os.signal.send.group]`), where GNU signals it. `kill 0` in a group of its own is the new `lead` cases (14), compared with GNU. killtest at the head **365 / 0 / 0** (`ev/suites-head-17ebb87.log`, `--cpus 0-3`). On the macOS runner two group cases were taken back off it (`d59b680`): each side reads its OWN group's id as a signal (#36's shape), and macOS answers EPERM for a group of unreaped members, which makes a second send a race (dispatch 39159010081) | wrong by 7, and two runner cases |
+| 5 | `-l`/`-t`: the host's whole numbering, GNU's names, `-t`'s words; killprobe 0 parted and **0 by design** on both hosts | names, numbers and words as predicted, and `SIG32` as `-t`'s name for 32 (not predicted). killprobe over 240,578 numbers: `-l` alike on every number, `-t` alike but **912 by design** a tier, every row that reads as signal 0 (`EXIT`, 128, 256 …), whose words `os_signal_text` refuses to give (`ev/killprobe-head-17ebb87.log`; macOS dispatch 39159010081: the same counts, 0 parted). Not predicted: GNU reads a real-time offset as `strtol` does (`RTMIN1`, `RTMIN +1`, `RTMAX+0`: `b922c17`) | wrong on "0 by design" |
+| 6 | GNU's statuses: 124, 125, 126, 127, 137 / a death by KILL, `-p`'s 143, a re-raised signal | each so (`ev/tprobe-gnu.log`). Not predicted: with `--foreground` a KILL timeout sent is **exit 137** (an exit status, timeout lives), and `-p` after the expiry gives a death by signal N as **exit 128+N** while a command that ends by a signal of its own is re-raised | right, two shapes unforeseen |
+| 7 | timeout leads a group; the command's children end; `--foreground` leaves them | so (`ev/tprobe-gnu.log` "the group and the child"; `group:` cases) | right |
+| 8 | TERM, INT, HUP, QUIT to timeout passed on; ALRM is the expiry | so, and more not predicted: GNU passes on every catchable signal it is sent but CHLD, CONT, TSTP, TTIN, TTOU, URG, WINCH (`SigCgt fffffffe7781feff`), ignores TTIN and TTOU (`SigIgn …0300000`, not in the command), is stopped by TSTP, and an external TERM arms `-k` as the expiry does | right, wider than predicted |
+| 9 | a stopped command is continued, `timeout 1 sh -c 'kill -STOP $$'` 124 at ~1 s | so without `--foreground`; **with it GNU sends no CONT and waits for ever** (not predicted; `7a3f7e6` matches it) | right, one shape unforeseen |
+| 10 | ours equals GNU on every case, both tiers, ubuntu containers and the macOS runner, ~100 cases, elapsed within 0.3 s | kasumi: timeouttest **124 / 0 / 0** at the head (the skipped placeholder removed after `ev/suites-head-17ebb87.log`'s 124 / 0 / 1), tolerance 0.35 s; difftest's 112 `timeout` cases 112 / 0 / 0 both tiers. CI: see the PR | right on linux |
+| 11 | idle: 0–2 context switches a second | **0 in 10 s**, every thread, both tiers, GNU 0 too (`ev/idle.log`). Not predicted: our timeout runs **19 threads** on kasumi's 16 cpus (7 under `--cpuset-cpus 0-3`), GNU's 1 | right |
+| 12 | the one design difference: `-s SEGV`/`-s RTMIN` outside `--foreground` refused, 125, where GNU sends and answers 124 | so (GNU survives its own group send of SEGV and RTMIN: 124, `ev/tprobe-gnu.log`). **Not the only one**, not predicted: a command ended by a fault signal (SEGV) leaves our timeout at **exit 139**, where GNU ends by SEGV (wolf cannot set a send-only meaning back to its default to re-raise it); GNU's `the monitored command dumped core` line is not ours (`os_wait_poll` answers no core); GNU 9.11 hangs at `-s CHLD` (ours 124); GNU on macOS warns `setitimer: Invalid argument` past its timer's range (7 skips there); a DURATION under a millisecond expires at once here (wolf sleeps in ms) | right on the one, four more found |
+| 13 | PAX: `kill(-PGID)`, `kill(0)` after `getpgrp`, `kill(-1)`; timeout `setpgid(0, 0)`, the listen's `rt_sigaction`/`rt_sigprocmask`, `pipe2`, `clone3`, a fork-and-exec, `wait4` with `WNOHANG`, `clock_nanosleep`, `kill(0 or -pgid)`, `exit_group` | `kill`: `kill(-PGID, …)`, **`getpgrp` then `kill(-PGRP, …)`** for `0` (not `kill(0)`), `kill(-1, …)`, `statx` on fd 1, `write`. `timeout`: each predicted call, plus not predicted: `tgkill` (the raise of SIGALRM), `socketpair` and `recvfrom` (the spawn's exec-error channel), `vfork` in one trace, `poll`, `getuid`/`geteuid`/`getgid`/`getegid` (the spawn's path search), `sched_getaffinity` and 35 `clone3` (the runtime's threads) (`ev/straces.log`) | right, wider than predicted |
+| plants | A red on the group cases, B red on the children's cases, each by a one-job dispatch | **A** `518867a` (`bu27-plant-groups`), run **39157550986**: killtest 60 of 365 failed in each of 3 whole runs (every `own group:` and group case). **B** `49fdbcf` (`bu27-plant-timeout`), run **39157553368**: timeouttest 16 of 125 failed in each of 3 runs (the `group:` cases, every KILL that must end timeout too, `-k`) | red, both |
+
+## 4. Evidence index
+
+Committed, `notes/bu27/ev/`: `archives.log` (six archives, two reads
+each, `_wolf`, version lines, `std/STD-REV`); `gauntlet-trunk-e45e20f.log`,
+`gauntlet-pin-1405665.log`, `gauntlet-head-17ebb87.log` (build,
+fmt, test, difftest on both tiers with each verdict list's digest,
+selftests); `suites-pin-1405665.log`, `suites-head-17ebb87.log`
+(killtest, inouttest, idtest, timeouttest and their selftests);
+`killtest-dev1.log` (365 / 0 / 0 at the tree before `ee2a997`'s
+commit), `killtest-record-groups.log` (GNU's answers for the group-1
+and `-1` cases); `killprobe-head-17ebb87.log`; `tprobe-gnu.log`,
+`tprobe2-gnu.log` (GNU timeout's measured answers, the source of every
+`expect`), `tprobe-ours-*.log` and `tprobe-diff-*.txt` (the first
+build of ours against them: every difference was by design or fixed
+after: `7a3f7e6`, the -v names and the sub-millisecond expiry),
+`tprobe2-ours-release.log`; `timeouttest-dev1.log` (123 / 1 before
+`7a3f7e6`); `idle.log`; `static-head.txt`; `straces.log`. Probes:
+`notes/bu27/probes/` (p1 and p2 the wolf spawn and wait, tprobe and
+tprobe2 timeout, idle, straces). Generators: `notes/bu27/gen/`.
+
+kasumi `~/lanes/bu27/`: `ev/` (the above plus the full difftest logs
+and `ev/strace/*.strace`, digests in `straces.log`), `gnu/` (GNU 9.11,
+33 M), `bin/head/` (the static binaries), `arch/` (the archives).
+
+CI: plant runs 39157550986 (A) and 39157553368 (B); macOS dispatches
+39159010081 (killprobe and killtest on the runner) and 39159007328
+(refused: Homebrew's coreutils is 9.12 now, so the timeout oracle on
+macOS is the staged 9.11 build, `6b0a5a1`); PR runs 39157500666 and
+39159832576 (the first two heads; ubuntu green in both, macOS red on
+the setitimer warnings, then on the two runner races). The PR's run at
+its head is named in the PR.
+
+**Static binaries for PAX's next pin** (linux x86-64, `ld` static
+through `cc -static`, wolf 0.2.32, std `d37c911`, boreutils `17ebb87`'s
+`src/`, which is the head's; kasumi `~/lanes/bu27/bin/head/`):
+
+| binary | sha256 | bytes |
+|---|---|---|
+| `release/kill` | `0f4fb3b72a41fcbd75a7a087e766be21680a12708655990f3c1f308fd7134b5e` | 13,949,544 |
+| `release/timeout` | `de9104db3b5a8e578a2895a8b006e31ebe533eb55fedc818c0cd23baa710c899` | 14,525,248 |
+| `dev/kill` | `4690412ff1a6561d494218686c32080d7d0318294733f57999b19b0ebf70de1a` | 14,797,768 |
+| `dev/timeout` | `685a997c189e18bfe7ee87798a817279f1877afdbc118f2ea68c4f61a06be175` | 14,998,960 |
+
+Not booted on PAX. Their calls are §3a line 13; PAX has `setpgid`,
+`getpgrp`, `kill(0)` and `kill(-g)` since px48, and `kill(-1)` as px45
+left it. What PAX must still answer for `timeout` that no boreutils
+utility asked before: `socketpair(AF_UNIX, SOCK_SEQPACKET)` and
+`recvfrom` on it (the spawn's error channel), `vfork`, `tgkill`,
+`rt_sigsuspend`, and 35 `clone3` threads at 16 cpus.
+
+## 5. Findings, and what was not verified
+
+**For wolf-lang (not filed: a lane files nothing).**
+- *No call ignores a send-only meaning or a host signal.*
+  `os_signal_ignore` takes the twenty listenable meanings only
+  (`[os.signal.disp]`), so a program that leads a group cannot send the
+  group a fault signal or a host `-N` without ending itself: `timeout
+  -s SEGV 1 cmd` (and `-s RTMIN`, `-s 16`) is refused by name here where
+  GNU's sends it and answers 124. Witness: tests/timeout `design:` cases.
+- *A program cannot end by a fault signal it re-raises.* After its
+  command dies of SEGV, timeout must end by SEGV; `os_signal_send(os_pid(),
+  segment_fault())` does not end it (the runtime owns SEGV and BUS), so
+  ours exits 139. Witness: `no expiry: the command ends by SEGV`.
+- *`os_wait_poll` (and `os_wait_status`) say nothing of a core.*
+  GNU's `the monitored command dumped core`.
+- *Group 1 cannot be named, so `kill 0` from a process in group 1 cannot
+  be expressed* — every process a container's entrypoint starts without
+  job control. `[os.signal.send.group]` refuses it on purpose (a
+  miscomputed group must not become a broadcast); a `kill 0` from group 1
+  would need its own call or a ruling. Witness: tests/kill `group: 0`.
+- *`os_signal_text(0)` is `invalid`*, so `kill -t`'s `EXIT` row has no
+  words (`strsignal(0)` is `Unknown signal 0` under glibc).
+- *A timer is a task's `time_sleep_ms` and a raise*: there is no timer
+  call, and the runtime's threads (19 at 16 cpus) are what a waiting
+  timeout costs; GNU's is one thread and a kernel timer.
+
+**For boreutils.**
+- boreutils#39 is fixed here (`17ebb87`: `set +e` in `macos-suite`).
+- `tests/kill/cases.toml`'s `group: 0` cases record GNU's answer in
+  `ev/killtest-record-groups.log` but carry no `expect` (they are `ours`
+  by design); `--record` gives it.
+- Homebrew's coreutils moved to 9.12 on 2026-10-18 (run 39159007328):
+  every macOS leg now stages the oracle from the tarball, as
+  `tools/fetch-oracle` already does when the host's version differs.
+
+**Not verified.** `timeout` on a terminal (`--foreground`'s point: a
+command reading the tty; the background job's TTIN/TTOU); `kill` and
+`timeout` on linux aarch64; the static binaries on PAX; `timeout` as a
+container's first process (group 1: ours then signals only its
+command, by design, not measured); a SEGV re-raise with core dumps on
+(every case ran with `ulimit -c 0`); killprobe's sample above 140,000
+is 100,000 numbers, not all 2^31.
+
+**Housekeeping.** kasumi `~/lanes/bu27/` keeps `ev/`, `gnu/`,
+`bin/head/` and `probes/`; the two clones (`boreutils/`, `dev/`, each
+with a staged toolchain and `target/`) and `arch/` are removed at
+hand-back. Plant branches `bu27-plant-groups` and `bu27-plant-timeout`
+stay on origin: §3a cites them.
