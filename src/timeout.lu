@@ -100,11 +100,11 @@ fn main() -> int {
         i += 1
         if k == "help" {
             bore.put(mut out, help()) else |_| {}
-            return bore.finish(mut out, "timeout", 0)
+            return failed_is_125(bore.finish(mut out, "timeout", 0))
         }
         if k == "version" {
             bore.put(mut out, bore.version_text("timeout")) else |_| {}
-            return bore.finish(mut out, "timeout", 0)
+            return failed_is_125(bore.finish(mut out, "timeout", 0))
         }
         if k == "signal" {
             entry = bore.signal_entry(table, v) else |_| {
@@ -436,6 +436,14 @@ fn ended(r: Run, st: int, timed_out: bool) -> int {
         time_sleep_ms(100)
     }
     128 + n
+}
+
+/// timeout's own failure is 125, a write error's included.
+fn failed_is_125(status: int) -> int {
+    if status != 0 {
+        return 125
+    }
+    0
 }
 
 /// GNU's `Try` line, and its status.
