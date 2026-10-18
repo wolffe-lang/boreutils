@@ -90,8 +90,13 @@ against GNU. The short form for a new utility:
     tools/killtest-selftest    prove killtest can still see a difference
     tools/killprobe            `kill -l`/`-t` of every number 0..140000
                                and a sample of the int range, one list
-                               handed to GNU and to ours (sends nothing;
-                               boreutils#34)
+                               handed to GNU and to ours, `-t`'s whole
+                               line (sends nothing; boreutils#34, bu27)
+    tools/timeouttest          timeout where it runs a command: each case
+                               in a throwaway container, every process a
+                               signal reaches one the case started
+                               (tests/timeout/)
+    tools/timeouttest-selftest prove timeouttest can still see a difference
     tools/idtest               id, whoami, groups, logname, chown, chgrp
                                as root and as users: one throwaway
                                container a case, the accounts the
@@ -207,13 +212,25 @@ against GNU. The short form for a new utility:
   linux, 30 on macOS), so a table of numbers is built by asking, at
   run time: `src/bore/signals.lu` is how. `os_signal_send(pid,
   meaning)` signals one process, `os_pid()`/`os_ppid()` name this one
-  and its parent. What wolf CANNOT do, each refused by `kill` and
-  needing an issue nobody has filed yet (bu23's report has the texts):
-  signal a process GROUP (`pid` must be above 0), send or name a
-  real-time signal or one only a host has (`STKFLT`, `POLL`, `PWR`;
-  `EMT`, `INFO`: no meaning), say a signal's description
-  (`strsignal`), or say why a send failed beyond `not_found` and
-  `denied` (#682).
+  and its parent. Since wolf 0.2.31 (s241, ruling #79; bu27):
+  `os_signal_send_group(pgid, m)` and `os_signal_send_all(m)` reach a
+  group and every process, `os_set_pgid(0)` makes this process lead a
+  group, a host signal with no meaning is sent as `-N` (numbers from
+  `os_signal_last`, `os_signal_realtime`; never written), and
+  `os_signal_text` is the host's words for one. What wolf still CANNOT
+  do (bu27's note has the texts): name process group 1, give signal 0's
+  words, ignore a send-only meaning or a host signal (only the twenty
+  listenable meanings can be ignored or heard), say a child dumped core,
+  or say why a send failed beyond `not_found` and `denied` (#682).
+- **`timeout` runs a command and signals a group, so it is tested where
+  a stray signal reaches nothing** (bu27). `tools/difftest` refuses the
+  RUN when a `timeout` case could start a command (`tests/refuse/
+  timeout-*`): its cases end at a usage error, an invalid DURATION or
+  SIGNAL, or a command no host can run. The rest are
+  `tests/timeout/cases.toml`, run by `tools/timeouttest`: one fresh
+  `--network none` container a case, as a user of the image, GNU's
+  `timeout` beside both tiers; CI's macOS leg runs them on the runner,
+  each case in a session of its own.
 - **`kill` sends, so it is tested where a stray signal reaches
   nothing.** `tools/difftest` refuses the RUN when a `kill` case could
   signal anything (its first argument is not a list option, `--help`
