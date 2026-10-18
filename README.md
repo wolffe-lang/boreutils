@@ -54,7 +54,8 @@ tools/fetch-oracle        # GNU coreutils 9.11, sha256-checked, if needed
 tools/build               # every utility into target/release/
 tools/difftest            # the differential suite against the oracle
 tools/killtest --gnu DIR  # kill where it sends: a throwaway container a case
-tools/killprobe --gnu K P # kill -l of every number 0..140000 and a sample above, against GNU
+tools/killprobe --gnu K P # kill -l and -t of every number 0..140000 and a sample above, against GNU
+tools/timeouttest --gnu DIR # timeout where it runs a command: a throwaway container a case
 tools/idtest --gnu DIR    # the identity tools as root and as users: the same
 tools/bench --scale 0.01  # hyperfine against GNU on generated inputs
 ```
@@ -158,18 +159,23 @@ derives no boreutils code from GPL source.
 
 Every utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus, except where a case says otherwise and is
-skipped with its reason. The corpus holds **6,645 cases**; `kill` has
-338 more that SEND, each run in a container of its own (`tests/kill/`,
-`tools/killtest`: **338 passed, 0 failed** on kasumi at bu26, where
-`kill N -l` hands both sides one number, boreutils#36), and the six identity tools 1,126 more that run as
-root and as users or change an owner (`tests/ids/`, `tools/idtest`: 28
-of them only on CI's macOS runner). A run in a throwaway Ubuntu 24.04
-container on kasumi (linux x86-64; the utilities that change files,
-owners or send signals are run nowhere else on a lane's host) at this
-pin answers **6,383 passed, 0 failed, 262 skipped**, the same list on
-the release and the dev tier, and `tools/idtest` **1,098 passed, 0
-failed** (615 as root, 483 as users; bu24's figures and CI's are in
-`notes/bu24-the-ids.md` and its PR). The edition before bu24 said 6,514
+skipped with its reason. The corpus holds **6,784 cases**; `kill` has
+365 more that SEND, each run in a container of its own (`tests/kill/`,
+`tools/killtest`: **365 passed, 0 failed** on kasumi at bu27, groups,
+`kill 0` and `kill -1` among them), `timeout` 124 more that run a
+command (`tests/timeout/`, `tools/timeouttest`: **124 passed, 0
+failed** on kasumi at bu27), and the six identity tools 1,126 more that
+run as root and as users or change an owner (`tests/ids/`,
+`tools/idtest`: 28 of them only on CI's macOS runner). A run in a
+throwaway Ubuntu 24.04 container on kasumi (linux x86-64; the utilities
+that change files, owners or send signals are run nowhere else on a
+lane's host) at wolf 0.2.32 answers **6,664 passed, 0 failed, 120
+skipped**, the same list on the release and the dev tier, and
+`tools/idtest` **1,098 passed, 0 failed** (bu27's figures are in
+`notes/bu27-the-groups.md` and its PR). The edition before bu27 said
+6,645 cases and 6,383 passed, 0 failed, 262 skipped, and
+`tools/killtest` 338 passed, 0 failed (bu24's and bu26's figures are in
+`notes/bu24-the-ids.md` and `notes/bu26-the-kill-cases.md`). The edition before bu24 said 6,514
 cases and 6,252 passed, 0 failed, 262 skipped, and `tools/killtest`
 335 passed, 0 failed (bu23's figures are in `notes/bu23-the-kill.md`).
 The edition before bu23's `kill` said 5,646 cases and 5,527 passed, 0
@@ -273,17 +279,26 @@ found through an empty `PATH` component, which sees `./name` where
 GNU's sees `name` (#689); and six options not written yet (`-S`, `-v`,
 the four signal options), refused by name.
 
-**`kill` adds 143 skips on linux, and 142 of them are one thing: a
-signal the host has and wolf has no meaning for** (bu23). wolf 0.2.29
-names the 28 signals POSIX names; linux has 36 numbers beyond them
-(`STKFLT`, `POLL`, `PWR`, the unnamed 32 and 33 and the real-time range
-34 to 64) and macOS three (`EMT`, `IO`, `INFO`), and each case that
-names one — by number, by name, or by an exit status that decodes to
-one — is skipped on that host by name, where this `kill` says `invalid
-signal`. The other one is a non-UTF-8 argument (#406). The cases that
-SEND are not skipped: where this `kill` refuses by design what GNU does
-(a process group, a signal with no meaning), `tests/kill/cases.toml`
-states both answers and both are asserted.
+**`kill` adds one skip, a non-UTF-8 argument (#406)** (bu27). Until
+bu27 it added 143 on linux: every case naming a signal the host has and
+wolf had no meaning for. Since wolf 0.2.31 (s241) a host signal is sent
+as `-N`, `os_signal_last` and `os_signal_realtime` say how the host
+numbers them and `os_signal_text` gives their words, so `kill` knows
+every signal the host numbers (linux's `STKFLT`, `POLL`, `PWR` and the
+real-time range by GNU's names, macOS's `EMT`, `IO`, `INFO`) and `-t`
+prints the third column. `tools/killprobe` holds `-l` and `-t` to GNU
+over 240,578 numbers on both hosts. The one row by design is `-t`'s for
+signal 0, whose words `os_signal_text` cannot give. The cases that SEND
+are not skipped: where this `kill` answers otherwise by design (a `kill
+0` from process group 1, which wolf never signals),
+`tests/kill/cases.toml` states both answers and both are asserted.
+
+**`timeout` adds seven skips, all on macOS**, where GNU 9.11 warns
+`setitimer: Invalid argument` for a DURATION past its timer's range and
+this timeout says nothing (bu27). It never starts a command on a lane's host:
+`tools/difftest` runs only its cases that cannot (usage, invalid
+durations and signals, 126 and 127), and the rest run in
+`tools/timeouttest`.
 
 **The file changers add thirty-five skips, and every one is a thing wolf
 cannot do to a file or an option not written** (bu21, bu22). Since wolf
@@ -1129,7 +1144,8 @@ depth is start-up on both sides.
 | `chmod` | done: octal and symbolic modes, a mode given as an option, `-c`, `-f`, `-v`, `-R`, `-H`, `-L`, `-P`, `-h`, `--reference`, `--preserve-root` | not benched |
 | `touch` | done: `-a`, `-m`, `--time`, `-c`, `-h`, `-r`, `-t`, `-d` for `@SECONDS`, ISO 8601, a time of day and now/today/yesterday/tomorrow, both times to the nanosecond; not `touch -` (#714) or the rest of GNU's date grammar | not benched |
 | `ln` | done: hard and symbolic, `-f` (a replace that never leaves the name missing), `-i`, `-n`, `-T`, `-t`, `-v`, `-P`, `-L`, `-r`, `-d`/`-F`; not `-b` | not benched |
-| `kill` | done: `-s`, `--signal`, `-SIGNAL` by name or by this host's number, `-n`, signal 0, `-l`, `-t`/`-L`, exit statuses as signals, GNU's option rules; the 28 signals wolf has a meaning for, to one process at a time; not a process group, a real-time or host-only signal, or `-t`'s description column | not benched |
+| `kill` | done: `-s`, `--signal`, `-SIGNAL` by name or by this host's number, `-n`, signal 0, `-l`, `-t`/`-L` with the host's words, exit statuses as signals, GNU's option rules; every signal the host numbers, real-time and host-only included; one process, a group (`-- -PGID`), this process's group (`0`) and every process (`-1`); not group 1 (`kill 0` from it), nor signal 0's words in `-t` | not benched |
+| `timeout` | done: `-f`/`--foreground`, `-k`/`--kill-after`, `-p`/`--preserve-status`, `-s`/`--signal`, `-v`/`--verbose`; 124/125/126/127/137 as GNU; timeout leads its own group and signals it at the expiry, then CONT; signals sent to it passed on; a stopped command continued; not `-s` with a fault or host signal outside `--foreground` (wolf cannot ignore it during the group send), nor passing on a fault or host signal sent to timeout itself, nor the `dumped core` line | not benched |
 | `id` | done: `-u`, `-g`, `-G`, `-n`, `-r`, `-z`, `-a`, the default line with `euid=`/`egid=`, USER operands by name or number; `-Z` refused as the oracle (no SELinux) refuses it; names from `/etc/passwd` and `/etc/group` only | not benched |
 | `whoami` | done | not benched |
 | `groups` | done: the process's groups and USERNAME operands | not benched |
@@ -1200,7 +1216,8 @@ table answers it per utility, from the evidence and from nothing else.
 | `chmod` | 14 / 14 | 532 / 0 | not benched | drop-in on linux; on macOS a link named by `-h`/`-P` or met by `-R` is left alone where GNU changes its own mode |
 | `touch` | 11 / 11 | 156 / 13 | not benched | drop-in for scripts whose `-d` dates are `@SECONDS`, ISO 8601, a time of day or now/today/yesterday/tomorrow (any other is refused by name), that do not `touch -` (#714) or combine `-r` with `-d` |
 | `ln` | 13 / 16 | 145 / 3 | not benched | drop-in for scripts that avoid `-b`/`--backup`/`-S` (refused by name) |
-| `kill` | 5 / 5 | 725 / 143, and 335 / 0 that send | not benched | drop-in for scripts that signal ONE process at a time (PID 0, -1 and a negative id, a process group, are refused by name) with a signal POSIX names (a real-time signal and one only a host has are `invalid signal`), and do not read `-t`'s third column, the host's description, which is left out |
+| `kill` | 5 / 5 | 894 / 1, and 365 / 0 that send | not benched | drop-in for scripts that do not `kill 0` from process group 1 (a container's first process and what it starts without job control; refused by name) and do not read `-t`'s words for signal 0 |
+| `timeout` | 7 / 7 | 112 / 0 (7 skipped on macOS), and 124 / 0 that run a command | not benched | drop-in for scripts that do not `-s` a fault or real-time signal without `--foreground` (refused by name, 125), do not send timeout itself a fault or host-only signal, and do not read `the monitored command dumped core`; a command ended by a fault signal leaves timeout's status 128+N where GNU's timeout ends by that signal |
 | `id` | 7 / 8 | 64 / 0, and 428 / 0 as root and as users | not benched | drop-in where the accounts are in `/etc/passwd` and `/etc/group` (not macOS's directory service, LDAP or NIS); `-Z` is refused as GNU without SELinux refuses it |
 | `whoami` | 0 / 0 | 10 / 0, and 19 / 0 | not benched | drop-in where the accounts are in `/etc/passwd` |
 | `groups` | 0 / 0 | 12 / 0, and 62 / 0 | not benched | drop-in where the accounts are in `/etc/passwd` and `/etc/group` |
@@ -1208,8 +1225,9 @@ table answers it per utility, from the evidence and from nothing else.
 | `chown` | 13 / 13 | 17 / 0, and 373 / 0 as root and as users | not benched | drop-in where the accounts are in `/etc/passwd` and `/etc/group`; `-v` on a link to nothing it follows says `failed to change ownership of 'F' to …` where GNU prints an uninitialized owner |
 | `chgrp` | 13 / 13 | 17 / 0, and 170 / 0 | not benched | as `chown` |
 
-**19 drop-in, 27 drop-in for scripts that avoid a named thing, none not
-yet** (bu24: the six identity tools arrived with a named thing each —
+**19 drop-in, 28 drop-in for scripts that avoid a named thing, none not
+yet** (bu27: `timeout` arrived with named things, and `kill`'s three
+became two narrower ones; bu24: the six identity tools arrived with a named thing each —
 accounts only in the two files, and `logname` on macOS; bu23: `kill` arrived with three named things, each a thing wolf
 cannot express yet; bu22: `mkdir` became drop-in, and `chmod`, `touch` and `ln`
 arrived with a named thing each; `rmdir` arrived drop-in at bu21 and
@@ -1225,7 +1243,7 @@ it.
 sums counted as one and `[` as `test`; Arch's build installs 102
 binaries and leaves out `arch`, `chcon`, `runcon`, `hostname`, `kill`
 and `uptime`; `kill` is built only when asked for, which the oracle of
-record now does). boreutils ships **46 of them, 45%**. Effort is not what
+record now does). boreutils ships **47 of them, 46%**. Effort is not what
 blocks most of the other 64: wolf
 0.2.28 has no surface for them, and each gap boreutils has met is filed
 upstream with its witness. The OS surface lane's first cut, s199's
@@ -1263,16 +1281,16 @@ use it (bu15).
   POSIX names has a meaning, a disposition can be read and set, and
   `os_signal_send`/`os_signal_number` reach any process and this
   host's numbering; `kill` stands on the last two (bu23). `tee -p`/`-i`
-  here, and `timeout`, `nohup` and `env --ignore-signal`, can be
-  written. **Not filed yet, each met by `kill` and refused there**
-  (the texts are in bu23's report): a signal to a process GROUP
-  (`os_signal_send` takes a pid above 0: `kill 0`, `kill -- -PGID`,
-  `kill -1`, and `timeout`'s group); a meaning for a real-time signal
-  or one only a host has (linux's `STKFLT`, `POLL`, `PWR`, 34 to 64;
-  macOS's `EMT`, `INFO`), or any way to send a signal by its host
-  number; and a signal's description in the host's words
-  (`strsignal`: `kill -t`'s third column, and what a shell prints when
-  a job dies).
+  here, `nohup` and `env --ignore-signal` can be written.
+- **#739**, **#740**, **#741**, **#762** (closed, wolf 0.2.31, s241,
+  ruling #79): the group send, every process, host signals by `-N`, a
+  signal's words, the caller's own group. `kill`'s groups and `-t`'s
+  words, and `timeout`, stand on them (bu27). What bu27 met and wolf
+  cannot do yet (not filed; the texts are in bu27's note): ignore a
+  send-only meaning or a host signal (so `timeout -s SEGV` cannot send
+  to the group it leads), name process group 1 (so `kill 0` from it is
+  refused), give signal 0's words, say a child dumped core
+  (`os_wait_poll`), and end a process by a fault signal it re-raises.
 - **#424** (closed, wolf 0.2.22): `fs_fstat`, `fs_seek`, `fs_tell` and
   `fs_read_at` see descriptors 0, 1 and 2; `wc -c` and `tail` on a
   redirected regular file use them (bu15). `cat`'s input-is-output
