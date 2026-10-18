@@ -45,9 +45,9 @@ on:
   workflow_dispatch:
     inputs:
       only:
-        description: "all (the matrix), ttyprobe (macOS: boreutils#27's probe), macos-suite (macOS: the ls suite, repeated), inout (ubuntu: tools/inouttest), kill-macos / kill-ubuntu (one host: tools/killprobe and tools/killtest, repeated)"
+        description: "all (the matrix), ttyprobe (macOS: boreutils#27's probe), macos-suite (macOS: the ls suite, repeated), inout (ubuntu: tools/inouttest), kill-macos / kill-ubuntu (one host: tools/killprobe and tools/killtest, repeated), timeout-macos / timeout-ubuntu (one host: tools/timeouttest, repeated)"
         type: choice
-        options: [all, ttyprobe, macos-suite, inout, kill-macos, kill-ubuntu]
+        options: [all, ttyprobe, macos-suite, inout, kill-macos, kill-ubuntu, timeout-macos, timeout-ubuntu]
         default: all
 
 permissions:
@@ -186,6 +186,31 @@ jobs:
         run: |
           tools/killtest-selftest --engine none --gnu .gnu-bin/bin
           tools/killtest --engine none --gnu .gnu-bin/bin
+
+      # bu27. `timeout` runs a command, leads a process group with it and
+      # signals that group at the expiry, so tools/difftest refuses every
+      # case of it that could start a command, and those run here: one
+      # throwaway container a case, nothing mounted, no network, as a user
+      # of the image, every process a signal reaches one the case started,
+      # GNU 9.11's timeout beside both tiers. The selftest first: three
+      # planted differences must fail by name.
+      - name: timeout where it runs a command (a throwaway container a case)
+        if: runner.os == 'Linux'
+        run: |
+          tools/timeouttest-selftest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin
+          tools/timeouttest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin
+
+      # macOS has no container engine. The runner is itself a throwaway
+      # machine: each case runs on it in a session of its own, so the group
+      # a timeout leads holds only that case's processes (timeouttest
+      # refuses this mode anywhere GITHUB_ACTIONS is not true). The oracle
+      # is Homebrew's gtimeout 9.11, as difftest's is on this host.
+      - name: timeout where it runs a command (this runner, a session a case)
+        if: runner.os == 'macOS'
+        run: |
+          g=$(dirname "$(command -v gtimeout)")
+          tools/timeouttest-selftest --engine none --gnu "$g" --gnu-prefix g
+          tools/timeouttest --engine none --gnu "$g" --gnu-prefix g
 
       # bu24. `id`, `whoami`, `groups` and `logname` answer for WHO runs
       # them, and `chown` and `chgrp` change owners: tools/difftest runs
@@ -346,7 +371,9 @@ jobs:
       - name: the ls suite, ten times; every run's verdict kept
         shell: bash
         run: |
-          set -uo pipefail
+          # Not -e (the runner's `bash -e` default): a red run is counted
+          # (boreutils#39).
+          set +e -uo pipefail
           bad=0
           for n in 1 2 3 4 5 6 7 8 9 10; do
             tools/difftest ls > "ls-$n.log" 2>&1
@@ -475,3 +502,54 @@ jobs:
             echo "retired run $n: exit $code; $(echo "$out" | grep -E '^    ' | tr '\n' ' ')"
           done
           echo "the retired case: $red of 30 runs red"
+
+  # bu27, by dispatch only (`only: timeout-macos` or `timeout-ubuntu`, one
+  # job on one host): tools/timeouttest's selftest, then the whole suite
+  # three times, every run's verdict kept, for a plant or a flake count.
+  timeout:
+    name: timeout, repeated (bu27)
+    if: github.event_name == 'workflow_dispatch' && (inputs.only == 'timeout-macos' || inputs.only == 'timeout-ubuntu')
+    runs-on: ${{ inputs.only == 'timeout-macos' && 'macos-latest' || 'ubuntu-latest' }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: macOS's GNU
+        if: runner.os == 'macOS'
+        run: brew install --quiet coreutils
+      - name: the oracle of record, cached
+        if: runner.os == 'Linux'
+        uses: actions/cache@v4
+        with:
+          path: .gnu-bin
+          key: gnu-oracle-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gnu-oracle.toml') }}
+      - name: the oracle of record, by digest
+        if: runner.os == 'Linux'
+        run: tools/fetch-oracle
+      - name: the pinned toolchain, by digest
+        run: tools/fetch-toolchain
+      - name: timeouttest, the selftest, then three times whole
+        shell: bash
+        run: |
+          # Not -e (the runner's `bash -e` default): a red run is counted.
+          set +e -uo pipefail
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            g=$(dirname "$(command -v gtimeout)")
+            tt="tools/timeouttest --engine none --gnu $g --gnu-prefix g"
+            tools/timeouttest-selftest --engine none --gnu "$g" --gnu-prefix g
+          else
+            tt="tools/timeouttest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin"
+            tools/timeouttest-selftest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin
+          fi
+          selftest=$?
+          bad=0
+          for n in 1 2 3; do
+            bin=""
+            [ "$n" -eq 1 ] || bin="--bin target/timeouttest"
+            $tt $bin > "whole-$n.log" 2>&1
+            code=$?
+            echo "whole run $n: exit $code; $(grep -E '^timeouttest: [0-9]+ passed' "whole-$n.log")"
+            grep -A6 '^FAIL' "whole-$n.log" || true
+            [ "$code" -eq 0 ] || bad=$((bad + 1))
+          done
+          echo "timeouttest: selftest exit $selftest; $bad of 3 runs red"
+          [ "$selftest" -eq 0 ] && [ "$bad" -eq 0 ]
