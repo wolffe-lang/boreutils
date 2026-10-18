@@ -42,7 +42,8 @@ if [ "$status" -ne 1 ]; then
 fi
 for planted in "plant: a target one side leaves alive" \
                "plant: a target that must end by KILL" \
-               "plant: a process that is not there"; do
+               "plant: a process that is not there" \
+               "plant: kill 0 to the group the program leads"; do
     if ! echo "$out" | grep -qF "FAIL $planted"; then
         echo "killtest-selftest: REFUSED — the plant '$planted' did not fail:"
         echo "$out"
@@ -52,7 +53,8 @@ done
 # Each plant fails on the field it is about, and GNU's own answer is the
 # measured one: a KILL's death is 137, read by the target's parent.
 for said in "release fates: ['alive'], gnu ['ended 143']" \
-            "release exit: 0, gnu 1"; do
+            "release exit: 0, gnu 1" \
+            "release exit: 0, gnu 143"; do
     if ! echo "$out" | grep -qF "$said"; then
         echo "killtest-selftest: REFUSED — no line says: $said"
         echo "$out"
