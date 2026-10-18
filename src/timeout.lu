@@ -34,9 +34,10 @@
 //!   so the command's own children end too. timeout itself does not end
 //!   by that send. With `--foreground` timeout stays in its parent's
 //!   group and only the command is signalled.
-//! - **At the expiry** the signal (TERM unless `-s`) is sent, then CONT
-//!   (unless the signal was KILL, CONT or STOP), so a stopped command
-//!   ends. A DURATION under a millisecond has expired by the time the
+//! - **At the expiry** the signal (TERM unless `-s`) is sent, then,
+//!   without `--foreground`, CONT (unless the signal was KILL, CONT or
+//!   STOP), so a stopped command ends; with `--foreground` a stopped
+//!   command stays stopped and timeout waits on. A DURATION under a millisecond has expired by the time the
 //!   command is started.
 //!   `-k D` sends KILL D after that, to the group as well. `-v` says each
 //!   send on standard error: `timeout: sending signal TERM to command
@@ -351,8 +352,8 @@ fn entry_of(t: bore.SignalTable, m: int) -> int {
 
 /// Send entry `e`'s signal to the command `child`, then (unless
 /// `--foreground`) to the group timeout leads, ignoring it here for the
-/// length of that send; then CONT the same way, so a stopped command
-/// hears it, unless the signal was KILL or CONT.
+/// length of that send; then, to the group only, CONT, so a stopped
+/// command hears it, unless the signal was KILL, CONT or STOP.
 fn send(r: Run, e: int, child: int) {
     let m = bore.signal_meaning(r.table, e)
     if r.verbose {
@@ -362,7 +363,9 @@ fn send(r: Run, e: int, child: int) {
         )
     }
     to_all(r, r.table, e, m, child)
-    if m != signal.kill() && m != signal.continued() && m != signal.stop() {
+    // CONT follows only to the group: with --foreground a stopped command
+    // stays stopped, and timeout waits on (measured: GNU's does too).
+    if !r.foreground && m != signal.kill() && m != signal.continued() && m != signal.stop() {
         let c = bore.signal_entry(r.table, "CONT") else -1
         to_all(r, r.table, c, signal.continued(), child)
     }
