@@ -80,6 +80,11 @@ echo "difftest-selftest: the harness saw every planted difference"
 # The `owner-*` plants (bu24) are the gate for `chown` and `chgrp`: a
 # case of either that names a FILE refuses the run. Each names a user or
 # group, and files, that no host has.
+#
+# The `timeout-*` plants (bu27) are the gate for `timeout`: a case of it
+# that could start a command refuses the run. Each names a command that
+# ends at once (`true`), so were the refusal ever broken nothing is
+# signalled.
 for plant in tests/refuse/*/; do
     name=$(basename "$plant")
     out=$(tools/difftest --cases "$plant" 2>&1) && status=0 || status=$?

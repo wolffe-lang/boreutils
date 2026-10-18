@@ -1,0 +1,6 @@
+# bu27: a `timeout` case whose command comes after options that take a
+# value (`-s 9`, `-k5`, `--signal=HUP`), which the rule must step over to
+# find the command. Refused as the command it is; `true` ends at once.
+[[case]]
+name = "a command after options"
+args = ["-s", "9", "-vk5", "--signal=HUP", "10", "true"]

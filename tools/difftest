@@ -291,6 +291,17 @@ rule. The cases that send are tests/kill/cases.toml and run from
 tools/killtest: one fresh container a case, no network, every target a
 process the case itself started. tests/refuse/kill-* holds the plants.
 
+`timeout` RUNS A COMMAND AND SIGNALS A GROUP, AND THIS HARNESS RUNS ON
+HOSTS (bu27). A case of it is run here only when it can start no
+command: its first argument is `--help` or `--version`, or it has fewer
+than two operands (a usage error), or its COMMAND is one no host can run
+(`/`, `/etc/passwd`, or a path under `/nonexistent/`), so that timeout
+answers 125, 126 or 127 before any child exists and no signal is ever
+sent. Any other case refuses the whole RUN, status 2. The cases that
+run a command are tests/timeout/cases.toml and run from
+tools/timeouttest: one fresh container a case, no network.
+tests/refuse/timeout-* holds the plants.
+
 `chown` AND `chgrp` CHANGE OWNERS, AND THIS HARNESS RUNS ON HOSTS (bu24).
 A case of either is run here only when it names no FILE: its first
 argument is `--help` or `--version`, or it has at most one operand (the
@@ -635,6 +646,37 @@ def could_signal(args):
         if "{" in a:
             return f"{a!r} holds a placeholder"
     return None
+
+
+# What makes a `timeout` case safe on a host (bu27): see the docstring.
+TIMEOUT_TAKES = ("-k", "-s", "--kill-after", "--signal")
+TIMEOUT_CANNOT_RUN = ("/", "/etc/passwd")
+
+
+def could_run(args):
+    """Why this `timeout` case could start a command, or None."""
+    if args and args[0] in ("--help", "--version"):
+        return None
+    i = 0
+    while i < len(args):
+        a = args[i]
+        if "{" in a:
+            return f"{a!r} holds a placeholder"
+        if a == "--":
+            i += 1
+            break
+        if not a.startswith("-") or a == "-":
+            break
+        if a in TIMEOUT_TAKES or (re.fullmatch(r"-[fpv]*[ks]", a) is not None):
+            i += 1
+        i += 1
+    operands = args[i:]
+    if len(operands) < 2:
+        return None
+    cmd = operands[1]
+    if cmd in TIMEOUT_CANNOT_RUN or cmd.startswith("/nonexistent/"):
+        return None
+    return f"{cmd!r} is a command it could run"
 
 
 # What makes a `chown`/`chgrp` case safe on a host (bu24): see the docstring.
@@ -1177,6 +1219,13 @@ def load(path, util=None):
                 die(f"{path}: refusing case {c.get('name', '?')!r}: {why} "
                     f"(kill sends: such a case belongs to tools/killtest, "
                     f"in a container)")
+    if util == "timeout":
+        for c in cases:
+            why = could_run([str(a) for a in c.get("args", [])])
+            if why is not None:
+                die(f"{path}: refusing case {c.get('name', '?')!r}: {why} "
+                    f"(timeout runs a command and signals its group: such a "
+                    f"case belongs to tools/timeouttest, in a container)")
     if util in ("chown", "chgrp"):
         for c in cases:
             why = could_own([str(a) for a in c.get("args", [])])
