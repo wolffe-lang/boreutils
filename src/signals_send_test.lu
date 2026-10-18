@@ -33,6 +33,28 @@ fn row(pid: int, meaning: int) -> str {
     said
 }
 
+fn group_row(pgid: int, meaning: int) -> str {
+    var said = "ok"
+    os_signal_send_group(pgid, meaning) else |e| match e {
+        not_found => {
+            said = "not_found"
+        },
+        denied => {
+            said = "denied"
+        },
+        invalid => {
+            said = "invalid"
+        },
+        unsupported => {
+            said = "unsupported"
+        },
+        io => {
+            said = "io"
+        },
+    }
+    said
+}
+
 fn main() {
     let t = bore.signal_table()
     let term = bore.signal_meaning(t, bore.signal_entry(t, "TERM") else -1)
@@ -49,6 +71,15 @@ fn main() {
     // An id no process has (past every host's largest).
     assert(row(2147483647, 0) == "not_found", "no such process, asked")
     assert(row(2147483647, term) == "not_found", "no such process, sent")
+    // The group calls' shapes (bu27). Nothing is sent: group 1 and a
+    // group id below it are refused before the host, and signal 0 to a
+    // group no process can be in only asks.
+    let own = os_pgid() else -1
+    assert(own >= 1, "this process is in a group")
+    assert(group_row(1, 0) == "invalid", "group 1 is never named")
+    assert(group_row(0, 0) == "invalid", "nor group 0")
+    assert(group_row(-5, 0) == "invalid", "nor a negative group")
+    assert(group_row(2147483647, 0) == "not_found", "a group nobody is in")
     // One real signal, to this process, which is listening for it.
     let usr1 = bore.signal_meaning(t, bore.signal_entry(t, "USR1") else -1)
     assert(usr1 == signal.user(), "USR1's meaning")
