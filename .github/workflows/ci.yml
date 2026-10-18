@@ -533,7 +533,7 @@ jobs:
           prefix=""
           [ "$RUNNER_OS" = "macOS" ] && prefix=g
           dir=$(BORE_GNU_PREFIX="$prefix" tools/fetch-oracle)
-          echo "the oracle: ${dir:-the host's own, prefix $prefix}"
+          echo "the oracle: ${dir:-the host GNU, prefix $prefix}"
       - name: the pinned toolchain, by digest
         run: tools/fetch-toolchain
       - name: timeouttest, the selftest, then three times whole
