@@ -1277,120 +1277,106 @@ name = "number: -4000000 is signal 0, to a target"
 args = ["-4000000", "{pid0}"]
 container = true
 
-# What this kill refuses BY DESIGN where GNU sends. First the signals wolf
-# has no meaning for: linux's, by name and by number.
+# The signals wolf has no meaning for — linux's, by name and by number —
+# which this kill refused BY DESIGN until bu27 and sends now as host
+# signals (`-N`, wolf 0.2.31): compared with GNU, GNU's answer still
+# asserted.
 
 [[case]]
 name = "no meaning: -s RTMIN"
 args = ["-s", "RTMIN", "{pid0}"]
 only_on = "Linux"
 expect = { exit = 0, stderr = "", fates = ["ended 162"] }
-ours = { exit = 1, stdout = "", stderr = "kill: 'RTMIN': invalid signal\nTry 'kill --help' for more information.\n", fates = ["alive"] }
 
 [[case]]
 name = "no meaning: -s RTMIN+1"
 args = ["-s", "RTMIN+1", "{pid0}"]
 only_on = "Linux"
 expect = { exit = 0, stderr = "", fates = ["ended 163"] }
-ours = { exit = 1, stdout = "", stderr = "kill: 'RTMIN+1': invalid signal\nTry 'kill --help' for more information.\n", fates = ["alive"] }
 
 [[case]]
 name = "no meaning: -s RTMAX-1"
 args = ["-s", "RTMAX-1", "{pid0}"]
 only_on = "Linux"
 expect = { exit = 0, stderr = "", fates = ["ended 191"] }
-ours = { exit = 1, stdout = "", stderr = "kill: 'RTMAX-1': invalid signal\nTry 'kill --help' for more information.\n", fates = ["alive"] }
 
 [[case]]
 name = "no meaning: -s RTMAX"
 args = ["-s", "RTMAX", "{pid0}"]
 only_on = "Linux"
 expect = { exit = 0, stderr = "", fates = ["ended 192"] }
-ours = { exit = 1, stdout = "", stderr = "kill: 'RTMAX': invalid signal\nTry 'kill --help' for more information.\n", fates = ["alive"] }
 
 [[case]]
 name = "no meaning: -s STKFLT"
 args = ["-s", "STKFLT", "{pid0}"]
 only_on = "Linux"
 expect = { exit = 0, stderr = "", fates = ["ended 144"] }
-ours = { exit = 1, stdout = "", stderr = "kill: 'STKFLT': invalid signal\nTry 'kill --help' for more information.\n", fates = ["alive"] }
 
 [[case]]
 name = "no meaning: -s POLL"
 args = ["-s", "POLL", "{pid0}"]
 only_on = "Linux"
 expect = { exit = 0, stderr = "", fates = ["ended 157"] }
-ours = { exit = 1, stdout = "", stderr = "kill: 'POLL': invalid signal\nTry 'kill --help' for more information.\n", fates = ["alive"] }
 
 [[case]]
 name = "no meaning: -s IO"
 args = ["-s", "IO", "{pid0}"]
 only_on = "Linux"
 expect = { exit = 0, stderr = "", fates = ["ended 157"] }
-ours = { exit = 1, stdout = "", stderr = "kill: 'IO': invalid signal\nTry 'kill --help' for more information.\n", fates = ["alive"] }
 
 [[case]]
 name = "no meaning: -s PWR"
 args = ["-s", "PWR", "{pid0}"]
 only_on = "Linux"
 expect = { exit = 0, stderr = "", fates = ["ended 158"] }
-ours = { exit = 1, stdout = "", stderr = "kill: 'PWR': invalid signal\nTry 'kill --help' for more information.\n", fates = ["alive"] }
 
 [[case]]
 name = "no meaning: -s 32"
 args = ["-s", "32", "{pid0}"]
 only_on = "Linux"
 expect = { exit = 0, stderr = "", fates = ["ended 160"] }
-ours = { exit = 1, stdout = "", stderr = "kill: '32': invalid signal\nTry 'kill --help' for more information.\n", fates = ["alive"] }
 
 [[case]]
 name = "no meaning: -s 33"
 args = ["-s", "33", "{pid0}"]
 only_on = "Linux"
 expect = { exit = 0, stderr = "", fates = ["ended 161"] }
-ours = { exit = 1, stdout = "", stderr = "kill: '33': invalid signal\nTry 'kill --help' for more information.\n", fates = ["alive"] }
 
 [[case]]
 name = "no meaning: -s 34"
 args = ["-s", "34", "{pid0}"]
 only_on = "Linux"
 expect = { exit = 0, stderr = "", fates = ["ended 162"] }
-ours = { exit = 1, stdout = "", stderr = "kill: '34': invalid signal\nTry 'kill --help' for more information.\n", fates = ["alive"] }
 
 [[case]]
 name = "no meaning: -s 64"
 args = ["-s", "64", "{pid0}"]
 only_on = "Linux"
 expect = { exit = 0, stderr = "", fates = ["ended 192"] }
-ours = { exit = 1, stdout = "", stderr = "kill: '64': invalid signal\nTry 'kill --help' for more information.\n", fates = ["alive"] }
 
 [[case]]
 name = "no meaning: -s 16"
 args = ["-s", "16", "{pid0}"]
 only_on = "Linux"
 expect = { exit = 0, stderr = "", fates = ["ended 144"] }
-ours = { exit = 1, stdout = "", stderr = "kill: '16': invalid signal\nTry 'kill --help' for more information.\n", fates = ["alive"] }
 
 [[case]]
 name = "no meaning: -s 162"
 args = ["-s", "162", "{pid0}"]
 only_on = "Linux"
 expect = { exit = 0, stderr = "", fates = ["ended 162"] }
-ours = { exit = 1, stdout = "", stderr = "kill: '162': invalid signal\nTry 'kill --help' for more information.\n", fates = ["alive"] }
 
 [[case]]
 name = "no meaning: -RTMIN"
 args = ["-RTMIN", "{pid0}"]
 only_on = "Linux"
 expect = { exit = 0, stderr = "", fates = ["ended 162"] }
-ours = { exit = 1, stdout = "", stderr = "kill: 'RTMIN': invalid signal\nTry 'kill --help' for more information.\n", fates = ["alive"] }
 
 [[case]]
 name = "no meaning: -34"
 args = ["-34", "{pid0}"]
 only_on = "Linux"
 expect = { exit = 0, stderr = "", fates = ["ended 162"] }
-ours = { exit = 1, stdout = "", stderr = "kill: '34': invalid signal\nTry 'kill --help' for more information.\n", fates = ["alive"] }
 
 [[case]]
 name = "no meaning: -s 64 and no process"
@@ -1398,78 +1384,80 @@ args = ["-s", "64"]
 targets = 0
 only_on = "Linux"
 expect = { exit = 1, stderr = "kill: no process ID specified\nTry 'kill --help' for more information.\n", fates = [] }
-ours = { exit = 1, stdout = "", stderr = "kill: '64': invalid signal\nTry 'kill --help' for more information.\n", fates = [] }
 
 # Then a process GROUP: three members in a group this case made (`fates` is
-# how many are left). GNU signals the group; this kill refuses by name and
-# signals nothing, because wolf's os_signal_send takes one process.
+# how many are left). Since bu27 both sides signal the group
+# (`os_signal_send_group`), and a case whose only id is that group's is
+# `runner = true`: the macOS runner runs it too, in a session the case made.
 
 [[case]]
 name = "group: -- -{pgid}"
 args = ["--", "-{pgid}"]
 group = true
+runner = true
 container = true
 expect = { exit = 0, stderr = "", fates = ["0"] }
-ours = { exit = 1, stdout = "", stderr = "kill: '-{pgid}': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\n", fates = ["3"] }
 
 [[case]]
 name = "group: -TERM -{pgid}"
 args = ["-TERM", "-{pgid}"]
 group = true
+runner = true
 container = true
 expect = { exit = 0, stderr = "", fates = ["0"] }
-ours = { exit = 1, stdout = "", stderr = "kill: '-{pgid}': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\n", fates = ["3"] }
 
 [[case]]
 name = "group: -s TERM -{pgid}"
 args = ["-s", "TERM", "-{pgid}"]
 group = true
+runner = true
 container = true
 expect = { exit = 0, stderr = "", fates = ["0"] }
-ours = { exit = 1, stdout = "", stderr = "kill: '-{pgid}': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\n", fates = ["3"] }
 
 [[case]]
 name = "group: -{n:KILL} -{pgid}"
 args = ["-{n:KILL}", "-{pgid}"]
 group = true
+runner = true
 container = true
 expect = { exit = 0, stderr = "", fates = ["0"] }
-ours = { exit = 1, stdout = "", stderr = "kill: '-{pgid}': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\n", fates = ["3"] }
 
 [[case]]
 name = "group: -s KILL -- -{pgid}"
 args = ["-s", "KILL", "--", "-{pgid}"]
 group = true
+runner = true
 container = true
 expect = { exit = 0, stderr = "", fates = ["0"] }
-ours = { exit = 1, stdout = "", stderr = "kill: '-{pgid}': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\n", fates = ["3"] }
 
 [[case]]
 name = "group: -0 -{pgid}"
 args = ["-0", "-{pgid}"]
 group = true
+runner = true
 container = true
 expect = { exit = 0, stderr = "", fates = ["3"] }
-ours = { exit = 1, stdout = "", stderr = "kill: '-{pgid}': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\n", fates = ["3"] }
 
 [[case]]
 name = "group: -s KILL -{pgid} -{pgid}"
 args = ["-s", "KILL", "-{pgid}", "-{pgid}"]
 group = true
+runner = true
 container = true
 expect = { exit = 0, stderr = "", fates = ["0"] }
-ours = { exit = 1, stdout = "", stderr = "kill: '-{pgid}': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\nkill: '-{pgid}': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\n", fates = ["3"] }
 
 [[case]]
 name = "group: the leader's own id is one process"
 args = ["{pgid}"]
 group = true
+runner = true
 container = true
 
 [[case]]
 name = "group: -PGID alone is read as a signal, not a group"
 args = ["-{pgid}"]
 group = true
+runner = true
 container = true
 
 [[case]]
@@ -1478,7 +1466,6 @@ args = ["-TERM", "--", "-{pgid}", "-4000000"]
 group = true
 container = true
 expect = { exit = 1, stderr = "kill: '-4000000': No such process\n", fates = ["0"] }
-ours = { exit = 1, stdout = "", stderr = "kill: '-{pgid}': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\nkill: '-4000000': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\n", fates = ["3"] }
 
 [[case]]
 name = "group: one that is not there, -s TERM -4000000"
@@ -1486,7 +1473,6 @@ args = ["-s", "TERM", "-4000000"]
 targets = 0
 container = true
 expect = { exit = 1, stderr = "kill: '-4000000': No such process\n", fates = [] }
-ours = { exit = 1, stdout = "", stderr = "kill: '-4000000': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\n", fates = [] }
 
 [[case]]
 name = "group: one that is not there, -TERM -4000000"
@@ -1494,7 +1480,6 @@ args = ["-TERM", "-4000000"]
 targets = 0
 container = true
 expect = { exit = 1, stderr = "kill: '-4000000': No such process\n", fates = [] }
-ours = { exit = 1, stdout = "", stderr = "kill: '-4000000': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\n", fates = [] }
 
 [[case]]
 name = "group: one that is not there, -9 -4000000"
@@ -1502,7 +1487,6 @@ args = ["-9", "-4000000"]
 targets = 0
 container = true
 expect = { exit = 1, stderr = "kill: '-4000000': No such process\n", fates = [] }
-ours = { exit = 1, stdout = "", stderr = "kill: '-4000000': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\n", fates = [] }
 
 [[case]]
 name = "group: one that is not there, -- -4000000"
@@ -1510,7 +1494,6 @@ args = ["--", "-4000000"]
 targets = 0
 container = true
 expect = { exit = 1, stderr = "kill: '-4000000': No such process\n", fates = [] }
-ours = { exit = 1, stdout = "", stderr = "kill: '-4000000': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\n", fates = [] }
 
 [[case]]
 name = "group: one that is not there, -0 -4000000"
@@ -1518,7 +1501,6 @@ args = ["-0", "-4000000"]
 targets = 0
 container = true
 expect = { exit = 1, stderr = "kill: '-4000000': No such process\n", fates = [] }
-ours = { exit = 1, stdout = "", stderr = "kill: '-4000000': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\n", fates = [] }
 
 [[case]]
 name = "group: one that is not there, -s 0 -- -4000000"
@@ -1526,7 +1508,6 @@ args = ["-s", "0", "--", "-4000000"]
 targets = 0
 container = true
 expect = { exit = 1, stderr = "kill: '-4000000': No such process\n", fates = [] }
-ours = { exit = 1, stdout = "", stderr = "kill: '-4000000': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\n", fates = [] }
 
 # GNU stops reading options at a `-N` that is not the first argument, and
 # loses every operand before it: the target is never signalled. Kept.
@@ -1536,138 +1517,117 @@ name = "group: beside a target, {pid0} -4000000"
 args = ["{pid0}", "-4000000"]
 container = true
 expect = { exit = 1, stderr = "kill: '-4000000': No such process\n", fates = ["alive"] }
-ours = { exit = 1, stdout = "", stderr = "kill: '-4000000': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\n", fates = ["alive"] }
 
 [[case]]
 name = "group: beside a target, -9 {pid0} -4000001"
 args = ["-9", "{pid0}", "-4000001"]
 container = true
 expect = { exit = 1, stderr = "kill: '-4000001': No such process\n", fates = ["alive"] }
-ours = { exit = 1, stdout = "", stderr = "kill: '-4000001': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\n", fates = ["alive"] }
 
 [[case]]
 name = "group: beside a target, -s KILL {pid0} -4000001"
 args = ["-s", "KILL", "{pid0}", "-4000001"]
 container = true
 expect = { exit = 1, stderr = "kill: '-4000001': No such process\n", fates = ["alive"] }
-ours = { exit = 1, stdout = "", stderr = "kill: '-4000001': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\n", fates = ["alive"] }
 
 [[case]]
 name = "group: beside a target, -- {pid0} -4000001"
 args = ["--", "{pid0}", "-4000001"]
 container = true
 expect = { exit = 1, stderr = "kill: '-4000001': No such process\n", fates = ["ended 143"] }
-ours = { exit = 1, stdout = "", stderr = "kill: '-4000001': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\n", fates = ["ended 143"] }
 
 [[case]]
 name = "group: beside a target, -- -4000001 {pid0}"
 args = ["--", "-4000001", "{pid0}"]
 container = true
 expect = { exit = 1, stderr = "kill: '-4000001': No such process\n", fates = ["ended 143"] }
-ours = { exit = 1, stdout = "", stderr = "kill: '-4000001': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\n", fates = ["ended 143"] }
 
 [[case]]
 name = "group: beside a target, -s KILL -4000001 {pid0}"
 args = ["-s", "KILL", "-4000001", "{pid0}"]
 container = true
 expect = { exit = 1, stderr = "kill: '-4000001': No such process\n", fates = ["ended 137"] }
-ours = { exit = 1, stdout = "", stderr = "kill: '-4000001': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\n", fates = ["ended 137"] }
 
 [[case]]
 name = "group: beside a target, -KILL -4000001 {pid0}"
 args = ["-KILL", "-4000001", "{pid0}"]
 container = true
 expect = { exit = 1, stderr = "kill: '-4000001': No such process\n", fates = ["ended 137"] }
-ours = { exit = 1, stdout = "", stderr = "kill: '-4000001': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\n", fates = ["ended 137"] }
 
-# The ids 0 and -1 are this process's own group and every process: never
-# handed to GNU, container or not (measured once, probe-p3.log: GNU signals
-# them). This kill refuses each by name; the target stands for "nothing was
-# signalled".
+# The ids 0 and -1 are this process's own group and every process, in a
+# fresh container only, where every process is the case's own (bu27). `-1`
+# is compared with GNU: the host spares the container's process 1 (the
+# case's script) and the caller. `0` here is group 1 — the script is the
+# container's process 1, and `kill` runs in its group — which wolf never
+# names ([os.signal.send.group]): refused BY DESIGN, GNU's answer recorded.
+# `kill 0` in a group of its own is the `lead` cases below.
 
 [[case]]
 name = "group: 0"
 args = ["0"]
 container = true
-gnu = false
-ours = { exit = 1, stdout = "", stderr = "kill: '0': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\n", fates = ["alive"] }
+ours = { exit = 1, stdout = "", stderr = "kill: '0': this process is in group 1, which wolf never signals ([os.signal.send.group])\n", fates = ["alive"] }
 
 [[case]]
 name = "group: -0 0"
 args = ["-0", "0"]
 container = true
-gnu = false
-ours = { exit = 1, stdout = "", stderr = "kill: '0': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\n", fates = ["alive"] }
+ours = { exit = 1, stdout = "", stderr = "kill: '0': this process is in group 1, which wolf never signals ([os.signal.send.group])\n", fates = ["alive"] }
 
 [[case]]
 name = "group: -s TERM 0"
 args = ["-s", "TERM", "0"]
 container = true
-gnu = false
-ours = { exit = 1, stdout = "", stderr = "kill: '0': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\n", fates = ["alive"] }
+ours = { exit = 1, stdout = "", stderr = "kill: '0': this process is in group 1, which wolf never signals ([os.signal.send.group])\n", fates = ["alive"] }
 
 [[case]]
 name = "group: -- -0"
 args = ["--", "-0"]
 container = true
-gnu = false
-ours = { exit = 1, stdout = "", stderr = "kill: '-0': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\n", fates = ["alive"] }
+ours = { exit = 1, stdout = "", stderr = "kill: '-0': this process is in group 1, which wolf never signals ([os.signal.send.group])\n", fates = ["alive"] }
 
 [[case]]
 name = "group: +0"
 args = ["+0"]
 container = true
-gnu = false
-ours = { exit = 1, stdout = "", stderr = "kill: '+0': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\n", fates = ["alive"] }
+ours = { exit = 1, stdout = "", stderr = "kill: '+0': this process is in group 1, which wolf never signals ([os.signal.send.group])\n", fates = ["alive"] }
 
 [[case]]
 name = "group: 00"
 args = ["00"]
 container = true
-gnu = false
-ours = { exit = 1, stdout = "", stderr = "kill: '00': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\n", fates = ["alive"] }
+ours = { exit = 1, stdout = "", stderr = "kill: '00': this process is in group 1, which wolf never signals ([os.signal.send.group])\n", fates = ["alive"] }
 
 [[case]]
 name = "group: -- -1"
 args = ["--", "-1"]
 container = true
-gnu = false
-ours = { exit = 1, stdout = "", stderr = "kill: '-1': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\n", fates = ["alive"] }
 
 [[case]]
 name = "group: -s KILL -- -1"
 args = ["-s", "KILL", "--", "-1"]
 container = true
-gnu = false
-ours = { exit = 1, stdout = "", stderr = "kill: '-1': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\n", fates = ["alive"] }
 
 [[case]]
 name = "group: -KILL -1"
 args = ["-KILL", "-1"]
 container = true
-gnu = false
-ours = { exit = 1, stdout = "", stderr = "kill: '-1': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\n", fates = ["alive"] }
 
 [[case]]
 name = "group: -0 -- -1"
 args = ["-0", "--", "-1"]
 container = true
-gnu = false
-ours = { exit = 1, stdout = "", stderr = "kill: '-1': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\n", fates = ["alive"] }
 
 [[case]]
 name = "group: \" -1\""
 args = [" -1"]
 container = true
-gnu = false
-ours = { exit = 1, stdout = "", stderr = "kill: ' -1': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\n", fates = ["alive"] }
 
 [[case]]
 name = "group: 0 {pid0}"
 args = ["0", "{pid0}"]
 container = true
-gnu = false
-ours = { exit = 1, stdout = "", stderr = "kill: '0': a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])\n", fates = ["ended 143"] }
+ours = { exit = 1, stdout = "", stderr = "kill: '0': this process is in group 1, which wolf never signals ([os.signal.send.group])\n", fates = ["ended 143"] }
 
 # Not permitted: the targets are root's and kill runs as an unprivileged user.
 
@@ -1688,4 +1648,194 @@ name = "not permitted: -KILL, a word between two"
 args = ["-KILL", "{pid0}", "abc", "{pid1}"]
 targets = 2
 other = true
+container = true
+
+# bu27: `kill 0` from a program that LEADS a group of its own (`lead`): the
+# program and two `sleep`s it started are the group; `exit` is the
+# program's status as its parent read it, and its own TERM ends it (143)
+# as GNU's ends GNU's; `fates` is how many of the two are left.
+
+[[case]]
+name = "own group: 0"
+args = ["0"]
+lead = true
+runner = true
+container = true
+expect = { exit = 143, stderr = "", fates = ["0"] }
+
+[[case]]
+name = "own group: -0 0"
+args = ["-0", "0"]
+lead = true
+runner = true
+container = true
+expect = { exit = 0, stderr = "", fates = ["2"] }
+
+[[case]]
+name = "own group: -s TERM 0"
+args = ["-s", "TERM", "0"]
+lead = true
+runner = true
+container = true
+
+[[case]]
+name = "own group: -KILL 0"
+args = ["-KILL", "0"]
+lead = true
+runner = true
+container = true
+expect = { exit = 137, stderr = "", fates = ["0"] }
+
+[[case]]
+name = "own group: -s HUP 0"
+args = ["-s", "HUP", "0"]
+lead = true
+runner = true
+container = true
+
+[[case]]
+name = "own group: -{n:USR1} 0"
+args = ["-{n:USR1}", "0"]
+lead = true
+runner = true
+container = true
+
+[[case]]
+name = "own group: -s CONT 0 (nothing ends)"
+args = ["-s", "CONT", "0"]
+lead = true
+runner = true
+container = true
+
+[[case]]
+name = "own group: -- 0"
+args = ["--", "0"]
+lead = true
+runner = true
+container = true
+
+[[case]]
+name = "own group: +0"
+args = ["+0"]
+lead = true
+runner = true
+container = true
+
+[[case]]
+name = "own group: 00"
+args = ["00"]
+lead = true
+runner = true
+container = true
+
+[[case]]
+name = "own group: -s 0 -- -0"
+args = ["-s", "0", "--", "-0"]
+lead = true
+runner = true
+container = true
+
+[[case]]
+name = "own group: -s KILL 0 0 (the first send ends it)"
+args = ["-s", "KILL", "0", "0"]
+lead = true
+runner = true
+container = true
+
+[[case]]
+name = "own group: 0 and a group nobody is in"
+args = ["--", "-4000000", "0"]
+lead = true
+container = true
+
+[[case]]
+name = "own group: a real-time signal, -s RTMIN 0"
+args = ["-s", "RTMIN", "0"]
+lead = true
+container = true
+only_on = "Linux"
+
+# bu27: groups and every process, the rest of kill(2)'s readings.
+
+[[case]]
+name = "every process: -- -1, and no other process"
+args = ["--", "-1"]
+targets = 0
+container = true
+
+[[case]]
+name = "every process: -s 0 -- -1, and no other process"
+args = ["-s", "0", "--", "-1"]
+targets = 0
+container = true
+
+[[case]]
+name = "every process: -s 0 -- -1, two targets"
+args = ["-s", "0", "--", "-1"]
+targets = 2
+container = true
+
+[[case]]
+name = "every process: -s USR1 -- -1, two targets"
+args = ["-s", "USR1", "--", "-1"]
+targets = 2
+container = true
+
+[[case]]
+name = "every process: -1 as a user, root's targets"
+args = ["--", "-1"]
+other = true
+container = true
+
+[[case]]
+name = "group: another user's, -- -{pgid}"
+args = ["--", "-{pgid}"]
+group = true
+other = true
+container = true
+
+[[case]]
+name = "group: another user's, -0 -{pgid}"
+args = ["-0", "-{pgid}"]
+group = true
+other = true
+container = true
+
+[[case]]
+name = "group: the C int's edge, -- -2147483648"
+args = ["--", "-2147483648"]
+targets = 0
+container = true
+
+[[case]]
+name = "group: the C int's edge, -s 0 -- -2147483647"
+args = ["-s", "0", "--", "-2147483647"]
+targets = 0
+container = true
+
+[[case]]
+name = "group: a real-time signal, -s RTMIN -- -{pgid}"
+args = ["-s", "RTMIN", "--", "-{pgid}"]
+group = true
+container = true
+only_on = "Linux"
+
+[[case]]
+name = "group: a host signal by number, -s 16 -- -{pgid}"
+args = ["-s", "16", "--", "-{pgid}"]
+group = true
+container = true
+only_on = "Linux"
+
+[[case]]
+name = "group: -s STOP -{pgid}, then the members are stopped"
+args = ["-s", "STOP", "-{pgid}"]
+group = true
+runner = true
+container = true
+
+[[case]]
+name = "group: two groups, -s KILL -- -{pgid} -4000000"
+args = ["-s", "KILL", "--", "-{pgid}", "-4000000"]
+group = true
 container = true
