@@ -251,26 +251,32 @@ args = ["1h", "/nonexistent/x"]
 [[case]]
 name = "duration: [inf]"
 args = ["inf", "/nonexistent/x"]
+skip_on = { Darwin = "GNU on macOS warns `setitimer: Invalid argument` for a DURATION past its timer's range and runs on without one (measured, run 39157500666); this timeout says nothing" }
 
 [[case]]
 name = "duration: [infinity]"
 args = ["infinity", "/nonexistent/x"]
+skip_on = { Darwin = "GNU on macOS warns `setitimer: Invalid argument` for a DURATION past its timer's range and runs on without one (measured, run 39157500666); this timeout says nothing" }
 
 [[case]]
 name = "duration: [INF]"
 args = ["INF", "/nonexistent/x"]
+skip_on = { Darwin = "GNU on macOS warns `setitimer: Invalid argument` for a DURATION past its timer's range and runs on without one (measured, run 39157500666); this timeout says nothing" }
 
 [[case]]
 name = "duration: [Infinity]"
 args = ["Infinity", "/nonexistent/x"]
+skip_on = { Darwin = "GNU on macOS warns `setitimer: Invalid argument` for a DURATION past its timer's range and runs on without one (measured, run 39157500666); this timeout says nothing" }
 
 [[case]]
 name = "duration: [1e100]"
 args = ["1e100", "/nonexistent/x"]
+skip_on = { Darwin = "GNU on macOS warns `setitimer: Invalid argument` for a DURATION past its timer's range and runs on without one (measured, run 39157500666); this timeout says nothing" }
 
 [[case]]
 name = "duration: [99999999999999999999]"
 args = ["99999999999999999999", "/nonexistent/x"]
+skip_on = { Darwin = "GNU on macOS warns `setitimer: Invalid argument` for a DURATION past its timer's range and runs on without one (measured, run 39157500666); this timeout says nothing" }
 
 [[case]]
 name = "duration: [0]"
@@ -291,6 +297,7 @@ args = ["--", "-0", "/nonexistent/x"]
 [[case]]
 name = "duration: [1e999]"
 args = ["1e999", "/nonexistent/x"]
+skip_on = { Darwin = "GNU on macOS warns `setitimer: Invalid argument` for a DURATION past its timer's range and runs on without one (measured, run 39157500666); this timeout says nothing" }
 
 [[case]]
 name = "duration: [0x1d]"
