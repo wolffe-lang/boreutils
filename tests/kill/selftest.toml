@@ -28,3 +28,16 @@ targets = 0
 [[case]]
 name = "control: signal 0 leaves the target alone"
 args = ["-0", "{pid0}"]
+
+# `lead` (bu27): the program leads a group of its own with two `sleep`s in
+# it. GNU's `kill 0` ends all three, itself among them (143, read by its
+# parent); the stand-in ends nothing. A harness that ran the program
+# outside the group it made, or read its status through a subshell,
+# would pass this.
+[[case]]
+name = "plant: kill 0 to the group the program leads"
+args = ["0"]
+lead = true
+runner = true
+container = true
+expect = { exit = 143, fates = ["0"] }
