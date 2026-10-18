@@ -48,6 +48,37 @@
 #     `List[T]()` and pushes, because lupin 0.1.36 refused list
 #     literals, so the literal's element type is unreachable here.
 #
+# ## The bump to 0.2.32 / 0.1.54 (bu27, 2026-10-18)
+#
+# Two releases on the wolf half (0.2.31 was never pinned here: its dev
+# tier put the signal hub's pipes on a closed 0, 1 or 2, wolf-lang#778,
+# and failed five `>&-` cases, so bu26 stayed at 0.2.30), one on lupin's.
+# From the release archives by digest, each archive read twice and both
+# reads equal to the release API's digests (kasumi
+# `~/lanes/bu27/ev/archives.log`). `_wolf` keeps
+# a368c8eccce8b1800c80aa818ae482e541aa9636b676540851e23863d333eb8b in
+# all three wolf archives; `std/STD-REV` is d37c911 in all three.
+#
+# What a downstream has to read at this bump:
+#
+#   * The reason for it: s241's group send (ruling #79):
+#     `os_signal_send_group`, `os_signal_send_all`, `os_set_pgid`,
+#     `os_signal_last`, `os_signal_realtime`, `os_signal_text`, host
+#     signals by `-N`; and s242's `os_wait_poll` (ruling #84). Later
+#     commits on this branch write `kill`'s groups and `timeout` on
+#     them; the pin commit changes no line of `src/`.
+#   * Seven new prelude names at 0.2.31, none at 0.2.32: `src/` declares
+#     none, so no W0304 under `--deny-warnings`.
+#   * The shift rule (s237, ruling #77 A): s237's census found one plain
+#     shift here and no new trap.
+#   * #778 (s245): a closed standard descriptor stays closed on both
+#     tiers, and the hub is made only where a hub call is reached: a
+#     utility that imports `std.signal` for a meaning's name makes no
+#     hub, no pipe and no thread.
+#   * Exit 71 at start (s239, s243): only a program that reaches a park
+#     or a hub call, at its descriptor limit; `timeout` is the first
+#     utility here that reaches one (`os_signal_listen`).
+#
 # ## The bump to 0.2.30 / 0.1.53 (bu24, 2026-10-15)
 #
 # One release on each half, from the release archives by digest, each
@@ -474,26 +505,26 @@
 # TAG names, which is the thing this file pins.
 
 [wolf]
-version = "0.2.30"
+version = "0.2.32"
 repo = "wolffe-lang/wolf-lang"
-rev = "1b37f368228db92eca505c8c4cd3c531ea60be48"
-version_line = "wolf 0.2.30 (wolfgang, pin 1b37f36)"
-aarch64-apple-darwin = "f3257e742ba06addfba4baf5438858f4fd6e2caa16c6d2faeef123a48b39118f"
-x86_64-unknown-linux-gnu = "4e55b39ed243d3e8ed3be24f716186529e1942935464476d47c4bc983329fe89"
-aarch64-unknown-linux-gnu = "34237d4a8d4977b67ee43d9a11c993b172e1e1cd3fdaddf997998ebc6874b4bd"
+rev = "72de141f624662fdff522e8beba459fab7c5cf66"
+version_line = "wolf 0.2.32 (wolfgang, pin 72de141)"
+aarch64-apple-darwin = "061ea7e5ca63449d5d933cdba2f4e3a717e3f8570455a0c31233e31da08cfec6"
+x86_64-unknown-linux-gnu = "4c37f9c5dc3d8830c06810948027d38bdbc375dc5524ab23127b0ada0907d851"
+aarch64-unknown-linux-gnu = "af27d4260e4e991dc0e44dc29b0e802c468c07da62db7adc17a551e0ffa9f017"
 
 [lupin]
-# The reference interpreter wolf 0.2.29 declares as its pairing:
-# `wolf --version` line 2 reads "paired with lupin 0.1.52 (reference
-# interpreter), pin 294d626". Its spec pin is wolf v0.2.24, five
-# releases behind. The `rev` below is the commit the 0.1.52 TAG names.
-version = "0.1.53"
+# The reference interpreter wolf 0.2.32 declares as its pairing:
+# `wolf --version` line 2 reads "paired with lupin 0.1.54 (reference
+# interpreter), pin 294d626". Its spec pin is wolf v0.2.24. The `rev`
+# below is the commit the 0.1.54 TAG names.
+version = "0.1.54"
 repo = "wolffe-lang/wolf-interp"
-rev = "7896eddc17fd9e3e015b025b354ccf62a766734b"
-version_line = "lupin 0.1.53 (wolf-interp, reference interpreter at pin 294d626)"
-aarch64-apple-darwin = "997b71a5b44a5799becb954b0a287e184f322fbe02d54f319e6b439a75c4f219"
-x86_64-unknown-linux-gnu = "5db5533236578008625885c7e3ed0a21084b8fa064219808ae668dedb0edccaa"
-aarch64-unknown-linux-gnu = "7874ec272a2c11d2295dbeb1c12344c7ea0d081a61f9a1087467b86473526ef1"
+rev = "0e536e8fb4518eaa798ac426901ab81275db5c9f"
+version_line = "lupin 0.1.54 (wolf-interp, reference interpreter at pin 294d626)"
+aarch64-apple-darwin = "9cd14db71e32c277829b5e05cdae27bf60cd6f269a9a24f97a7dba67e28a4093"
+x86_64-unknown-linux-gnu = "175df23880cd5bb993b778e5c8fdd7d0d96c176696802e640f6fc87d3dab40dd"
+aarch64-unknown-linux-gnu = "5fb15e31289d810129b40a9a0af07417d85d5090e74045f66b1f7f4016d166e7"
 
 [std]
 # wolf-std ships no release archive, so the tree is pinned by commit:
@@ -592,5 +623,13 @@ aarch64-unknown-linux-gnu = "7874ec272a2c11d2295dbeb1c12344c7ea0d081a61f9a108746
 # written in this repository (`[os.signal.set.stable]`). sc60's
 # spellings (`continued()`, the eight send-only names) are rulings
 # owed: a re-spelling there is a one-line change here.
+# (bu24 moved the pin to fd6bcdc at the 0.2.30 bump, the commit that
+# archive bundles, and said so in its bump note above.)
+# MOVED AT THE 0.2.32 BUMP to wolf-std d37c911 (sc62's ids, owners and
+# terminal wrappers; sc62b's `signal.wait_fd`; sc63's ledger row), the
+# commit both the 0.2.31 and the 0.2.32 archives bundle (`std/STD-REV`
+# in all three 0.2.32 archives) and wolf-std trunk when this lane began.
+# B151 first: see the 0.2.32 bump note. It has no wrappers for 0.2.31's
+# seven builtins, so `kill` and `timeout` call them directly.
 repo = "wolffe-lang/wolf-std"
-rev = "fd6bcdcb1dfe03ea5092f10316b7abe81f2df41e"
+rev = "d37c911f12206c4bf5c8d3281a649bf31da3beef"
