@@ -1,0 +1,141 @@
+43c43
+<   -> signal 11, 0.0 s
+---
+>   -> exit 139, 0.1 s
+45c45
+<   err:         timeout: the monitored command dumped core|
+---
+>   err: 
+90c90
+<   err:         Try 'TIMEOUT --help' for more information.|
+---
+>   err:         Try 'timeout --help' for more information.|
+94c94
+<   err:         Try 'TIMEOUT --help' for more information.|
+---
+>   err:         Try 'timeout --help' for more information.|
+98c98
+<   err:         timeout: invalid time interval 'x'|        Try 'TIMEOUT --help' for more information.|
+---
+>   err:         timeout: invalid time interval 'x'|        Try 'timeout --help' for more information.|
+102c102
+<   err:         timeout: 'FOO': invalid signal|        Try 'TIMEOUT --help' for more information.|
+---
+>   err:         timeout: 'FOO': invalid signal|        Try 'timeout --help' for more information.|
+106c106
+<   err:         TIMEOUT: unrecognized option '--bogus'|        Try 'TIMEOUT --help' for more information.|
+---
+>   err:         timeout: unrecognized option '--bogus'|        Try 'timeout --help' for more information.|
+110c110
+<   err:         timeout: invalid time interval 'x'|        Try 'TIMEOUT --help' for more information.|
+---
+>   err:         timeout: invalid time interval 'x'|        Try 'timeout --help' for more information.|
+122c122
+<   err:         TIMEOUT: option requires an argument -- 's'|        Try 'TIMEOUT --help' for more information.|
+---
+>   err:         timeout: option requires an argument -- 's'|        Try 'timeout --help' for more information.|
+140c140
+<   -> exit 124, 0.3 s
+---
+>   -> exit 125, 0.0 s
+142c142
+<   err:         timeout: the monitored command dumped core|
+---
+>   err:         timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone|
+144c144
+<   -> exit 124, 0.3 s
+---
+>   -> exit 125, 0.0 s
+146c146
+<   err: 
+---
+>   err:         timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone|
+152,153c152
+< GUARD fired
+<   -> signal 9, 15.0 s
+---
+>   -> exit 124, 1.0 s
+178c177
+<   out:  U s a g e : / g / b i n / t i m e o u t [ O P T I O N ] . . . D U R A T I O N C O M M A N D [ A R G ] . . . \n S t a r t C O M M A N D , a n d k i l l i t i f s t i l l  r u n n i n g a f t e r D U R A T I O N . \n \n M a n d a t o r y a r g u m e n t s t o  l o n g o p t i o n s a r e m a n d a t o r y f o r s h o r t o p t i o n s t o o . \n - f , - - f o r e g r o u n d \n w h e n n o t r u n n i n g t i m e o u t d i r e c t l y  f r o m a s h e l l p r o m p t , \n a l l o w C O M M A N D t o r e a d f r o m t h e T T Y a n d g e t T T Y s i g n a l s ; \n i n t h i s m o d e , c h i l d r e n o f C O M M A N D w i l l n o t b e t i m e d o u t \n - k , - - k i l l - a f t e r = D U R A T I O N \n a l s o s e n d a K I L L s i g n a l i f C O M M A N D i s s t i l l r u n n i n g \n t h i s l o n g a f t e r t h e i n i t i a l s i g n a l w a s  s e n t \n - p , - - p r e s e r v e - s t a t u s \n  e x i t w i t h  t h e s a m e s t a t u s  a s C O M M A N D , \n  e v e n w h e n t h e c o m m a n d t i m e s o u t \n - s , - - s i g n a l = S I G N A L \n  s p e c i f y t h e  s i g n a l t o b e s e n t o n t i m e o u t ; \n  S I G N A L m a y b e a n a m e l i k e ' H U P ' o r a n u m b e r ; \n s e e ' k i l l - l ' f o r a l i s t o f s i g n a l s \n - v , - - v e r b o s e \n d i a g n o s e t o s t a n d a r d e r r o r a n y s i g n a l  s e n t u p o n t i m e o u t \n - - h e l p \n  d i s p l a y  t h i s h e l p a n d e x i t \n - - v e r s i o n \n o u t p u t v e r s i o n i n f o r m a t i o n a n d e x i t \n \n D U R A T I O N i s a f l o a t i n g p o i n t n u m b e r w i t h a n o p t i o n a l s u f f i x : \n ' s ' f o r s e c o n d s ( t h e d e f a u l t ) , ' m ' f o r m i n u t e s , ' h ' f o r h o u r s o r ' d ' f o r d a y s . \n A d u r a t i o n o f 0 d i s a b l e s t h e a s s o c i a t e d t i m e o u t . \n \n U p o n t i m e o u t , s e n d t h e T E R M s i g n a l t o C O M M A N D , i f n o o t h e r S I G N A L s p e c i f i e d . \n T h e  T E R M s i g n a l k i l l s a n y p r o c e s s t h a t d o e s n o t b l o c k o r c a t c h t h a t  s i g n a l . \n I t m a y b e n e c e s s a r y t o u s e t h e K I L L s i g n a l , s i n c e t h i s s i g n a l c a n ' t b e c a u g h t . \n \n E x i t s t a t u s : \n 1 2 4 i f C O M M A N D t i m e s o u t , a n d - - p r e s e r v e - s t a t u s i s n o t s p e c i f i e d \n 1 2 5  i f t h e t i m e o u t c o m m a n d i t s e l f f a i l s \n 1 2 6 i f C O M M A N D i s f o u n d b u t c a n n o t b e i n v o k e d \n 1 2 7 i f C O M M A N D c a n n o t b e f o u n d \n 1 3 7 i f C O M M A N D ( o r t i m e o u t i t s e l f ) i s  s e n t t h e K I L L ( 9 ) s i g n a l ( 1 2 8 + 9 ) \n - t h e e x i t s t a t u s o f C O M M A N D o t h e r w i s e \n \n R e p o r t b u g s t o : b u g - c o r e u t i l s @ g n u . o r g \n G N U c o r e u t i l s h o m e p a g e : < h t t p s : / / w w w . g n u . o r g / s o f t w a r e / c o r e u t i l s / > \n G e n e r a l h e l p u s i n g G N U s o f t w a r e : < h t t p s : / / w w w . g n u . o r g / g e t h e l p / > \n R e p o r t a n y t r a n s l a t i o n b u g s t o < h t t p s : / / t r a n s l a t i o n p r o j e c t . o r g / t e a m / > \n F u l l d o c u m e n t a t i o n  < h t t p s : / / w w w . g n u . o r g / s o f t w a r e / c o r e u t i l s / t i m e o u t > \n o r a v a i l a b l e l o c a l l y v i a : i n f o  ' ( c o r e u t i l s ) t i m e o u t i n v o c a t i o n ' \n
+---
+>   out:  U s a g e : t i m e o u t [ O P T I O N ] . . . D U R A T I O N C O M M A N D [ A R G ] . . . \n R u n C O M M A N D , a n d s i g n a l i t  i f i t i s s t i l l r u n n i n g a f t e r D U R A T I O N . \n \n - f , - - f o r e g r o u n d \n  l e a v e t i m e o u t i n i t s p a r e n t ' s p r o c e s s g r o u p ,  s o C O M M A N D m a y \n  r e a d t h e  t e r m i n a l a n d h e a r i t s s i g n a l s ; o n l y C O M M A N D i t s e l f i s \n s i g n a l l e d , n o t t h e p r o c e s s e s i t s t a r t e d \n - k , - - k i l l - a f t e r = D U R A T I O N \n s e n d K I L L t o o , i f C O M M A N D s t i l l r u n s t h i s l o n g a f t e r t h e f i r s t \n  s i g n a l \n - p , - - p r e s e r v e - s t a t u s \n e n d w i t h C O M M A N D ' s o w n s t a t u s , e v e n a f t e r a t i m e o u t \n - s , - - s i g n a l = S I G N A L \n t h e s i g n a l t o s e n d a t  t h e t i m e o u t ( T E R M w h e n n o n e i s n a m e d ) , \n b y n a m e o r b y n u m b e r , a s k i l l - l  l i s t s t h e m \n - v , - - v e r b o s e \n  s a y o n s t a n d a r d e r r o r e a c h s i g n a l s e n t a t a t i m e o u t \n - - h e l p p r i n t t h i s h e l p a n d e x i t \n - - v e r s i o n p r i n t t h e v e r s i o n a n d e x i t \n \n D U R A T I O N i s a n u m b e r , a s f o r s l e e p , w i t h a n o p t i o n a l s ( s e c o n d s , t h e \n d e f a u l t ) , m ( m i n u t e s ) , h ( h o u r s ) o r d ( d a y s ) . 0 m e a n s n o t i m e o u t . \n \n T h e s t a t u s i s 1 2 4 a f t e r a  t i m e o u t ( C O M M A N D ' s o w n w i t h - p ) , 1 2 5 w h e n \n t i m e o u t i t s e l f f a i l s ,  1 2 6 w h e n C O M M A N D c a n n o t b e r u n ,  1 2 7 w h e n i t \n c a n n o t b e f o u n d , 1 3 7 w h e n K I L L e n d e d i t , a n d C O M M A N D ' s o w n o t h e r w i s e . \n W i t h o u t - - f o r e g r o u n d t h i s t i m e o u t r e f u s e s a S I G N A L i t c a n n o t i g n o r e \n ( t h e f a u l t s i g n a l s , t h e h o s t ' s r e a l - t i m e o n e s ) . \n \n b o r e u t i l s : h t t p s : / / g i t h u b . c o m / w o l f f e - l a n g / b o r e u t i l s \n
+182c181
+<   out:  t i m e o u t ( G N U c o r e u t i l s ) 9 . 1 1 \n C o p y r i g h t ( C ) 2 0 2 6  F r e e S o f t w a r e F o u n d a t i o n , I n c . \n L i c e n s e G P L v 3 + : G N U G P L v e r s i o n 3 o r l a t e r < h t t p s : / / g n u . o r g / l i c e n s e s / g p l . h t m l > . \n T h i s i s f r e e s o f t w a r e : y o u a r e f r e e t o c h a n g e a n d r e d i s t r i b u t e i t . \n T h e r e i s N O W A R R A N T Y , t o t h e e x t e n t p e r m i t t e d  b y l a w . \n \n W r i t t e n b y P a d r a i g B r a d y . \n
+---
+>   out:  t i m e o u t ( b o r e u t i l s ) 0 . 1 . 0 \n L i c e n c e G P L - 3 . 0 - o r - l a t e r . T h e r e i s n o  w a r r a n t y . \n
+216c215
+<   err:         timeout: invalid time interval '0.1 '|        Try 'TIMEOUT --help' for more information.|
+---
+>   err:         timeout: invalid time interval '0.1 '|        Try 'timeout --help' for more information.|
+220c219
+<   err:         TIMEOUT: invalid option -- '0'|        Try 'TIMEOUT --help' for more information.|
+---
+>   err:         timeout: invalid option -- '0'|        Try 'timeout --help' for more information.|
+224c223
+<   err:         TIMEOUT: invalid option -- '1'|        Try 'TIMEOUT --help' for more information.|
+---
+>   err:         timeout: invalid option -- '1'|        Try 'timeout --help' for more information.|
+228c227
+<   err:         TIMEOUT: invalid option -- '0'|        Try 'TIMEOUT --help' for more information.|
+---
+>   err:         timeout: invalid option -- '0'|        Try 'timeout --help' for more information.|
+236c235
+<   err:         timeout: invalid time interval '0.1x'|        Try 'TIMEOUT --help' for more information.|
+---
+>   err:         timeout: invalid time interval '0.1x'|        Try 'timeout --help' for more information.|
+240c239
+<   err:         timeout: invalid time interval '0.1S'|        Try 'TIMEOUT --help' for more information.|
+---
+>   err:         timeout: invalid time interval '0.1S'|        Try 'timeout --help' for more information.|
+268c267
+<   err:         timeout: invalid time interval 'nan'|        Try 'TIMEOUT --help' for more information.|
+---
+>   err:         timeout: invalid time interval 'nan'|        Try 'timeout --help' for more information.|
+274c273
+<   -> exit 124, 0.0 s
+---
+>   -> exit 0, 0.0 s
+284c283
+<   err:         timeout: invalid time interval '0x'|        Try 'TIMEOUT --help' for more information.|
+---
+>   err:         timeout: invalid time interval '0x'|        Try 'timeout --help' for more information.|
+288c287
+<   err:         timeout: invalid time interval '1.5.2'|        Try 'TIMEOUT --help' for more information.|
+---
+>   err:         timeout: invalid time interval '1.5.2'|        Try 'timeout --help' for more information.|
+292c291
+<   err:         timeout: invalid time interval ''|        Try 'TIMEOUT --help' for more information.|
+---
+>   err:         timeout: invalid time interval ''|        Try 'timeout --help' for more information.|
+296c295
+<   err:         timeout: invalid time interval 'ss'|        Try 'TIMEOUT --help' for more information.|
+---
+>   err:         timeout: invalid time interval 'ss'|        Try 'timeout --help' for more information.|
+300c299
+<   err:         timeout: invalid time interval '1ss'|        Try 'TIMEOUT --help' for more information.|
+---
+>   err:         timeout: invalid time interval '1ss'|        Try 'timeout --help' for more information.|
+314c313
+<   out:  c m d p i d 7 5 9 p g i d 7 5 8 s i d 1 ; t i m e o u t p i d 7 5 8 p g i d 7 5 8 \n
+---
+>   out:  c m d p i d 1 6 2 1 p g i d 1 6 1 9 s i d 1 ; t i m e o u t p i d 1 6 1 9 p g i d 1 6 1 9 \n
+317c316
+<   out:  c m d p i d 7 7 2 p g i d 1 ; t i m e o u t p i d  7 7 1 p g i d 1 \n
+---
+>   out:  c m d p i d 1 6 5 2 p g i d 1 ; t i m e o u t p i d 1 6 5 0 p g i d 1 \n
+321c320
+<   out:  p g i d 7 8 3 o f t i m e o u t 7 8 3 \n
+---
+>   out:  p g i d 1 6 8 0 o f t i m e o u t 1 6 8 0 \n
+334c333
+<   out:  S i g B l k : \t 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 \n S i g I g n : \t 0 0 0 0 0 0 0 0 0 0 3 0 0 0 0 0 \n S i g C g t : \t f f f f f f f e 7 7 8 1 f e f f \n 1 \n
+---
+>   out:  S i g B l k : \t 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 \n S i g I g n : \t 0 0 0 0 0 0 0 0 0 0 3 0 0 0 0 0 \n S i g C g t : \t 0 0 0 0 0 0 0 1 0 7 8 1 7 e 2 7 \n 1 9 \n
+399c398
+<   -> signal 3, 0.3 s
+---
+>   -> signal 3, 0.4 s
+401c400
+<   err:         timeout: the monitored command dumped core|
+---
+>   err: 

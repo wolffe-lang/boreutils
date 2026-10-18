@@ -1,0 +1,21 @@
+killtest: podman, image ubuntu:24.04, one fresh container a case, no mount, no network
+killtest: gnu = kill (GNU coreutils) 9.11 (/home/mfwolffe/lanes/bu27/gnu/bin/kill)
+# a word, an id past every process, and two targets: {'exit': 1, 'stdout': '', 'stderr': "kill: 'abc': invalid process id\nkill: '2147483647': No such process\n", 'fates': ['ended 143', 'ended 143']}
+# group: 0: {'exit': 143, 'stdout': '', 'stderr': 'Terminated\n', 'fates': ['ended 143']}
+# group: -0 0: {'exit': 0, 'stdout': '', 'stderr': '', 'fates': ['alive']}
+# group: 00: {'exit': 143, 'stdout': '', 'stderr': 'Terminated\n', 'fates': ['ended 143']}
+# group: -- -1: {'exit': 0, 'stdout': '', 'stderr': '', 'fates': ['ended 143']}
+# group: 0 {pid0}: {'exit': 143, 'stdout': '', 'stderr': 'Terminated\n', 'fates': ['ended 143']}
+# own group: 0: {'exit': 143, 'stdout': '', 'stderr': '', 'fates': ['0']}
+# own group: -0 0: {'exit': 0, 'stdout': '', 'stderr': '', 'fates': ['2']}
+# own group: 00: {'exit': 143, 'stdout': '', 'stderr': '', 'fates': ['0']}
+# own group: 0 and a group nobody is in: {'exit': 143, 'stdout': '', 'stderr': "kill: '-4000000': No such process\n", 'fates': ['0']}
+# every process: -- -1, and no other process: {'exit': 1, 'stdout': '', 'stderr': "kill: '-1': No such process\n", 'fates': []}
+# every process: -s 0 -- -1, and no other process: {'exit': 1, 'stdout': '', 'stderr': "kill: '-1': No such process\n", 'fates': []}
+# every process: -s 0 -- -1, two targets: {'exit': 0, 'stdout': '', 'stderr': '', 'fates': ['alive', 'alive']}
+# every process: -s USR1 -- -1, two targets: {'exit': 0, 'stdout': '', 'stderr': '', 'fates': ['ended 138', 'ended 138']}
+# every process: -1 as a user, root's targets: {'exit': 0, 'stdout': '', 'stderr': '', 'fates': ['alive']}
+# group: another user's, -- -{pgid}: {'exit': 1, 'stdout': '', 'stderr': "kill: '-{pgid}': Operation not permitted\n", 'fates': ['3']}
+# group: another user's, -0 -{pgid}: {'exit': 1, 'stdout': '', 'stderr': "kill: '-{pgid}': Operation not permitted\n", 'fates': ['3']}
+# group: the C int's edge, -- -2147483648: {'exit': 1, 'stdout': '', 'stderr': "kill: '-2147483648': No such process\n", 'fates': []}
+# group: the C int's edge, -s 0 -- -2147483647: {'exit': 1, 'stdout': '', 'stderr': "kill: '-2147483647': No such process\n", 'fates': []}

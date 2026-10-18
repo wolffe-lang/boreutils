@@ -1,0 +1,54 @@
+kill-release-group: exit 0
+kill-release-zero: exit 143
+Terminated
+kill-release-all: exit 0
+64 RTMAX    Real-time signal 30
+kill-release-list: exit 0
+timeout-release-expiry: exit 124
+/l/probes/straces.sh: line 5:    51 Killed                  strace -f -qq -o "$O/$name.strace" "$@"
+timeout-release-kill-after: exit 137
+timeout-release-foreground: exit 124
+timeout-release-ends: exit 0
+kill-release-group calls: arch_prctl brk execve exit_group getrandom kill mprotect prlimit64 readlinkat rseq set_robust_list set_tid_address statx 
+kill-release-zero calls: arch_prctl brk execve getpgrp getrandom kill mprotect prlimit64 readlinkat rseq set_robust_list set_tid_address statx 
+kill-release-all calls: arch_prctl brk execve exit_group getrandom kill mprotect prlimit64 readlinkat rseq set_robust_list set_tid_address statx 
+kill-release-list calls: arch_prctl brk execve exit_group getrandom mprotect prlimit64 readlinkat rseq set_robust_list set_tid_address statx write 
+timeout-release-expiry calls: access arch_prctl brk clock_nanosleep clone clone3 close dup2 execve exit exit_group fcntl fstat futex getegid geteuid getgid getpgrp getpid getppid getrandom gettid getuid kill lseek madvise mmap mprotect munmap newfstatat openat pipe2 poll prctl pread64 prlimit64 read readlinkat recvfrom restart_syscall rseq rt_sigaction rt_sigprocmask rt_sigreturn rt_sigsuspend sched_getaffinity set_robust_list set_tid_address setpgid sigaltstack socketpair statx tgkill wait4 write 
+timeout-release-kill-after calls: access arch_prctl brk clock_nanosleep clone clone3 close dup2 execve exit fcntl fstat futex getegid geteuid getgid getpgrp getpid getppid getrandom gettid getuid kill lseek madvise mmap mprotect munmap newfstatat openat pipe2 poll prctl pread64 prlimit64 read readlinkat recvfrom restart_syscall rseq rt_sigaction rt_sigprocmask rt_sigreturn sched_getaffinity set_robust_list set_tid_address setpgid sigaltstack socketpair statx tgkill vfork wait4 write 
+timeout-release-foreground calls: access arch_prctl brk clock_nanosleep clone clone3 close dup2 execve exit exit_group fcntl fstat futex getpid getrandom gettid kill lseek madvise mmap mprotect munmap openat pipe2 poll prctl pread64 prlimit64 read readlinkat recvfrom restart_syscall rseq rt_sigaction rt_sigprocmask rt_sigreturn sched_getaffinity set_robust_list set_tid_address sigaltstack socketpair statx tgkill wait4 write 
+timeout-release-ends calls: access arch_prctl brk clone clone3 close dup2 execve exit_group fcntl fstat futex getrandom lseek madvise mmap mprotect munmap openat pipe2 poll prctl pread64 prlimit64 read readlinkat recvfrom restart_syscall rseq rt_sigaction rt_sigprocmask rt_sigreturn sched_getaffinity set_robust_list set_tid_address setpgid sigaltstack socketpair statx wait4 write 
+kill-dev-group: exit 0
+Terminated
+kill-dev-zero: exit 143
+kill-dev-all: exit 0
+64 RTMAX    Real-time signal 30
+kill-dev-list: exit 0
+timeout-dev-expiry: exit 124
+/l/probes/straces.sh: line 5:   200 Killed                  strace -f -qq -o "$O/$name.strace" "$@"
+timeout-dev-kill-after: exit 137
+timeout-dev-foreground: exit 124
+timeout-dev-ends: exit 0
+kill-dev-group calls: arch_prctl brk execve exit_group getrandom kill mprotect prlimit64 readlinkat rseq set_robust_list set_tid_address statx 
+kill-dev-zero calls: arch_prctl brk execve getpgrp getrandom kill mprotect prlimit64 readlinkat rseq set_robust_list set_tid_address statx 
+kill-dev-all calls: arch_prctl brk execve exit_group getrandom kill mprotect prlimit64 readlinkat rseq set_robust_list set_tid_address statx 
+kill-dev-list calls: arch_prctl brk execve exit_group getrandom mprotect prlimit64 readlinkat rseq set_robust_list set_tid_address statx write 
+timeout-dev-expiry calls: access arch_prctl brk clock_nanosleep clone clone3 close dup2 execve exit exit_group fcntl fstat futex getegid geteuid getgid getpgrp getpid getppid getrandom gettid getuid kill lseek madvise mmap mprotect munmap newfstatat openat pipe2 poll prctl pread64 prlimit64 read readlinkat recvfrom restart_syscall rseq rt_sigaction rt_sigprocmask rt_sigreturn rt_sigsuspend sched_getaffinity set_robust_list set_tid_address setpgid sigaltstack socketpair statx tgkill wait4 write 
+timeout-dev-kill-after calls: access arch_prctl brk clock_nanosleep clone clone3 close dup2 execve exit fcntl fstat futex getegid geteuid getgid getpgrp getpid getppid getrandom gettid getuid kill lseek madvise mmap mprotect munmap newfstatat openat pipe2 poll prctl pread64 prlimit64 read readlinkat recvfrom restart_syscall rseq rt_sigaction rt_sigprocmask rt_sigreturn sched_getaffinity set_robust_list set_tid_address setpgid sigaltstack socketpair statx tgkill vfork wait4 write 
+timeout-dev-foreground calls: access arch_prctl brk clock_nanosleep clone clone3 close dup2 execve exit exit_group fcntl fstat futex getpid getrandom gettid kill lseek madvise mmap mprotect munmap openat pipe2 poll prctl pread64 prlimit64 read readlinkat recvfrom rseq rt_sigaction rt_sigprocmask rt_sigreturn sched_getaffinity set_robust_list set_tid_address sigaltstack socketpair statx tgkill wait4 write 
+timeout-dev-ends calls: access arch_prctl brk clone clone3 close dup2 execve exit_group fcntl fstat futex getrandom lseek madvise mmap mprotect munmap openat pipe2 poll prctl pread64 prlimit64 read readlinkat recvfrom restart_syscall rseq rt_sigaction rt_sigprocmask rt_sigreturn sched_getaffinity set_robust_list set_tid_address setpgid sigaltstack socketpair statx wait4 write 
+27ce83f1547e309717760764379686719cf751a92308679987811d86e1f9baf8  /l/ev/strace/kill-dev-all.strace
+575e4b3f7e6019936ca091ce6934c2aa284861a515024d7a410459770d7757a9  /l/ev/strace/kill-dev-group.strace
+c03dd012fa2ca2b7f0b0bb993dea7a6acc8a20d61b223cc2eb207e9a56915d15  /l/ev/strace/kill-dev-list.strace
+2e5d47d2a39d206f4fa0550be9958d5443af6ca2a9a8c2b7678e28e286c51327  /l/ev/strace/kill-dev-zero.strace
+6c1372756e5b535a92440b2a96ea90e069fb860b84ee8859a6303b21118e75b3  /l/ev/strace/kill-release-all.strace
+bbfe45f95f6195fdd23d2bc5c9a9513f546f9b30d9aa6d102f33371367222964  /l/ev/strace/kill-release-group.strace
+ad95b2db92d17381bf0578e94e29ff3694a355f0386b74751967a6aa87e5fecb  /l/ev/strace/kill-release-list.strace
+0ce2205b25f36b3714f2074f913b487c25426ccccee3d057d3d541e3035d418c  /l/ev/strace/kill-release-zero.strace
+c8046b3dcb05207cbb69842af1a49a248185a336e54def25adc4802ea17a2aa8  /l/ev/strace/timeout-dev-ends.strace
+ca17095539fcf58f6aa63428e1efe18f716c28596a5be506ee5d4640d1a103fa  /l/ev/strace/timeout-dev-expiry.strace
+a8eb280c8f2822a234c3822c0e5c193fd752014edecfa6086f71b7303a5a9c1d  /l/ev/strace/timeout-dev-foreground.strace
+6b77a290bfe7edbf80f44cbfe5c32906d542ad69e6c7bc7f8559230ac1636a5d  /l/ev/strace/timeout-dev-kill-after.strace
+9212bd7ed52ed78dd3b62b1ae5090d2e7ed4ef40a461aaae5b1b116240a3e06e  /l/ev/strace/timeout-release-ends.strace
+3b460e9c393e2748e23096843bda63d00449eea0e204c27f87f05ff65c72a1a6  /l/ev/strace/timeout-release-expiry.strace
+7390c4adb9aa02c9227df49db9d36053229e9bcf81d799911009079b5bff1cfe  /l/ev/strace/timeout-release-foreground.strace
+e1de24e955ace4b59ede6971616de8342ba1c948066fe138f2019ec3c9a4e45d  /l/ev/strace/timeout-release-kill-after.strace

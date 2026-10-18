@@ -1,0 +1,115 @@
+== -s STOP 0.3 sleep 1
+GUARD fired
+  -> signal 9, 8.0 s
+  out: 
+  err: 
+== --foreground -s STOP 0.3 sleep 1
+GUARD fired
+  -> signal 9, 8.0 s
+  out: 
+  err: 
+== -v -s 0 0.3 sleep 1
+  -> exit 124, 1.0 s
+  out: 
+  err: timeout: sending signal 0 to command 'sleep'|
+== -v -s EXIT 0.3 sleep 1
+  -> exit 124, 1.0 s
+  out: 
+  err: timeout: sending signal 0 to command 'sleep'|
+== -v TERM to timeout
+  -> signal 15, 0.3 s
+  out: 
+  err: timeout: sending signal TERM to command 'sleep'|
+== -v -k 0.3 TERM to timeout
+  -> signal 9, 0.6 s
+  out: 
+  err: timeout: sending signal TERM to command 'sh'|timeout: sending signal KILL to command 'sh'|
+== -v -s 32 --foreground
+  -> exit 124, 0.3 s
+  out: 
+  err: timeout: sending signal 32 to command 'sleep'|
+== -p --foreground -s KILL
+  -> exit 137, 0.3 s
+  out: 
+  err: 
+== -k 0 0.3 TERM-ignoring
+  -> exit 124, 2.0 s
+  out: 
+  err: 
+== -k 1e-400 0.3 TERM-ignoring
+  -> signal 9, 0.3 s
+  out: 
+  err: 
+== -k -1 0.3 sleep 1
+  -> exit 125, 0.0 s
+  out: 
+  err: timeout: invalid time interval '-1'|Try 'timeout --help' for more information.|
+== -k 0.3 0 TERM-ignoring
+  -> exit 0, 1.0 s
+  out: 
+  err: 
+== 1e-9 true
+  -> exit 124, 0.0 s
+  out: 
+  err: 
+== 0.0005 sleep 1
+  -> exit 124, 0.0 s
+  out: 
+  err: 
+== --foreground -s SEGV 0.3 sleep 5
+  -> exit 124, 0.3 s
+  out: 
+  err: 
+== --foreground -s RTMIN 0.3 sleep 5
+  -> exit 124, 0.3 s
+  out: 
+  err: 
+== 0.3 a command that is its own group leader
+  -> exit 124, 0.3 s
+  out: 
+  err: 
+== 0.3 sh -c exec sleep in a new group then exit
+  -> exit 124, 0.3 s
+  out: 
+  err: 
+  grandchild alive
+== --signal=HUP --kill-after=0.2 -vp 0.3 TERM HUP-ignoring
+  -> signal 9, 0.5 s
+  out: 
+  err: timeout: sending signal HUP to command 'sh'|timeout: sending signal KILL to command 'sh'|
+== -fv 0.2 sleep 1
+  -> exit 124, 0.2 s
+  out: 
+  err: timeout: sending signal TERM to command 'sleep'|
+== --sig=KILL 0.2 sleep 1
+  -> signal 9, 0.2 s
+  out: 
+  err: 
+== --fore 0.2 sleep 1
+  -> exit 124, 0.2 s
+  out: 
+  err: 
+== --k=0.1 0.2 sleep 1
+  -> exit 124, 0.2 s
+  out: 
+  err: 
+== --verbose=x
+  -> exit 125, 0.0 s
+  out: 
+  err: timeout: option '--verbose' doesn't allow an argument|Try 'timeout --help' for more information.|
+== the env passes
+  -> exit 0, 0.0 s
+  out: bar|
+  err: 
+== a TTOU to timeout
+  -> exit 124, 1.0 s
+  out: 
+  err: 
+== a TTIN to timeout
+  -> exit 124, 1.0 s
+  out: 
+  err: 
+== USR1 twice
+sh: 1: [: Illegal number: $n
+  -> exit 5
+PROBE-DONE

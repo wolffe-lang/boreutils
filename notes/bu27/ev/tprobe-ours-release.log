@@ -1,0 +1,476 @@
+== statuses
+== 0.3 sleep 5
+  -> exit 124, 0.3 s
+  out: 
+  err: 
+== -s KILL 0.3 sleep 5
+  -> signal 9, 0.3 s
+  out: 
+  err: 
+== -k 0.3 0.3 TERM-ignoring
+  -> signal 9, 0.6 s
+  out: 
+  err: 
+== --foreground -k 0.3 0.3 TERM-ignoring
+  -> exit 137, 0.6 s
+  out: 
+  err: 
+== --foreground -s KILL 0.3 sleep 5
+  -> exit 137, 0.3 s
+  out: 
+  err: 
+== -p 0.3 sleep 5
+  -> exit 143, 0.3 s
+  out: 
+  err: 
+== -p -s KILL 0.3 sleep 5
+  -> signal 9, 0.3 s
+  out: 
+  err: 
+== -p -s HUP 0.3 sleep 5
+  -> exit 129, 0.3 s
+  out: 
+  err: 
+== 5 exit 3
+  -> exit 3, 0.0 s
+  out: 
+  err: 
+== 5 the command ends by TERM
+  -> signal 15, 0.0 s
+  out: 
+  err: 
+== 5 the command ends by SEGV
+  -> exit 139, 0.1 s
+  out: 
+  err: 
+== 5 the command ends by KILL
+  -> signal 9, 0.0 s
+  out: 
+  err: 
+== -p 5 the command ends by TERM
+  -> signal 15, 0.0 s
+  out: 
+  err: 
+== 5 not found
+  -> exit 127, 0.0 s
+  out: 
+  err:         timeout: failed to run command '/nonexistent/x': No such file or directory|
+== 5 not found bare
+  -> exit 127, 0.0 s
+  out: 
+  err:         timeout: failed to run command 'no-such-command-bu27': No such file or directory|
+== 5 a plain file
+  -> exit 126, 0.0 s
+  out: 
+  err:         timeout: failed to run command './plain': Permission denied|
+== 5 a directory
+  -> exit 126, 0.0 s
+  out: 
+  err:         timeout: failed to run command '/tmp': Permission denied|
+== 5 no shebang
+  -> exit 0, 0.0 s
+  out:  n o s h e b a n g r a n \n
+  err: 
+== 0 sleep 0.2
+  -> exit 0, 0.2 s
+  out: 
+  err: 
+== 0.3 trap TERM and exit 3
+  -> exit 124, 0.3 s
+  out:  g o t T E R M \n
+  err: 
+== -p 0.3 trap TERM and exit 3
+  -> exit 3, 0.3 s
+  out:  g o t T E R M \n
+  err: 
+== usage
+== none
+  -> exit 125, 0.0 s
+  out: 
+  err:         Try 'timeout --help' for more information.|
+== 1
+  -> exit 125, 0.0 s
+  out: 
+  err:         Try 'timeout --help' for more information.|
+== x true
+  -> exit 125, 0.0 s
+  out: 
+  err:         timeout: invalid time interval 'x'|        Try 'timeout --help' for more information.|
+== -s FOO 1 true
+  -> exit 125, 0.0 s
+  out: 
+  err:         timeout: 'FOO': invalid signal|        Try 'timeout --help' for more information.|
+== --bogus
+  -> exit 125, 0.0 s
+  out: 
+  err:         timeout: unrecognized option '--bogus'|        Try 'timeout --help' for more information.|
+== -k x 1 true
+  -> exit 125, 0.0 s
+  out: 
+  err:         timeout: invalid time interval 'x'|        Try 'timeout --help' for more information.|
+== 1 -s KILL true
+  -> exit 127, 0.0 s
+  out: 
+  err:         timeout: failed to run command '-s': No such file or directory|
+== -- 1 true
+  -> exit 0, 0.0 s
+  out: 
+  err: 
+== -s
+  -> exit 125, 0.0 s
+  out: 
+  err:         timeout: option requires an argument -- 's'|        Try 'timeout --help' for more information.|
+== --signal=9 0.3 sleep 5
+  -> signal 9, 0.3 s
+  out: 
+  err: 
+== -s 0 0.3 sleep 1
+  -> exit 124, 1.0 s
+  out: 
+  err: 
+== -s EXIT 0.3 sleep 1
+  -> exit 124, 1.0 s
+  out: 
+  err: 
+== -s CONT 0.3 sleep 1
+  -> exit 124, 1.0 s
+  out: 
+  err: 
+== -s SEGV 0.3 sleep 5
+  -> exit 125, 0.0 s
+  out: 
+  err:         timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone|
+== -s RTMIN 0.3 sleep 5
+  -> exit 125, 0.0 s
+  out: 
+  err:         timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone|
+== -s USR1 0.3 sleep 5
+  -> exit 124, 0.3 s
+  out: 
+  err: 
+== -s CHLD 0.3 sleep 1
+  -> exit 124, 1.0 s
+  out: 
+  err: 
+== -s TTOU 0.3 sleep 1
+  -> exit 124, 1.0 s
+  out: 
+  err: 
+== -v 0.3 sleep 5
+  -> exit 124, 0.3 s
+  out: 
+  err:         timeout: sending signal TERM to command 'sleep'|
+== -v -k 0.3 0.3 TERM-ignoring
+  -> signal 9, 0.6 s
+  out: 
+  err:         timeout: sending signal TERM to command 'sh'|        timeout: sending signal KILL to command 'sh'|
+== -v -s 9 0.3 sleep 5
+  -> signal 9, 0.3 s
+  out: 
+  err:         timeout: sending signal KILL to command 'sleep'|
+== -v --foreground -s RTMIN+2 0.3 sleep 5
+  -> exit 124, 0.3 s
+  out: 
+  err:         timeout: sending signal RTMIN+2 to command 'sleep'|
+== --help
+  -> exit 0, 0.0 s
+  out:  U s a g e : t i m e o u t [ O P T I O N ] . . . D U R A T I O N C O M M A N D [ A R G ] . . . \n R u n C O M M A N D , a n d s i g n a l i t  i f i t i s s t i l l r u n n i n g a f t e r D U R A T I O N . \n \n - f , - - f o r e g r o u n d \n  l e a v e t i m e o u t i n i t s p a r e n t ' s p r o c e s s g r o u p ,  s o C O M M A N D m a y \n  r e a d t h e  t e r m i n a l a n d h e a r i t s s i g n a l s ; o n l y C O M M A N D i t s e l f i s \n s i g n a l l e d , n o t t h e p r o c e s s e s i t s t a r t e d \n - k , - - k i l l - a f t e r = D U R A T I O N \n s e n d K I L L t o o , i f C O M M A N D s t i l l r u n s t h i s l o n g a f t e r t h e f i r s t \n  s i g n a l \n - p , - - p r e s e r v e - s t a t u s \n e n d w i t h C O M M A N D ' s o w n s t a t u s , e v e n a f t e r a t i m e o u t \n - s , - - s i g n a l = S I G N A L \n t h e s i g n a l t o s e n d a t  t h e t i m e o u t ( T E R M w h e n n o n e i s n a m e d ) , \n b y n a m e o r b y n u m b e r , a s k i l l - l  l i s t s t h e m \n - v , - - v e r b o s e \n  s a y o n s t a n d a r d e r r o r e a c h s i g n a l s e n t a t a t i m e o u t \n - - h e l p p r i n t t h i s h e l p a n d e x i t \n - - v e r s i o n p r i n t t h e v e r s i o n a n d e x i t \n \n D U R A T I O N i s a n u m b e r , a s f o r s l e e p , w i t h a n o p t i o n a l s ( s e c o n d s , t h e \n d e f a u l t ) , m ( m i n u t e s ) , h ( h o u r s ) o r d ( d a y s ) . 0 m e a n s n o t i m e o u t . \n \n T h e s t a t u s i s 1 2 4 a f t e r a  t i m e o u t ( C O M M A N D ' s o w n w i t h - p ) , 1 2 5 w h e n \n t i m e o u t i t s e l f f a i l s ,  1 2 6 w h e n C O M M A N D c a n n o t b e r u n ,  1 2 7 w h e n i t \n c a n n o t b e f o u n d , 1 3 7 w h e n K I L L e n d e d i t , a n d C O M M A N D ' s o w n o t h e r w i s e . \n W i t h o u t - - f o r e g r o u n d t h i s t i m e o u t r e f u s e s a S I G N A L i t c a n n o t i g n o r e \n ( t h e f a u l t s i g n a l s , t h e h o s t ' s r e a l - t i m e o n e s ) . \n \n b o r e u t i l s : h t t p s : / / g i t h u b . c o m / w o l f f e - l a n g / b o r e u t i l s \n
+  err: 
+== --version
+  -> exit 0, 0.0 s
+  out:  t i m e o u t ( b o r e u t i l s ) 0 . 1 . 0 \n L i c e n c e G P L - 3 . 0 - o r - l a t e r . T h e r e i s n o  w a r r a n t y . \n
+  err: 
+== durations
+== duration [0.1] true
+  -> exit 0, 0.0 s
+  out: 
+  err: 
+== duration [.1] true
+  -> exit 0, 0.0 s
+  out: 
+  err: 
+== duration [0.1s] true
+  -> exit 0, 0.0 s
+  out: 
+  err: 
+== duration [1e-1] true
+  -> exit 0, 0.0 s
+  out: 
+  err: 
+== duration [0x.2] true
+  -> exit 0, 0.0 s
+  out: 
+  err: 
+== duration [0x1p-3] true
+  -> exit 0, 0.0 s
+  out: 
+  err: 
+== duration [ 0.1] true
+  -> exit 0, 0.0 s
+  out: 
+  err: 
+== duration [0.1 ] true
+  -> exit 125, 0.0 s
+  out: 
+  err:         timeout: invalid time interval '0.1 '|        Try 'timeout --help' for more information.|
+== duration [-0] true
+  -> exit 125, 0.0 s
+  out: 
+  err:         timeout: invalid option -- '0'|        Try 'timeout --help' for more information.|
+== duration [-1] true
+  -> exit 125, 0.0 s
+  out: 
+  err:         timeout: invalid option -- '1'|        Try 'timeout --help' for more information.|
+== duration [-0.1] true
+  -> exit 125, 0.0 s
+  out: 
+  err:         timeout: invalid option -- '0'|        Try 'timeout --help' for more information.|
+== duration [+0.1] true
+  -> exit 0, 0.0 s
+  out: 
+  err: 
+== duration [0.1x] true
+  -> exit 125, 0.0 s
+  out: 
+  err:         timeout: invalid time interval '0.1x'|        Try 'timeout --help' for more information.|
+== duration [0.1S] true
+  -> exit 125, 0.0 s
+  out: 
+  err:         timeout: invalid time interval '0.1S'|        Try 'timeout --help' for more information.|
+== duration [1d] true
+  -> exit 0, 0.0 s
+  out: 
+  err: 
+== duration [1m] true
+  -> exit 0, 0.0 s
+  out: 
+  err: 
+== duration [1h] true
+  -> exit 0, 0.0 s
+  out: 
+  err: 
+== duration [inf] true
+  -> exit 0, 0.0 s
+  out: 
+  err: 
+== duration [infinity] true
+  -> exit 0, 0.0 s
+  out: 
+  err: 
+== duration [INF] true
+  -> exit 0, 0.0 s
+  out: 
+  err: 
+== duration [nan] true
+  -> exit 125, 0.0 s
+  out: 
+  err:         timeout: invalid time interval 'nan'|        Try 'timeout --help' for more information.|
+== duration [1e100] true
+  -> exit 0, 0.0 s
+  out: 
+  err: 
+== duration [1e-400] true
+  -> exit 0, 0.0 s
+  out: 
+  err: 
+== duration [99999999999999999999] true
+  -> exit 0, 0.0 s
+  out: 
+  err: 
+== duration [0x] true
+  -> exit 125, 0.0 s
+  out: 
+  err:         timeout: invalid time interval '0x'|        Try 'timeout --help' for more information.|
+== duration [1.5.2] true
+  -> exit 125, 0.0 s
+  out: 
+  err:         timeout: invalid time interval '1.5.2'|        Try 'timeout --help' for more information.|
+== duration [] true
+  -> exit 125, 0.0 s
+  out: 
+  err:         timeout: invalid time interval ''|        Try 'timeout --help' for more information.|
+== duration [ss] true
+  -> exit 125, 0.0 s
+  out: 
+  err:         timeout: invalid time interval 'ss'|        Try 'timeout --help' for more information.|
+== duration [1ss] true
+  -> exit 125, 0.0 s
+  out: 
+  err:         timeout: invalid time interval '1ss'|        Try 'timeout --help' for more information.|
+== the group and the child
+== 0.3 a grandchild
+  -> exit 124, 0.3 s
+  out: 
+  err: 
+  grandchild gone
+== --foreground 0.3 a grandchild
+  -> exit 124, 0.3 s
+  out: 
+  err: 
+  grandchild alive
+== pgid: timeout's, the command's, and the script's 1 (pgid 1)
+  -> exit 0, 0.0 s
+  out:  c m d p i d 1 6 2 2 p g i d 1 6 2 0 s i d 1 ; t i m e o u t p i d 1 6 2 0 p g i d 1 6 2 0 \n
+  err: 
+  -> exit 0, 0.0 s
+  out:  c m d p i d 1 6 5 3 p g i d 1 ; t i m e o u t p i d 1 6 5 1 p g i d 1 \n
+  err: 
+== setsid: a session leader cannot move
+  -> exit 124, 0.3 s
+  out:  p g i d 1 6 8 1 o f t i m e o u t 1 6 8 1 \n
+  err: 
+== the command's signal state (and this script's)
+  script SigBlk:	0000000000000000
+  script SigIgn:	0000000000000000
+  -> exit 0, 0.0 s
+  out:  S i g B l k : \t 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 \n S i g I g n : \t 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 \n
+  err: 
+  -> exit 0, 0.0 s
+  out:  S i g B l k : \t 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 \n S i g I g n : \t 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 \n
+  err: 
+== timeout's own signal state, read by its command
+  -> exit 0, 0.0 s
+  out:  S i g B l k : \t 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 \n S i g I g n : \t 0 0 0 0 0 0 0 0 0 0 3 0 0 0 0 0 \n S i g C g t : \t 0 0 0 0 0 0 0 1 0 7 8 1 7 e 2 7 \n 1 9 \n
+  err: 
+== argv: the command's /proc/self/cmdline
+  -> exit 0, 0.0 s
+  out:  s h | - c | t r " \ 0 " " | " < / p r o c / $ $ / c m d l i n e |
+  err: 
+== stdin passes
+  -> exit 0, 0.0 s
+  out:  h e l l o \n
+  err: 
+== stdin closed
+  -> exit 0, 0.0 s
+  out:  c a t 0 \n
+  err: 
+== a descriptor above 2 passes
+  -> exit 0, 0.0 s
+  out:  w r o t e \n
+  err: 
+  file: three
+== stdout closed, -v, a timeout
+  -> exit 124, 0.2 s
+  out: 
+  err:         timeout: sending signal TERM to command 'sleep'|
+== stderr closed, -v, a timeout
+  -> exit 124, 0.2 s
+  out: 
+  err: 
+== a stopped command
+  -> exit 124, 0.5 s
+  out: 
+  err: 
+== a stopped command, -s KILL
+  -> signal 9, 0.5 s
+  out: 
+  err: 
+== signals sent to timeout
+== TERM to timeout 5, the command traps it and exits 3
+  -> exit 3, 0.3 s
+  out:  g o t T E R M \n
+  err: 
+== TERM to timeout 5, the command does not trap
+  -> signal 15, 0.3 s
+  out: 
+  err: 
+== INT to timeout 5, the command traps it and exits 3
+  -> exit 3, 0.3 s
+  out:  g o t I N T \n
+  err: 
+== INT to timeout 5, the command does not trap
+  -> signal 2, 0.3 s
+  out: 
+  err: 
+== HUP to timeout 5, the command traps it and exits 3
+  -> exit 3, 0.3 s
+  out:  g o t H U P \n
+  err: 
+== HUP to timeout 5, the command does not trap
+  -> signal 1, 0.3 s
+  out: 
+  err: 
+== QUIT to timeout 5, the command traps it and exits 3
+  -> exit 3, 0.3 s
+  out:  g o t Q U I T \n
+  err: 
+== QUIT to timeout 5, the command does not trap
+  -> signal 3, 0.4 s
+  out: 
+  err: 
+== ALRM to timeout 5, the command traps it and exits 3
+  -> exit 124, 0.3 s
+  out: 
+  err: 
+== ALRM to timeout 5, the command does not trap
+  -> exit 124, 0.3 s
+  out: 
+  err: 
+== USR1 to timeout 5, the command traps it and exits 3
+  -> exit 3, 0.3 s
+  out:  g o t U S R 1 \n
+  err: 
+== USR1 to timeout 5, the command does not trap
+  -> signal 10, 0.3 s
+  out: 
+  err: 
+== USR2 to timeout 5, the command traps it and exits 3
+  -> exit 3, 0.3 s
+  out:  g o t U S R 2 \n
+  err: 
+== USR2 to timeout 5, the command does not trap
+  -> signal 12, 0.3 s
+  out: 
+  err: 
+== PIPE to timeout 5, the command traps it and exits 3
+  -> exit 3, 0.3 s
+  out:  g o t P I P E \n
+  err: 
+== PIPE to timeout 5, the command does not trap
+  -> signal 13, 0.3 s
+  out: 
+  err: 
+== CHLD to timeout 5, the command traps it and exits 3
+  -> exit 124, 5.0 s
+  out: 
+  err: 
+== CHLD to timeout 5, the command does not trap
+  -> exit 0, 2.0 s
+  out: 
+  err: 
+== CONT to timeout 5, the command traps it and exits 3
+  -> exit 124, 5.0 s
+  out: 
+  err: 
+== CONT to timeout 5, the command does not trap
+  -> exit 0, 2.0 s
+  out: 
+  err: 
+== TSTP to timeout 5, the command traps it and exits 3
+GUARD fired
+  -> signal 9, 15.3 s
+  out: 
+  err: 
+== TSTP to timeout 5, the command does not trap
+GUARD fired
+  -> signal 9, 15.3 s
+  out: 
+  err: 
+== WINCH to timeout 5, the command traps it and exits 3
+  -> exit 124, 5.0 s
+  out: 
+  err: 
+== WINCH to timeout 5, the command does not trap
+  -> exit 0, 2.0 s
+  out: 
+  err: 
+== TERM to timeout -k 0.3 5, the command ignores TERM
+  -> signal 9, 0.6 s
+  out: 
+  err: 
+== TERM to timeout --foreground 5, a grandchild
+  -> signal 15, 0.3 s
+  out: 
+  err: 
+  grandchild alive
+PROBE-DONE
