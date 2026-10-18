@@ -55,23 +55,27 @@
 //! - Options permute unless `POSIXLY_CORRECT` is set, when the first
 //!   operand ends them: `kill 12 -l` is then two PIDs.
 //!
+//! - **Groups** (bu27, wolf 0.2.31's s241, ruling #79): `0` is this
+//!   process's own group (`os_signal_send_group(os_pgid())`, which
+//!   reaches this `kill` too, as GNU's own TERM ends GNU's), `-1` is every
+//!   process this one may signal (`os_signal_send_all`), and `-N` for N
+//!   above 1 is group N. A group no process is in is `No such process`.
+//! - **Every signal the host numbers** (`bore/signals.lu`): the 28 wolf
+//!   has a meaning for, and the host's own (`STKFLT`, `POLL`, `PWR`, the
+//!   real-time range; `EMT`, `IO`, `INFO` on macOS) sent as `-N`. `-t`
+//!   prints the host's words for each (`os_signal_text`).
+//!
 //! **What this `kill` cannot do, each refused, status 1, nothing sent:**
 //!
-//! - **A process group.** The ids `0`, `-1` and every negative id name
-//!   a group or every process, and wolf's `os_signal_send` takes one
-//!   process, an id above 0 (`[os.signal.send]`: "a group … is job
-//!   control's, the next lane's"). Refused by name, where GNU sends.
-//! - **A signal wolf has no meaning for**: real-time signals, and what
-//!   only one host has (`STKFLT`, `POLL`, `PWR`; `EMT`, `INFO`). They
-//!   are `invalid signal` here, by name and by number, where GNU would
-//!   send or name them. So `-l` and `-t` alone print 29 lines, the 28
-//!   signals wolf can send and `EXIT`, in the host's numeric order,
-//!   where GNU prints every signal the host has.
-//! - **A signal's description.** GNU's `-t` has a third column, the
-//!   host's own words for the signal (`strsignal`: `Killed`, and
-//!   `Killed: 9` on macOS). wolf has `os_error_text` for an error
-//!   number and nothing for a signal's, and a table of one C library's
-//!   words would be wrong on the other host. The column is left out.
+//! - **Group 1.** wolf never names process group 1
+//!   (`[os.signal.send.group]`: a group computed wrong must not become a
+//!   broadcast), so `kill 0` from a process in group 1 — a container's
+//!   first process and every process it starts without job control — is
+//!   refused by name, where GNU signals the group.
+//! - **The words for signal 0.** GNU's `-t` row for `EXIT` carries the
+//!   host's words for signal 0 (`Unknown signal 0` under glibc);
+//!   `os_signal_text` refuses 0 (`[os.signal.text]`), so that row has no
+//!   third column here.
 //! - **Why a send failed, past the two reasons that have rows.**
 //!   `not_found` is the host's `No such process` and `denied` its
 //!   `Operation not permitted`; any other failure is `io`, and the os
@@ -230,14 +234,6 @@ fn main() -> int {
             status = 1
             continue
         }
-        if pid <= 0 {
-            bore.warn(
-                "kill",
-                "{bore.quote(a)}: a process group cannot be signalled: wolf sends to one process, an id above 0 ([os.signal.send])",
-            )
-            status = 1
-            continue
-        }
         let why = send(pid, meaning)
         if why.len > 0 {
             bore.warn("kill", "{bore.quote(a)}: {why}")
@@ -247,11 +243,68 @@ fn main() -> int {
     bore.finish(mut out, "kill", status)
 }
 
-/// Send `meaning`'s signal to the process `pid`; `""`, or why the host
-/// would not, in its own words where a row names the reason.
+/// Send `meaning`'s signal where the id `pid` points, as `kill(2)` reads
+/// it: one process above 0, this process's group at 0, every process at
+/// -1, group N at -N. `""`, or why the host would not, in its own words
+/// where a row names the reason.
 fn send(pid: int, meaning: int) -> str {
     var why = ""
-    os_signal_send(pid, meaning) else |e| match e {
+    if pid > 0 {
+        os_signal_send(pid, meaning) else |e| match e {
+            not_found => {
+                why = "No such process"
+            },
+            denied => {
+                why = "Operation not permitted"
+            },
+            invalid => {
+                why = "not a process id wolf can signal ([os.signal.send])"
+            },
+            unsupported => {
+                why = "this host has no signals to send"
+            },
+            io => {
+                why = "cannot be signalled, and wolf does not say why (wolf-lang#682)"
+            },
+        }
+        return why
+    }
+    if pid == -1 {
+        os_signal_send_all(meaning) else |e| match e {
+            not_found => {
+                why = "No such process"
+            },
+            denied => {
+                why = "Operation not permitted"
+            },
+            invalid => {
+                why = "not a signal wolf can send to every process ([os.signal.send.all])"
+            },
+            unsupported => {
+                why = "this host has no signals to send"
+            },
+            io => {
+                why = "cannot be signalled, and wolf does not say why (wolf-lang#682)"
+            },
+        }
+        return why
+    }
+    var group = -pid
+    if pid == 0 {
+        group = os_pgid() else |_| {
+            return "this host has no process groups"
+        }
+        if group == 1 {
+            return "this process is in group 1, which wolf never signals ([os.signal.send.group])"
+        }
+    }
+    if group > 2147483647 {
+        // -2147483648, the C `int` edge: no group id is that wide, and the
+        // host says so as it says it of a group nobody is in (measured on
+        // linux: `kill(INT_MIN, 0)` is ESRCH).
+        return "No such process"
+    }
+    os_signal_send_group(group, meaning) else |e| match e {
         not_found => {
             why = "No such process"
         },
@@ -259,10 +312,10 @@ fn send(pid: int, meaning: int) -> str {
             why = "Operation not permitted"
         },
         invalid => {
-            why = "not a process id wolf can signal ([os.signal.send])"
+            why = "not a group wolf can signal ([os.signal.send.group])"
         },
         unsupported => {
-            why = "this host has no signals to send"
+            why = "this host has no process groups"
         },
         io => {
             why = "cannot be signalled, and wolf does not say why (wolf-lang#682)"
@@ -274,10 +327,13 @@ fn send(pid: int, meaning: int) -> str {
 /// `-l` and `-t`: the whole table, or an answer for each operand.
 fn list(mut out: bore.Out, table: bore.SignalTable, operands: List[str], tabular: bool) -> int {
     var status = 0
+    let width = name_width(table)
     if operands.len == 0 {
         var i = -1
         while i < table.numbers.len {
-            line(mut out, table, i, tabular, true)
+            if bore.signal_named(table, i) {
+                line(mut out, table, i, tabular, true, width)
+            }
             i += 1
         }
         return bore.finish(mut out, "kill", 0)
@@ -288,20 +344,52 @@ fn list(mut out: bore.Out, table: bore.SignalTable, operands: List[str], tabular
             status = 1
             continue
         }
-        line(mut out, table, entry, tabular, bore.signal_is_number(a))
+        line(mut out, table, entry, tabular, bore.signal_is_number(a), width)
     }
     bore.finish(mut out, "kill", status)
 }
 
+/// The width of `-t`'s name column: the longest name the host has
+/// (`RTMIN+10`, eight, on linux).
+fn name_width(table: bore.SignalTable) -> int {
+    var w = 4
+    var i = 0
+    while i < table.numbers.len {
+        if bore.signal_named(table, i) && bore.signal_name(table, i).len > w {
+            w = bore.signal_name(table, i).len
+        }
+        i += 1
+    }
+    w
+}
+
 /// One line of a list: the table's row, else the name (`by_name`) or
 /// the number of entry `i`.
-fn line(mut out: bore.Out, table: bore.SignalTable, i: int, tabular: bool, by_name: bool) {
+fn line(
+    mut out: bore.Out,
+    table: bore.SignalTable,
+    i: int,
+    tabular: bool,
+    by_name: bool,
+    width: int,
+) {
     let number = bore.signal_number(table, i)
-    let name = bore.signal_name(table, i)
     if tabular {
-        bore.put(mut out, "{bore.space_padded(number, 2)} {name}\n") else |_| {}
+        let name = bore.signal_table_name(table, i)
+        let words = bore.signal_text(table, i)
+        if words.len == 0 {
+            bore.put(mut out, "{bore.space_padded(number, 2)} {name}\n") else |_| {}
+        } else {
+            var pad = ""
+            var k = name.len
+            while k < width {
+                pad += " "
+                k += 1
+            }
+            bore.put(mut out, "{bore.space_padded(number, 2)} {name}{pad} {words}\n") else |_| {}
+        }
     } else if by_name {
-        bore.put(mut out, "{name}\n") else |_| {}
+        bore.put(mut out, "{bore.signal_name(table, i)}\n") else |_| {}
     } else {
         bore.put(mut out, "{number}\n") else |_| {}
     }
@@ -361,7 +449,7 @@ fn help() -> str {
                     the signal to send, by name or by number
       -l, --list    print signal names, or turn each SIGNAL from a name
                     into its number and from a number into its name
-      -t, --table   print each signal's number and name
+      -t, --table   print each signal's number, name and description
           --help    print this help and exit
           --version print the version and exit
 
@@ -369,10 +457,10 @@ fn help() -> str {
     1; or the exit status of a process a signal ended. The numbers are
     this host's. 0, or EXIT, sends nothing and reports whether it could.
 
-    This kill knows the 28 signals wolf can send, every one POSIX names.
-    It refuses a real-time signal and one only this host has; it refuses
-    a process group (PID 0, -1 or any negative id); and -t leaves out the
-    host's description of each signal.
+    PID 0 is this process's group, -1 every process this one may signal,
+    and -N process group N (as the first argument -N is a signal, so
+    write -- first). This kill refuses group 1, and -t prints no
+    description for EXIT.
 
     The status is 1 when a signal could not be sent or a SIGNAL names
     nothing. Your shell has a kill of its own, which is the one it runs
