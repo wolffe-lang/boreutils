@@ -1,0 +1,492 @@
+//! member: false
+//!
+//! timeout — run a command, and signal it if it is still running after a
+//! time.
+//!
+//! References consulted: GNU coreutils 9.11 `timeout --help`, the info
+//! manual's `timeout invocation` node, and black-box runs of the GNU
+//! binary in throwaway containers (linux x86-64, `notes/bu27/probes/
+//! tprobe.sh`, kasumi `~/lanes/bu27/ev/tprobe-gnu.log`) and on CI's macOS
+//! runner, under `LC_ALL=C`; POSIX.1-2024 for `kill(2)`, `setpgid(2)` and
+//! `waitpid(2)`. Never GNU source, nor any other `timeout`'s.
+//!
+//! GNU's rules, each measured against 9.11:
+//!
+//! - **The command line.** `timeout [OPTION]... DURATION COMMAND [ARG]...`.
+//!   Options end at the first operand, whatever `POSIXLY_CORRECT` says:
+//!   `timeout 1 -s KILL true` runs the command `-s`. `-f`/`--foreground`,
+//!   `-k`/`--kill-after=DURATION`, `-p`/`--preserve-status`,
+//!   `-s`/`--signal=SIGNAL`, `-v`/`--verbose`, `--help`, `--version`. A
+//!   DURATION is `sleep`'s (`bore/duration.lu`); 0 disables the timeout,
+//!   and a non-zero one too small for a double is the shortest there is.
+//!   A word like `-1` is an option, so a negative DURATION cannot be
+//!   written. A SIGNAL is `kill`'s (`bore/signals.lu`), 0 included.
+//! - **Status 125** for timeout's own failures, each said where it is
+//!   met: an invalid DURATION (`invalid time interval 'X'`), an invalid
+//!   SIGNAL (`'X': invalid signal`), a bad option (getopt's words). Too
+//!   few operands print only the `Try` line. **126** for a command found
+//!   but not runnable and **127** for one not found (`failed to run
+//!   command 'X': REASON`). A file without `#!` is run by `/bin/sh`.
+//! - **The group.** Unless `--foreground`, timeout first leads a new
+//!   process group (`setpgid(0, 0)`; a session leader cannot move and
+//!   stays its own group's leader), and the command starts in it: at the
+//!   expiry the signal goes to the command and then to the whole group,
+//!   so the command's own children end too. timeout itself does not end
+//!   by that send. With `--foreground` timeout stays in its parent's
+//!   group and only the command is signalled.
+//! - **At the expiry** the signal (TERM unless `-s`) is sent, then CONT
+//!   (unless the signal was KILL, CONT or STOP), so a stopped command
+//!   ends. A DURATION under a millisecond has expired by the time the
+//!   command is started.
+//!   `-k D` sends KILL D after that, to the group as well. `-v` says each
+//!   send on standard error: `timeout: sending signal TERM to command
+//!   'sleep'` (signal 0, and one with no name, by number).
+//! - **Signals sent to timeout.** HUP, INT, QUIT, TERM, USR1, USR2, PIPE,
+//!   ABRT, XCPU, XFSZ, VTALRM and PROF are passed to the command (and its
+//!   group) as they come, and arm `-k` as the expiry does; ALRM is the
+//!   expiry itself (124). TTIN and TTOU are ignored, in timeout and not
+//!   in the command. CHLD, CONT, WINCH and URG change nothing; TSTP stops
+//!   timeout.
+//! - **The status.** The command's own, when it ends by itself; when a
+//!   signal ended it, timeout ends by that signal too (its parent reads a
+//!   death by TERM, not an exit status of 143). After the expiry: 124,
+//!   or the command's status with `-p` (a death by signal N as the exit
+//!   status 128+N); a command ended by the KILL timeout sent is 137
+//!   either way, and without `--foreground` that KILL ends timeout too,
+//!   so its parent reads a death by KILL.
+//! - Descriptors pass to the command as they are: standard input
+//!   (closed, if timeout's was), output, error, and any other descriptor
+//!   timeout was started with.
+//!
+//! **What this `timeout` cannot do, each refused by name:**
+//!
+//! - **Send a signal it cannot ignore to its own group.** GNU's timeout
+//!   ignores the signal while it sends it to the group it leads; wolf can
+//!   ignore only the twenty listenable meanings (`[os.signal.disp]`), not
+//!   the six fault signals (`-s SEGV`, `ILL`, `TRAP`, `BUS`, `FPE`, `SYS`)
+//!   nor a host signal (`-s RTMIN`, `STKFLT`, …), and the send would end
+//!   timeout itself. Without `--foreground` such a SIGNAL is status 125,
+//!   by name; with it, it is sent to the command alone, as GNU sends it.
+//! - **Pass on a signal it cannot hear.** GNU's timeout also catches the
+//!   fault signals and the host's real-time and host-only signals sent to
+//!   it, and passes them on; wolf cannot listen for them, so each ends
+//!   timeout by its default action and the command runs on.
+//! - **Say a core was dumped.** GNU adds `the monitored command dumped
+//!   core` when the command's death left one; `os_wait_poll` answers the
+//!   signal and not the core.
+//! - **Group 1.** wolf never signals process group 1
+//!   (`[os.signal.send.group]`): a timeout that cannot leave group 1 (a
+//!   container's first process, a session leader) signals only its
+//!   command.
+//! - A timeout at its descriptor limit does not start (the signal hub's
+//!   rule, `[os.signal.hub]`: exit 71).
+
+use bore
+use std.signal
+
+fn main() -> int {
+    let p = bore.parse(options(), env_args(), false)
+    var out = bore.stdout()
+    let table = bore.signal_table()
+    var entry = bore.signal_entry(table, "TERM") else -1
+    var kill_after = bore.Duration { secs: 0.0, tiny: false }
+    var foreground = false
+    var preserve = false
+    var verbose = false
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i]
+        let v = p.values[i]
+        i += 1
+        if k == "help" {
+            bore.put(mut out, help()) else |_| {}
+            return bore.finish(mut out, "timeout", 0)
+        }
+        if k == "version" {
+            bore.put(mut out, bore.version_text("timeout")) else |_| {}
+            return bore.finish(mut out, "timeout", 0)
+        }
+        if k == "signal" {
+            entry = bore.signal_entry(table, v) else |_| {
+                bore.warn("timeout", "{bore.quote(v)}: invalid signal")
+                return try_help()
+            }
+        } else if k == "kill-after" {
+            kill_after = bore.duration_of(v) else |_| {
+                bore.warn("timeout", "invalid time interval {bore.quote(v)}")
+                return try_help()
+            }
+        } else if k == "foreground" {
+            foreground = true
+        } else if k == "preserve-status" {
+            preserve = true
+        } else if k == "verbose" {
+            verbose = true
+        }
+    }
+    if !bore.ok(p) {
+        bore.warn("timeout", p.error)
+        return try_help()
+    }
+    if p.operands.len < 2 {
+        return try_help()
+    }
+    let limit = bore.duration_of(p.operands[0]) else |_| {
+        bore.warn("timeout", "invalid time interval {bore.quote(p.operands[0])}")
+        return try_help()
+    }
+    let sig = bore.signal_meaning(table, entry)
+    let unheard = sig != 0 && !bore.signal_listenable(table, entry)
+    if !foreground && unheard && sig != signal.kill() && sig != signal.stop() {
+        bore.warn(
+            "timeout",
+            "{bore.quote(bore.signal_name(table, entry))}: wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone",
+        )
+        return 125
+    }
+    let cmd = p.operands[1]
+    var rest = List[str]()
+    var a = 2
+    while a < p.operands.len {
+        (mut rest).push(p.operands[a])
+        a += 1
+    }
+    run(
+        Run {
+            table: table,
+            entry: entry,
+            cmd: cmd,
+            limit: limit,
+            kill_after: kill_after,
+            foreground: foreground,
+            preserve: preserve,
+            verbose: verbose,
+        },
+        rest,
+    )
+}
+
+/// What the command line asks for, once read.
+struct Run {
+    table: bore.SignalTable,
+    entry: int,
+    cmd: str,
+    limit: bore.Duration,
+    kill_after: bore.Duration,
+    foreground: bool,
+    preserve: bool,
+    verbose: bool,
+}
+
+/// The meanings timeout hears and passes on to its command, as GNU's
+/// passes on what it catches (the header): HUP, INT, QUIT, TERM, USR1,
+/// USR2, PIPE, ABRT, XCPU, XFSZ, VTALRM, PROF.
+fn passed_on() -> int {
+    signal.reload() |
+        signal.interrupt() |
+        signal.quit() |
+        signal.terminate() |
+        signal.user() |
+        signal.upgrade() |
+        signal.broken_pipe() |
+        signal.abort() |
+        signal.cpu_limit() |
+        signal.file_limit() |
+        signal.virtual_alarm() |
+        signal.profile_alarm()
+}
+
+/// Start the command and see it to its end; the status timeout ends
+/// with (when it does not end by a signal itself).
+fn run(r: Run, args: List[str]) -> int {
+    if !r.foreground {
+        // A session leader cannot move (`denied`); it already leads its
+        // own group, which is what this is for.
+        os_set_pgid(0) else |_| {}
+    }
+    os_signal_ignore(signal.bg_read() | signal.bg_write()) else |_| {}
+    let heard = passed_on() | signal.child() | signal.alarm()
+    os_signal_listen(heard) else |_| {
+        bore.warn("timeout", "cannot listen for signals")
+        return 125
+    }
+    // Standard input passes as it is, closed if timeout's was.
+    var map = List[int]()
+    (mut map).push(0)
+    let open0 = fs_fstat(0) else |_| {
+        List[int]()
+    }
+    (mut map).push(if open0.len > 0 then 0 else -1)
+    let h = os_spawn_job(r.cmd, args, map, -1, -1, signal.bg_read() | signal.bg_write()) else |e| {
+        var why = "cannot be run, and wolf does not say why (wolf-lang#682)"
+        var code = 126
+        match e {
+            not_found => {
+                why = "No such file or directory"
+                code = 127
+            },
+            denied => {
+                why = "Permission denied"
+            },
+            invalid => {},
+            io => {},
+            unsupported => {
+                why = "this host cannot start a command"
+            },
+        }
+        bore.warn("timeout", "failed to run command {bore.quote(r.cmd)}: {why}")
+        return code
+    }
+    let child = os_proc_pid(h) else -1
+    var timed_out = false
+    var sent = false
+    var killing = false
+    scope s {
+        if r.limit.secs > 0.0 || r.limit.tiny {
+            let ms = millis(r.limit)
+            if ms == 0 {
+                // Shorter than wolf's millisecond: expired already, as
+                // GNU's nanosecond timer is before its command has run.
+                os_signal_raise(signal.alarm()) else |_| {}
+            } else {
+                s.spawn(fn() {
+                    alarm_after(ms)
+                })
+            }
+        }
+        loop {
+            let (k, st) = os_wait_poll() else |_| {
+                (-2, 0)
+            }
+            if k == h && st < 256 {
+                os_exit(ended(r, st, timed_out))
+            }
+            if k == -2 {
+                // The table answered `io`: the host reaped the command
+                // itself, so how it ended is gone.
+                os_exit(if timed_out then 124 else 125)
+            }
+            if k >= 0 {
+                // A stop (256 + N) is no ending: wait on.
+                continue
+            }
+            let m = os_signal_wait(heard) else |_| {
+                0
+            }
+            if m == 0 || m == signal.child() {
+                continue
+            }
+            if m == signal.alarm() && sent {
+                // The second alarm: `-k`'s.
+                if killing {
+                    let e = bore.signal_entry(r.table, "KILL") else -1
+                    send(r, e, child)
+                    killing = false
+                }
+                continue
+            }
+            if m == signal.alarm() {
+                timed_out = true
+                send(r, r.entry, child)
+            } else {
+                send(r, entry_of(r.table, m), child)
+            }
+            sent = true
+            if (r.kill_after.secs > 0.0 || r.kill_after.tiny) && !killing {
+                killing = true
+                let kms = millis(r.kill_after)
+                s.spawn(fn() {
+                    alarm_after(kms)
+                })
+            }
+        }
+    }
+    125
+}
+
+/// A DURATION in whole milliseconds, rounded up; 0 (at once) for one
+/// shorter than a millisecond, which GNU's nanosecond timer ends about
+/// as soon (wolf sleeps in milliseconds); a duration past what an `int`
+/// of milliseconds holds is the largest wait there is.
+fn millis(d: bore.Duration) -> int {
+    let ms = d.secs * 1000.0
+    if ms < 1.0 {
+        return 0
+    }
+    if ms > 9000000000000000000.0 {
+        return 9000000000000000000
+    }
+    var whole = ms as int
+    if whole as f64 < ms {
+        whole += 1
+    }
+    whole
+}
+
+/// Sleep `ms` milliseconds, then deliver ALARM to this process: the
+/// expiry is a delivered meaning the wait sees, as GNU's is a SIGALRM.
+fn alarm_after(ms: int) {
+    var left = ms
+    while left > 1000000000 {
+        time_sleep_ms(1000000000)
+        left -= 1000000000
+    }
+    if left > 0 {
+        time_sleep_ms(left)
+    }
+    os_signal_raise(signal.alarm()) else |_| {}
+}
+
+/// The table's entry for a meaning timeout heard.
+fn entry_of(t: bore.SignalTable, m: int) -> int {
+    var i = 0
+    while i < t.numbers.len {
+        if bore.signal_meaning(t, i) == m {
+            return i
+        }
+        i += 1
+    }
+    -1
+}
+
+/// Send entry `e`'s signal to the command `child`, then (unless
+/// `--foreground`) to the group timeout leads, ignoring it here for the
+/// length of that send; then CONT the same way, so a stopped command
+/// hears it, unless the signal was KILL or CONT.
+fn send(r: Run, e: int, child: int) {
+    let m = bore.signal_meaning(r.table, e)
+    if r.verbose {
+        bore.warn(
+            "timeout",
+            "sending signal {verbose_name(r.table, e)} to command {bore.quote(r.cmd)}",
+        )
+    }
+    to_all(r, r.table, e, m, child)
+    if m != signal.kill() && m != signal.continued() && m != signal.stop() {
+        let c = bore.signal_entry(r.table, "CONT") else -1
+        to_all(r, r.table, c, signal.continued(), child)
+    }
+}
+
+/// The name `-v` gives a signal (measured): its name, or its number for
+/// signal 0 and for one with no name.
+fn verbose_name(t: bore.SignalTable, e: int) -> str {
+    if e >= 0 && bore.signal_named(t, e) {
+        return bore.signal_name(t, e)
+    }
+    "{bore.signal_number(t, e)}"
+}
+
+fn to_all(r: Run, t: bore.SignalTable, e: int, m: int, child: int) {
+    if child > 0 {
+        os_signal_send(child, m) else |_| {}
+    }
+    if r.foreground {
+        return
+    }
+    let own = os_pgid() else |_| {
+        return
+    }
+    if own <= 1 {
+        return
+    }
+    let quiet = bore.signal_listenable(t, e)
+    if quiet {
+        os_signal_ignore(m) else |_| {}
+    }
+    os_signal_send_group(own, m) else |_| {}
+    if quiet {
+        if (passed_on() | signal.child() | signal.alarm()) & m != 0 {
+            os_signal_listen(m) else |_| {}
+        } else if m != signal.bg_read() && m != signal.bg_write() {
+            os_signal_default(m) else |_| {}
+        }
+    }
+}
+
+/// How timeout ends once its command has, `st` the poll's status: the
+/// command's own, or 124 after the expiry (the header).
+fn ended(r: Run, st: int, timed_out: bool) -> int {
+    if st >= 0 {
+        if timed_out && !r.preserve {
+            return 124
+        }
+        return st
+    }
+    let n = -st
+    let kill = os_signal_number(signal.kill()) else 9
+    if timed_out {
+        if n == kill {
+            return 128 + n
+        }
+        if r.preserve {
+            return 128 + n
+        }
+        return 124
+    }
+    // Ended by a signal of its own: end by the same one.
+    let e = bore.signal_entry(r.table, "{n}") else -1
+    let m = bore.signal_meaning(r.table, e)
+    if e >= 0 && m != 0 {
+        if bore.signal_listenable(r.table, e) {
+            os_signal_default(m) else |_| {}
+        }
+        let me = os_pid()
+        os_signal_send(me, m) else |_| {}
+        time_sleep_ms(100)
+    }
+    128 + n
+}
+
+/// GNU's `Try` line, and its status.
+fn try_help() -> int {
+    eprint("Try 'timeout --help' for more information.")
+    125
+}
+
+fn options() -> List[bore.Opt] {
+    var s = List[bore.Opt]()
+    (mut s).push(bore.flag("f", "foreground"))
+    (mut s).push(bore.takes("k", "kill-after"))
+    (mut s).push(bore.flag("p", "preserve-status"))
+    (mut s).push(bore.takes("s", "signal"))
+    (mut s).push(bore.flag("v", "verbose"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    s
+}
+
+fn help() -> str {
+    """
+    Usage: timeout [OPTION]... DURATION COMMAND [ARG]...
+    Run COMMAND, and signal it if it is still running after DURATION.
+
+      -f, --foreground
+            leave timeout in its parent's process group, so COMMAND may
+            read the terminal and hear its signals; only COMMAND itself is
+            signalled, not the processes it started
+      -k, --kill-after=DURATION
+            send KILL too, if COMMAND still runs this long after the first
+            signal
+      -p, --preserve-status
+            end with COMMAND's own status, even after a timeout
+      -s, --signal=SIGNAL
+            the signal to send at the timeout (TERM when none is named),
+            by name or by number, as kill -l lists them
+      -v, --verbose
+            say on standard error each signal sent at a timeout
+          --help     print this help and exit
+          --version  print the version and exit
+
+    DURATION is a number, as for sleep, with an optional s (seconds, the
+    default), m (minutes), h (hours) or d (days). 0 means no timeout.
+
+    The status is 124 after a timeout (COMMAND's own with -p), 125 when
+    timeout itself fails, 126 when COMMAND cannot be run, 127 when it
+    cannot be found, 137 when KILL ended it, and COMMAND's own otherwise.
+    Without --foreground this timeout refuses a SIGNAL it cannot ignore
+    (the fault signals, the host's real-time ones).
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}
