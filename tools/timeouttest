@@ -1,0 +1,493 @@
+#!/usr/bin/env python3
+"""timeouttest - `timeout` where it runs a command and signals (bu27).
+
+`timeout` starts a command, leads a process group with it, and at the
+expiry signals that whole group. tools/difftest refuses every case of it
+that could start a command, so this tool runs them where a signal can
+reach nothing but the case: a THROWAWAY CONTAINER, one per case, made
+from an image this tool builds (a base image plus the programs, copied
+in) and removes again.
+
+  - no volume and no bind mount, of anything; `--network none`; a
+    process-id namespace of the container's own; the case runs as an
+    unprivileged user of the image;
+  - every process a case signals is one the case started: the timeout
+    under test, the command it was handed, and that command's children;
+  - nothing under test is ever executed on the host.
+
+Each case runs three programs in turn: GNU coreutils 9.11's `timeout`
+(given with --gnu; asserted to say `timeout (GNU coreutils) 9.11`), and
+this repository's on both tiers, built static so they run in any image.
+A case passes when each of ours answers as GNU did, on these fields:
+
+  status     how timeout ended, from its raw wait status: `exit N`, or
+             `signal NAME` (its parent read a death by a signal, which a
+             shell's `$?` cannot tell from an exit status of 128+N)
+  stdout     byte for byte
+  stderr     byte for byte, the program's path written `timeout`
+  elapsed    seconds, within --tolerance (default 0.35) of GNU's
+  grandchild (with `grandchild = true`) what became of the command's own
+             child: `alive` or `gone`
+  three      (with `fd3 = true`) what the command wrote to descriptor 3
+
+Case file (tests/timeout/cases.toml), any number of [[case]] tables:
+
+  name = "the default signal"   # required, unique
+  args = ["0.3", "sleep", "5"]  # timeout's arguments
+  send = { signal = "TERM", after = 0.3 }
+                                # send SIGNAL to timeout itself AFTER
+                                #   seconds (its parent, the runner, does)
+  stdin = "text"                # standard input (default: /dev/null)
+  stdin_closed = true           # timeout started with descriptor 0 closed
+  stdout_closed = true          # ... with descriptor 1 closed
+  stderr_closed = true          # ... with descriptor 2 closed
+  fd3 = true                    # descriptor 3 open on a file (`three`)
+  grandchild = true             # the command writes its child's id to
+                                #   `gc` (in the case's directory)
+  env = { FOO = "bar" }
+  guard = 10                    # seconds before the runner KILLs timeout
+                                #   (default 10): a case about a hang
+  tolerance = 0.5               # elapsed's tolerance for this case
+  compare = ["status", "stderr"]  # the fields compared (default: all)
+  ours = { status = "exit 125", stderr = "..." }
+                                # where this repository answers BY DESIGN
+                                #   otherwise; `expect` is then GNU's,
+  expect = { status = "exit 124" }  # MEASURED, asserted of GNU every run
+  gnu = false                   # never handed to GNU (it hangs there)
+  only_on = "Linux"
+  skip = "reason"
+
+WITHOUT AN ENGINE (`--engine none`): each case is run on this machine
+directly, in a session of its own, so that a group timeout leads is the
+case's and nothing else. That is for CI's macOS runner, a throwaway
+machine with no container engine. Never on a shared host: the tool
+refuses `--engine none` unless GITHUB_ACTIONS is `true`.
+
+usage: tools/timeouttest [--engine docker|podman|none] [--image IMAGE]
+                         [--bin DIR] [--gnu DIR] [--gnu-prefix P]
+                         [--cases FILE] [--cpus LIST] [--tolerance S]
+                         [--record] [NAME-SUBSTRING...]
+
+  --bin DIR   DIR/release and DIR/dev hold `timeout` (default: build them
+              here; static when the engine is a container's)
+  --gnu DIR   a directory holding GNU 9.11's `timeout`, built for IMAGE
+  --cpus LIST run each case under `taskset -c LIST` INSIDE its container
+              (asserted from inside, as tools/killtest does)
+  --record    run GNU only and print what it answers
+
+Exit status: 0 every case passed, 1 a case failed, 2 the tool could not
+run.
+"""
+
+import os
+import platform
+import re
+import shlex
+import shutil
+import signal as pysignal
+import subprocess
+import sys
+import tempfile
+import tomllib
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CASES = os.path.join(ROOT, "tests", "timeout", "cases.toml")
+TIERS = (("release", ["--release"]), ("dev", []))
+KEYS = {"name", "args", "send", "stdin", "stdin_closed", "stdout_closed",
+        "stderr_closed", "fd3", "grandchild", "env", "guard", "tolerance",
+        "compare", "ours", "expect", "gnu", "only_on", "skip"}
+FIELDS = ("status", "stdout", "stderr", "elapsed", "grandchild", "three")
+USER = "4242"
+
+# One side of one case. `$1` is the timeout under test; the rest of the
+# case is spliced in. The runner is perl (perl-base is in every Debian
+# image and on macOS): it forks, sets up the child's descriptors, execs
+# the program, sends `send` from the parent, guards, and prints the RAW
+# wait status, so a death by a signal is told from an exit status.
+PRELUDE = r"""
+ulimit -c 0
+PROG=$1
+T=$(mktemp -d "${TMPDIR:-/tmp}/bore-timeouttest.XXXXXX") || exit 97
+cd "$T" || exit 97
+if [ "$(date +%N 2>/dev/null)" != "%N" ] && [ "$(date +%N 2>/dev/null | tr -d 0-9)" = "" ]; then
+    now() { date +%s%N; }
+else
+    now() { perl -MTime::HiRes=time -e 'printf "%d\n", time * 1e9'; }
+fi
+run() {
+    perl -MPOSIX -e '
+        my ($sig, $after, $guard, $close) = (shift, shift, shift, shift);
+        my $p = fork();
+        die "fork" unless defined $p;
+        if ($p == 0) {
+            my $o = POSIX::open("out", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            my $e = POSIX::open("err", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            POSIX::dup2($o, 1); POSIX::dup2($e, 2);
+            POSIX::close($o) if $o > 2; POSIX::close($e) if $e > 2;
+            POSIX::close(0) if $close =~ /0/;
+            POSIX::close(1) if $close =~ /1/;
+            POSIX::close(2) if $close =~ /2/;
+            exec @ARGV; POSIX::_exit(127);
+        }
+        if ($sig ne "-") { select(undef, undef, undef, $after); kill $sig, $p; }
+        $SIG{ALRM} = sub { kill "KILL", $p; print "\@guard\n"; };
+        alarm $guard;
+        waitpid($p, 0);
+        print "\@raw $?\n";
+    ' -- "$@"
+}
+"""
+
+
+def die(msg):
+    print(f"timeouttest: {msg}", file=sys.stderr)
+    sys.exit(2)
+
+
+def signame(n):
+    try:
+        return pysignal.Signals(n).name[3:]
+    except ValueError:
+        return str(n)
+
+
+def script(case):
+    """The shell text for one side of `case`."""
+    lines = [PRELUDE]
+    if case.get("fd3"):
+        lines.append(": > three; exec 3> three")
+    send = case.get("send") or {}
+    sig = str(send.get("signal", "-"))
+    after = str(send.get("after", 0))
+    guard = str(int(case.get("guard", 10)))
+    close = ("0" if case.get("stdin_closed") else "") + \
+            ("1" if case.get("stdout_closed") else "") + \
+            ("2" if case.get("stderr_closed") else "")
+    env = "".join(f"{k}={shlex.quote(str(v))} " for k, v in sorted(case.get("env", {}).items()))
+    argv = " ".join(shlex.quote(str(a)) for a in case.get("args", []))
+    if "stdin" in case:
+        lines.append(f"printf '%s' {shlex.quote(str(case['stdin']))} > in")
+        src = "< in"
+    else:
+        src = "< /dev/null"
+    lines.append("s=$(now)")
+    lines.append(f"run {shlex.quote(sig)} {after} {guard} {shlex.quote(close or '-')} "
+                 f"env LC_ALL=C _POSIX2_VERSION=200112 {env}\"$PROG\" {argv} {src} "
+                 "> runner.out 2> runner.err")
+    lines.append("e=$(now)")
+    lines.append("echo \"@elapsed $(( (e - s) / 1000000 ))\"")
+    lines.append("cat runner.out")
+    lines.append("echo \"@out $(od -An -v -tx1 out | tr -d ' \\n')\"")
+    lines.append("echo \"@err $(od -An -v -tx1 err | tr -d ' \\n')\"")
+    if case.get("fd3"):
+        lines.append("exec 3>&-")
+        lines.append("echo \"@three $(od -An -v -tx1 three | tr -d ' \\n')\"")
+    if case.get("grandchild"):
+        lines.append("sleep 0.3")
+        lines.append("if [ -s gc ] && kill -0 \"$(cat gc)\" 2>/dev/null; then echo '@gc alive'; "
+                     "kill -KILL \"$(cat gc)\" 2>/dev/null; else echo '@gc gone'; fi")
+    lines.append("cd /; rm -rf \"$T\"; echo @done")
+    return "\n".join(lines) + "\n"
+
+
+def read(text, prog):
+    got = {"status": None, "stdout": "", "stderr": "", "elapsed": None,
+           "grandchild": None, "three": None}
+    done = guard = False
+    for line in text.splitlines():
+        if line.startswith("@raw "):
+            raw = int(line.split()[1])
+            got["status"] = (f"signal {signame(raw & 127)}" if raw & 127
+                             else f"exit {raw >> 8}")
+        elif line == "@guard":
+            guard = True
+        elif line.startswith("@elapsed "):
+            got["elapsed"] = int(line.split()[1]) / 1000.0
+        elif line.startswith("@out") or line.startswith("@err") or line.startswith("@three"):
+            key, _, hexs = line.partition(" ")
+            data = bytes.fromhex(hexs.strip()).decode(errors="backslashreplace")
+            field = {"@out": "stdout", "@err": "stderr", "@three": "three"}[key]
+            if field == "stderr":
+                data = data.replace(prog, "timeout")
+            got[field] = data
+        elif line.startswith("@gc "):
+            got["grandchild"] = line[4:].strip()
+        elif line == "@done":
+            done = True
+    if not done or got["status"] is None:
+        return None
+    if guard:
+        got["status"] = "guard " + got["status"]
+    return got
+
+
+def build(out, static):
+    wolf = os.path.join(ROOT, ".wolf-bin", "wolf")
+    if not os.access(wolf, os.X_OK):
+        die("no .wolf-bin/wolf (run tools/fetch-toolchain)")
+    env = dict(os.environ)
+    env["WOLF_STD"] = os.path.join(ROOT, ".wolf-bin", "std")
+    if static:
+        real = shutil.which("cc") or die("no cc on PATH")
+        wrap = os.path.join(out, "cc-static")
+        os.makedirs(wrap, exist_ok=True)
+        with open(os.path.join(wrap, "cc"), "w") as fh:
+            fh.write(f'#!/bin/sh\nexec {real} -static "$@"\n')
+        os.chmod(os.path.join(wrap, "cc"), 0o755)
+        env["PATH"] = wrap + os.pathsep + env.get("PATH", "")
+    for tier, flags in TIERS:
+        os.makedirs(os.path.join(out, tier), exist_ok=True)
+        dest = os.path.join(out, tier, "timeout")
+        done = subprocess.run(
+            [wolf, "build"] + flags + ["--no-cache", "--deny-warnings",
+             os.path.join("src", "timeout.lu"), "-o", dest], cwd=ROOT, env=env)
+        if done.returncode != 0:
+            die(f"wolf build of timeout ({tier}) exited {done.returncode}")
+    return out
+
+
+def is_static(path):
+    with open(path, "rb") as fh:
+        head = fh.read(1 << 16)
+    return b"/ld-linux" not in head and b"/ld-musl" not in head and b"/usr/lib/dyld" not in head
+
+
+DOCKERFILE = """FROM {image}
+COPY t /t
+RUN chmod -R a+rX /t && chmod a+x /t/bin/*/* \\
+ && useradd -m -u {user} bore \\
+ && command -v perl && command -v setsid && command -v od && perl -MPOSIX -e 1
+"""
+
+
+def main(argv):
+    engine = image = bindir = gnudir = None
+    cases_path = CASES
+    prefix = ""
+    record = False
+    cpus = None
+    tolerance = 0.35
+    only = []
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a in ("--engine", "--image", "--bin", "--gnu", "--gnu-prefix", "--cases",
+                 "--cpus", "--tolerance"):
+            if i + 1 >= len(argv):
+                die(f"{a} needs a value")
+            v = argv[i + 1]
+            i += 1
+            if a == "--engine":
+                engine = v
+            elif a == "--image":
+                image = v
+            elif a == "--bin":
+                bindir = os.path.abspath(v)
+            elif a == "--gnu":
+                gnudir = os.path.abspath(v)
+            elif a == "--cases":
+                cases_path = os.path.abspath(v)
+            elif a == "--cpus":
+                cpus = v
+            elif a == "--tolerance":
+                tolerance = float(v)
+            else:
+                prefix = v
+        elif a == "--record":
+            record = True
+        elif a.startswith("--"):
+            die(f"unknown argument {a!r}")
+        else:
+            only.append(a)
+        i += 1
+    engine = engine or ("docker" if shutil.which("docker") else "podman")
+    boxed = engine != "none"
+    if not boxed and os.environ.get("GITHUB_ACTIONS") != "true":
+        die("`--engine none` runs every case on this machine: only on a "
+            "throwaway CI runner (GITHUB_ACTIONS=true)")
+    if boxed and shutil.which(engine) is None:
+        die(f"no container engine ({engine}) on PATH")
+    image = image or "ubuntu:24.04"
+    if gnudir is None:
+        die("--gnu DIR is required: GNU coreutils 9.11's timeout")
+    with open(cases_path, "rb") as fh:
+        cases = tomllib.load(fh).get("case", [])
+    seen = set()
+    for c in cases:
+        extra = set(c) - KEYS
+        if "name" not in c or extra:
+            die(f"a case is malformed: {c.get('name', '?')!r} {sorted(extra)}")
+        if c["name"] in seen:
+            die(f"duplicate case name {c['name']!r}")
+        seen.add(c["name"])
+        for f in c.get("compare", []):
+            if f not in FIELDS:
+                die(f"case {c['name']!r} compares unknown {f!r}")
+        if "ours" not in c and c.get("gnu") is False:
+            die(f"case {c['name']!r} is not handed to GNU and says nothing of ours")
+    gnu_timeout = os.path.join(gnudir, prefix + "timeout")
+    if not os.access(gnu_timeout, os.X_OK):
+        die(f"no program at {gnu_timeout}")
+    with open(os.path.join(ROOT, "gnu-oracle.toml"), "rb") as fh:
+        oracle = str(tomllib.load(fh)["oracle"]["version"])
+
+    scratch = tempfile.mkdtemp(prefix="bore-timeouttest.")
+    tag = f"bore-timeouttest:{os.getpid()}"
+    failed = passed = skipped = 0
+    host = platform.system()
+    try:
+        if bindir is None and not record:
+            bindir = build(os.path.join(ROOT, "target", "timeouttest"), boxed)
+        sides = [("gnu", gnu_timeout)]
+        if not record:
+            for tier, _ in TIERS:
+                path = os.path.join(bindir, tier, "timeout")
+                if not os.access(path, os.X_OK):
+                    die(f"no program at {path}")
+                sides.append((tier, path))
+                print(f"timeouttest: {tier}/timeout is "
+                      f"{'static' if is_static(path) else 'dynamic'}")
+        if boxed:
+            ctx = os.path.join(scratch, "ctx")
+            for who, path in sides:
+                os.makedirs(os.path.join(ctx, "t", "bin", who))
+                shutil.copy(path, os.path.join(ctx, "t", "bin", who, "timeout"))
+            with open(os.path.join(ctx, "Dockerfile"), "w") as fh:
+                fh.write(DOCKERFILE.format(image=image, user=USER))
+            built = subprocess.run([engine, "build", "-q", "-t", tag, ctx],
+                                   capture_output=True, text=True)
+            if built.returncode != 0:
+                die(f"{engine} build failed: {built.stderr.strip()[-600:]}")
+            where = {who: f"/t/bin/{who}/timeout" for who, _ in sides}
+            said = subprocess.run([engine, "run", "--rm", "--network", "none", tag,
+                                   where["gnu"], "--version"], capture_output=True, text=True)
+            print(f"timeouttest: {engine}, image {image}, one fresh container a "
+                  f"case, no mount, no network, as user {USER}")
+        else:
+            where = dict(sides)
+            said = subprocess.run([gnu_timeout, "--version"], capture_output=True, text=True)
+            print(f"timeouttest: NO CONTAINER — on this machine ({host}), a "
+                  f"throwaway runner; every case in a session of its own")
+        first = (said.stdout.splitlines() or [""])[0]
+        if said.returncode != 0 or first != f"timeout (GNU coreutils) {oracle}":
+            die(f"the timeout given as GNU's is not coreutils {oracle}'s: {first!r}")
+        print(f"timeouttest: gnu = {first} ({gnu_timeout})")
+        pin = ["taskset", "-c", cpus] if cpus else []
+        if cpus:
+            ask = pin + ["sh", "-c", "grep Cpus_allowed_list /proc/self/status"]
+            if boxed:
+                ask = [engine, "run", "--rm", "--network", "none", tag] + ask
+            took = subprocess.run(ask, capture_output=True, text=True).stdout.split()
+            if took[-1:] != [cpus]:
+                die(f"--cpus {cpus} did not take: {took!r}")
+            print(f"timeouttest: every case under taskset -c {cpus} "
+                  f"(Cpus_allowed_list {took[-1]}, read inside)")
+
+        def one(case, who, serial):
+            text = script(case)
+            if boxed:
+                name = f"bore-timeouttest-{os.getpid()}-{serial}"
+                cmd = [engine, "run", "--rm", "--name", name, "--network", "none",
+                       "--user", USER, "--workdir", "/tmp", tag] + pin + [
+                       "sh", "-c", text, "case", where[who]]
+            else:
+                cmd = pin + ["sh", "-c", text, "case", where[who]]
+            try:
+                done = subprocess.run(cmd, capture_output=True, timeout=120,
+                                      stdin=subprocess.DEVNULL, start_new_session=True)
+            except subprocess.TimeoutExpired:
+                if boxed:
+                    subprocess.run([engine, "rm", "-f", name], capture_output=True)
+                return None, "timed out"
+            out = done.stdout.decode(errors="replace")
+            return read(out, where[who]), out + done.stderr.decode(errors="replace")
+
+        serial = 0
+        for c in cases:
+            label = c["name"]
+            if only and not any(o in label for o in only):
+                continue
+            reason = c.get("skip")
+            if reason is None and "only_on" in c and c["only_on"] != host:
+                reason = f"on {host}: the case is {c['only_on']}'s"
+            if reason is not None:
+                skipped += 1
+                print(f"SKIP {label} ({reason})")
+                continue
+            fields = [f for f in c.get("compare", FIELDS)
+                      if (f != "grandchild" or c.get("grandchild")) and
+                         (f != "three" or c.get("fd3"))]
+            results, logs = {}, {}
+            for who, _ in sides:
+                if who == "gnu" and c.get("gnu") is False:
+                    continue
+                serial += 1
+                results[who], logs[who] = one(c, who, serial)
+            if record:
+                print(f"# {label}: {results.get('gnu')!r}")
+                continue
+            ok = True
+            why = []
+            g = results.get("gnu")
+            if c.get("gnu") is not False:
+                if g is None:
+                    ok = False
+                    why.append(f"gnu did not finish: {logs['gnu'][-300:]!r}")
+                elif "expect" in c:
+                    for f, v in c["expect"].items():
+                        if g[f] != v:
+                            ok = False
+                            why.append(f"gnu {f}: got {g[f]!r}, the case records {v!r}")
+            tol = float(c.get("tolerance", tolerance))
+            for tier, _ in TIERS:
+                o = results.get(tier)
+                if o is None:
+                    ok = False
+                    why.append(f"{tier} did not finish: {logs[tier][-300:]!r}")
+                    continue
+                if "ours" in c:
+                    for f, v in c["ours"].items():
+                        if o[f] != v:
+                            ok = False
+                            why.append(f"{tier} {f}: got {o[f]!r}, want {v!r} (by design)")
+                    continue
+                if g is None:
+                    continue
+                for f in fields:
+                    if f == "elapsed":
+                        if abs(o[f] - g[f]) > tol:
+                            ok = False
+                            why.append(f"{tier} elapsed: {o[f]:.2f} s, gnu {g[f]:.2f} s")
+                    elif o[f] != g[f]:
+                        ok = False
+                        why.append(f"{tier} {f}: {o[f]!r}, gnu {g[f]!r}")
+            if ok:
+                passed += 1
+                print(f"ok   {label}")
+            else:
+                failed += 1
+                print(f"FAIL {label}  args={c.get('args', [])!r}")
+                for line in why:
+                    print(f"    {line}")
+    finally:
+        if boxed:
+            subprocess.run([engine, "rmi", "-f", tag], capture_output=True)
+        shutil.rmtree(scratch, ignore_errors=True)
+    if not record:
+        print(f"timeouttest: {passed} passed, {failed} failed, {skipped} skipped")
+    return 1 if failed else 0
+
+
+if __name__ == "__main__":
+    sys.stdout.reconfigure(line_buffering=True)
+    try:
+        code = main(sys.argv[1:])
+    except SystemExit:
+        raise
+    except Exception:
+        import traceback
+        sys.stdout.flush()
+        traceback.print_exc()
+        print("timeouttest: the tool died; no verdict", file=sys.stderr)
+        code = 2
+    sys.exit(code)
