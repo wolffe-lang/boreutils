@@ -26,14 +26,15 @@ usage: tools/killprobe --gnu PROGRAM [--upto N] [--sample N] [--batch N]
 
   --gnu PROGRAM  GNU 9.11's own `kill` (its --version line is asserted)
   PROGRAM...     the programs compared with it (our two tiers)
-  --table        ask `-t` as well, on the numbers that name a signal,
-                 and compare its first two columns
+  --table        ask `-t` as well, and compare its whole line
 
-A number GNU reads as a signal wolf has no meaning for (linux's STKFLT,
-POLL, PWR and the real-time range, which GNU names `32`, `RTMIN+1` …;
-macOS's EMT, IO, INFO) is `invalid signal` here BY DESIGN
-(`src/bore/signals.lu`): such a parting is counted apart, as `by
-design`, and is no failure. Any other parting is.
+Since bu27 (wolf 0.2.31's host signals, `-N`) every number the host
+names is ours too, and `-t` carries the host's words for each
+(`os_signal_text`), so every line is compared whole. One parting is BY
+DESIGN and counted apart: a `-t` row for signal 0 (`EXIT`, and every
+number that reads as it: 128, 256, …), where GNU prints `strsignal(0)`'s
+words and wolf has none (`os_signal_text` refuses 0): ours must then be
+GNU's line without its third column. Any other parting is a failure.
 
 Exit status: 0 every number answered alike or by design, 1 a number
 parted otherwise (each run of them is listed), 2 the tool could not run.
@@ -115,21 +116,13 @@ def answers(prog, flag, ns, size):
     return got
 
 
-# The 28 signals wolf has a meaning for, and EXIT (`src/bore/signals.lu`).
-WOLF = {"EXIT", "HUP", "INT", "QUIT", "ILL", "TRAP", "ABRT", "BUS", "FPE", "KILL",
-        "USR1", "SEGV", "USR2", "PIPE", "ALRM", "TERM", "CHLD", "CONT", "STOP",
-        "TSTP", "TTIN", "TTOU", "URG", "XCPU", "XFSZ", "VTALRM", "PROF", "WINCH", "SYS"}
-
-
-def two_columns(v):
-    return v if v.startswith("invalid") else " ".join(v.split()[:2])
-
-
 def by_design(ours, gnu):
-    """GNU names a signal wolf has no meaning for, and ours refuses it."""
-    if not ours.startswith("invalid") or gnu.startswith("invalid"):
+    """A `-t` row for signal 0: GNU's line, and ours the same without the
+    host's words for signal 0, which wolf cannot ask for."""
+    g = gnu.split()
+    if len(g) < 3 or g[0] != "0" or g[1] != "EXIT":
         return False
-    return gnu.split()[-1] not in WOLF
+    return ours == gnu[:gnu.index("EXIT") + 4]
 
 
 def runs(ns):
@@ -192,22 +185,17 @@ def main(argv):
     parted = 0
     for flag in flags:
         g = answers(gnu, flag, ns, size)
-        if flag == "-t":
-            # The rows GNU names, two columns: wolf has no signal's words.
-            g = {n: two_columns(v) for n, v in g.items()}
         names = sum(1 for v in g.values() if not v.startswith("invalid"))
         print(f"killprobe: gnu {flag}: {names} numbers name a signal, "
               f"{len(ns) - names} are invalid")
         for prog in progs:
             o = answers(prog, flag, ns, size)
-            if flag == "-t":
-                o = {n: two_columns(v) for n, v in o.items()}
             unlike = [n for n in ns if o[n] != g[n]]
             design = [n for n in unlike if by_design(o[n], g[n])]
             diff = [n for n in unlike if not by_design(o[n], g[n])]
             if not diff:
                 print(f"agree {prog} {flag}: {len(ns) - len(design)} numbers alike, "
-                      f"{len(design)} by design (GNU names a signal wolf has no meaning for)")
+                      f"{len(design)} by design (a -t row for signal 0: no words for it)")
                 continue
             parted += len(diff)
             print(f"PART  {prog} {flag}: {len(diff)} of {len(ns)} numbers")
