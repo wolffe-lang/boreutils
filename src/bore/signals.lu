@@ -231,29 +231,28 @@ fn entry_named(t: SignalTable, name: str) -> int {
 }
 
 /// The host number a real-time name spells, GNU's way (measured): `RTMIN`
-/// or `RTMAX` alone, `RTMIN+K` counting up from the first, `RTMAX-K` down
-/// from the last, `K` decimal digits (leading zeros taken), and the
-/// answer inside the range; -1 for anything else, or a host with none.
+/// or `RTMAX` alone, or either followed by a number read as C's `strtol`
+/// reads one (`process_id`'s rule: blanks, one sign, digits, all of it,
+/// a C `int`), counted from that end, the answer inside the range.
+/// `RTMIN1`, `RTMIN +1` and `RTMAX+0` name a signal; `RTMAX+1`, `RTMIN-1`
+/// and `RTMIN ` do not. -1 for anything else, or a host with no
+/// real-time range.
 fn realtime_named(t: SignalTable, name: str) -> int {
     if t.rt_lo <= 0 || name.len < 5 {
         return -1
     }
-    let up = name.starts_with("RTMIN")
-    if !up && !name.starts_with("RTMAX") {
+    let low = name.starts_with("RTMIN")
+    if !low && !name.starts_with("RTMAX") {
         return -1
     }
+    let base = if low then t.rt_lo else t.rt_hi
     if name.len == 5 {
-        return if up then t.rt_lo else t.rt_hi
+        return base
     }
-    let b = name.bytes()
-    let sign = b[5] as int
-    if up && sign != 43 || !up && sign != 45 {
+    let k = process_id(name[5..]) else |_| {
         return -1
     }
-    let k = c_int(b, 6) else |_| {
-        return -1
-    }
-    let n = if up then t.rt_lo + k else t.rt_hi - k
+    let n = base + k
     if n < t.rt_lo || n > t.rt_hi {
         return -1
     }
