@@ -200,11 +200,7 @@ fn passed_on() -> int {
 /// Start the command and see it to its end; the status timeout ends
 /// with (when it does not end by a signal itself).
 fn run(r: Run, args: List[str]) -> int {
-    if !r.foreground {
-        // A session leader cannot move (`denied`); it already leads its
-        // own group, which is what this is for.
-        os_set_pgid(0) else |_| {}
-    }
+    // PLANT (bu27, never merged): timeout leads no group.
     os_signal_ignore(signal.bg_read() | signal.bg_write()) else |_| {}
     let heard = passed_on() | signal.child() | signal.alarm()
     os_signal_listen(heard) else |_| {
@@ -384,7 +380,8 @@ fn to_all(r: Run, t: bore.SignalTable, e: int, m: int, child: int) {
     if child > 0 {
         os_signal_send(child, m) else |_| {}
     }
-    if r.foreground {
+    // PLANT (bu27, never merged): the command alone is signalled.
+    if r.foreground || child > 0 {
         return
     }
     let own = os_pgid() else |_| {
