@@ -16,11 +16,32 @@ fn pid(a: str) -> int {
 
 fn main() {
     let t = bore.signal_table()
-    // Every meaning wolf has is numbered by this host, in order, once.
-    assert(t.numbers.len == 28, "28 signals")
-    assert(t.names.len == 28 && t.meanings.len == 28, "three lists of one length")
+    // Every meaning wolf has is numbered by this host, in order, once;
+    // then every other number up to the host's last, as a host signal.
+    let last = os_signal_last() else 0
+    assert(last >= 31, "the host's last signal")
+    assert(t.numbers.len == last, "every number from 1 to the last, once")
+    assert(
+        t.names.len == last && t.meanings.len == last && t.named.len == last,
+        "four lists of one length",
+    )
+    var meanings = 0
     var i = 0
     while i < t.numbers.len {
+        assert(t.numbers[i] == i + 1, "the entry for each number, in order")
+        if t.meanings[i] < 0 {
+            assert(t.meanings[i] == -t.numbers[i], "a host signal is sent as -N")
+            if t.named[i] {
+                assert(entry(t, t.names[i]) == i, "a host signal by its name")
+            } else {
+                assert(t.names[i] == "{t.numbers[i]}", "one with no name is its number")
+                assert(bore.signal_table_name(t, i) == "SIG{t.numbers[i]}", "and SIGN in a table")
+            }
+            assert(entry(t, "{t.numbers[i]}") == i, "a host signal by its number")
+            i += 1
+            continue
+        }
+        meanings += 1
         assert(t.numbers[i] >= 1, "a signal's number is at least 1")
         if i > 0 {
             assert(t.numbers[i] > t.numbers[i - 1], "ascending, no number twice")
@@ -43,8 +64,17 @@ fn main() {
         assert(bore.signal_name(t, i) == name, "the name of an entry")
         let asked = os_signal_number(bore.signal_meaning(t, i)) else -1
         assert(asked == n, "the meaning's number is the host's")
+        assert(bore.signal_named(t, i), "every meaning has its name")
+        assert(bore.signal_text(t, i).len > 0, "and the host's words")
         i += 1
     }
+    assert(meanings == 28, "the 28 meanings")
+    assert(bore.signal_listenable(t, entry(t, "TERM")), "TERM can be heard")
+    assert(bore.signal_listenable(t, entry(t, "XFSZ")), "XFSZ can be heard")
+    assert(!bore.signal_listenable(t, entry(t, "KILL")), "KILL cannot")
+    assert(!bore.signal_listenable(t, entry(t, "SEGV")), "SEGV cannot")
+    assert(!bore.signal_listenable(t, -1), "nor EXIT")
+    assert(bore.signal_text(t, -1) == "", "signal 0 has no words here")
     // The names are POSIX's, whatever the host numbers them.
     assert(bore.signal_meaning(t, entry(t, "HUP")) == signal.reload(), "HUP")
     assert(bore.signal_meaning(t, entry(t, "INT")) == signal.interrupt(), "INT")
@@ -100,14 +130,38 @@ fn main() {
     assert(entry(t, "2147483648") == -2, "past a C int")
     assert(entry(t, "99999999999999999999") == -2, "far past a C int")
     assert(entry(t, "255") == -2, "an exit status whose low seven bits are 127")
+    assert(entry(t, "{last + 1}") == -2, "one past the host's last")
     assert(entry(t, "ſigterm") == -2, "a letter that only Unicode folds to S")
-    // No real-time signal, and nothing only one host has: no meaning.
-    assert(entry(t, "RTMIN") == -2, "RTMIN")
-    assert(entry(t, "RTMAX-1") == -2, "RTMAX-1")
-    assert(entry(t, "STKFLT") == -2, "STKFLT")
-    assert(entry(t, "PWR") == -2, "PWR")
-    assert(entry(t, "EMT") == -2, "EMT")
-    assert(entry(t, "INFO") == -2, "INFO")
+    // The host's own signals, by name (measured against GNU 9.11).
+    if bore.built_for_linux() {
+        let lo = entry(t, "RTMIN")
+        let hi = entry(t, "RTMAX")
+        assert(lo >= 0 && hi > lo, "RTMIN and RTMAX on linux")
+        let span = bore.signal_number(t, hi) - bore.signal_number(t, lo)
+        assert(entry(t, "RTMIN+0") == lo, "RTMIN+0")
+        assert(entry(t, "RTMAX-0") == hi, "RTMAX-0")
+        assert(entry(t, "RTMIN+1") == lo + 1, "RTMIN+1")
+        assert(entry(t, "rtmin+01") == lo + 1, "rtmin+01")
+        assert(entry(t, "SIGRTMAX-1") == hi - 1, "SIGRTMAX-1")
+        assert(entry(t, "RTMIN+{span}") == hi, "RTMIN+span is RTMAX")
+        assert(entry(t, "RTMAX-{span}") == lo, "RTMAX-span is RTMIN")
+        assert(entry(t, "RTMIN+{span + 1}") == -2, "past RTMAX")
+        assert(entry(t, "RTMAX-{span + 1}") == -2, "before RTMIN")
+        assert(entry(t, "RTMIN-1") == -2, "RTMIN-1")
+        assert(entry(t, "RTMAX+1") == -2, "RTMAX+1")
+        assert(entry(t, "RTMIN+") == -2, "RTMIN+")
+        assert(entry(t, "RTMIN+x") == -2, "RTMIN+x")
+        assert(entry(t, "STKFLT") >= 0, "STKFLT")
+        assert(entry(t, "PWR") >= 0, "PWR")
+        assert(entry(t, "IO") == entry(t, "POLL") && entry(t, "POLL") >= 0, "IO is POLL")
+        assert(entry(t, "EMT") == -2, "no EMT on linux")
+    } else {
+        assert(entry(t, "RTMIN") == -2, "no real-time range on macOS")
+        assert(entry(t, "EMT") >= 0, "EMT")
+        assert(entry(t, "INFO") >= 0, "INFO")
+        assert(entry(t, "IO") >= 0, "IO")
+        assert(entry(t, "STKFLT") == -2, "no STKFLT on macOS")
+    }
     // Whether `-l` answers a name or a number.
     assert(bore.signal_is_number("9"), "9 is a number")
     assert(bore.signal_is_number("09"), "09 is a number")

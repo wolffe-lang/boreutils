@@ -20,16 +20,26 @@
 //! linux numbers: what `kill -l 10` prints is decided by the host it
 //! runs on.
 //!
-//! **What the table holds: the 28 signals wolf 0.2.29 has a meaning
-//! for**, every one POSIX names. What a host has beyond them is NOT
-//! here, and GNU's `kill` knows it: on linux `STKFLT` (16), `POLL`/`IO`
-//! (29), `PWR` (30) and the real-time range (`RTMIN` … `RTMAX`, 34–64,
-//! with the unnamed 32 and 33); on macOS `EMT` (7), `IO` (23) and `INFO`
-//! (29). wolf has no meaning for any of them (`[os.signal.set]`:
-//! "`SIGPOLL` has no bit", "real-time signals … are out of scope"), so
-//! each is `invalid` here, by name and by number, where GNU would take
-//! it. No wolf-lang issue asks for them yet; the text is with bu23's
-//! report.
+//! **What the table holds: every signal the host numbers** (bu27, wolf
+//! 0.2.31's s241, ruling #79 R4). First the 28 wolf has a meaning for,
+//! every one POSIX names, each numbered by `os_signal_number`; then every
+//! other number from 1 to `os_signal_last()` (64 on linux, 31 on macOS),
+//! which wolf reaches as a HOST signal, `-N` (`[os.signal.host]`). Their
+//! names, as GNU's `kill` gives them, are found without writing a number:
+//!
+//! - the real-time range is `os_signal_realtime()`'s (34 to 64 under
+//!   glibc, none on macOS) and is named from its two ends: `RTMIN`,
+//!   `RTMIN+1` … up to the middle, then `RTMAX-14` … `RTMAX-1`, `RTMAX`
+//!   (measured: GNU names 49 `RTMIN+15` and 50 `RTMAX-14`);
+//! - a host-only signal outside it is named by the host C library's words
+//!   for it (`os_signal_text`, `strsignal` in the C locale): "Stack
+//!   fault" is `STKFLT`, "I/O possible" `POLL` on linux and `IO` on
+//!   macOS, "Power failure" `PWR`, "EMT trap" `EMT`, "Information
+//!   request" `INFO`. `killprobe` holds this to GNU over every number on
+//!   both hosts, so a C library that words one differently shows there;
+//! - any other number has no name: glibc keeps 32 and 33 for itself, and
+//!   GNU's `kill -l 32` answers `32`, its `-t` `SIG32`, and its whole
+//!   lists leave both out.
 //!
 //! GNU's rules for a SIGNAL operand, each measured against 9.11:
 //!
@@ -51,15 +61,19 @@
 
 use std.signal
 
-/// The signals this host and wolf both know, in the host's numeric
-/// order. Three parallel lists: entry `i` is the signal the host
-/// numbers `numbers[i]`, POSIX calls `names[i]` (no `SIG`), and wolf
-/// means by `meanings[i]`. Signal 0 (`EXIT`) is not an entry: it is no
-/// signal, and no meaning.
+/// The signals this host numbers, in its numeric order. Four parallel
+/// lists: entry `i` is the signal the host numbers `numbers[i]`, GNU
+/// calls `names[i]` (no `SIG`; the number itself for one with no name),
+/// `named[i]` says whether it has a name, and wolf sends it as
+/// `meanings[i]`: a meaning's bit for the 28, `-N` for a host signal.
+/// Signal 0 (`EXIT`) is not an entry: it is no signal, and no meaning.
 pub struct SignalTable {
     numbers: List[int],
     names: List[str],
+    named: List[bool],
     meanings: List[int],
+    rt_lo: int,
+    rt_hi: int,
 }
 
 /// Ask the host its number for one meaning and file it in order. A
@@ -69,26 +83,76 @@ fn file_signal(mut t: SignalTable, name: str, meaning: int) {
     let n = os_signal_number(meaning) else |_| {
         return
     }
+    file_at(mut t, n, name, true, meaning)
+}
+
+/// File the host's signal `n` under `name` in numeric order.
+fn file_at(mut t: SignalTable, n: int, name: str, named: bool, meaning: int) {
     (mut t.numbers).push(n)
     (mut t.names).push(name)
+    (mut t.named).push(named)
     (mut t.meanings).push(meaning)
     var k = t.numbers.len - 1
     while k > 0 && t.numbers[k - 1] > n {
         t.numbers[k] = t.numbers[k - 1]
         t.names[k] = t.names[k - 1]
+        t.named[k] = t.named[k - 1]
         t.meanings[k] = t.meanings[k - 1]
         k -= 1
     }
     t.numbers[k] = n
     t.names[k] = name
+    t.named[k] = named
     t.meanings[k] = meaning
+}
+
+/// GNU's name for the host signal `n`, which wolf has no meaning for, or
+/// `""` when it has none (the module header): the real-time range
+/// `lo..=hi` from its ends, else the host C library's words.
+fn host_name(n: int, lo: int, hi: int) -> str {
+    if lo > 0 && n >= lo && n <= hi {
+        if n == lo {
+            return "RTMIN"
+        }
+        if n == hi {
+            return "RTMAX"
+        }
+        if n <= (lo + hi) / 2 {
+            return "RTMIN+{n - lo}"
+        }
+        return "RTMAX-{hi - n}"
+    }
+    let words = os_signal_text(-n) else ""
+    if words.starts_with("Stack fault") {
+        return "STKFLT"
+    }
+    if words.starts_with("I/O possible") {
+        return if built_for_linux() then "POLL" else "IO"
+    }
+    if words.starts_with("Power failure") {
+        return "PWR"
+    }
+    if words.starts_with("EMT trap") {
+        return "EMT"
+    }
+    if words.starts_with("Information request") {
+        return "INFO"
+    }
+    ""
 }
 
 /// The table for this host. One line a meaning, every one named by
 /// `std.signal`'s function for it: the twenty a program may catch, then
 /// the eight it may only send.
 pub fn signal_table() -> SignalTable {
-    var t = SignalTable { numbers: List[int](), names: List[str](), meanings: List[int]() }
+    var t = SignalTable {
+        numbers: List[int](),
+        names: List[str](),
+        named: List[bool](),
+        meanings: List[int](),
+        rt_lo: 0,
+        rt_hi: 0,
+    }
     file_signal(mut t, "HUP", signal.reload())
     file_signal(mut t, "TERM", signal.terminate())
     file_signal(mut t, "QUIT", signal.quit())
@@ -117,6 +181,23 @@ pub fn signal_table() -> SignalTable {
     file_signal(mut t, "ILL", signal.illegal())
     file_signal(mut t, "TRAP", signal.breakpoint())
     file_signal(mut t, "SYS", signal.bad_syscall())
+    // Then every other number the host has, sent as `-N`.
+    let last = os_signal_last() else 0
+    let (lo, hi) = os_signal_realtime() else (0, 0)
+    t.rt_lo = lo
+    t.rt_hi = hi
+    var n = 1
+    while n <= last {
+        if entry_numbered(t, n) < 0 {
+            let name = host_name(n, lo, hi)
+            if name.len > 0 {
+                file_at(mut t, n, name, true, -n)
+            } else {
+                file_at(mut t, n, "{n}", false, -n)
+            }
+        }
+        n += 1
+    }
     t
 }
 
@@ -141,12 +222,42 @@ fn entry_numbered(t: SignalTable, n: int) -> int {
 fn entry_named(t: SignalTable, name: str) -> int {
     var i = 0
     while i < t.names.len {
-        if t.names[i] == name {
+        if t.named[i] && t.names[i] == name {
             return i
         }
         i += 1
     }
     -1
+}
+
+/// The host number a real-time name spells, GNU's way (measured): `RTMIN`
+/// or `RTMAX` alone, `RTMIN+K` counting up from the first, `RTMAX-K` down
+/// from the last, `K` decimal digits (leading zeros taken), and the
+/// answer inside the range; -1 for anything else, or a host with none.
+fn realtime_named(t: SignalTable, name: str) -> int {
+    if t.rt_lo <= 0 || name.len < 5 {
+        return -1
+    }
+    let up = name.starts_with("RTMIN")
+    if !up && !name.starts_with("RTMAX") {
+        return -1
+    }
+    if name.len == 5 {
+        return if up then t.rt_lo else t.rt_hi
+    }
+    let b = name.bytes()
+    let sign = b[5] as int
+    if up && sign != 43 || !up && sign != 45 {
+        return -1
+    }
+    let k = c_int(b, 6) else |_| {
+        return -1
+    }
+    let n = if up then t.rt_lo + k else t.rt_hi - k
+    if n < t.rt_lo || n > t.rt_hi {
+        return -1
+    }
+    n
 }
 
 fn digit_at(b: List[byte], i: int) -> bool {
@@ -234,6 +345,15 @@ pub fn signal_entry(t: SignalTable, spec: str) -> int ! {invalid} {
     if i2 < 0 && name == "CLD" && built_for_linux() {
         i2 = entry_named(t, "CHLD")
     }
+    if i2 < 0 && name == "IO" && built_for_linux() {
+        i2 = entry_named(t, "POLL")
+    }
+    if i2 < 0 {
+        let n = realtime_named(t, name)
+        if n > 0 {
+            i2 = entry_numbered(t, n)
+        }
+    }
     if i2 < 0 {
         return invalid
     }
@@ -256,13 +376,49 @@ pub fn signal_name(t: SignalTable, i: int) -> str {
     t.names[i]
 }
 
+/// Whether entry `i` has a name (`EXIT` does; glibc's 32 and 33 do
+/// not): a whole list leaves out an entry with none.
+pub fn signal_named(t: SignalTable, i: int) -> bool {
+    i < 0 || t.named[i]
+}
+
+/// The name `-t` prints for entry `i`: its name, or `SIG` and its number
+/// for one with none (GNU's `kill -t 32` says `SIG32`).
+pub fn signal_table_name(t: SignalTable, i: int) -> str {
+    if signal_named(t, i) {
+        return signal_name(t, i)
+    }
+    "SIG{t.numbers[i]}"
+}
+
+/// The host C library's words for entry `i` (`os_signal_text`, the C
+/// locale), or `""` where wolf has none to give: signal 0, which
+/// `os_signal_text` refuses (`[os.signal.text]`), where GNU prints
+/// `strsignal(0)`'s words.
+pub fn signal_text(t: SignalTable, i: int) -> str {
+    if i < 0 {
+        return ""
+    }
+    os_signal_text(t.meanings[i]) else ""
+}
+
 /// The meaning `os_signal_send` takes for entry `i`; 0, which sends
-/// nothing and still asks, for -1.
+/// nothing and still asks, for -1. A host signal wolf has no meaning for
+/// is `-N` (`[os.signal.host]`), which every sending call takes.
 pub fn signal_meaning(t: SignalTable, i: int) -> int {
     if i < 0 {
         return 0
     }
     t.meanings[i]
+}
+
+/// Whether entry `i`'s signal can be heard: one of the twenty meanings a
+/// program may listen for or ignore (`[os.signal.set]`: they sit below
+/// `KILL`, the first of the eight send-only meanings). The send-only
+/// eight and every host `-N` cannot.
+pub fn signal_listenable(t: SignalTable, i: int) -> bool {
+    let m = signal_meaning(t, i)
+    m > 0 && m < signal.kill()
 }
 
 /// Whether a SIGNAL operand was written as a number, so that `-l`
