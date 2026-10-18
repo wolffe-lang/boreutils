@@ -1,0 +1,643 @@
+# timeout, where it RUNS A COMMAND — run only by tools/timeouttest: one
+# fresh container a case, no mount, no network, as a user of the image,
+# every process a signal reaches one the case started (bu27). The cases
+# that start no command are tests/cases/timeout.toml (tools/difftest).
+#
+# Each case runs GNU coreutils 9.11's `timeout` (asserted by its
+# `--version` line), then this repository's on both tiers, and compares
+# how each ended (`exit N`, or `signal NAME`: a death by a signal, which a
+# shell's `$?` cannot tell from an exit status of 128+N), its standard
+# output and error, its elapsed time (within the tool's tolerance), and,
+# where a case asks, what became of the command's own child (`grandchild`)
+# or what it wrote to descriptor 3. `expect` is GNU's answer, MEASURED
+# (kasumi ~/lanes/bu27/ev/tprobe-gnu.log, tprobe2-gnu.log), asserted of
+# GNU on every run; `ours` is where this timeout answers otherwise BY
+# DESIGN, each with its reason above it. A `guard` case is about a hang:
+# both sides are KILLed by the runner at the guard (`guard signal KILL`).
+
+
+[[case]]
+name = "expiry: TERM ends the command, 124"
+args = ["0.3", "sleep", "5"]
+expect = { status = "exit 124" }
+
+[[case]]
+name = "expiry: -s KILL ends timeout too (its group)"
+args = ["-s", "KILL", "0.3", "sleep", "5"]
+expect = { status = "signal KILL" }
+
+[[case]]
+name = "expiry: -k, a command that ignores TERM"
+args = ["-k", "0.3", "0.3", "sh", "-c", "trap \"\" TERM; sleep 5"]
+expect = { status = "signal KILL" }
+
+[[case]]
+name = "expiry: --foreground -k, a command that ignores TERM, 137"
+args = ["--foreground", "-k", "0.3", "0.3", "sh", "-c", "trap \"\" TERM; sleep 5"]
+expect = { status = "exit 137" }
+
+[[case]]
+name = "expiry: --foreground -s KILL, 137"
+args = ["--foreground", "-s", "KILL", "0.3", "sleep", "5"]
+expect = { status = "exit 137" }
+
+[[case]]
+name = "expiry: -p, the command's death by TERM as 143"
+args = ["-p", "0.3", "sleep", "5"]
+expect = { status = "exit 143" }
+
+[[case]]
+name = "expiry: -p -s KILL"
+args = ["-p", "-s", "KILL", "0.3", "sleep", "5"]
+
+[[case]]
+name = "expiry: -p -s HUP, 129"
+args = ["-p", "-s", "HUP", "0.3", "sleep", "5"]
+expect = { status = "exit 129" }
+
+[[case]]
+name = "expiry: -p --foreground -s KILL"
+args = ["-p", "--foreground", "-s", "KILL", "0.3", "sleep", "5"]
+
+[[case]]
+name = "expiry: the command traps TERM and exits 3"
+args = ["0.3", "sh", "-c", "trap \"echo got TERM; exit 3\" TERM; sleep 5 & wait"]
+
+[[case]]
+name = "expiry: -p, the command traps TERM and exits 3"
+args = ["-p", "0.3", "sh", "-c", "trap \"echo got TERM; exit 3\" TERM; sleep 5 & wait"]
+
+[[case]]
+name = "expiry: -s 0 sends nothing, 124 when the command ends"
+args = ["-s", "0", "0.3", "sleep", "1"]
+
+[[case]]
+name = "expiry: -s EXIT"
+args = ["-s", "EXIT", "0.3", "sleep", "1"]
+
+[[case]]
+name = "expiry: -s CONT"
+args = ["-s", "CONT", "0.3", "sleep", "1"]
+
+[[case]]
+name = "expiry: -s TTOU (stopped, then continued)"
+args = ["-s", "TTOU", "0.3", "sleep", "1"]
+
+[[case]]
+name = "expiry: -s USR1"
+args = ["-s", "USR1", "0.3", "sleep", "5"]
+
+[[case]]
+name = "expiry: -s HUP --foreground"
+args = ["--foreground", "-s", "HUP", "0.3", "sleep", "5"]
+
+[[case]]
+name = "expiry: -s 9"
+args = ["--signal=9", "0.3", "sleep", "5"]
+
+[[case]]
+name = "expiry: --sig=KILL"
+args = ["--sig=KILL", "0.2", "sleep", "1"]
+
+[[case]]
+name = "expiry: --fore"
+args = ["--fore", "0.2", "sleep", "1"]
+
+[[case]]
+name = "expiry: --k=0.1, a command that ends at TERM"
+args = ["--k=0.1", "0.2", "sleep", "1"]
+
+[[case]]
+name = "expiry: -k 0 is no KILL"
+args = ["-k", "0", "0.3", "sh", "-c", "trap \"\" TERM; sleep 2"]
+
+[[case]]
+name = "expiry: -k 1e-400 is the shortest KILL"
+args = ["-k", "1e-400", "0.3", "sh", "-c", "trap \"\" TERM; sleep 2"]
+
+[[case]]
+name = "expiry: -k with no expiry (DURATION 0)"
+args = ["-k", "0.3", "0", "sh", "-c", "trap \"\" TERM; sleep 1"]
+
+[[case]]
+name = "expiry: --signal=HUP --kill-after=0.2 -vp, HUP ignored"
+args = ["--signal=HUP", "--kill-after=0.2", "-vp", "0.3", "sh", "-c", "trap \"\" HUP; sleep 2"]
+
+[[case]]
+name = "expiry: a DURATION under a millisecond, 1e-9"
+args = ["1e-9", "sleep", "1"]
+
+[[case]]
+name = "expiry: 0.0005"
+args = ["0.0005", "sleep", "1"]
+
+[[case]]
+name = "expiry: 1e-400 is not 0"
+args = ["1e-400", "sleep", "1"]
+
+[[case]]
+name = "no expiry: DURATION 0"
+args = ["0", "sleep", "0.2"]
+
+[[case]]
+name = "no expiry: the command exits 3"
+args = ["5", "sh", "-c", "exit 3"]
+
+[[case]]
+name = "no expiry: the command exits 0"
+args = ["5", "true"]
+
+[[case]]
+name = "no expiry: the command ends by TERM, and so does timeout"
+args = ["5", "sh", "-c", "kill -TERM $$"]
+expect = { status = "signal TERM" }
+
+[[case]]
+name = "no expiry: the command ends by KILL"
+args = ["5", "sh", "-c", "kill -KILL $$"]
+
+[[case]]
+name = "no expiry: the command ends by HUP"
+args = ["5", "sh", "-c", "kill -HUP $$"]
+
+[[case]]
+name = "no expiry: the command ends by USR2"
+args = ["5", "sh", "-c", "kill -USR2 $$"]
+
+[[case]]
+name = "no expiry: -p, the command ends by TERM"
+args = ["-p", "5", "sh", "-c", "kill -TERM $$"]
+
+# a fault signal: wolf cannot set SEGV back to its default to end by it (the runtime owns it), so timeout exits 139; GNU ends by SEGV and says the command dumped core
+[[case]]
+name = "no expiry: the command ends by SEGV"
+args = ["5", "sh", "-c", "kill -SEGV $$"]
+ours = { status = "exit 139", stdout = "", stderr = "" }
+expect = { status = "signal SEGV" }
+
+[[case]]
+name = "no expiry: the command ends by a real-time signal"
+args = ["5", "sh", "-c", "kill -s RTMIN $$ 2>/dev/null || kill -34 $$"]
+only_on = "Linux"
+
+[[case]]
+name = "-v: the expiry"
+args = ["-v", "0.3", "sleep", "5"]
+
+[[case]]
+name = "-v: -k, both sends"
+args = ["-v", "-k", "0.3", "0.3", "sh", "-c", "trap \"\" TERM; sleep 5"]
+
+[[case]]
+name = "-v: -s 9 is KILL"
+args = ["-v", "-s", "9", "0.3", "sleep", "5"]
+
+[[case]]
+name = "-v: -s 0 is said by number"
+args = ["-v", "-s", "0", "0.3", "sleep", "1"]
+
+[[case]]
+name = "-v: -s EXIT is said by number"
+args = ["-v", "-s", "EXIT", "0.3", "sleep", "1"]
+
+[[case]]
+name = "-v: a real-time signal by name, --foreground"
+args = ["-v", "--foreground", "-s", "RTMIN+2", "0.3", "sleep", "5"]
+only_on = "Linux"
+
+[[case]]
+name = "-v: a number with no name, --foreground"
+args = ["-v", "--foreground", "-s", "32", "0.3", "sleep", "1"]
+only_on = "Linux"
+
+[[case]]
+name = "-v: -fv"
+args = ["-fv", "0.2", "sleep", "1"]
+
+[[case]]
+name = "-v: standard output closed"
+args = ["-v", "0.2", "sleep", "1"]
+stdout_closed = true
+
+[[case]]
+name = "-v: standard error closed"
+args = ["-v", "0.2", "sleep", "1"]
+stderr_closed = true
+
+[[case]]
+name = "-v: TERM sent to timeout is said"
+args = ["-v", "5", "sleep", "2"]
+send = { signal = "TERM", after = 0.3 }
+
+[[case]]
+name = "-v: TERM to timeout -k, both said"
+args = ["-v", "-k", "0.3", "5", "sh", "-c", "trap \"\" TERM; sleep 3"]
+send = { signal = "TERM", after = 0.3 }
+
+# wolf cannot ignore a fault signal for the length of the group send
+[[case]]
+name = "design: -s SEGV to the group is refused"
+args = ["-s", "SEGV", "0.3", "sleep", "5"]
+ours = { status = "exit 125", stdout = "", stderr = "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n" }
+expect = { status = "exit 124" }
+
+# wolf cannot ignore a fault signal for the length of the group send
+[[case]]
+name = "design: -s ILL to the group is refused"
+args = ["-s", "ILL", "0.3", "sleep", "5"]
+ours = { status = "exit 125", stdout = "", stderr = "timeout: 'ILL': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n" }
+expect = { status = "exit 124" }
+
+# wolf cannot ignore a fault signal for the length of the group send
+[[case]]
+name = "design: -s TRAP to the group is refused"
+args = ["-s", "TRAP", "0.3", "sleep", "5"]
+ours = { status = "exit 125", stdout = "", stderr = "timeout: 'TRAP': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n" }
+expect = { status = "exit 124" }
+
+# wolf cannot ignore a fault signal for the length of the group send
+[[case]]
+name = "design: -s BUS to the group is refused"
+args = ["-s", "BUS", "0.3", "sleep", "5"]
+ours = { status = "exit 125", stdout = "", stderr = "timeout: 'BUS': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n" }
+expect = { status = "exit 124" }
+
+# wolf cannot ignore a fault signal for the length of the group send
+[[case]]
+name = "design: -s FPE to the group is refused"
+args = ["-s", "FPE", "0.3", "sleep", "5"]
+ours = { status = "exit 125", stdout = "", stderr = "timeout: 'FPE': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n" }
+expect = { status = "exit 124" }
+
+# wolf cannot ignore a fault signal for the length of the group send
+[[case]]
+name = "design: -s SYS to the group is refused"
+args = ["-s", "SYS", "0.3", "sleep", "5"]
+ours = { status = "exit 125", stdout = "", stderr = "timeout: 'SYS': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n" }
+expect = { status = "exit 124" }
+
+# wolf cannot ignore a host signal
+[[case]]
+name = "design: -s RTMIN to the group is refused"
+args = ["-s", "RTMIN", "0.3", "sleep", "5"]
+only_on = "Linux"
+ours = { status = "exit 125", stdout = "", stderr = "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n" }
+expect = { status = "exit 124" }
+
+# wolf cannot ignore a host signal
+[[case]]
+name = "design: -s 16 (STKFLT) to the group is refused"
+args = ["-s", "16", "0.3", "sleep", "5"]
+only_on = "Linux"
+ours = { status = "exit 125", stdout = "", stderr = "timeout: 'STKFLT': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n" }
+expect = { status = "exit 124" }
+
+[[case]]
+name = "--foreground -s SEGV, the command alone"
+args = ["--foreground", "-s", "SEGV", "0.3", "sleep", "5"]
+compare = ["status", "stdout", "elapsed"]
+
+[[case]]
+name = "--foreground -s RTMIN, the command alone"
+args = ["--foreground", "-s", "RTMIN", "0.3", "sleep", "5"]
+only_on = "Linux"
+
+[[case]]
+name = "--foreground -s 16, the command alone"
+args = ["--foreground", "-s", "16", "0.3", "sleep", "5"]
+only_on = "Linux"
+
+[[case]]
+name = "hang: -s STOP stops timeout too"
+args = ["-s", "STOP", "0.3", "sleep", "1"]
+guard = 3
+compare = ["status", "stdout", "stderr"]
+
+[[case]]
+name = "hang: --foreground -s STOP leaves the command stopped"
+args = ["--foreground", "-s", "STOP", "0.3", "sleep", "1"]
+guard = 3
+compare = ["status", "stdout", "stderr"]
+
+# GNU 9.11 does not end (measured: killed by the runner at 15 s, ev/tprobe-gnu.log); this timeout sends CHLD, which ends nothing, and answers 124 when the command ends
+[[case]]
+name = "design: -s CHLD"
+args = ["-s", "CHLD", "0.3", "sleep", "1"]
+gnu = false
+ours = { status = "exit 124", stdout = "", stderr = "" }
+
+[[case]]
+name = "group: the command's child ends at the expiry"
+args = ["0.3", "sh", "-c", "sleep 30 & echo $! > gc; wait"]
+grandchild = true
+
+[[case]]
+name = "group: --foreground leaves the command's child"
+args = ["--foreground", "0.3", "sh", "-c", "sleep 30 & echo $! > gc; wait"]
+grandchild = true
+
+[[case]]
+name = "group: -s KILL ends the command's child"
+args = ["-s", "KILL", "0.3", "sh", "-c", "sleep 30 & echo $! > gc; wait"]
+grandchild = true
+
+[[case]]
+name = "group: a child in a group of its own outlives the expiry"
+args = ["0.3", "sh", "-c", "setsid sleep 30 & echo $! > gc; wait"]
+grandchild = true
+only_on = "Linux"
+
+[[case]]
+name = "group: the command leads a group of its own"
+args = ["0.3", "setsid", "sleep", "3"]
+only_on = "Linux"
+
+[[case]]
+name = "group: TERM to timeout reaches the command's child"
+args = ["5", "sh", "-c", "sleep 30 & echo $! > gc; wait"]
+grandchild = true
+send = { signal = "TERM", after = 0.3 }
+
+[[case]]
+name = "group: TERM to timeout --foreground leaves the command's child"
+args = ["--foreground", "5", "sh", "-c", "sleep 30 & echo $! > gc; wait"]
+grandchild = true
+send = { signal = "TERM", after = 0.3 }
+
+[[case]]
+name = "group: timeout leads its group, the command is in it"
+args = ["5", "sh", "-c", "g=$(cut -d' ' -f5 /proc/$$/stat); [ \"$g\" = \"$PPID\" ] && echo leader-is-timeout || echo other"]
+compare = ["status", "stdout", "stderr"]
+only_on = "Linux"
+
+[[case]]
+name = "group: with --foreground the command is not in timeout's group"
+args = ["--foreground", "5", "sh", "-c", "g=$(cut -d' ' -f5 /proc/$$/stat); [ \"$g\" = \"$PPID\" ] && echo leader-is-timeout || echo other"]
+compare = ["status", "stdout", "stderr"]
+only_on = "Linux"
+
+[[case]]
+name = "stopped: a stopped command is continued after TERM"
+args = ["0.5", "sh", "-c", "kill -STOP $$; echo resumed"]
+
+[[case]]
+name = "stopped: -s KILL"
+args = ["-s", "KILL", "0.5", "sh", "-c", "kill -STOP $$; echo resumed"]
+
+[[case]]
+name = "stopped: --foreground"
+args = ["--foreground", "0.5", "sh", "-c", "kill -STOP $$; echo resumed"]
+guard = 3
+compare = ["status", "stdout", "stderr"]
+
+[[case]]
+name = "sent: TERM to timeout, the command traps it and exits 3"
+args = ["5", "sh", "-c", "trap 'echo got TERM; exit 3' TERM; sleep 5 & wait"]
+send = { signal = "TERM", after = 0.3 }
+
+[[case]]
+name = "sent: TERM to timeout, the command does not trap it"
+args = ["5", "sleep", "2"]
+send = { signal = "TERM", after = 0.3 }
+
+[[case]]
+name = "sent: INT to timeout, the command traps it and exits 3"
+args = ["5", "sh", "-c", "trap 'echo got INT; exit 3' INT; sleep 5 & wait"]
+send = { signal = "INT", after = 0.3 }
+
+[[case]]
+name = "sent: INT to timeout, the command does not trap it"
+args = ["5", "sleep", "2"]
+send = { signal = "INT", after = 0.3 }
+
+[[case]]
+name = "sent: HUP to timeout, the command traps it and exits 3"
+args = ["5", "sh", "-c", "trap 'echo got HUP; exit 3' HUP; sleep 5 & wait"]
+send = { signal = "HUP", after = 0.3 }
+
+[[case]]
+name = "sent: HUP to timeout, the command does not trap it"
+args = ["5", "sleep", "2"]
+send = { signal = "HUP", after = 0.3 }
+
+[[case]]
+name = "sent: QUIT to timeout, the command traps it and exits 3"
+args = ["5", "sh", "-c", "trap 'echo got QUIT; exit 3' QUIT; sleep 5 & wait"]
+send = { signal = "QUIT", after = 0.3 }
+compare = ["status", "stdout", "elapsed"]
+
+[[case]]
+name = "sent: QUIT to timeout, the command does not trap it"
+args = ["5", "sleep", "2"]
+send = { signal = "QUIT", after = 0.3 }
+compare = ["status", "stdout", "elapsed"]
+
+[[case]]
+name = "sent: USR1 to timeout, the command traps it and exits 3"
+args = ["5", "sh", "-c", "trap 'echo got USR1; exit 3' USR1; sleep 5 & wait"]
+send = { signal = "USR1", after = 0.3 }
+
+[[case]]
+name = "sent: USR1 to timeout, the command does not trap it"
+args = ["5", "sleep", "2"]
+send = { signal = "USR1", after = 0.3 }
+
+[[case]]
+name = "sent: USR2 to timeout, the command traps it and exits 3"
+args = ["5", "sh", "-c", "trap 'echo got USR2; exit 3' USR2; sleep 5 & wait"]
+send = { signal = "USR2", after = 0.3 }
+
+[[case]]
+name = "sent: USR2 to timeout, the command does not trap it"
+args = ["5", "sleep", "2"]
+send = { signal = "USR2", after = 0.3 }
+
+[[case]]
+name = "sent: PIPE to timeout, the command traps it and exits 3"
+args = ["5", "sh", "-c", "trap 'echo got PIPE; exit 3' PIPE; sleep 5 & wait"]
+send = { signal = "PIPE", after = 0.3 }
+
+[[case]]
+name = "sent: PIPE to timeout, the command does not trap it"
+args = ["5", "sleep", "2"]
+send = { signal = "PIPE", after = 0.3 }
+
+[[case]]
+name = "sent: ALRM to timeout, the command traps it and exits 3"
+args = ["5", "sh", "-c", "trap 'echo got ALRM; exit 3' ALRM; sleep 5 & wait"]
+send = { signal = "ALRM", after = 0.3 }
+
+[[case]]
+name = "sent: ALRM to timeout, the command does not trap it"
+args = ["5", "sleep", "2"]
+send = { signal = "ALRM", after = 0.3 }
+
+[[case]]
+name = "sent: XCPU to timeout, the command traps it and exits 3"
+args = ["5", "sh", "-c", "trap 'echo got XCPU; exit 3' XCPU; sleep 5 & wait"]
+send = { signal = "XCPU", after = 0.3 }
+compare = ["status", "stdout", "elapsed"]
+
+[[case]]
+name = "sent: XCPU to timeout, the command does not trap it"
+args = ["5", "sleep", "2"]
+send = { signal = "XCPU", after = 0.3 }
+compare = ["status", "stdout", "elapsed"]
+
+[[case]]
+name = "sent: XFSZ to timeout, the command traps it and exits 3"
+args = ["5", "sh", "-c", "trap 'echo got XFSZ; exit 3' XFSZ; sleep 5 & wait"]
+send = { signal = "XFSZ", after = 0.3 }
+compare = ["status", "stdout", "elapsed"]
+
+[[case]]
+name = "sent: XFSZ to timeout, the command does not trap it"
+args = ["5", "sleep", "2"]
+send = { signal = "XFSZ", after = 0.3 }
+compare = ["status", "stdout", "elapsed"]
+
+[[case]]
+name = "sent: VTALRM to timeout, the command traps it and exits 3"
+args = ["5", "sh", "-c", "trap 'echo got VTALRM; exit 3' VTALRM; sleep 5 & wait"]
+send = { signal = "VTALRM", after = 0.3 }
+
+[[case]]
+name = "sent: VTALRM to timeout, the command does not trap it"
+args = ["5", "sleep", "2"]
+send = { signal = "VTALRM", after = 0.3 }
+
+[[case]]
+name = "sent: PROF to timeout, the command traps it and exits 3"
+args = ["5", "sh", "-c", "trap 'echo got PROF; exit 3' PROF; sleep 5 & wait"]
+send = { signal = "PROF", after = 0.3 }
+
+[[case]]
+name = "sent: PROF to timeout, the command does not trap it"
+args = ["5", "sleep", "2"]
+send = { signal = "PROF", after = 0.3 }
+
+[[case]]
+name = "sent: ABRT to timeout, the command traps it and exits 3"
+args = ["5", "sh", "-c", "trap 'echo got ABRT; exit 3' ABRT; sleep 5 & wait"]
+send = { signal = "ABRT", after = 0.3 }
+compare = ["status", "stdout", "elapsed"]
+
+[[case]]
+name = "sent: ABRT to timeout, the command does not trap it"
+args = ["5", "sleep", "2"]
+send = { signal = "ABRT", after = 0.3 }
+compare = ["status", "stdout", "elapsed"]
+
+[[case]]
+name = "sent: CHLD to timeout changes nothing"
+args = ["1", "sleep", "2"]
+send = { signal = "CHLD", after = 0.3 }
+
+[[case]]
+name = "sent: CONT to timeout changes nothing"
+args = ["1", "sleep", "2"]
+send = { signal = "CONT", after = 0.3 }
+
+[[case]]
+name = "sent: WINCH to timeout changes nothing"
+args = ["1", "sleep", "2"]
+send = { signal = "WINCH", after = 0.3 }
+
+[[case]]
+name = "sent: URG to timeout changes nothing"
+args = ["1", "sleep", "2"]
+send = { signal = "URG", after = 0.3 }
+
+[[case]]
+name = "sent: TTIN to timeout changes nothing"
+args = ["1", "sleep", "2"]
+send = { signal = "TTIN", after = 0.3 }
+
+[[case]]
+name = "sent: TTOU to timeout changes nothing"
+args = ["1", "sleep", "2"]
+send = { signal = "TTOU", after = 0.3 }
+
+[[case]]
+name = "sent: TSTP stops timeout"
+args = ["1", "sleep", "2"]
+send = { signal = "TSTP", after = 0.3 }
+guard = 3
+compare = ["status", "stdout", "stderr"]
+
+[[case]]
+name = "sent: TERM to timeout -k, a command that ignores TERM"
+args = ["-k", "0.3", "5", "sh", "-c", "trap \"\" TERM; sleep 3"]
+send = { signal = "TERM", after = 0.3 }
+
+[[case]]
+name = "sent: ALRM to timeout -k, a command that ignores TERM"
+args = ["-k", "0.3", "5", "sh", "-c", "trap \"\" TERM; sleep 3"]
+send = { signal = "ALRM", after = 0.3 }
+
+[[case]]
+name = "sent: TERM to timeout -p"
+args = ["-p", "5", "sleep", "2"]
+send = { signal = "TERM", after = 0.3 }
+
+[[case]]
+name = "sent: TERM to timeout 0 (no expiry)"
+args = ["0", "sleep", "2"]
+send = { signal = "TERM", after = 0.3 }
+
+[[case]]
+name = "fd: standard input passes"
+args = ["5", "cat"]
+stdin = "hello\n"
+
+[[case]]
+name = "fd: standard input closed"
+args = ["5", "sh", "-c", "cat 2>/dev/null; echo \"cat $?\""]
+stdin_closed = true
+
+[[case]]
+name = "fd: a descriptor above 2 passes"
+args = ["5", "sh", "-c", "echo three >&3 && echo wrote"]
+fd3 = true
+
+[[case]]
+name = "fd: standard output closed"
+args = ["5", "sh", "-c", "echo x 2>/dev/null; echo $? >&2"]
+stdout_closed = true
+
+[[case]]
+name = "env: passes"
+args = ["5", "sh", "-c", "echo $FOO"]
+env = { FOO = "bar" }
+
+[[case]]
+name = "env: argv[0] is the command as written"
+args = ["5", "sh", "-c", "tr \"\\0\" \"|\" < /proc/$$/cmdline; echo"]
+only_on = "Linux"
+
+[[case]]
+name = "signal state: the command's ignored and blocked sets"
+args = ["5", "grep", "-E", "Sig(Blk|Ign)", "/proc/self/status"]
+only_on = "Linux"
+
+[[case]]
+name = "signal state: timeout ignores TTIN and TTOU"
+args = ["5", "sh", "-c", "grep SigIgn /proc/$PPID/status"]
+only_on = "Linux"
+
+[[case]]
+name = "run: no shebang, by /bin/sh"
+args = ["5", "./noshebang"]
+skip = "needs the file in the case directory"
+
+[[case]]
+name = "run: a bare name not on PATH"
+args = ["5", "no-such-command-bu27"]
+
+[[case]]
+name = "run: a command named --help"
+args = ["1", "--help"]
+
+[[case]]
+name = "run: a command named -s"
+args = ["1", "-s", "KILL", "true"]
