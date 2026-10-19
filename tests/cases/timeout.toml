@@ -367,6 +367,25 @@ args = ["-s", "9x", "1", "/nonexistent/x"]
 name = "signal: invalid [65]"
 args = ["-s", "65", "1", "/nonexistent/x"]
 
+# bu28 (boreutils#41 (1)): a signal timeout cannot hear no longer refuses
+# outside --foreground; GNU's 127 for a command no host can run. (macOS
+# has no RTMIN: `invalid signal`, 125, on both sides.)
+[[case]]
+name = "signal: -s SEGV, a command no host can run"
+args = ["-s", "SEGV", "1", "/nonexistent/x"]
+
+[[case]]
+name = "signal: -s RTMIN, a command no host can run"
+args = ["-s", "RTMIN", "1", "/nonexistent/x"]
+
+[[case]]
+name = "signal: -s 16, a command no host can run"
+args = ["-s", "16", "1", "/nonexistent/x"]
+
+[[case]]
+name = "signal: -s BUS -k 1, a command no host can run"
+args = ["-s", "BUS", "-k", "1", "1", "/nonexistent/x"]
+
 [[case]]
 name = "signal: invalid [RTMIN+31]"
 args = ["-s", "RTMIN+31", "1", "/nonexistent/x"]

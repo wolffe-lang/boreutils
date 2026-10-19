@@ -32,8 +32,16 @@
 //!   stays its own group's leader), and the command starts in it: at the
 //!   expiry the signal goes to the command and then to the whole group,
 //!   so the command's own children end too. timeout itself does not end
-//!   by that send. With `--foreground` timeout stays in its parent's
-//!   group and only the command is signalled.
+//!   by that send: it ignores the signal first, whatever the signal — a
+//!   fault (`-s SEGV`, `ILL`, `TRAP`, `BUS`, `FPE`, `SYS`) and a host
+//!   signal (`-s RTMIN`, `16`) included — and GNU's then leaves it ignored
+//!   (its `SigIgn` after the send, measured, bu28). The two glibc keeps
+//!   for itself (32, 33) cannot be ignored, and the group send of one
+//!   ends GNU's timeout by it (measured). This one's ends by 32 too, and
+//!   lives through 33, on which its process holds a handler it never
+//!   installed (`SigCgt`, measured): the one difference here by design. With
+//!   `--foreground` timeout stays in its parent's group and only the
+//!   command is signalled.
 //! - **At the expiry** the signal (TERM unless `-s`) is sent, then,
 //!   without `--foreground`, CONT (unless the signal was KILL, CONT or
 //!   STOP), so a stopped command ends; with `--foreground` a stopped
@@ -69,13 +77,6 @@
 //!
 //! **What this `timeout` cannot do, each refused by name:**
 //!
-//! - **Send a signal it cannot ignore to its own group.** GNU's timeout
-//!   ignores the signal while it sends it to the group it leads; wolf can
-//!   ignore only the twenty listenable meanings (`[os.signal.disp]`), not
-//!   the six fault signals (`-s SEGV`, `ILL`, `TRAP`, `BUS`, `FPE`, `SYS`)
-//!   nor a host signal (`-s RTMIN`, `STKFLT`, …), and the send would end
-//!   timeout itself. Without `--foreground` such a SIGNAL is status 125,
-//!   by name; with it, it is sent to the command alone, as GNU sends it.
 //! - **Pass on a signal it cannot hear.** GNU's timeout also catches the
 //!   fault signals and the host's real-time and host-only signals sent to
 //!   it, and passes them on; wolf cannot listen for them, so each ends
@@ -140,15 +141,6 @@ fn main() -> int {
     let limit = bore.duration_of(p.operands[0]) else |_| {
         bore.warn("timeout", "invalid time interval {bore.quote(p.operands[0])}")
         return try_help()
-    }
-    let sig = bore.signal_meaning(table, entry)
-    let unheard = sig != 0 && !bore.signal_listenable(table, entry)
-    if !foreground && unheard && sig != signal.kill() && sig != signal.stop() {
-        bore.warn(
-            "timeout",
-            "{bore.quote(bore.signal_name(table, entry))}: wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone",
-        )
-        return 125
     }
     let cmd = p.operands[1]
     var rest = List[str]()
@@ -358,9 +350,9 @@ fn entry_of(t: bore.SignalTable, m: int) -> int {
 }
 
 /// Send entry `e`'s signal to the command `child`, then (unless
-/// `--foreground`) to the group timeout leads, ignoring it here for the
-/// length of that send; then, to the group only, CONT, so a stopped
-/// command hears it, unless the signal was KILL, CONT or STOP.
+/// `--foreground`) to the group timeout leads, ignoring it here first;
+/// then, to the group only, CONT, so a stopped command hears it, unless
+/// the signal was KILL, CONT or STOP.
 fn send(r: Run, e: int, child: int) {
     let m = bore.signal_meaning(r.table, e)
     if r.verbose {
@@ -403,6 +395,16 @@ fn to_all(r: Run, t: bore.SignalTable, e: int, m: int, child: int) {
     let quiet = bore.signal_listenable(t, e)
     if quiet {
         os_signal_ignore(m) else |_| {}
+    } else if m != 0 {
+        // A signal timeout cannot hear (a fault meaning, a host `-N`;
+        // `os_signal_ignore_one`, wolf 0.2.33, ruling #88 R1), ignored here
+        // for good, as GNU's stays ignored after its send (measured): a
+        // delivery of the group send that reaches another of this
+        // process's threads late still finds it ignored. KILL and STOP
+        // answer `invalid` (nothing ignores them; GNU's own KILL ends GNU's
+        // too), glibc's 32 and 33 `io`: each is sent all the same, as GNU
+        // sends it.
+        os_signal_ignore_one(m) else |_| {}
     }
     os_signal_send_group(own, m) else |_| {}
     if quiet {
@@ -508,8 +510,6 @@ fn help() -> str {
     The status is 124 after a timeout (COMMAND's own with -p), 125 when
     timeout itself fails, 126 when COMMAND cannot be run, 127 when it
     cannot be found, 137 when KILL ended it, and COMMAND's own otherwise.
-    Without --foreground this timeout refuses a SIGNAL it cannot ignore
-    (the fault signals, the host's real-time ones).
 
     boreutils: https://github.com/wolffe-lang/boreutils
     """
