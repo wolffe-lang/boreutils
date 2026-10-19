@@ -142,6 +142,16 @@ fn main() -> int {
         bore.warn("timeout", "invalid time interval {bore.quote(p.operands[0])}")
         return try_help()
     }
+    // PLANT (bu28, R1): the old refusal put back.
+    let sig = bore.signal_meaning(table, entry)
+    let unheard = sig != 0 && !bore.signal_listenable(table, entry)
+    if !foreground && unheard && sig != signal.kill() && sig != signal.stop() {
+        bore.warn(
+            "timeout",
+            "{bore.quote(bore.signal_name(table, entry))}: wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone",
+        )
+        return 125
+    }
     let cmd = p.operands[1]
     var rest = List[str]()
     var a = 2
