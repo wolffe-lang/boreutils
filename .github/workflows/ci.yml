@@ -162,6 +162,16 @@ jobs:
         if: runner.os == 'Linux'
         run: tools/roottest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin
 
+      # bu28 (boreutils#41 (4)): `kill -l` and `-t` of every number
+      # 0..140000 and a sample of the int range, against GNU's own `kill`,
+      # on both tiers. It sends nothing. Since wolf 0.2.33 the rows that
+      # read as signal 0 have their words too, so no number is left by
+      # design: any parting is red.
+      - name: kill -l and -t of every number, against GNU (boreutils#34, #41)
+        run: |
+          tools/build --dev kill
+          tools/killprobe --table --gnu .gnu-bin/bin/kill target/release/kill target/dev/kill
+
       # bu23. `kill` sends, so tools/difftest refuses every case of it
       # that could, and the sending cases run here: one throwaway
       # container a case, nothing mounted, no network, a process-id
