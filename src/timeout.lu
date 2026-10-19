@@ -55,6 +55,14 @@
 //!   status 128+N); a command ended by the KILL timeout sent is 137
 //!   either way, and without `--foreground` that KILL ends timeout too,
 //!   so its parent reads a death by KILL.
+//! - **A core** (bu28, wolf 0.2.33's `os_wait_poll_core`, ruling #88 R3
+//!   D). When the command's end dumped core, timeout says `the monitored
+//!   command dumped core` on standard error before it ends, at the expiry
+//!   or not, with `--foreground` and `-p` too. Which ends dump is the
+//!   HOST's: a `kernel.core_pattern` that pipes cores to a program
+//!   (systemd-coredump) dumps every fault under `ulimit -c 0` as well, so
+//!   there the line follows every SEGV, QUIT, ABRT and their kind; under a
+//!   file pattern only where `ulimit -c` lets a core be written.
 //! - Descriptors pass to the command as they are: standard input
 //!   (closed, if timeout's was), output, error, and any other descriptor
 //!   timeout was started with.
@@ -72,9 +80,6 @@
 //!   fault signals and the host's real-time and host-only signals sent to
 //!   it, and passes them on; wolf cannot listen for them, so each ends
 //!   timeout by its default action and the command runs on.
-//! - **Say a core was dumped.** GNU adds `the monitored command dumped
-//!   core` when the command's death left one; `os_wait_poll` answers the
-//!   signal and not the core.
 //! - **Group 1.** wolf never signals process group 1
 //!   (`[os.signal.send.group]`): a timeout that cannot leave group 1 (a
 //!   container's first process, a session leader) signals only its
@@ -256,7 +261,9 @@ fn run(r: Run, args: List[str]) -> int {
             }
         }
         loop {
-            let (k, st) = os_wait_poll() else |_| {
+            // The poll that carries a core: an end that dumped one is
+            // -(256 + N), below every other answer (`[os.proc.poll]`).
+            let (k, st) = os_wait_poll_core() else |_| {
                 (-2, 0)
             }
             if k == h && st < 256 {
@@ -407,9 +414,15 @@ fn to_all(r: Run, t: bore.SignalTable, e: int, m: int, child: int) {
     }
 }
 
-/// How timeout ends once its command has, `st` the poll's status: the
-/// command's own, or 124 after the expiry (the header).
-fn ended(r: Run, st: int, timed_out: bool) -> int {
+/// How timeout ends once its command has, `core_st` the poll's status
+/// with its core (`os_wait_poll_core`): the command's own, or 124 after
+/// the expiry (the header), said after the core line when it dumped one.
+fn ended(r: Run, core_st: int, timed_out: bool) -> int {
+    var st = core_st
+    if st <= -256 {
+        st += 256
+        bore.warn("timeout", "the monitored command dumped core")
+    }
     if st >= 0 {
         if timed_out && !r.preserve {
             return 124

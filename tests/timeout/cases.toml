@@ -12,8 +12,19 @@
 # or what it wrote to descriptor 3. `expect` is GNU's answer, MEASURED
 # (kasumi ~/lanes/bu27/ev/tprobe-gnu.log, tprobe2-gnu.log), asserted of
 # GNU on every run; `ours` is where this timeout answers otherwise BY
-# DESIGN, each with its reason above it. A `guard` case is about a hang:
-# both sides are KILLed by the runner at the guard (`guard signal KILL`).
+# DESIGN, each with its reason above it, and `design` (bu28) the narrower
+# form: only the fields it names answer otherwise, every other field is
+# compared with GNU. A `guard` case is about a hang: both sides are KILLed
+# by the runner at the guard (`guard signal KILL`).
+#
+# A core (bu28): every side runs under `ulimit -c 0`, where a pattern that
+# pipes cores to a program (kasumi's systemd-coredump) still dumps every
+# fault and GNU says `the monitored command dumped core`, and a file
+# pattern (CI's ubuntu runner, `core.%p`) dumps none; so `expect` never
+# fixes that line on a default row, and both sides are compared on
+# whatever this host does. The `core:` rows run under `ulimit -c
+# unlimited` (`cores = "on"`), only where a core is a file in the case's
+# own directory (tools/timeouttest's CORES).
 
 
 [[case]]
@@ -171,11 +182,16 @@ args = ["-p", "5", "sh", "-c", "kill -TERM $$"]
 # bu28: at wolf 0.2.33 a SEGV a process SENDS itself ends it under the
 # default (the stack guard no longer takes the first one for its own), so
 # this timeout's re-raise ends it by SEGV, as GNU's ends, where it exited
-# 139 at 0.2.32; GNU's "dumped core" line is boreutils#41 (3)'s
+# 139 at 0.2.32
 [[case]]
 name = "no expiry: the command ends by SEGV"
 args = ["5", "sh", "-c", "kill -SEGV $$"]
-compare = ["status", "stdout", "elapsed"]
+expect = { status = "signal SEGV" }
+
+[[case]]
+name = "no expiry: the command ends by SEGV, standard error closed"
+args = ["5", "sh", "-c", "kill -SEGV $$"]
+stderr_closed = true
 expect = { status = "signal SEGV" }
 
 [[case]]
@@ -298,7 +314,6 @@ expect = { status = "exit 124" }
 [[case]]
 name = "--foreground -s SEGV, the command alone"
 args = ["--foreground", "-s", "SEGV", "0.3", "sleep", "5"]
-compare = ["status", "stdout", "elapsed"]
 
 [[case]]
 name = "--foreground -s RTMIN, the command alone"
@@ -328,6 +343,81 @@ name = "design: -s CHLD"
 args = ["-s", "CHLD", "0.3", "sleep", "1"]
 gnu = false
 ours = { status = "exit 124", stdout = "", stderr = "" }
+
+# The command's end dumped core, cores on (bu28, boreutils#41 (3)): GNU
+# says so before it ends, and its OWN end never dumps (`core = "none"`):
+# one core file, the command's, is left in the case's directory.
+# timeout ends by the command's SEGV, as GNU's does; GNU's own end dumps no core, and this timeout's is the host's default end by SEGV, which dumps where the host writes cores (wolf has no call to make a process undumpable or set its own core limit)
+[[case]]
+name = "core: the command ends by SEGV"
+args = ["5", "sh", "-c", "kill -SEGV $$"]
+cores = "on"
+design = { core = "core", cores = 2 }
+expect = { status = "signal SEGV", stderr = "timeout: the monitored command dumped core\n", core = "none", cores = 1 }
+
+# timeout ends by the command's ABRT, as GNU's does; GNU's own end dumps no core, and this timeout's is the host's default end by ABRT, which dumps where the host writes cores (wolf has no call to make a process undumpable or set its own core limit)
+[[case]]
+name = "core: the command ends by ABRT, -p"
+args = ["-p", "5", "sh", "-c", "kill -ABRT $$"]
+cores = "on"
+design = { core = "core", cores = 2 }
+expect = { status = "signal ABRT", stderr = "timeout: the monitored command dumped core\n", core = "none", cores = 1 }
+
+[[case]]
+name = "core: the command ends by TERM, no core"
+args = ["5", "sh", "-c", "kill -TERM $$"]
+cores = "on"
+expect = { status = "signal TERM", stderr = "", core = "none", cores = 0 }
+compare = ["status", "stdout", "stderr", "elapsed", "core", "cores"]
+
+[[case]]
+name = "core: --foreground -s SEGV at the expiry"
+args = ["--foreground", "-s", "SEGV", "0.3", "sleep", "5"]
+cores = "on"
+expect = { status = "exit 124", stderr = "timeout: the monitored command dumped core\n", core = "none", cores = 1 }
+compare = ["status", "stdout", "stderr", "elapsed", "core", "cores"]
+
+[[case]]
+name = "core: -s QUIT at the expiry"
+args = ["-s", "QUIT", "0.3", "sleep", "5"]
+cores = "on"
+expect = { status = "exit 124", stderr = "timeout: the monitored command dumped core\n", core = "none", cores = 1 }
+compare = ["status", "stdout", "stderr", "elapsed", "core", "cores"]
+
+[[case]]
+name = "core: -p -s ABRT at the expiry, 134"
+args = ["-p", "-s", "ABRT", "0.3", "sleep", "5"]
+cores = "on"
+expect = { status = "exit 134", stderr = "timeout: the monitored command dumped core\n", core = "none", cores = 1 }
+compare = ["status", "stdout", "stderr", "elapsed", "core", "cores"]
+
+[[case]]
+name = "core: -v -s QUIT, both lines"
+args = ["-v", "-s", "QUIT", "0.3", "sleep", "5"]
+cores = "on"
+expect = { status = "exit 124", stderr = "timeout: sending signal QUIT to command 'sleep'\ntimeout: the monitored command dumped core\n", cores = 1 }
+
+[[case]]
+name = "core: -s KILL, no core"
+args = ["-s", "KILL", "0.3", "sleep", "5"]
+cores = "on"
+expect = { status = "signal KILL", stderr = "", cores = 0 }
+
+[[case]]
+name = "core: --foreground -s SEGV, standard error closed"
+args = ["--foreground", "-s", "SEGV", "0.3", "sleep", "5"]
+cores = "on"
+stderr_closed = true
+expect = { status = "exit 124", cores = 1 }
+
+# timeout ends by the QUIT it passed on, as GNU's does; GNU's own end dumps no core, and this timeout's is the host's default end by QUIT, which dumps where the host writes cores (wolf has no call to make a process undumpable or set its own core limit)
+[[case]]
+name = "core: QUIT sent to timeout, the command does not trap it"
+args = ["5", "sleep", "2"]
+send = { signal = "QUIT", after = 0.3 }
+cores = "on"
+design = { core = "core", cores = 2 }
+expect = { status = "signal QUIT", stderr = "timeout: the monitored command dumped core\n", core = "none", cores = 1 }
 
 [[case]]
 name = "group: the command's child ends at the expiry"
@@ -427,13 +517,11 @@ send = { signal = "HUP", after = 0.3 }
 name = "sent: QUIT to timeout, the command traps it and exits 3"
 args = ["5", "sh", "-c", "trap 'echo got QUIT; exit 3' QUIT; sleep 5 & wait"]
 send = { signal = "QUIT", after = 0.3 }
-compare = ["status", "stdout", "elapsed"]
 
 [[case]]
 name = "sent: QUIT to timeout, the command does not trap it"
 args = ["5", "sleep", "2"]
 send = { signal = "QUIT", after = 0.3 }
-compare = ["status", "stdout", "elapsed"]
 
 [[case]]
 name = "sent: USR1 to timeout, the command traps it and exits 3"
@@ -479,25 +567,21 @@ send = { signal = "ALRM", after = 0.3 }
 name = "sent: XCPU to timeout, the command traps it and exits 3"
 args = ["5", "sh", "-c", "trap 'echo got XCPU; exit 3' XCPU; sleep 5 & wait"]
 send = { signal = "XCPU", after = 0.3 }
-compare = ["status", "stdout", "elapsed"]
 
 [[case]]
 name = "sent: XCPU to timeout, the command does not trap it"
 args = ["5", "sleep", "2"]
 send = { signal = "XCPU", after = 0.3 }
-compare = ["status", "stdout", "elapsed"]
 
 [[case]]
 name = "sent: XFSZ to timeout, the command traps it and exits 3"
 args = ["5", "sh", "-c", "trap 'echo got XFSZ; exit 3' XFSZ; sleep 5 & wait"]
 send = { signal = "XFSZ", after = 0.3 }
-compare = ["status", "stdout", "elapsed"]
 
 [[case]]
 name = "sent: XFSZ to timeout, the command does not trap it"
 args = ["5", "sleep", "2"]
 send = { signal = "XFSZ", after = 0.3 }
-compare = ["status", "stdout", "elapsed"]
 
 [[case]]
 name = "sent: VTALRM to timeout, the command traps it and exits 3"
@@ -523,13 +607,11 @@ send = { signal = "PROF", after = 0.3 }
 name = "sent: ABRT to timeout, the command traps it and exits 3"
 args = ["5", "sh", "-c", "trap 'echo got ABRT; exit 3' ABRT; sleep 5 & wait"]
 send = { signal = "ABRT", after = 0.3 }
-compare = ["status", "stdout", "elapsed"]
 
 [[case]]
 name = "sent: ABRT to timeout, the command does not trap it"
 args = ["5", "sleep", "2"]
 send = { signal = "ABRT", after = 0.3 }
-compare = ["status", "stdout", "elapsed"]
 
 [[case]]
 name = "sent: CHLD to timeout changes nothing"
