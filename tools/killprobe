@@ -30,14 +30,14 @@ usage: tools/killprobe --gnu PROGRAM [--upto N] [--sample N] [--batch N]
 
 Since bu27 (wolf 0.2.31's host signals, `-N`) every number the host
 names is ours too, and `-t` carries the host's words for each
-(`os_signal_text`), so every line is compared whole. One parting is BY
-DESIGN and counted apart: a `-t` row for signal 0 (`EXIT`, and every
-number that reads as it: 128, 256, …), where GNU prints `strsignal(0)`'s
-words and wolf has none (`os_signal_text` refuses 0): ours must then be
-GNU's line without its third column. Any other parting is a failure.
+(`os_signal_text`), so every line is compared whole. Since bu28 (wolf
+0.2.33, `os_signal_text(0)`) that holds for the rows that read as signal
+0 too (`EXIT`, and every number that reads as it: 128, 256, …), which bu27
+counted apart, 912 a tier, as a parting by design: there is none now, and
+any parting is a failure.
 
-Exit status: 0 every number answered alike or by design, 1 a number
-parted otherwise (each run of them is listed), 2 the tool could not run.
+Exit status: 0 every number answered alike, 1 a number parted (each run
+of them is listed), 2 the tool could not run.
 """
 
 import os
@@ -116,15 +116,6 @@ def answers(prog, flag, ns, size):
     return got
 
 
-def by_design(ours, gnu):
-    """A `-t` row for signal 0: GNU's line, and ours the same without the
-    host's words for signal 0, which wolf cannot ask for."""
-    g = gnu.split()
-    if len(g) < 3 or g[0] != "0" or g[1] != "EXIT":
-        return False
-    return ours == gnu[:gnu.index("EXIT") + 4]
-
-
 def runs(ns):
     """Consecutive numbers grouped: [(first, last), ...]."""
     out = []
@@ -190,12 +181,9 @@ def main(argv):
               f"{len(ns) - names} are invalid")
         for prog in progs:
             o = answers(prog, flag, ns, size)
-            unlike = [n for n in ns if o[n] != g[n]]
-            design = [n for n in unlike if by_design(o[n], g[n])]
-            diff = [n for n in unlike if not by_design(o[n], g[n])]
+            diff = [n for n in ns if o[n] != g[n]]
             if not diff:
-                print(f"agree {prog} {flag}: {len(ns) - len(design)} numbers alike, "
-                      f"{len(design)} by design (a -t row for signal 0: no words for it)")
+                print(f"agree {prog} {flag}: {len(ns)} numbers alike")
                 continue
             parted += len(diff)
             print(f"PART  {prog} {flag}: {len(diff)} of {len(ns)} numbers")
