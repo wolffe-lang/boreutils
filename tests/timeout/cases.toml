@@ -194,6 +194,60 @@ args = ["5", "sh", "-c", "kill -SEGV $$"]
 stderr_closed = true
 expect = { status = "signal SEGV" }
 
+# bu28 (boreutils#41 (2), wolf 0.2.33's `os_exit_signal`): every fault
+# signal the command died of, timeout dies of too
+[[case]]
+name = "no expiry: the command ends by ILL"
+args = ["5", "sh", "-c", "kill -ILL $$"]
+expect = { status = "signal ILL" }
+
+[[case]]
+name = "no expiry: the command ends by BUS"
+args = ["5", "sh", "-c", "kill -BUS $$"]
+expect = { status = "signal BUS" }
+
+[[case]]
+name = "no expiry: the command ends by FPE"
+args = ["5", "sh", "-c", "kill -FPE $$"]
+expect = { status = "signal FPE" }
+
+[[case]]
+name = "no expiry: the command ends by TRAP"
+args = ["5", "sh", "-c", "kill -TRAP $$"]
+expect = { status = "signal TRAP" }
+
+[[case]]
+name = "no expiry: the command ends by SYS"
+args = ["5", "sh", "-c", "kill -SYS $$"]
+expect = { status = "signal SYS" }
+
+[[case]]
+name = "no expiry: the command ends by ABRT"
+args = ["5", "sh", "-c", "kill -ABRT $$"]
+expect = { status = "signal ABRT" }
+
+[[case]]
+name = "no expiry: -p, the command ends by SEGV"
+args = ["-p", "5", "sh", "-c", "kill -SEGV $$"]
+expect = { status = "signal SEGV" }
+
+[[case]]
+name = "no expiry: --foreground, the command ends by SEGV"
+args = ["--foreground", "5", "sh", "-c", "kill -SEGV $$"]
+expect = { status = "signal SEGV" }
+
+[[case]]
+name = "no expiry: -v, the command ends by BUS"
+args = ["-v", "5", "sh", "-c", "kill -BUS $$"]
+expect = { status = "signal BUS" }
+
+# glibc keeps 32 for itself: its default ends nothing that raises it, and GNU's timeout exits 128 + 32 (measured, bu28)
+[[case]]
+name = "no expiry: the command ends by 32"
+args = ["5", "sh", "-c", "kill -32 $$"]
+only_on = "Linux"
+expect = { status = "exit 160" }
+
 [[case]]
 name = "no expiry: the command ends by a real-time signal"
 args = ["5", "sh", "-c", "kill -s RTMIN $$ 2>/dev/null || kill -34 $$"]
