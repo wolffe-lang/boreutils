@@ -217,11 +217,18 @@ against GNU. The short form for a new utility:
   group and every process, `os_set_pgid(0)` makes this process lead a
   group, a host signal with no meaning is sent as `-N` (numbers from
   `os_signal_last`, `os_signal_realtime`; never written), and
-  `os_signal_text` is the host's words for one. What wolf still CANNOT
-  do (bu27's note has the texts): name process group 1, give signal 0's
-  words, ignore a send-only meaning or a host signal (only the twenty
-  listenable meanings can be ignored or heard), say a child dumped core,
-  or say why a send failed beyond `not_found` and `denied` (#682).
+  `os_signal_text` is the host's words for one. Since wolf 0.2.33 (s246,
+  ruling #88; bu28): `os_signal_ignore_one(m)` / `os_signal_default_one(m)`
+  set ONE meaning in the sending shape, a fault or a host `-N` included
+  (glibc's 32 and 33 answer `io`); `os_exit_signal(m)` ends this process
+  by a signal, a fault's included; `os_wait_poll_core()` /
+  `os_wait_status_core(h)` answer `-(256 + N)` for an end that dumped core
+  (the released two still say `-N`); `os_signal_text(0)` is signal 0's
+  words. What wolf still CANNOT do: name process group 1 (ruling #86),
+  HEAR a send-only meaning or a host signal (only the twenty listenable
+  meanings can be listened for), make a process undumpable or set its own
+  core limit, or say why a send failed beyond `not_found` and `denied`
+  (#682).
 - **`timeout` runs a command and signals a group, so it is tested where
   a stray signal reaches nothing** (bu27). `tools/difftest` refuses the
   RUN when a `timeout` case could start a command (`tests/refuse/
@@ -230,7 +237,13 @@ against GNU. The short form for a new utility:
   `tests/timeout/cases.toml`, run by `tools/timeouttest`: one fresh
   `--network none` container a case, as a user of the image, GNU's
   `timeout` beside both tiers; CI's macOS leg runs them on the runner,
-  each case in a session of its own.
+  each case in a session of its own. **Cores** (bu28): every side runs
+  under `ulimit -c 0`; a `cores = "on"` case runs only where the host's
+  core pattern is a RELATIVE file (CI's ubuntu runner, which the workflow
+  sets to `core.%p`, with `BORE_CORE_REQUIRE=1`) and is skipped by name
+  elsewhere. kasumi pipes cores to `systemd-coredump` on the HOST and a
+  container's own `ulimit -c` there is `unlimited`: a fault in a container
+  without `ulimit -c 0` stores a core outside the lane, so never.
 - **`kill` sends, so it is tested where a stray signal reaches
   nothing.** `tools/difftest` refuses the RUN when a `kill` case could
   signal anything (its first argument is not a list option, `--help`
