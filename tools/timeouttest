@@ -29,6 +29,26 @@ A case passes when each of ours answers as GNU did, on these fields:
   grandchild (with `grandchild = true`) what became of the command's own
              child: `alive` or `gone`
   three      (with `fd3 = true`) what the command wrote to descriptor 3
+  core       (bu28) whether timeout's OWN end dumped core: `core` when its
+             raw status carries the core bit, else `none`. Compared only
+             where a case names it (`compare`, `expect`, `design`): GNU's
+             own end never dumps (measured, bu28), and whether this
+             repository's does is the host's (CORES), not the program's
+  cores      (bu28) how many core files the side left in the case's
+             directory (a file pattern's cores, under `cores = "on"`)
+
+CORES (bu28). Every side runs under `ulimit -c 0` unless its case says
+`cores = "on"`, which runs it under `ulimit -c unlimited`. Which ends dump
+core is the HOST's: a `kernel.core_pattern` that pipes cores to a program
+(systemd-coredump: kasumi, hasu) dumps one under `ulimit -c 0` too — the
+kernel sets the core bit and the program, told the limit, stores nothing
+— so GNU's "dumped core" line is there on every fault. A cores-on case
+runs only where the pattern is a RELATIVE file name, a file in the
+crashing process's own directory inside the case's container (CI's
+ubuntu runner, which the workflow sets to `core.%p`); anywhere else the
+core would be written outside the case (the host's store, macOS's
+`/cores`), and the case is SKIPPED by name — or, with BORE_CORE_REQUIRE=1
+in the environment, FAILS, so a leg that must run them cannot skip them.
 
 Case file (tests/timeout/cases.toml), any number of [[case]] tables:
 
@@ -53,7 +73,12 @@ Case file (tests/timeout/cases.toml), any number of [[case]] tables:
                                 # where this repository answers BY DESIGN
                                 #   otherwise; `expect` is then GNU's,
   expect = { status = "exit 124" }  # MEASURED, asserted of GNU every run
+  design = { cores = 2 }        # (bu28) narrower than `ours`: only the
+                                #   fields named answer otherwise by
+                                #   design, each the value given; every
+                                #   other field is compared with GNU
   gnu = false                   # never handed to GNU (it hangs there)
+  cores = "on"                  # run under `ulimit -c unlimited` (CORES)
   only_on = "Linux"
   skip = "reason"
 
@@ -95,8 +120,10 @@ CASES = os.path.join(ROOT, "tests", "timeout", "cases.toml")
 TIERS = (("release", ["--release"]), ("dev", []))
 KEYS = {"name", "args", "send", "stdin", "stdin_closed", "stdout_closed",
         "stderr_closed", "fd3", "grandchild", "env", "guard", "tolerance",
-        "compare", "ours", "expect", "gnu", "only_on", "skip"}
-FIELDS = ("status", "stdout", "stderr", "elapsed", "grandchild", "three")
+        "compare", "ours", "expect", "gnu", "only_on", "skip", "cores", "design"}
+FIELDS = ("status", "stdout", "stderr", "elapsed", "grandchild", "three", "core",
+          "cores")
+DEFAULT = tuple(f for f in FIELDS if f != "core")
 USER = "4242"
 
 # One side of one case. `$1` is the timeout under test; the rest of the
@@ -105,7 +132,7 @@ USER = "4242"
 # the program, sends `send` from the parent, guards, and prints the RAW
 # wait status, so a death by a signal is told from an exit status.
 PRELUDE = r"""
-ulimit -c 0
+ulimit -c "$2" || { echo "@limit refused"; exit 96; }
 PROG=$1
 T=$(mktemp -d "${TMPDIR:-/tmp}/bore-timeouttest.XXXXXX") || exit 97
 cd "$T" || exit 97
@@ -177,6 +204,7 @@ def script(case):
     lines.append("e=$(now)")
     lines.append("echo \"@elapsed $(( (e - s) / 1000000 ))\"")
     lines.append("cat runner.out")
+    lines.append("echo \"@cores $(ls | grep -c '^core')\"")
     lines.append("echo \"@out $(od -An -v -tx1 out | tr -d ' \\n')\"")
     lines.append("echo \"@err $(od -An -v -tx1 err | tr -d ' \\n')\"")
     if case.get("fd3"):
@@ -192,13 +220,16 @@ def script(case):
 
 def read(text, prog):
     got = {"status": None, "stdout": "", "stderr": "", "elapsed": None,
-           "grandchild": None, "three": None}
+           "grandchild": None, "three": None, "core": None, "cores": None}
     done = guard = False
     for line in text.splitlines():
         if line.startswith("@raw "):
             raw = int(line.split()[1])
             got["status"] = (f"signal {signame(raw & 127)}" if raw & 127
                              else f"exit {raw >> 8}")
+            got["core"] = "core" if raw & 128 else "none"
+        elif line.startswith("@cores "):
+            got["cores"] = int(line.split()[1])
         elif line == "@guard":
             guard = True
         elif line.startswith("@elapsed "):
@@ -325,6 +356,13 @@ def main(argv):
                 die(f"case {c['name']!r} compares unknown {f!r}")
         if "ours" not in c and c.get("gnu") is False:
             die(f"case {c['name']!r} is not handed to GNU and says nothing of ours")
+        if "ours" in c and "design" in c:
+            die(f"case {c['name']!r} has both ours and design")
+        for f in c.get("design", {}):
+            if f not in FIELDS:
+                die(f"case {c['name']!r} designs unknown {f!r}")
+        if c.get("cores", "off") not in ("on", "off"):
+            die(f"case {c['name']!r}: cores is \"on\" or \"off\"")
     gnu_timeout = os.path.join(gnudir, prefix + "timeout")
     if not os.access(gnu_timeout, os.X_OK):
         die(f"no program at {gnu_timeout}")
@@ -368,6 +406,21 @@ def main(argv):
             said = subprocess.run([gnu_timeout, "--version"], capture_output=True, text=True)
             print(f"timeouttest: NO CONTAINER — on this machine ({host}), a "
                   f"throwaway runner; every case in a session of its own")
+        if boxed:
+            pat = subprocess.run([engine, "run", "--rm", "--network", "none", tag, "cat",
+                                  "/proc/sys/kernel/core_pattern"], capture_output=True, text=True)
+        elif host == "Linux":
+            pat = subprocess.run(["cat", "/proc/sys/kernel/core_pattern"], capture_output=True, text=True)
+        else:
+            pat = subprocess.run(["sysctl", "-n", "kern.corefile"], capture_output=True, text=True)
+        pattern = pat.stdout.strip()
+        if pat.returncode != 0 or not pattern:
+            die(f"cannot read this host's core pattern: {pat.stderr.strip()!r}")
+        cores_here = not pattern.startswith("|") and not pattern.startswith("/")
+        require = os.environ.get("BORE_CORE_REQUIRE") == "1"
+        print(f"timeouttest: core pattern {pattern!r}: cores-on cases "
+              f"{'run (a file in the case directory)' if cores_here else 'cannot run here'}"
+              f"{', and must (BORE_CORE_REQUIRE=1)' if require else ''}")
         first = (said.stdout.splitlines() or [""])[0]
         if said.returncode != 0 or first != f"timeout (GNU coreutils) {oracle}":
             die(f"the timeout given as GNU's is not coreutils {oracle}'s: {first!r}")
@@ -385,13 +438,14 @@ def main(argv):
 
         def one(case, who, serial):
             text = script(case)
+            limit = "unlimited" if case.get("cores") == "on" else "0"
             if boxed:
                 name = f"bore-timeouttest-{os.getpid()}-{serial}"
                 cmd = [engine, "run", "--rm", "--name", name, "--network", "none",
                        "--user", USER, "--workdir", "/tmp", tag] + pin + [
-                       "sh", "-c", text, "case", where[who]]
+                       "sh", "-c", text, "case", where[who], limit]
             else:
-                cmd = pin + ["sh", "-c", text, "case", where[who]]
+                cmd = pin + ["sh", "-c", text, "case", where[who], limit]
             try:
                 done = subprocess.run(cmd, capture_output=True, timeout=120,
                                       stdin=subprocess.DEVNULL, start_new_session=True)
@@ -410,11 +464,19 @@ def main(argv):
             reason = c.get("skip")
             if reason is None and "only_on" in c and c["only_on"] != host:
                 reason = f"on {host}: the case is {c['only_on']}'s"
+            if reason is None and c.get("cores") == "on" and not cores_here:
+                why = (f"a cores-on case, and this host's core pattern {pattern!r} would write "
+                       f"a core outside the case's directory")
+                if require:
+                    failed += 1
+                    print(f"FAIL {label}  ({why}; BORE_CORE_REQUIRE=1)")
+                    continue
+                reason = why
             if reason is not None:
                 skipped += 1
                 print(f"SKIP {label} ({reason})")
                 continue
-            fields = [f for f in c.get("compare", FIELDS)
+            fields = [f for f in c.get("compare", DEFAULT)
                       if (f != "grandchild" or c.get("grandchild")) and
                          (f != "three" or c.get("fd3"))]
             results, logs = {}, {}
@@ -451,9 +513,15 @@ def main(argv):
                             ok = False
                             why.append(f"{tier} {f}: got {o[f]!r}, want {v!r} (by design)")
                     continue
+                for f, v in c.get("design", {}).items():
+                    if o[f] != v:
+                        ok = False
+                        why.append(f"{tier} {f}: got {o[f]!r}, want {v!r} (by design)")
                 if g is None:
                     continue
                 for f in fields:
+                    if f in c.get("design", {}):
+                        continue
                     if f == "elapsed":
                         if abs(o[f] - g[f]) > tol:
                             ok = False

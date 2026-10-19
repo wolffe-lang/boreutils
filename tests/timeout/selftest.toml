@@ -25,6 +25,23 @@ name = "plant: a death by a signal is not an exit status"
 args = ["5", "sh", "-c", "kill -TERM $$"]
 expect = { status = "exit 143" }
 
+# `design` (bu28): the field it names is held to the value given, not to
+# GNU's. Both sides answer `exit 3`; the case says ours is `exit 4` by
+# design, so the tool must say so on that field.
+[[case]]
+name = "plant: a field answered otherwise by design"
+args = ["5", "sh", "-c", "exit 3"]
+design = { status = "exit 4" }
+
+# `cores = "on"` (bu28), run with BORE_CORE_REQUIRE=1: where the host's
+# core pattern is a file in the case's directory the case runs, GNU says
+# its command dumped core and the stand-in says nothing (`stderr`);
+# anywhere else it cannot run, and must not pass as a skip.
+[[case]]
+name = "plant: a cores-on case must run"
+args = ["5", "sh", "-c", "kill -SEGV $$"]
+cores = "on"
+
 # The control, which must PASS: a command that ends by itself.
 [[case]]
 name = "control: a command that ends by itself"

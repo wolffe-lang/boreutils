@@ -19,7 +19,9 @@ mkdir -p "$tmp/release" "$tmp/dev"
 cp tests/timeout/stand-in "$tmp/release/timeout"
 cp tests/timeout/stand-in "$tmp/dev/timeout"
 
-out=$(tools/timeouttest "$@" --bin "$tmp" --cases tests/timeout/selftest.toml 2>&1) && status=0 || status=$?
+# BORE_CORE_REQUIRE=1: the cores-on plant must FAIL whatever the host's core
+# pattern, never pass as a skip (bu28).
+out=$(BORE_CORE_REQUIRE=1 tools/timeouttest "$@" --bin "$tmp" --cases tests/timeout/selftest.toml 2>&1) && status=0 || status=$?
 if [ "$status" -ne 1 ]; then
     echo "timeouttest-selftest: REFUSED — timeouttest exited $status over the planted"
     echo "timeouttest-selftest: differences; it must exit 1. Output was:"
@@ -27,7 +29,9 @@ if [ "$status" -ne 1 ]; then
     exit 1
 fi
 for planted in "plant: the expiry" "plant: the group" \
-               "plant: a death by a signal is not an exit status"; do
+               "plant: a death by a signal is not an exit status" \
+               "plant: a field answered otherwise by design" \
+               "plant: a cores-on case must run"; do
     if ! echo "$out" | grep -qF "FAIL $planted"; then
         echo "timeouttest-selftest: REFUSED — the plant '$planted' did not fail:"
         echo "$out"
@@ -37,7 +41,8 @@ done
 for said in "release status: 'exit 0', gnu 'exit 124'" \
             "release elapsed:" \
             "release grandchild: 'alive', gnu 'gone'" \
-            "gnu status: got 'signal TERM', the case records 'exit 143'"; do
+            "gnu status: got 'signal TERM', the case records 'exit 143'" \
+            "release status: got 'exit 3', want 'exit 4' (by design)"; do
     if ! echo "$out" | grep -qF "$said"; then
         echo "timeouttest-selftest: REFUSED — no line says: $said"
         echo "$out"
