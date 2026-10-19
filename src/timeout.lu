@@ -450,7 +450,8 @@ fn ended(r: Run, core_st: int, timed_out: bool) -> int {
     // timeout does (measured, bu28).
     let e = bore.signal_entry(r.table, "{n}") else -1
     let m = bore.signal_meaning(r.table, e)
-    if e >= 0 && m != 0 {
+    // PLANT (bu28, R2): the old 139 put back — no end by a fault signal.
+    if e >= 0 && m != 0 && bore.signal_listenable(r.table, e) {
         os_exit_signal(m) else |_| {}
     }
     128 + n
