@@ -255,7 +255,8 @@ fn run(r: Run, args: List[str]) -> int {
         loop {
             // The poll that carries a core: an end that dumped one is
             // -(256 + N), below every other answer (`[os.proc.poll]`).
-            let (k, st) = os_wait_poll_core() else |_| {
+            // PLANT (bu28, R3): the released poll, which says nothing of a core.
+            let (k, st) = os_wait_poll() else |_| {
                 (-2, 0)
             }
             if k == h && st < 256 {
