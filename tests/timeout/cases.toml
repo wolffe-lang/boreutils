@@ -253,62 +253,147 @@ name = "-v: TERM to timeout -k, both said"
 args = ["-v", "-k", "0.3", "5", "sh", "-c", "trap \"\" TERM; sleep 3"]
 send = { signal = "TERM", after = 0.3 }
 
-# wolf cannot ignore a fault signal for the length of the group send
 [[case]]
-name = "design: -s SEGV to the group is refused"
+name = "group send: -s SEGV, timeout ignores it and lives"
 args = ["-s", "SEGV", "0.3", "sleep", "5"]
-ours = { status = "exit 125", stdout = "", stderr = "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n" }
 expect = { status = "exit 124" }
 
-# wolf cannot ignore a fault signal for the length of the group send
 [[case]]
-name = "design: -s ILL to the group is refused"
+name = "group send: -s ILL, timeout ignores it and lives"
 args = ["-s", "ILL", "0.3", "sleep", "5"]
-ours = { status = "exit 125", stdout = "", stderr = "timeout: 'ILL': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n" }
 expect = { status = "exit 124" }
 
-# wolf cannot ignore a fault signal for the length of the group send
 [[case]]
-name = "design: -s TRAP to the group is refused"
+name = "group send: -s TRAP, timeout ignores it and lives"
 args = ["-s", "TRAP", "0.3", "sleep", "5"]
-ours = { status = "exit 125", stdout = "", stderr = "timeout: 'TRAP': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n" }
 expect = { status = "exit 124" }
 
-# wolf cannot ignore a fault signal for the length of the group send
 [[case]]
-name = "design: -s BUS to the group is refused"
+name = "group send: -s BUS, timeout ignores it and lives"
 args = ["-s", "BUS", "0.3", "sleep", "5"]
-ours = { status = "exit 125", stdout = "", stderr = "timeout: 'BUS': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n" }
 expect = { status = "exit 124" }
 
-# wolf cannot ignore a fault signal for the length of the group send
 [[case]]
-name = "design: -s FPE to the group is refused"
+name = "group send: -s FPE, timeout ignores it and lives"
 args = ["-s", "FPE", "0.3", "sleep", "5"]
-ours = { status = "exit 125", stdout = "", stderr = "timeout: 'FPE': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n" }
 expect = { status = "exit 124" }
 
-# wolf cannot ignore a fault signal for the length of the group send
 [[case]]
-name = "design: -s SYS to the group is refused"
+name = "group send: -s SYS, timeout ignores it and lives"
 args = ["-s", "SYS", "0.3", "sleep", "5"]
-ours = { status = "exit 125", stdout = "", stderr = "timeout: 'SYS': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n" }
 expect = { status = "exit 124" }
 
-# wolf cannot ignore a host signal
 [[case]]
-name = "design: -s RTMIN to the group is refused"
+name = "group send: -s RTMIN, timeout ignores it and lives"
 args = ["-s", "RTMIN", "0.3", "sleep", "5"]
 only_on = "Linux"
-ours = { status = "exit 125", stdout = "", stderr = "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n" }
 expect = { status = "exit 124" }
 
-# wolf cannot ignore a host signal
 [[case]]
-name = "design: -s 16 (STKFLT) to the group is refused"
+name = "group send: -s 16 (STKFLT), timeout ignores it and lives"
 args = ["-s", "16", "0.3", "sleep", "5"]
 only_on = "Linux"
-ours = { status = "exit 125", stdout = "", stderr = "timeout: 'STKFLT': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n" }
+expect = { status = "exit 124" }
+
+# bu28 (boreutils#41 (1), wolf 0.2.33's `os_signal_ignore_one`): a
+# signal timeout cannot hear, ignored in timeout before the group send.
+[[case]]
+name = "group send: -s SEGV, the command's child ends too"
+args = ["-s", "SEGV", "0.3", "sh", "-c", "sleep 30 & echo $! > gc; wait"]
+grandchild = true
+expect = { status = "exit 124", grandchild = "gone" }
+
+[[case]]
+name = "group send: -s RTMIN, the command's child ends too"
+args = ["-s", "RTMIN", "0.3", "sh", "-c", "sleep 30 & echo $! > gc; wait"]
+only_on = "Linux"
+grandchild = true
+expect = { status = "exit 124", grandchild = "gone" }
+
+[[case]]
+name = "group send: -s 16, the command's child ends too"
+args = ["-s", "16", "0.3", "sh", "-c", "sleep 30 & echo $! > gc; wait"]
+only_on = "Linux"
+grandchild = true
+expect = { status = "exit 124", grandchild = "gone" }
+
+[[case]]
+name = "group send: -s RTMAX"
+args = ["-s", "RTMAX", "0.3", "sleep", "5"]
+only_on = "Linux"
+expect = { status = "exit 124" }
+
+[[case]]
+name = "group send: -s RTMIN+5"
+args = ["-s", "RTMIN+5", "0.3", "sleep", "5"]
+only_on = "Linux"
+expect = { status = "exit 124" }
+
+[[case]]
+name = "group send: -s 40 by number"
+args = ["-s", "40", "0.3", "sleep", "5"]
+only_on = "Linux"
+expect = { status = "exit 124" }
+
+[[case]]
+name = "group send: -s EMT (macOS's own)"
+args = ["-s", "EMT", "0.3", "sleep", "5"]
+only_on = "Darwin"
+expect = { status = "exit 124" }
+
+[[case]]
+name = "group send: -p -s SEGV, 139"
+args = ["-p", "-s", "SEGV", "0.3", "sleep", "5"]
+expect = { status = "exit 139" }
+
+[[case]]
+name = "group send: -p -s RTMIN, 162"
+args = ["-p", "-s", "RTMIN", "0.3", "sleep", "5"]
+only_on = "Linux"
+expect = { status = "exit 162" }
+
+[[case]]
+name = "group send: -v -s SEGV"
+args = ["-v", "-s", "SEGV", "0.3", "sleep", "5"]
+expect = { status = "exit 124" }
+
+[[case]]
+name = "group send: -v -s RTMIN"
+args = ["-v", "-s", "RTMIN", "0.3", "sleep", "5"]
+only_on = "Linux"
+expect = { status = "exit 124", stderr = "timeout: sending signal RTMIN to command 'sleep'\n" }
+
+[[case]]
+name = "group send: -s SEGV -k, a command that ignores SEGV"
+args = ["-s", "SEGV", "-k", "0.3", "0.3", "sh", "-c", "trap '' SEGV; sleep 5"]
+expect = { status = "signal KILL" }
+
+[[case]]
+name = "group send: -s RTMIN -k, the command ends at the first"
+args = ["-s", "RTMIN", "-k", "0.3", "0.3", "sleep", "5"]
+only_on = "Linux"
+expect = { status = "exit 124" }
+
+# glibc keeps 32 and 33 for itself: nothing can ignore them, and GNU's
+# group send of one ends GNU's timeout by it (measured, bu28)
+[[case]]
+name = "group send: -s 32 ends timeout too"
+args = ["-s", "32", "0.3", "sleep", "5"]
+only_on = "Linux"
+expect = { status = "signal 32" }
+
+# this timeout's process holds a handler on 33 it never installed (SigCgt bit 32, measured on both tiers, static and dynamic: the C library's own, which keeps 32 and 33), so its group send of 33 reaches that handler and ends nothing here; GNU's has none and dies of it
+[[case]]
+name = "group send: -s 33, GNU's timeout ends by it"
+args = ["-s", "33", "0.3", "sleep", "5"]
+only_on = "Linux"
+design = { status = "exit 124" }
+expect = { status = "signal 33" }
+
+[[case]]
+name = "group send: -s SEGV, standard error closed"
+args = ["-s", "SEGV", "0.3", "sleep", "5"]
+stderr_closed = true
 expect = { status = "exit 124" }
 
 [[case]]
@@ -409,6 +494,21 @@ args = ["--foreground", "-s", "SEGV", "0.3", "sleep", "5"]
 cores = "on"
 stderr_closed = true
 expect = { status = "exit 124", cores = 1 }
+
+[[case]]
+name = "core: -s SEGV to the group"
+args = ["-s", "SEGV", "0.3", "sleep", "5"]
+cores = "on"
+expect = { status = "exit 124", stderr = "timeout: the monitored command dumped core\n", core = "none", cores = 1 }
+compare = ["status", "stdout", "stderr", "elapsed", "core", "cores"]
+
+[[case]]
+name = "core: -s BUS to the group, the command's child"
+args = ["-s", "BUS", "0.3", "sh", "-c", "sleep 30 & echo $! > gc; wait"]
+cores = "on"
+grandchild = true
+expect = { status = "exit 124", stderr = "timeout: the monitored command dumped core\n", grandchild = "gone", core = "none" }
+compare = ["status", "stdout", "stderr", "elapsed", "grandchild", "core", "cores"]
 
 # timeout ends by the QUIT it passed on, as GNU's does; GNU's own end dumps no core, and this timeout's is the host's default end by QUIT, which dumps where the host writes cores (wolf has no call to make a process undumpable or set its own core limit)
 [[case]]
