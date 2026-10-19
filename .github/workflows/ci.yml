@@ -289,11 +289,20 @@ jobs:
       # case of it that could start a command, and those run here: one
       # throwaway container a case, nothing mounted, no network, as a user
       # of the image, every process a signal reaches one the case started,
-      # GNU 9.11's timeout beside both tiers. The selftest first: three
+      # GNU 9.11's timeout beside both tiers. The selftest first: five
       # planted differences must fail by name.
+      #
+      # bu28: a core is a FILE in the case's own directory only under a
+      # relative core pattern, so this throwaway runner is set to one
+      # (`core.%p`; its own is printed first) and timeouttest's cores-on
+      # cases run here and must (BORE_CORE_REQUIRE=1: a skip FAILS). Under
+      # `ulimit -c 0`, the default for every other case, it dumps none.
       - name: timeout where it runs a command (a throwaway container a case)
         if: runner.os == 'Linux'
         run: |
+          echo "the runner's core pattern: $(cat /proc/sys/kernel/core_pattern)"
+          sudo sysctl -w kernel.core_pattern=core.%p
+          export BORE_CORE_REQUIRE=1
           tools/timeouttest-selftest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin
           tools/timeouttest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin
 
@@ -655,6 +664,10 @@ jobs:
             tt="tools/timeouttest --engine none --gnu $g $p"
             tools/timeouttest-selftest --engine none --gnu "$g" $p
           else
+            # bu28: a file core pattern, so the cores-on cases run and must.
+            echo "the runner's core pattern: $(cat /proc/sys/kernel/core_pattern)"
+            sudo sysctl -w kernel.core_pattern=core.%p
+            export BORE_CORE_REQUIRE=1
             tt="tools/timeouttest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin"
             tools/timeouttest-selftest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin
           fi
