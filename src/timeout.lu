@@ -380,18 +380,24 @@ fn verbose_name(t: bore.SignalTable, e: int) -> str {
 }
 
 fn to_all(r: Run, t: bore.SignalTable, e: int, m: int, child: int) {
-    if child > 0 {
-        os_signal_send(child, m) else |_| {}
-    }
-    if r.foreground {
-        return
-    }
-    let own = os_pgid() else |_| {
-        return
+    var own = 0
+    if !r.foreground {
+        own = os_pgid() else 0
     }
     if own <= 1 {
+        if child > 0 {
+            os_signal_send(child, m) else |_| {}
+        }
         return
     }
+    // The ignore comes FIRST, so the command's send and the group's are
+    // back to back. GNU's make no other call between them but its
+    // `sigaction` (strace'd, bu28: `kill(pid)`, the ignore, `kill(0)`); the
+    // command is in the group and gets the signal twice, and one that
+    // traps it must find the second pending before its trap has run. With
+    // this runtime's ignore between the two sends, a command now and then
+    // ran its trap on each (`got TERM` twice: CI runs 39327744649,
+    // 39327752068).
     let quiet = bore.signal_listenable(t, e)
     if quiet {
         os_signal_ignore(m) else |_| {}
@@ -405,6 +411,9 @@ fn to_all(r: Run, t: bore.SignalTable, e: int, m: int, child: int) {
         // too), glibc's 32 and 33 `io`: each is sent all the same, as GNU
         // sends it.
         os_signal_ignore_one(m) else |_| {}
+    }
+    if child > 0 {
+        os_signal_send(child, m) else |_| {}
     }
     os_signal_send_group(own, m) else |_| {}
     if quiet {
