@@ -396,7 +396,8 @@ pub fn signal_table_name(t: SignalTable, i: int) -> str {
 /// 0.2.33, `[os.signal.text]`, bu28). `""` where the host gives none.
 pub fn signal_text(t: SignalTable, i: int) -> str {
     if i < 0 {
-        return os_signal_text(0) else ""
+        // PLANT (bu28, R4): no words for signal 0, as before 0.2.33.
+        return ""
     }
     os_signal_text(t.meanings[i]) else ""
 }
