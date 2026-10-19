@@ -168,11 +168,14 @@ args = ["5", "sh", "-c", "kill -USR2 $$"]
 name = "no expiry: -p, the command ends by TERM"
 args = ["-p", "5", "sh", "-c", "kill -TERM $$"]
 
-# a fault signal: wolf cannot set SEGV back to its default to end by it (the runtime owns it), so timeout exits 139; GNU ends by SEGV and says the command dumped core
+# bu28: at wolf 0.2.33 a SEGV a process SENDS itself ends it under the
+# default (the stack guard no longer takes the first one for its own), so
+# this timeout's re-raise ends it by SEGV, as GNU's ends, where it exited
+# 139 at 0.2.32; GNU's "dumped core" line is boreutils#41 (3)'s
 [[case]]
 name = "no expiry: the command ends by SEGV"
 args = ["5", "sh", "-c", "kill -SEGV $$"]
-ours = { status = "exit 139", stdout = "", stderr = "" }
+compare = ["status", "stdout", "elapsed"]
 expect = { status = "signal SEGV" }
 
 [[case]]
