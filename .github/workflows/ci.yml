@@ -32,6 +32,43 @@
 # (tools/fetch-toolchain refuses on a mismatch); nothing is built from
 # source. Every lane runs bare and its exit code is read directly — no
 # pipes, so nothing can mask a failure.
+#
+# THE TIERS (tl28, ruling #92). The org is on GitHub's free plan: 20
+# concurrent jobs shared by every repository, 5 of them macOS. Before this,
+# every push ran the gauntlet on both hosts and the field leg (about 38
+# job-minutes and 19 minutes of wall, the ten pull-request and push runs
+# before tl28). So the `plan` job (`ci/tiers.py plan`, proven by
+# `ci/tiers-test.py` in the same job) decides which jobs a run runs and on
+# which hosts, every other job runs only when the plan names it, and the
+# run's LAST job says which tier it was:
+#
+#   tier full     the gauntlet on linux and macOS, and the field leg. A
+#                 push to trunk, a `workflow_dispatch` with `only` all (tier
+#                 full, the default), a pull request labelled
+#                 `full-matrix`; and a pull request with a changed path no
+#                 rule of `ci/tiers.py` names, or whose change cannot be
+#                 read.
+#   tier pr       any other pull-request run (and a dispatch with tier pr):
+#                 the gauntlet on linux alone, and the field leg.
+#   tier noop     the plan and the verdict: a pull request whose changed
+#                 paths are ALL prose (notes/, README.md, CLAUDE.md), or a
+#                 label other than `full-matrix`.
+#   tier nightly  the `schedule`: the full tier, and the terminal read,
+#                 measured (`ttyprobe`, macOS), the deep sweep no push runs.
+#   tier partial  a dispatch whose `only` names one job (bu25), as before.
+#
+# Nothing a step checks changed and no job left the full tier: a pull
+# request's push no longer runs the macOS leg, and it runs before the
+# merge, on every trunk push and every night. The `tier` job fails unless
+# the plan succeeded, the jobs and hosts it chose are that tier's, every
+# chosen job succeeded and every other was skipped; so a green `tier full`
+# is "both hosts and the field, green", and a green `tier pr` is never
+# that. A red nightly opens an issue (`nightly-red`).
+#
+# THE MERGE RULE: a lane's PR merges only with a green `tier full` at its
+# head. Add the `full-matrix` label once the head is the one to merge
+# (never when opening the PR: `opened` and `labeled` would start two full
+# runs). `wolf/tools/lane-audit.sh` reads the job's name.
 
 name: ci
 
@@ -39,11 +76,23 @@ on:
   push:
     branches: [trunk]
   pull_request:
+    # `labeled` so adding `full-matrix` starts the full run at once; any
+    # other label's run is a noop (the plan, then nothing).
+    types: [opened, synchronize, reopened, labeled]
+  schedule:
+    # Nightly on trunk: the full tier and the terminal read, measured
+    # (tier nightly).
+    - cron: "19 9 * * *"
   # A dispatch runs the whole matrix unless it names ONE job (bu25): the
   # runners are shared org-wide, so a reproduction or a plant asks for
   # the job it is about and nothing else.
   workflow_dispatch:
     inputs:
+      tier:
+        description: "full: every job on every host; pr: this branch's change against trunk, as a pull request's (a path no rule names runs full)"
+        type: choice
+        options: [full, pr]
+        default: full
       only:
         description: "all (the matrix), ttyprobe (macOS: boreutils#27's probe), macos-suite (macOS: the ls suite, repeated), inout (ubuntu: tools/inouttest), kill-macos / kill-ubuntu (one host: tools/killprobe and tools/killtest, repeated), timeout-macos / timeout-ubuntu (one host: tools/timeouttest, repeated)"
         type: choice
@@ -53,17 +102,65 @@ on:
 permissions:
   contents: read
 
+# A pull request's runs: one group per branch and tier, cancel-in-progress,
+# so a new push frees the slots of the run it supersedes. The full run and
+# the pr run live in SEPARATE groups (adding the label must not cancel the
+# pr run at the same head: lane-audit.sh reads a cancelled run there as a
+# FAIL), and another label's noop run gets a group of its own so it cancels
+# nothing. Every other run (a trunk push, the nightly, a dispatch) gets a
+# group of its OWN run id: never cancelled, and never replaced while it
+# waits (in a shared group GitHub keeps a single pending run, and each
+# trunk push's full run is the coverage that merge is owed).
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && format('ci-pr-{0}-{1}', github.head_ref, (github.event.action == 'labeled' && github.event.label.name != 'full-matrix') && format('noop-{0}', github.run_id) || (contains(github.event.pull_request.labels.*.name, 'full-matrix') && 'full' || 'pr')) || format('ci-{0}-{1}', github.event_name, github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  # Which jobs this run runs, and on which hosts (THE TIERS, above), decided
+  # once by `ci/tiers.py plan` from the event, the label and (for a pull
+  # request) the paths its merge commit changes, and printed path by path,
+  # so a run's log says why it has the jobs it has. The planner's own proof
+  # runs first: a planner that cannot say no plans nothing.
+  plan:
+    name: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      tier: ${{ steps.plan.outputs.tier }}
+      jobs: ${{ steps.plan.outputs.jobs }}
+      matrix_gauntlet: ${{ steps.plan.outputs.matrix_gauntlet }}
+    steps:
+      # Depth 2: a pull request's run checks out its merge commit, and the
+      # plan reads that commit against its first parent. A dispatch reads
+      # its branch against trunk's merge base, so it takes the history.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: ${{ github.event_name == 'workflow_dispatch' && '0' || '2' }}
+      - name: the planner can say no (ci/tiers-test.py)
+        run: python3 ci/tiers-test.py
+      - name: the plan
+        id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          ACTION: ${{ github.event.action }}
+          LABEL: ${{ github.event.label.name }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          IN_TIER: ${{ inputs.tier }}
+          # one job alone, by name (bu25): tier partial
+          IN_ONLY: ${{ inputs.only }}
+        run: python3 ci/tiers.py plan --merge --github-output "$GITHUB_OUTPUT"
+
   gauntlet:
-    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all'
+    needs: plan
+    if: contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'gauntlet')
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-latest
-            gnu_prefix: ""
-          - os: macos-latest
-            gnu_prefix: "g"
+        # The hosts are the plan's (ci/tiers.py MATRIX): linux (the oracle
+        # on PATH, no prefix) and macOS (Homebrew's g-prefixed GNU) in the
+        # full tier, linux alone in a pull request's.
+        include: ${{ fromJSON(needs.plan.outputs.matrix_gauntlet || '[]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     steps:
@@ -274,7 +371,8 @@ jobs:
   # under it is an ANNOUNCED ADVISORY.
   field:
     name: the field's GNU (information, not a verdict)
-    if: github.event_name != 'workflow_dispatch' || inputs.only == 'all'
+    needs: plan
+    if: contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'field')
     runs-on: ubuntu-latest
     # NO `continue-on-error` on the job any more (B98). It made the leg
     # non-blocking about everything, including its own death: in run
@@ -329,7 +427,9 @@ jobs:
   # measured on the runner it fails on, the race widened on purpose.
   ttyprobe:
     name: the terminal read, measured (boreutils#27)
-    if: github.event_name == 'workflow_dispatch' && inputs.only == 'ttyprobe'
+    # On request (`only: ttyprobe`), and every night (tier nightly).
+    needs: plan
+    if: contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'ttyprobe')
     runs-on: macos-latest
     # A reader that loses a child's output waits 0.6 s at each loss (the
     # close it makes on itself), so the report alone takes about twenty
@@ -346,7 +446,9 @@ jobs:
   # 33 of them on a terminal, ten times over on one macOS runner.
   macos-suite:
     name: the ls suite, repeated (boreutils#27)
-    if: github.event_name == 'workflow_dispatch' && inputs.only == 'macos-suite'
+    # On request alone (`only`): no other tier runs it.
+    needs: plan
+    if: contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'macos-suite')
     runs-on: macos-latest
     timeout-minutes: 45
     steps:
@@ -394,7 +496,9 @@ jobs:
   # for a plant.
   inout:
     name: cat where its input is its output (boreutils#28)
-    if: github.event_name == 'workflow_dispatch' && inputs.only == 'inout'
+    # On request alone (`only`): no other tier runs it.
+    needs: plan
+    if: contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'inout')
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -423,7 +527,9 @@ jobs:
   # stable also shows what it fixed.
   kill:
     name: kill, measured and repeated (boreutils#36, #34)
-    if: github.event_name == 'workflow_dispatch' && (inputs.only == 'kill-macos' || inputs.only == 'kill-ubuntu')
+    # On request alone (`only`): no other tier runs it.
+    needs: plan
+    if: contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'kill')
     runs-on: ${{ inputs.only == 'kill-macos' && 'macos-latest' || 'ubuntu-latest' }}
     timeout-minutes: 60
     steps:
@@ -513,7 +619,9 @@ jobs:
   # three times, every run's verdict kept, for a plant or a flake count.
   timeout:
     name: timeout, repeated (bu27)
-    if: github.event_name == 'workflow_dispatch' && (inputs.only == 'timeout-macos' || inputs.only == 'timeout-ubuntu')
+    # On request alone (`only`): no other tier runs it.
+    needs: plan
+    if: contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'timeout')
     runs-on: ${{ inputs.only == 'timeout-macos' && 'macos-latest' || 'ubuntu-latest' }}
     timeout-minutes: 60
     steps:
@@ -563,3 +671,53 @@ jobs:
           done
           echo "timeouttest: selftest exit $selftest; $bad of 3 runs red"
           [ "$selftest" -eq 0 ] && [ "$bad" -eq 0 ]
+
+  # The run's verdict, and its name: `tier full`, `tier pr` or `tier noop`.
+  # It needs every job, runs unless the run was cancelled, and fails unless
+  # the plan succeeded, the jobs and hosts it chose are the tier's, every
+  # chosen job succeeded and every other job was skipped (ci/tiers.py
+  # verdict). lane-audit.sh reads this job's name and conclusion.
+  tier:
+    name: tier ${{ needs.plan.outputs.tier || 'unplanned' }}
+    if: ${{ !cancelled() }}
+    needs:
+      - plan
+      - gauntlet
+      - field
+      - ttyprobe
+      - macos-suite
+      - inout
+      - kill
+      - timeout
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: every chosen job succeeded, every other was skipped
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: python3 ci/tiers.py verdict
+
+  # A red nightly opens an issue (ruling #92): a scheduled run has no lane
+  # watching it, so the red has to come and find one. One open issue per
+  # workflow, its title the dedupe key; a further red night comments on it
+  # (ci/nightly-red.sh, tested by ci/tiers-test.py T8). Never on a pull
+  # request, a push or a dispatch: those reds have a lane attached already.
+  nightly-red:
+    name: nightly red, an issue
+    needs: tier
+    if: ${{ failure() && github.event_name == 'schedule' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: open or update the nightly-red issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          WORKFLOW: ${{ github.workflow }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: ci/nightly-red.sh
