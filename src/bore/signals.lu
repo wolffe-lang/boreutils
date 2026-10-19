@@ -391,12 +391,12 @@ pub fn signal_table_name(t: SignalTable, i: int) -> str {
 }
 
 /// The host C library's words for entry `i` (`os_signal_text`, the C
-/// locale), or `""` where wolf has none to give: signal 0, which
-/// `os_signal_text` refuses (`[os.signal.text]`), where GNU prints
-/// `strsignal(0)`'s words.
+/// locale); for -1, signal 0's, `strsignal(0)`'s words as GNU prints them
+/// (`Unknown signal 0` under glibc, `Unknown signal: 0` on macOS; wolf
+/// 0.2.33, `[os.signal.text]`, bu28). `""` where the host gives none.
 pub fn signal_text(t: SignalTable, i: int) -> str {
     if i < 0 {
-        return ""
+        return os_signal_text(0) else ""
     }
     os_signal_text(t.meanings[i]) else ""
 }

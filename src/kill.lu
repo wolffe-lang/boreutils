@@ -63,7 +63,9 @@
 //! - **Every signal the host numbers** (`bore/signals.lu`): the 28 wolf
 //!   has a meaning for, and the host's own (`STKFLT`, `POLL`, `PWR`, the
 //!   real-time range; `EMT`, `IO`, `INFO` on macOS) sent as `-N`. `-t`
-//!   prints the host's words for each (`os_signal_text`).
+//!   prints the host's words for each (`os_signal_text`), and for signal 0
+//!   (`EXIT`) `strsignal(0)`'s, `Unknown signal 0` under glibc (wolf
+//!   0.2.33; bu28).
 //!
 //! **What this `kill` cannot do, each refused, status 1, nothing sent:**
 //!
@@ -72,10 +74,6 @@
 //!   broadcast), so `kill 0` from a process in group 1 — a container's
 //!   first process and every process it starts without job control — is
 //!   refused by name, where GNU signals the group.
-//! - **The words for signal 0.** GNU's `-t` row for `EXIT` carries the
-//!   host's words for signal 0 (`Unknown signal 0` under glibc);
-//!   `os_signal_text` refuses 0 (`[os.signal.text]`), so that row has no
-//!   third column here.
 //! - **Why a send failed, past the two reasons that have rows.**
 //!   `not_found` is the host's `No such process` and `denied` its
 //!   `Operation not permitted`; any other failure is `io`, and the os
@@ -459,8 +457,7 @@ fn help() -> str {
 
     PID 0 is this process's group, -1 every process this one may signal,
     and -N process group N (as the first argument -N is a signal, so
-    write -- first). This kill refuses group 1, and -t prints no
-    description for EXIT.
+    write -- first). This kill refuses group 1.
 
     The status is 1 when a signal could not be sent or a SIGNAL names
     nothing. Your shell has a kill of its own, which is the one it runs
