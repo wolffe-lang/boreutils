@@ -74,7 +74,7 @@ fn main() {
     assert(!bore.signal_listenable(t, entry(t, "KILL")), "KILL cannot")
     assert(!bore.signal_listenable(t, entry(t, "SEGV")), "SEGV cannot")
     assert(!bore.signal_listenable(t, -1), "nor EXIT")
-    assert(bore.signal_text(t, -1) == "", "signal 0 has no words here")
+    assert(bore.signal_text(t, -1).starts_with("Unknown signal"), "signal 0's words are the host's")
     // The names are POSIX's, whatever the host numbers them.
     assert(bore.signal_meaning(t, entry(t, "HUP")) == signal.reload(), "HUP")
     assert(bore.signal_meaning(t, entry(t, "INT")) == signal.interrupt(), "INT")
