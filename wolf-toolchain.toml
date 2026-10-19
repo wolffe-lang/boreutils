@@ -48,6 +48,35 @@
 #     `List[T]()` and pushes, because lupin 0.1.36 refused list
 #     literals, so the literal's element type is unreachable here.
 #
+# ## The bump to 0.2.33 / 0.1.54 (bu28, 2026-10-19)
+#
+# One release on the wolf half, none on lupin's (0.2.33 pairs with the
+# same 0.1.54). From the release archives by digest, each archive read
+# twice and both reads equal to the release API's digests (release
+# 417610226; `notes/bu28/ev/archives.log`). `_wolf` keeps
+# a368c8eccce8b1800c80aa818ae482e541aa9636b676540851e23863d333eb8b in
+# all three wolf archives; `std/STD-REV` is cceda63 in all three.
+#
+# What a downstream has to read at this bump:
+#
+#   * The reason for it: s246's signal gaps (ruling #88):
+#     `os_signal_ignore_one` / `os_signal_default_one` (one meaning in
+#     the sending shape, a fault meaning or a host `-N` included),
+#     `os_exit_signal` (end by a signal, a fault's included),
+#     `os_wait_status_core` / `os_wait_poll_core` (an end that dumped
+#     core is `-(256 + N)`; the released two still answer `-N`), and
+#     `os_signal_text(0)` (glibc's `Unknown signal 0`). Later commits on
+#     this branch retire boreutils#41's four refusals on them; the pin
+#     commit changes no line of `src/`.
+#   * Five new prelude names: `src/` declares none, so no W0304 under
+#     `--deny-warnings`.
+#   * A SEGV or BUS another process SENDS now ends a program under the
+#     default disposition (the stack guard used to take the first one
+#     for its own). No utility here is sent one by a case.
+#   * The bundled std moves d37c911 -> cceda63 (sc64's wrappers for
+#     0.2.31's calls, sc65's two rows); `kill` and `timeout` still call
+#     the builtins directly.
+#
 # ## The bump to 0.2.32 / 0.1.54 (bu27, 2026-10-18)
 #
 # Two releases on the wolf half (0.2.31 was never pinned here: its dev
@@ -505,16 +534,17 @@
 # TAG names, which is the thing this file pins.
 
 [wolf]
-version = "0.2.32"
+version = "0.2.33"
 repo = "wolffe-lang/wolf-lang"
-rev = "72de141f624662fdff522e8beba459fab7c5cf66"
-version_line = "wolf 0.2.32 (wolfgang, pin 72de141)"
-aarch64-apple-darwin = "061ea7e5ca63449d5d933cdba2f4e3a717e3f8570455a0c31233e31da08cfec6"
-x86_64-unknown-linux-gnu = "4c37f9c5dc3d8830c06810948027d38bdbc375dc5524ab23127b0ada0907d851"
-aarch64-unknown-linux-gnu = "af27d4260e4e991dc0e44dc29b0e802c468c07da62db7adc17a551e0ffa9f017"
+rev = "85dab5d7e597680d6fd7034f1d7ed2acb9a92f97"
+version_line = "wolf 0.2.33 (wolfgang, pin 85dab5d)"
+aarch64-apple-darwin = "9152dbd136d858539100088394cbaa97cf23f7ddd2816512cd9b48c70a9f40eb"
+x86_64-unknown-linux-gnu = "4f955e8dfe6eaafa441903eeba43c009c4ec2b45a8da09fe13431e8b12340af8"
+aarch64-unknown-linux-gnu = "24cde9e4668d17448527f774db602d93a348d285c2219a1edff791519530a2ac"
 
 [lupin]
-# The reference interpreter wolf 0.2.32 declares as its pairing:
+# The reference interpreter wolf 0.2.33 declares as its pairing (as
+# 0.2.32 did):
 # `wolf --version` line 2 reads "paired with lupin 0.1.54 (reference
 # interpreter), pin 294d626". Its spec pin is wolf v0.2.24. The `rev`
 # below is the commit the 0.1.54 TAG names.
@@ -631,5 +661,13 @@ aarch64-unknown-linux-gnu = "5fb15e31289d810129b40a9a0af07417d85d5090e74045f66b1
 # in all three 0.2.32 archives) and wolf-std trunk when this lane began.
 # B151 first: see the 0.2.32 bump note. It has no wrappers for 0.2.31's
 # seven builtins, so `kill` and `timeout` call them directly.
+# MOVED AT THE 0.2.33 BUMP to wolf-std cceda63 (sc64's wrappers for
+# 0.2.31's calls, ruling #85; sc65's two `text(0)` rows), the commit the
+# 0.2.33 archives bundle (`std/STD-REV` in all three) and wolf-std trunk
+# when this lane began (sc66, the wrappers for 0.2.33's five calls, had
+# not merged). B151 first: d37c911 and cceda63 both build all 47
+# utilities under 0.2.33 with --deny-warnings on both tiers
+# (`notes/bu28/ev/b151.log`). `kill` and `timeout` still call the
+# builtins directly.
 repo = "wolffe-lang/wolf-std"
-rev = "d37c911f12206c4bf5c8d3281a649bf31da3beef"
+rev = "cceda63151430eac07df895fdfffddfa4a0b92c1"
