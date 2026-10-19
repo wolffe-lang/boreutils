@@ -159,20 +159,25 @@ derives no boreutils code from GPL source.
 
 Every utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus, except where a case says otherwise and is
-skipped with its reason. The corpus holds **6,784 cases**; `kill` has
+skipped with its reason. The corpus holds **6,788 cases**; `kill` has
 365 more that SEND, each run in a container of its own (`tests/kill/`,
-`tools/killtest`: **365 passed, 0 failed** on kasumi at bu27, groups,
-`kill 0` and `kill -1` among them), `timeout` 124 more that run a
-command (`tests/timeout/`, `tools/timeouttest`: **124 passed, 0
-failed** on kasumi at bu27), and the six identity tools 1,126 more that
+`tools/killtest`: **365 passed, 0 failed** on kasumi at bu28, groups,
+`kill 0` and `kill -1` among them), `timeout` 163 more that run a
+command (`tests/timeout/`, `tools/timeouttest`: **150 passed, 0
+failed** on kasumi at bu28, and 13 skipped there: twelve that need a
+core written as a file, which run on CI's ubuntu runner, and one of
+macOS's), and the six identity tools 1,126 more that
 run as root and as users or change an owner (`tests/ids/`,
 `tools/idtest`: 28 of them only on CI's macOS runner). A run in a
 throwaway Ubuntu 24.04 container on kasumi (linux x86-64; the utilities
 that change files, owners or send signals are run nowhere else on a
-lane's host) at wolf 0.2.32 answers **6,664 passed, 0 failed, 120
+lane's host) at wolf 0.2.33 answers **6,668 passed, 0 failed, 120
 skipped**, the same list on the release and the dev tier, and
-`tools/idtest` **1,098 passed, 0 failed** (bu27's figures are in
-`notes/bu27-the-groups.md` and its PR). The edition before bu27 said
+`tools/idtest` **1,098 passed, 0 failed** (bu28's figures are in
+`notes/bu28-the-retired-refusals.md` and its PR). The edition before
+bu28 said 6,784 cases and 6,664 passed, 0 failed, 120 skipped at wolf
+0.2.32, and `tools/timeouttest` 124 passed, 0 failed (bu27's figures
+are in `notes/bu27-the-groups.md`). The edition before bu27 said
 6,645 cases and 6,383 passed, 0 failed, 262 skipped, and
 `tools/killtest` 338 passed, 0 failed (bu24's and bu26's figures are in
 `notes/bu24-the-ids.md` and `notes/bu26-the-kill-cases.md`). The edition before bu24 said 6,514
@@ -287,15 +292,21 @@ numbers them and `os_signal_text` gives their words, so `kill` knows
 every signal the host numbers (linux's `STKFLT`, `POLL`, `PWR` and the
 real-time range by GNU's names, macOS's `EMT`, `IO`, `INFO`) and `-t`
 prints the third column. `tools/killprobe` holds `-l` and `-t` to GNU
-over 240,578 numbers on both hosts. The one row by design is `-t`'s for
-signal 0, whose words `os_signal_text` cannot give. The cases that SEND
+over 240,578 numbers on both hosts, in every CI run since bu28, with no
+row by design: since wolf 0.2.33 `os_signal_text(0)` gives signal 0's
+words (`Unknown signal 0`), so the 912 rows a tier that read as signal 0
+(`EXIT`, 128, 256, …), and 84 cases' masks, are gone. The cases that SEND
 are not skipped: where this `kill` answers otherwise by design (a `kill
 0` from process group 1, which wolf never signals),
 `tests/kill/cases.toml` states both answers and both are asserted.
 
 **`timeout` adds seven skips, all on macOS**, where GNU 9.11 warns
 `setitimer: Invalid argument` for a DURATION past its timer's range and
-this timeout says nothing (bu27). It never starts a command on a lane's host:
+this timeout says nothing (bu27). Since wolf 0.2.33 (bu28) it sends
+its group a fault or host signal (`-s SEGV`, `-s RTMIN`, `-s 16`) as
+GNU's does, ignoring it first, where it refused them (125); it dies of
+the signal its command died of, a fault's included, where it exited
+139; and it says `the monitored command dumped core`. It never starts a command on a lane's host:
 `tools/difftest` runs only its cases that cannot (usage, invalid
 durations and signals, 126 and 127), and the rest run in
 `tools/timeouttest`.
@@ -1144,8 +1155,8 @@ depth is start-up on both sides.
 | `chmod` | done: octal and symbolic modes, a mode given as an option, `-c`, `-f`, `-v`, `-R`, `-H`, `-L`, `-P`, `-h`, `--reference`, `--preserve-root` | not benched |
 | `touch` | done: `-a`, `-m`, `--time`, `-c`, `-h`, `-r`, `-t`, `-d` for `@SECONDS`, ISO 8601, a time of day and now/today/yesterday/tomorrow, both times to the nanosecond; not `touch -` (#714) or the rest of GNU's date grammar | not benched |
 | `ln` | done: hard and symbolic, `-f` (a replace that never leaves the name missing), `-i`, `-n`, `-T`, `-t`, `-v`, `-P`, `-L`, `-r`, `-d`/`-F`; not `-b` | not benched |
-| `kill` | done: `-s`, `--signal`, `-SIGNAL` by name or by this host's number, `-n`, signal 0, `-l`, `-t`/`-L` with the host's words, exit statuses as signals, GNU's option rules; every signal the host numbers, real-time and host-only included; one process, a group (`-- -PGID`), this process's group (`0`) and every process (`-1`); not group 1 (`kill 0` from it), nor signal 0's words in `-t` | not benched |
-| `timeout` | done: `-f`/`--foreground`, `-k`/`--kill-after`, `-p`/`--preserve-status`, `-s`/`--signal`, `-v`/`--verbose`; 124/125/126/127/137 as GNU; timeout leads its own group and signals it at the expiry, then CONT; signals sent to it passed on; a stopped command continued; not `-s` with a fault or host signal outside `--foreground` (wolf cannot ignore it during the group send), nor passing on a fault or host signal sent to timeout itself, nor the `dumped core` line | not benched |
+| `kill` | done: `-s`, `--signal`, `-SIGNAL` by name or by this host's number, `-n`, signal 0, `-l`, `-t`/`-L` with the host's words, signal 0's included, exit statuses as signals, GNU's option rules; every signal the host numbers, real-time and host-only included; one process, a group (`-- -PGID`), this process's group (`0`) and every process (`-1`); not group 1 (`kill 0` from it) | not benched |
+| `timeout` | done: `-f`/`--foreground`, `-k`/`--kill-after`, `-p`/`--preserve-status`, `-s`/`--signal`, `-v`/`--verbose`; 124/125/126/127/137 as GNU; timeout leads its own group and signals it at the expiry, then CONT, any signal (a fault's and a host signal's ignored in timeout first); signals sent to it passed on; a stopped command continued; ends by the signal its command died of; `the monitored command dumped core`; not passing on a fault or host signal sent to timeout itself | not benched |
 | `id` | done: `-u`, `-g`, `-G`, `-n`, `-r`, `-z`, `-a`, the default line with `euid=`/`egid=`, USER operands by name or number; `-Z` refused as the oracle (no SELinux) refuses it; names from `/etc/passwd` and `/etc/group` only | not benched |
 | `whoami` | done | not benched |
 | `groups` | done: the process's groups and USERNAME operands | not benched |
@@ -1179,6 +1190,21 @@ utility's row in the tables above.)
   and boreutils' `ev/probe-p4-w1rel.log` (`2ec931a1…`), copied into
   `notes/bu28/ev/`, and boreutils' answered again at wolf 0.2.33
   (`notes/bu28/ev/probe-p4-head-release.log`).
+- **`timeout`'s own core** (bu28; wolf has no call for it). When
+  `timeout` ends by the signal its command died of, or by one it passed
+  on, GNU's own end never dumps core, on any host (measured: no core bit
+  in its status even where kasumi's `systemd-coredump` takes every
+  fault's). This one's is the host's default end by that signal
+  (`os_exit_signal`), so where the host writes cores it writes one of
+  `timeout` too: a second core file beside the command's under
+  `ulimit -c unlimited`, and a dump handed to `systemd-coredump` (which
+  stores nothing under `ulimit -c 0`). The status is GNU's. Three
+  `tests/timeout/` rows say so by name (`design`): no call makes a
+  process undumpable or sets its own core limit.
+- **`timeout -s 33`** (bu28). glibc keeps 32 and 33 for itself; GNU's
+  timeout, sending either to the group it leads, dies of it. This one
+  dies of 32 and lives through 33, on which its process holds a handler
+  it never installed (`SigCgt`, measured): one `tests/timeout/` row.
 
 ## Drop-in readiness
 
@@ -1243,8 +1269,8 @@ table answers it per utility, from the evidence and from nothing else.
 | `chmod` | 14 / 14 | 532 / 0 | not benched | drop-in on linux; on macOS a link named by `-h`/`-P` or met by `-R` is left alone where GNU changes its own mode |
 | `touch` | 11 / 11 | 156 / 13 | not benched | drop-in for scripts whose `-d` dates are `@SECONDS`, ISO 8601, a time of day or now/today/yesterday/tomorrow (any other is refused by name), that do not `touch -` (#714) or combine `-r` with `-d` |
 | `ln` | 13 / 16 | 145 / 3 | not benched | drop-in for scripts that avoid `-b`/`--backup`/`-S` (refused by name) |
-| `kill` | 5 / 5 | 894 / 1, and 365 / 0 that send | not benched | drop-in for scripts that do not `kill 0` from process group 1 (a container's first process and what it starts without job control; refused by name) and do not read `-t`'s words for signal 0 |
-| `timeout` | 7 / 7 | 112 / 0 (7 skipped on macOS), and 124 / 0 that run a command | not benched | drop-in for scripts that do not `-s` a fault or real-time signal without `--foreground` (refused by name, 125), do not send timeout itself a fault or host-only signal, and do not read `the monitored command dumped core`; a command ended by a fault signal leaves timeout's status 128+N where GNU's timeout ends by that signal |
+| `kill` | 5 / 5 | 894 / 1, and 365 / 0 that send | not benched | drop-in for scripts that do not `kill 0` from process group 1 (a container's first process and what it starts without job control; refused by name) |
+| `timeout` | 7 / 7 | 116 / 0 (7 skipped on macOS), and 150 / 0 that run a command (13 skipped on kasumi, run on CI) | not benched | drop-in for scripts that do not send timeout itself a fault or host-only signal, nor `-s 33` its group (glibc's own: GNU's timeout dies of it, this one lives); where the host writes cores, timeout's own end by a core-dumping signal dumps one, where GNU's never does (see Differences from GNU) |
 | `id` | 7 / 8 | 64 / 0, and 428 / 0 as root and as users | not benched | drop-in where the accounts are in `/etc/passwd` and `/etc/group` (not macOS's directory service, LDAP or NIS); `-Z` is refused as GNU without SELinux refuses it |
 | `whoami` | 0 / 0 | 10 / 0, and 19 / 0 | not benched | drop-in where the accounts are in `/etc/passwd` |
 | `groups` | 0 / 0 | 12 / 0, and 62 / 0 | not benched | drop-in where the accounts are in `/etc/passwd` and `/etc/group` |
@@ -1253,7 +1279,8 @@ table answers it per utility, from the evidence and from nothing else.
 | `chgrp` | 13 / 13 | 17 / 0, and 170 / 0 | not benched | as `chown` |
 
 **19 drop-in, 28 drop-in for scripts that avoid a named thing, none not
-yet** (bu27: `timeout` arrived with named things, and `kill`'s three
+yet** (bu28: `kill`'s two named things became one, and `timeout`'s four
+became three narrower ones; bu27: `timeout` arrived with named things, and `kill`'s three
 became two narrower ones; bu24: the six identity tools arrived with a named thing each —
 accounts only in the two files, and `logname` on macOS; bu23: `kill` arrived with three named things, each a thing wolf
 cannot express yet; bu22: `mkdir` became drop-in, and `chmod`, `touch` and `ln`
@@ -1312,12 +1339,15 @@ use it (bu15).
 - **#739**, **#740**, **#741**, **#762** (closed, wolf 0.2.31, s241,
   ruling #79): the group send, every process, host signals by `-N`, a
   signal's words, the caller's own group. `kill`'s groups and `-t`'s
-  words, and `timeout`, stand on them (bu27). What bu27 met and wolf
-  cannot do yet (not filed; the texts are in bu27's note): ignore a
-  send-only meaning or a host signal (so `timeout -s SEGV` cannot send
-  to the group it leads), name process group 1 (so `kill 0` from it is
-  refused), give signal 0's words, say a child dumped core
-  (`os_wait_poll`), and end a process by a fault signal it re-raises.
+  words, and `timeout`, stand on them (bu27). Of what bu27 met, wolf
+  0.2.33 (s246, wolf-lang#783, #784, #785, #787, ruling #88) answers
+  four: one meaning ignored in the sending shape
+  (`os_signal_ignore_one`), an end by a signal, a fault's included
+  (`os_exit_signal`), a child's core (`os_wait_poll_core`) and signal
+  0's words; `timeout` and `kill -t` stand on them (bu28). Still not:
+  process group 1 (ruling #86: `kill 0` from it stays refused), hearing
+  a send-only meaning or a host signal, and a process's own core limit
+  or dumpability (`timeout`'s own end dumps where GNU's never does).
 - **#424** (closed, wolf 0.2.22): `fs_fstat`, `fs_seek`, `fs_tell` and
   `fs_read_at` see descriptors 0, 1 and 2; `wc -c` and `tail` on a
   redirected regular file use them (bu15). `cat`'s input-is-output
