@@ -1153,6 +1153,33 @@ depth is start-up on both sides.
 | `chown` | done: OWNER[:[GROUP]] by name or number, `USER:`, the old `.`, `--from`, `--reference`, `-c`, `-f`, `-v`, `-h`, `--dereference`, `-R` with `-H`/`-L`/`-P`, `--preserve-root` | not benched |
 | `chgrp` | done: as `chown`, for the group | not benched |
 
+## Differences from GNU
+
+Recorded, not matched: each is a place where boreutils answers otherwise
+than GNU coreutils 9.11 and was ruled to stay that way, with the evidence
+that measured it. Nothing here is refused, and no case hides it: the
+utility runs, and does the other thing. (A refusal by name is in each
+utility's row in the tables above.)
+
+- **A streaming filter appended onto its own input** (boreutils#37,
+  ruling #87). `tail -c +1 f >> f`, and `nl`, `cut`, `tr`, `fold`,
+  `expand` and `head -c` the same way, read what they have just written:
+  boreutils' write as they read, so each copies until the disk or a
+  file-size limit stops it, at any size. GNU's stop after one pass on a
+  file small enough to be read whole before the first write (a 9-byte
+  file becomes 18 bytes, `nl`'s 33), and on a larger one — 5,714 bytes
+  and up in the probe — fill the disk as boreutils' do. The difference is
+  that small file's single pass, a buffer's size rather than a rule: GNU
+  has no input-is-output check for these utilities (`cat` has one, and
+  boreutils' `cat` refuses as GNU's does, bu25), and none is added here.
+  `paste` parts the other way at 5,714 bytes (GNU's fills, boreutils'
+  stops after one pass); `uniq`, `tac` and `cat -n` answer alike. Evidence:
+  bu25's probe `notes/bu25/probes/p4.sh`, each run in a 16 MiB tmpfs in a
+  throwaway container, GNU's `ev/probe-p4-gnu.log` (sha256 `f3a4f2aa…`)
+  and boreutils' `ev/probe-p4-w1rel.log` (`2ec931a1…`), copied into
+  `notes/bu28/ev/`, and boreutils' answered again at wolf 0.2.33
+  (`notes/bu28/ev/probe-p4-head-release.log`).
+
 ## Drop-in readiness
 
 Can a script call the boreutils program where it called GNU's? This
