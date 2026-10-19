@@ -1,0 +1,33 @@
+n=9 [tail -c +1 <f >> f] rc=1 size=16777216
+n=9 [nl f >> f] rc=1 size=16777216
+n=9 [cut -c1- f >> f] rc=1 size=16777216
+n=9 [tr a b <f >> f] rc=1 size=16777216
+n=9 [fold f >> f] rc=1 size=16777216
+n=9 [expand f >> f] rc=1 size=16777216
+n=9 [uniq <f >> f] rc=0 size=19
+n=9 [head -c 100000000 <f >> f] rc=1 size=16777216
+n=9 [cat -n f >> f] rc=1 size=9
+n=9 [paste f >> f] rc=0 size=19
+n=9 [tac f >> f] rc=0 size=18
+n=5714 [tail -c +1 <f >> f] rc=1 size=16777216
+n=5714 [nl f >> f] rc=1 size=16777216
+n=5714 [cut -c1- f >> f] rc=1 size=16777216
+n=5714 [tr a b <f >> f] rc=1 size=16777216
+n=5714 [fold f >> f] rc=1 size=16777216
+n=5714 [expand f >> f] rc=1 size=16777216
+n=5714 [uniq <f >> f] rc=0 size=5725
+n=5714 [head -c 100000000 <f >> f] rc=1 size=16777216
+n=5714 [cat -n f >> f] rc=1 size=5714
+n=5714 [paste f >> f] rc=0 size=11429
+n=5714 [tac f >> f] rc=0 size=11428
+n=342857 [tail -c +1 <f >> f] rc=1 size=16777216
+n=342857 [nl f >> f] rc=1 size=16777216
+n=342857 [cut -c1- f >> f] rc=1 size=16777216
+n=342857 [tr a b <f >> f] rc=1 size=16777216
+n=342857 [fold f >> f] rc=1 size=16777216
+n=342857 [expand f >> f] rc=1 size=16777216
+n=342857 [uniq <f >> f] rc=0 size=342867
+n=342857 [head -c 100000000 <f >> f] rc=1 size=16777216
+n=342857 [cat -n f >> f] rc=1 size=342857
+n=342857 [paste f >> f] rc=1 size=16777216
+n=342857 [tac f >> f] rc=0 size=685714
