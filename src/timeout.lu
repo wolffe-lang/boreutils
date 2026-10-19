@@ -442,16 +442,16 @@ fn ended(r: Run, core_st: int, timed_out: bool) -> int {
         }
         return 124
     }
-    // Ended by a signal of its own: end by the same one.
+    // Ended by a signal of its own: end by the same one, a fault's
+    // included (`os_exit_signal`, wolf 0.2.33, ruling #88 R2: the default
+    // set back, the stack guard's SEGV and BUS too, unblocked and raised
+    // on this thread). A signal whose default ends nothing (glibc's 32)
+    // leaves this process alive, and the call exits 128 + N, as GNU's
+    // timeout does (measured, bu28).
     let e = bore.signal_entry(r.table, "{n}") else -1
     let m = bore.signal_meaning(r.table, e)
     if e >= 0 && m != 0 {
-        if bore.signal_listenable(r.table, e) {
-            os_signal_default(m) else |_| {}
-        }
-        let me = os_pid()
-        os_signal_send(me, m) else |_| {}
-        time_sleep_ms(100)
+        os_exit_signal(m) else |_| {}
     }
     128 + n
 }
