@@ -1,0 +1,55 @@
+2026-10-20T00:13:25.6286458Z SKIP seq: -f %a, the one conversion boreutils does not implement (The hexadecimal float conversion is the C library's, and the two hosts' libraries disagree at the same coreutils 9.11: Apple's prints 0x1p+0 0x1p+1 and glibc prints 0x8p-3 0x8p-2. No answer matches both, so seq refuses %a with GNU's own unknown-directive wording and the divergence is recorded here.)
+2026-10-20T00:13:25.6289384Z SKIP seq: a value too large for a long double to hold exactly (The two hosts do not agree with each other here, let alone with an exact answer: macOS prints 1000000000000000019884624838656 (its long double is a double) and linux prints 1000000000000000000024696061952 (x87 extended), and macOS stops one value earlier. boreutils prints 1e30, 2e30 and 3e30 exactly.)
+2026-10-20T00:13:29.3400102Z SKIP tac: a directory operand (the hosts disagree about reading a directory at one coreutils release: EISDIR ('Is a directory') on Arch and macOS, EINVAL ('Invalid argument') on ubuntu-latest's staged 9.11. boreutils has no errno text behind an fs row (wolf-lang#407) and says 'Is a directory'.)
+2026-10-20T00:13:32.5053853Z SKIP wc: width table: U+00AD, a soft hyphen (the two hosts' wcwidth disagree here: macOS answers 0 and glibc 1, so no single answer can match GNU on both. boreutils follows glibc, where GNU coreutils is native.)
+2026-10-20T00:13:32.5086819Z SKIP wc: width table: U+070F, a Syriac abbreviation mark (the two hosts' wcwidth disagree here: macOS answers 0 and glibc 1, so no single answer can match GNU on both. boreutils follows glibc, where GNU coreutils is native.)
+2026-10-20T00:13:32.6576173Z difftest: 6675 passed, 0 failed, 113 skipped
+2026-10-20T00:13:32.9908896Z FAIL echo: what a terminal received  args=['x']
+2026-10-20T00:13:32.9909496Z FAIL echo: a mask hides only what it names  args=['n=5 tail']
+2026-10-20T00:13:32.9910048Z FAIL echo: a kept line the other side lacks  args=['3']
+2026-10-20T00:13:32.9910560Z FAIL head: an offset one side moves  args=['-']
+2026-10-20T00:13:32.9911024Z FAIL tee: a file one side writes  args=['a']
+2026-10-20T00:13:32.9911480Z FAIL tee: a file whose bytes differ  args=['a']
+2026-10-20T00:13:32.9911958Z FAIL tee: two names of one file  args=['a', 'b']
+2026-10-20T00:13:32.9912748Z FAIL tee: a time one side sets  args=['a']
+2026-10-20T00:13:32.9913186Z FAIL true: true is not false  args=[]
+2026-10-20T00:13:32.9913590Z difftest: 5 passed, 9 failed, 0 skipped
+2026-10-20T00:13:34.0785462Z difftest-evidence:   difftest: 1 passed, 0 failed, 0 skipped
+2026-10-20T00:15:17.6346103Z roottest: 178 passed, 0 failed
+2026-10-20T00:15:18.4022183Z killprobe: gnu = kill (GNU coreutils) 9.11 (.gnu-bin/bin/kill); host Linux x86_64
+2026-10-20T00:15:18.4881908Z killprobe: 240578 numbers: 0..140000, then 100577 edges and a sample of the int range (seed 34), 4000 an invocation; nothing is sent
+2026-10-20T00:15:19.3323029Z killprobe: gnu -l: 61348 numbers name a signal, 179230 are invalid
+2026-10-20T00:15:19.9566379Z agree target/release/kill -l: 240578 numbers alike
+2026-10-20T00:15:20.6292254Z agree target/dev/kill -l: 240578 numbers alike
+2026-10-20T00:15:21.5023554Z killprobe: gnu -t: 61348 numbers name a signal, 179230 are invalid
+2026-10-20T00:15:22.1835272Z agree target/release/kill -t: 240578 numbers alike
+2026-10-20T00:15:22.8875730Z agree target/dev/kill -t: 240578 numbers alike
+2026-10-20T00:15:22.8876452Z killprobe: every number answered alike
+2026-10-20T00:15:31.9245696Z FAIL plant: a target one side leaves alive  args=['{pid0}']
+2026-10-20T00:15:31.9246538Z FAIL plant: a target that must end by KILL  args=['-s', 'KILL', '{pid0}']
+2026-10-20T00:15:31.9247310Z FAIL plant: a process that is not there  args=['{dead}']
+2026-10-20T00:15:31.9248643Z FAIL plant: kill 0 to the group the program leads  args=['0']
+2026-10-20T00:15:31.9249265Z killtest: 1 passed, 4 failed, 0 skipped
+2026-10-20T00:21:06.7532592Z killtest: 365 passed, 0 failed, 0 skipped
+2026-10-20T00:21:06.7649856Z ##[group]Run echo "the runner's core pattern: $(cat /proc/sys/kernel/core_pattern)"
+2026-10-20T00:21:06.7650467Z [36;1mecho "the runner's core pattern: $(cat /proc/sys/kernel/core_pattern)"[0m
+2026-10-20T00:21:06.7816527Z the runner's core pattern: |/usr/lib/systemd/systemd-coredump %P %u %g %s %t 9223372036854775808 %h %d
+2026-10-20T00:21:16.5026597Z timeouttest: core pattern 'core.%p': cores-on cases run (a file in the case directory), and must (BORE_CORE_REQUIRE=1)
+2026-10-20T00:21:16.5029484Z FAIL plant: the expiry  args=['0.3', 'sleep', '1']
+2026-10-20T00:21:16.5030320Z FAIL plant: the group  args=['0.3', 'sh', '-c', 'sleep 30 & echo $! > gc; sleep 1']
+2026-10-20T00:21:16.5031373Z FAIL plant: a death by a signal is not an exit status  args=['5', 'sh', '-c', 'kill -TERM $$']
+2026-10-20T00:21:16.5032863Z FAIL plant: a field answered otherwise by design  args=['5', 'sh', '-c', 'exit 3']
+2026-10-20T00:21:16.5033871Z FAIL plant: a cores-on case must run  args=['5', 'sh', '-c', 'kill -SEGV $$']
+2026-10-20T00:21:16.5035318Z timeouttest: 1 passed, 5 failed, 0 skipped
+2026-10-20T00:21:24.2834590Z timeouttest: core pattern 'core.%p': cores-on cases run (a file in the case directory), and must (BORE_CORE_REQUIRE=1)
+2026-10-20T00:25:51.0734596Z timeouttest: 162 passed, 0 failed, 1 skipped
+2026-10-20T00:26:30.9403862Z FAIL plant: an owner one side changes  args=['-v', ':pack', 'f'] as=root
+2026-10-20T00:26:30.9404667Z FAIL plant: an account one side cannot see  args=['alice'] as=root
+2026-10-20T00:26:30.9405479Z FAIL plant: the actor took (ours would be root's 0)  args=['-u'] as=alice
+2026-10-20T00:26:30.9406094Z FAIL plant: the terminal and its record reached ours (ours would say nothing)  args=[] as=root
+2026-10-20T00:30:10.0484030Z idtest: 1098 passed, 0 failed, 28 skipped
+2026-10-20T00:30:28.1763309Z FAIL plant: the bytes one side leaves (as root)  run='cat a > g; [ "$who" = gnu ] || printf x >> g'
+2026-10-20T00:30:28.1764207Z FAIL plant: a status one side changes (as root)  run='cat f >> f; [ "$who" = gnu ] || exit 7'
+2026-10-20T00:30:28.1765149Z FAIL plant: a copy that grows is stopped by the file-size limit (as root)  run='if [ "$who" = gnu ]; then cat a >> g; else cat /dev/zero >> g; fi'
+2026-10-20T00:30:28.1766699Z FAIL plant: a side that never ends is stopped by the alarm (as root)  run='if [ "$who" = gnu ]; then cat a > g; else while :; do sleep 1; done; fi'
+2026-10-20T00:30:53.8646263Z inouttest: 104 passed, 0 failed, 0 skipped
