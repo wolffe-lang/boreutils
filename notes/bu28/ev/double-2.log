@@ -1,0 +1,11 @@
+cpus 0-3; loaders 6; nproc 4
+/b/release/timeout: 150 runs; 0 with more than one send; 0 with two deliveries, 0 of them more than 50 us apart
+  /b/dev/timeout run 37: deliveries 2 parent 1882 [from 1882 +0us] [from 1882 +2319us] (1 sends)
+/b/dev/timeout: 150 runs; 0 with more than one send; 3 with two deliveries, 1 of them more than 50 us apart
+  /g/bin/timeout run 5: deliveries 2 parent 3051 [from 3051 +0us] [from 3051 +1056us] (1 sends)
+  /g/bin/timeout run 8: deliveries 2 parent 3066 [from 3066 +0us] [from 3066 +2631us] (1 sends)
+  /g/bin/timeout run 10: deliveries 2 parent 3077 [from 3077 +0us] [from 3077 +1617us] (1 sends)
+  /g/bin/timeout run 26: deliveries 2 parent 3147 [from 3147 +0us] [from 3147 +1603us] (1 sends)
+  /g/bin/timeout run 77: deliveries 2 parent 3369 [from 3369 +0us] [from 3369 +1961us] (1 sends)
+/g/bin/timeout: 150 runs; 0 with more than one send; 14 with two deliveries, 5 of them more than 50 us apart
+DOUBLE2-DONE

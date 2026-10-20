@@ -1,0 +1,31 @@
+gauntlet: 2026-10-20T03:55:31Z on kasumi at head-18a6490 (tree boreutils, 18a6490 + 4 changed), load 3.03 7.04 6.63 3/528 3409192
+fetch rc=0
+wolf 0.2.33 (wolfgang, pin 85dab5d)
+cceda63151430eac07df895fdfffddfa4a0b92c1
+build release rc=0
+build dev rc=0
+47
+47
+fmt rc=0
+test rc=0
+wolf test: 9 passed; 0 failed; 0 rejected; 0 unsupported; 0 filtered out
+/home/mfwolffe/lanes/bu28/ev/build-release-head-18a6490.log:0
+/home/mfwolffe/lanes/bu28/ev/build-dev-head-18a6490.log:0
+difftest release rc=0
+difftest: 6668 passed, 0 failed, 120 skipped
+difftest dev rc=0
+difftest: 6668 passed, 0 failed, 120 skipped
+verdict list, release: dcdb32cb0d7a5e25  ok 6668 FAIL 0 SKIP 120
+verdict list, dev: dcdb32cb0d7a5e25  ok 6668 FAIL 0 SKIP 120
+selftest rc=0
+evidence rc=0
+field-verdict-selftest rc=0
+killprobe rc=0
+agree target/release/kill -l: 240578 numbers alike
+agree target/dev/kill -l: 240578 numbers alike
+agree target/release/kill -t: 240578 numbers alike
+agree target/dev/kill -t: 240578 numbers alike
+killprobe: every number answered alike
+load: 2.22 4.70 5.79 2/542 3488201
+2026-10-20T03:59:39Z
+GAUNTLET-DONE

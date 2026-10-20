@@ -1,0 +1,21 @@
+cpus 0-3; loaders 6; nproc 4
+  /g/bin/timeout sigcount run 27: deliveries 2 parent 202 [from 202 +0us] [from 202 +5us]
+  /g/bin/timeout sigcount run 50: deliveries 2 parent 363 [from 363 +0us] [from 363 +20us]
+  /g/bin/timeout sigcount run 74: deliveries 2 parent 531 [from 531 +0us] [from 531 +395us]
+  /g/bin/timeout sigcount run 75: deliveries 2 parent 538 [from 538 +0us] [from 538 +4us]
+  /g/bin/timeout sigcount run 96: deliveries 2 parent 685 [from 685 +0us] [from 685 +4us]
+  /g/bin/timeout sigcount run 99: deliveries 2 parent 706 [from 706 +0us] [from 706 +272us]
+/g/bin/timeout: 6 of 100 sigcount runs with more than one delivery; 0 of 100 trap runs with other than one line
+  /b/release/timeout sigcount run 41: deliveries 2 parent 1481 [from 1481 +0us] [from 1481 +4us]
+  /b/release/timeout sigcount run 58: deliveries 2 parent 1804 [from 1804 +0us] [from 1804 +4us]
+  /b/release/timeout sigcount run 72: deliveries 2 parent 2070 [from 2070 +0us] [from 2070 +4us]
+  /b/release/timeout sigcount run 86: deliveries 2 parent 2336 [from 2336 +0us] [from 2336 +4us]
+/b/release/timeout: 4 of 100 sigcount runs with more than one delivery; 0 of 100 trap runs with other than one line
+  /b/dev/timeout sigcount run 14: deliveries 2 parent 2869 [from 2869 +0us] [from 2869 +374us]
+  /b/dev/timeout sigcount run 19: deliveries 2 parent 2964 [from 2964 +0us] [from 2964 +1535us]
+  /b/dev/timeout sigcount run 44: deliveries 2 parent 3439 [from 3439 +0us] [from 3439 +4us]
+  /b/dev/timeout sigcount run 45: deliveries 2 parent 3458 [from 3458 +0us] [from 3458 +4us]
+  /b/dev/timeout sigcount run 50: deliveries 2 parent 3553 [from 3553 +0us] [from 3553 +4us]
+  /b/dev/timeout sigcount run 53: deliveries 2 parent 3610 [from 3610 +0us] [from 3610 +3us]
+  /b/dev/timeout sigcount run 73: deliveries 2 parent 3990 [from 3990 +0us] [from 3990 +3us]
+/b/dev/timeout: 7 of 100 sigcount runs with more than one delivery; 0 of 100 trap runs with other than one line

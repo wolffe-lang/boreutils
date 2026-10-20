@@ -1,0 +1,94 @@
+timeout: the monitored command dumped core
+timeout-release-segv-group: exit 124
+timeout-release-rtmin-group: exit 124
+timeout: the monitored command dumped core
+/l/probes/straces.sh: line 6:    50 Segmentation fault      (core dumped) strace -f -qq -o "$O/$name.strace" "$@"
+timeout-release-ends-by-segv: exit 139
+/l/probes/straces.sh: line 6:    73 Real-time signal 0      strace -f -qq -o "$O/$name.strace" "$@"
+timeout-release-ends-by-rtmin: exit 162
+ 0 EXIT     Unknown signal 0
+kill-release-table-zero: exit 0
+timeout-release-segv-group calls: access arch_prctl brk clock_nanosleep clone clone3 close dup2 execve exit exit_group fcntl fstat futex getpgrp getpid getrandom gettid kill lseek madvise mmap mprotect munmap openat pipe2 poll prctl pread64 prlimit64 read readlinkat recvfrom restart_syscall rseq rt_sigaction rt_sigprocmask rt_sigreturn sched_getaffinity set_robust_list set_tid_address setpgid sigaltstack socketpair statx tgkill wait4 write 
+timeout-release-rtmin-group calls: access arch_prctl brk clock_nanosleep clone clone3 close dup2 execve exit exit_group fcntl fstat futex getpgrp getpid getrandom gettid kill lseek madvise mmap mprotect munmap openat pipe2 poll prctl pread64 prlimit64 read readlinkat recvfrom restart_syscall rseq rt_sigaction rt_sigprocmask rt_sigreturn sched_getaffinity set_robust_list set_tid_address setpgid sigaltstack socketpair statx tgkill wait4 write 
+timeout-release-ends-by-segv calls: access arch_prctl brk clock_nanosleep clone clone3 close dup2 execve fcntl fstat futex getegid geteuid getgid getpid getppid getrandom gettid getuid kill lseek madvise mmap mprotect munmap newfstatat openat pipe2 poll prctl pread64 prlimit64 read readlinkat recvfrom rseq rt_sigaction rt_sigprocmask rt_sigreturn sched_getaffinity set_robust_list set_tid_address setpgid sigaltstack socketpair statx tgkill wait4 write 
+timeout-release-ends-by-rtmin calls: access arch_prctl brk clone clone3 close dup2 execve fcntl fstat futex getegid geteuid getgid getpid getppid getrandom gettid getuid kill lseek madvise mmap mprotect munmap newfstatat openat pipe2 poll prctl pread64 prlimit64 read readlinkat recvfrom restart_syscall rseq rt_sigaction rt_sigprocmask rt_sigreturn sched_getaffinity set_robust_list set_tid_address setpgid sigaltstack socketpair statx tgkill wait4 write 
+kill-release-table-zero calls: arch_prctl brk execve exit_group getrandom mprotect prlimit64 readlinkat rseq set_robust_list set_tid_address statx write 
+-- timeout-release-segv-group: the ignore and the group send
+rt_sigaction(SIGSEGV, {sa_handler=0x25eff0, sa_mask=[], sa_flags=SA_RESTORER|SA_ONSTACK|SA_SIGINFO, sa_restorer=0x2dc880},  <unfinished ...>
+kill(-7, SIGSEGV)                 = 0
+kill(-7, SIGCONT)                 = 0
+-- timeout-release-rtmin-group: the ignore and the group send
+rt_sigaction(SIGSEGV, {sa_handler=0x25eff0, sa_mask=[], sa_flags=SA_RESTORER|SA_ONSTACK|SA_SIGINFO, sa_restorer=0x2dc880},  <unfinished ...>
+rt_sigaction(SIGRT_2, {sa_handler=SIG_IGN, sa_mask=[], sa_flags=SA_RESTORER, sa_restorer=0x2dc880}, NULL, 8) = 0
+kill(-30, SIGRT_2)                = 0
+kill(-30, SIGCONT)                = 0
+-- timeout-release-ends-by-segv: the poll and the end
+rt_sigaction(SIGSEGV, {sa_handler=0x25eff0, sa_mask=[], sa_flags=SA_RESTORER|SA_ONSTACK|SA_SIGINFO, sa_restorer=0x2dc880}, NULL, 8) = 0
+wait4(55,  <unfinished ...>
+<... wait4 resumed>0x7fff5967db38, WNOHANG|WSTOPPED, NULL) = 0
+rt_sigprocmask(SIG_UNBLOCK, [HUP INT QUIT ABRT USR1 USR2 PIPE ALRM TERM CHLD XCPU XFSZ VTALRM PROF],  <unfinished ...>
+wait4(55, [{WIFSIGNALED(s) && WTERMSIG(s) == SIGSEGV && WCOREDUMP(s)}], WNOHANG|WSTOPPED, NULL) = 55
+rt_sigaction(SIGSEGV, {sa_handler=SIG_DFL, sa_mask=[], sa_flags=SA_RESTORER, sa_restorer=0x2dc880}, NULL, 8) = 0
+rt_sigprocmask(SIG_UNBLOCK, [SEGV], NULL, 8) = 0
+tgkill(53, 53, SIGSEGV)           = 0
+-- timeout-release-ends-by-rtmin: the poll and the end
+rt_sigprocmask(SIG_UNBLOCK, [XFSZ],  <unfinished ...>
+rt_sigaction(SIGSEGV, {sa_handler=0x25eff0, sa_mask=[], sa_flags=SA_RESTORER|SA_ONSTACK|SA_SIGINFO, sa_restorer=0x2dc880}, NULL, 8) = 0
+wait4(78,  <unfinished ...>
+<... wait4 resumed>[{WIFSIGNALED(s) && WTERMSIG(s) == SIGRT_2}], WNOHANG|WSTOPPED, NULL) = 78
+rt_sigaction(SIGRT_2, {sa_handler=SIG_DFL, sa_mask=[], sa_flags=SA_RESTORER, sa_restorer=0x2dc880},  <unfinished ...>
+rt_sigprocmask(SIG_UNBLOCK, [RT_2],  <unfinished ...>
+tgkill(76, 76, SIGRT_2 <unfinished ...>
+<... tgkill resumed>)             = 0
+timeout: the monitored command dumped core
+timeout-dev-segv-group: exit 124
+timeout-dev-rtmin-group: exit 124
+timeout: the monitored command dumped core
+/l/probes/straces.sh: line 6:   177 Segmentation fault      (core dumped) strace -f -qq -o "$O/$name.strace" "$@"
+timeout-dev-ends-by-segv: exit 139
+/l/probes/straces.sh: line 6:   200 Real-time signal 0      strace -f -qq -o "$O/$name.strace" "$@"
+timeout-dev-ends-by-rtmin: exit 162
+ 0 EXIT     Unknown signal 0
+kill-dev-table-zero: exit 0
+timeout-dev-segv-group calls: access arch_prctl brk clock_nanosleep clone clone3 close dup2 execve exit exit_group fcntl fstat futex getpgrp getpid getrandom gettid kill lseek madvise mmap mprotect munmap openat pipe2 poll prctl pread64 prlimit64 read readlinkat recvfrom restart_syscall rseq rt_sigaction rt_sigprocmask rt_sigreturn sched_getaffinity set_robust_list set_tid_address setpgid sigaltstack socketpair statx tgkill wait4 write 
+timeout-dev-rtmin-group calls: access arch_prctl brk clock_nanosleep clone clone3 close dup2 execve exit exit_group fcntl fstat futex getpgrp getpid getrandom gettid kill lseek madvise mmap mprotect munmap openat pipe2 poll prctl pread64 prlimit64 read readlinkat recvfrom restart_syscall rseq rt_sigaction rt_sigprocmask rt_sigreturn sched_getaffinity set_robust_list set_tid_address setpgid sigaltstack socketpair statx tgkill wait4 write 
+timeout-dev-ends-by-segv calls: access arch_prctl brk clock_nanosleep clone clone3 close dup2 execve fcntl fstat futex getegid geteuid getgid getpid getppid getrandom gettid getuid kill lseek madvise mmap mprotect munmap newfstatat openat pipe2 poll prctl pread64 prlimit64 read readlinkat recvfrom rseq rt_sigaction rt_sigprocmask rt_sigreturn sched_getaffinity set_robust_list set_tid_address setpgid sigaltstack socketpair statx tgkill wait4 write 
+timeout-dev-ends-by-rtmin calls: access arch_prctl brk clone clone3 close dup2 execve fcntl fstat futex getegid geteuid getgid getpid getppid getrandom gettid getuid kill lseek madvise mmap mprotect munmap newfstatat openat pipe2 poll prctl pread64 prlimit64 read readlinkat recvfrom restart_syscall rseq rt_sigaction rt_sigprocmask rt_sigreturn sched_getaffinity set_robust_list set_tid_address setpgid sigaltstack socketpair statx tgkill wait4 write 
+kill-dev-table-zero calls: arch_prctl brk execve exit_group getrandom mprotect prlimit64 readlinkat rseq set_robust_list set_tid_address statx write 
+-- timeout-dev-segv-group: the ignore and the group send
+rt_sigaction(SIGSEGV, {sa_handler=0x2ae680, sa_mask=[], sa_flags=SA_RESTORER|SA_ONSTACK|SA_SIGINFO, sa_restorer=0x334290}, NULL, 8) = 0
+kill(-134, SIGSEGV)               = 0
+kill(-134, SIGCONT)               = 0
+-- timeout-dev-rtmin-group: the ignore and the group send
+rt_sigaction(SIGSEGV, {sa_handler=0x2ae680, sa_mask=[], sa_flags=SA_RESTORER|SA_ONSTACK|SA_SIGINFO, sa_restorer=0x334290}, NULL, 8) = 0
+rt_sigaction(SIGRT_2, {sa_handler=SIG_IGN, sa_mask=[], sa_flags=SA_RESTORER, sa_restorer=0x334290}, NULL, 8) = 0
+kill(-157, SIGRT_2)               = 0
+kill(-157, SIGCONT <unfinished ...>
+-- timeout-dev-ends-by-segv: the poll and the end
+rt_sigaction(SIGSEGV, {sa_handler=0x2ae680, sa_mask=[], sa_flags=SA_RESTORER|SA_ONSTACK|SA_SIGINFO, sa_restorer=0x334290}, NULL, 8) = 0
+wait4(182,  <unfinished ...>
+<... wait4 resumed>0x7ffcda77c0a8, WNOHANG|WSTOPPED, NULL) = 0
+rt_sigprocmask(SIG_UNBLOCK, [HUP INT QUIT ABRT USR1 USR2 PIPE ALRM TERM CHLD XCPU XFSZ VTALRM PROF],  <unfinished ...>
+wait4(182, [{WIFSIGNALED(s) && WTERMSIG(s) == SIGSEGV && WCOREDUMP(s)}], WNOHANG|WSTOPPED, NULL) = 182
+rt_sigaction(SIGSEGV, {sa_handler=SIG_DFL, sa_mask=[], sa_flags=SA_RESTORER, sa_restorer=0x334290}, NULL, 8) = 0
+rt_sigprocmask(SIG_UNBLOCK, [SEGV], NULL, 8) = 0
+tgkill(180, 180, SIGSEGV)         = 0
+-- timeout-dev-ends-by-rtmin: the poll and the end
+rt_sigprocmask(SIG_UNBLOCK, [XFSZ],  <unfinished ...>
+rt_sigaction(SIGSEGV, {sa_handler=0x2ae680, sa_mask=[], sa_flags=SA_RESTORER|SA_ONSTACK|SA_SIGINFO, sa_restorer=0x334290}, NULL, 8) = 0
+wait4(205,  <unfinished ...>
+<... wait4 resumed>[{WIFSIGNALED(s) && WTERMSIG(s) == SIGRT_2}], WNOHANG|WSTOPPED, NULL) = 205
+rt_sigaction(SIGRT_2, {sa_handler=SIG_DFL, sa_mask=[], sa_flags=SA_RESTORER, sa_restorer=0x334290},  <unfinished ...>
+rt_sigprocmask(SIG_UNBLOCK, [RT_2],  <unfinished ...>
+tgkill(203, 203, SIGRT_2 <unfinished ...>
+<... tgkill resumed>)             = 0
+0309fea074be72f22b25def41d76671b4ade622c4d9512db74e1b7db4576f862  /l/ev/strace/kill-dev-table-zero.strace
+4bc4b81d62b31ba41237ea78a0a6b312251c55c6ce6777f01826bdf7e5e08707  /l/ev/strace/kill-release-table-zero.strace
+3a9f61056eab94a81e944e2cd4b33ff91e3218f9b1e3a7371457177209cfc6c2  /l/ev/strace/timeout-dev-ends-by-rtmin.strace
+dbdcb64e282dc888d51afedc2c21eb6eb60e570b3bc3a6e817fd65061e76c5a2  /l/ev/strace/timeout-dev-ends-by-segv.strace
+13ae6fb80e8fe9fc6d8d7308bea801da0490a692ffa3105f5db71ae0e33641d9  /l/ev/strace/timeout-dev-rtmin-group.strace
+8572c56dc8fa8abaf791a0abd6f2ab8014258bd19a07323a0c926db09e47dac5  /l/ev/strace/timeout-dev-segv-group.strace
+21af50479e35f3ed06a89b6d12a9d0681ecaa00d45ba00bb6f017c2081a37ceb  /l/ev/strace/timeout-release-ends-by-rtmin.strace
+ffe807e206e6d86b208639ce101f1ca3e5931f567bd1da9ebda3ef02ab226231  /l/ev/strace/timeout-release-ends-by-segv.strace
+4e2311a0e90784298a0129576a6dfcf0eed16164cc36b87398963dc902857994  /l/ev/strace/timeout-release-rtmin-group.strace
+969351586f7f322c2851ff20f318c6ac863890c01e8884930610923cd042b23f  /l/ev/strace/timeout-release-segv-group.strace

@@ -1,0 +1,42 @@
+== /g/bin/timeout: exit 124; out: got TERM|
+1:     03:19:23.838564 rt_sigaction(SIGALRM, {sa_handler=0x55faa9159a50, sa_mask=[], sa_flags=SA_RESTORER|SA_RESTART, sa_restorer=0x7fa464a1b330}, NULL, 8) = 0
+8:     03:19:23.838728 rt_sigaction(SIGTERM, {sa_handler=0x55faa9159a50, sa_mask=[], sa_flags=SA_RESTORER|SA_RESTART, sa_restorer=0x7fa464a1b330}, NULL, 8) = 0
+105:     03:19:23.840214 rt_sigaction(SIGTERM, {sa_handler=0x55faa9159a50, sa_mask=[], sa_flags=SA_RESTORER|SA_RESTART, sa_restorer=0x7fa464a1b330}, NULL, 8) = 0
+173:     03:19:23.841970 rt_sigaction(SIGTERM, {sa_handler=SIG_DFL, sa_mask=~[RTMIN RT_1], sa_flags=SA_RESTORER, sa_restorer=0x7fa052f3b330}, NULL, 8) = 0
+174:     03:19:23.841992 rt_sigaction(SIGTERM, {sa_handler=0x55a783a89cd0, sa_mask=~[RTMIN RT_1], sa_flags=SA_RESTORER, sa_restorer=0x7fa052f3b330}, NULL, 8) = 0
+176:     03:19:23.842125 rt_sigaction(SIGTERM, {sa_handler=SIG_DFL, sa_mask=~[RTMIN RT_1], sa_flags=SA_RESTORER, sa_restorer=0x7fa052f3b330}, NULL, 8) = 0
+179:     03:19:24.141358 --- SIGALRM {si_signo=SIGALRM, si_code=SI_TIMER, si_timerid=0, si_overrun=0, si_int=0, si_ptr=NULL} ---
+180:     03:19:24.141472 kill(7, SIGTERM)  = 0
+181:     03:19:24.141682 rt_sigaction(SIGTERM, {sa_handler=SIG_IGN, sa_mask=[TERM], sa_flags=SA_RESTORER|SA_RESTART, sa_restorer=0x7fa464a1b330},  <unfinished ...>
+182:     03:19:24.141696 --- SIGTERM {si_signo=SIGTERM, si_code=SI_USER, si_pid=6, si_uid=1000} ---
+184:     03:19:24.141903 kill(0, SIGTERM)  = 0
+186:     03:19:24.142047 --- SIGTERM {si_signo=SIGTERM, si_code=SI_USER, si_pid=6, si_uid=1000} ---
+187:     03:19:24.142102 --- SIGTERM {si_signo=SIGTERM, si_code=SI_USER, si_pid=6, si_uid=1000} ---
+189:     03:19:24.142190 kill(7, SIGCONT <unfinished ...>
+190:     03:19:24.142213 --- SIGTERM {si_signo=SIGTERM, si_code=SI_USER, si_pid=6, si_uid=1000} ---
+191:     03:19:24.142219 +++ killed by SIGTERM +++
+193:     03:19:24.142342 rt_sigaction(SIGCONT, {sa_handler=SIG_IGN, sa_mask=[CONT], sa_flags=SA_RESTORER|SA_RESTART, sa_restorer=0x7fa464a1b330},  <unfinished ...>
+194:     03:19:24.142360 --- SIGCHLD {si_signo=SIGCHLD, si_code=CLD_KILLED, si_pid=8, si_uid=1000, si_status=SIGTERM, si_utime=0, si_stime=0} ---
+196:     03:19:24.142501 kill(0, SIGCONT)  = 0
+197:     03:19:24.142519 --- SIGCONT {si_signo=SIGCONT, si_code=SI_USER, si_pid=6, si_uid=1000} ---
+198:     03:19:24.142527 --- SIGCONT {si_signo=SIGCONT, si_code=SI_USER, si_pid=6, si_uid=1000} ---
+199:     03:19:24.142578 --- SIGCONT {si_signo=SIGCONT, si_code=SI_USER, si_pid=6, si_uid=1000} ---
+== /l/bin/fx/release/timeout: exit 124; out: got TERM|
+9:    03:19:24.146628 rt_sigaction(SIGTERM, {sa_handler=0x26ab50, sa_mask=[], sa_flags=SA_RESTORER|SA_RESTART, sa_restorer=0x2dd3f0}, NULL, 8) = 0
+15:    03:19:24.146701 rt_sigaction(SIGALRM, {sa_handler=0x26ab50, sa_mask=[], sa_flags=SA_RESTORER|SA_RESTART, sa_restorer=0x2dd3f0}, NULL, 8) = 0
+64:    03:19:24.147977 rt_sigaction(SIGTERM, {sa_handler=SIG_DFL, sa_mask=~[RTMIN RT_1], sa_flags=SA_RESTORER, sa_restorer=0x7f9b4f4b9330}, NULL, 8) = 0
+65:    03:19:24.147997 rt_sigaction(SIGTERM, {sa_handler=0x55741d300cd0, sa_mask=~[RTMIN RT_1], sa_flags=SA_RESTORER, sa_restorer=0x7f9b4f4b9330},  <unfinished ...>
+72:    03:19:24.148090 rt_sigaction(SIGTERM, {sa_handler=SIG_DFL, sa_mask=~[RTMIN RT_1], sa_flags=SA_RESTORER, sa_restorer=0x7f9b4f4b9330},  <unfinished ...>
+125:    03:19:24.449673 tgkill(18, 36, SIGALRM) = 0
+126:    03:19:24.449688 --- SIGALRM {si_signo=SIGALRM, si_code=SI_TKILL, si_pid=18, si_uid=1000} ---
+127:    03:19:24.449929 rt_sigaction(SIGTERM, {sa_handler=SIG_IGN, sa_mask=[], sa_flags=SA_RESTORER, sa_restorer=0x2dd3f0}, NULL, 8) = 0
+128:    03:19:24.449949 kill(-18, SIGTERM) = 0
+129:    03:19:24.449975 --- SIGTERM {si_signo=SIGTERM, si_code=SI_USER, si_pid=18, si_uid=1000} ---
+130:    03:19:24.449984 --- SIGTERM {si_signo=SIGTERM, si_code=SI_USER, si_pid=18, si_uid=1000} ---
+131:    03:19:24.449987 --- SIGTERM {si_signo=SIGTERM, si_code=SI_USER, si_pid=18, si_uid=1000} ---
+132:    03:19:24.449991 rt_sigaction(SIGTERM, {sa_handler=0x26ab50, sa_mask=[], sa_flags=SA_RESTORER|SA_RESTART, sa_restorer=0x2dd3f0}, NULL, 8) = 0
+134:    03:19:24.450091 +++ killed by SIGTERM +++
+135:    03:19:24.450097 rt_sigaction(SIGCONT, {sa_handler=SIG_IGN, sa_mask=[], sa_flags=SA_RESTORER, sa_restorer=0x2dd3f0}, NULL, 8) = 0
+136:    03:19:24.450133 kill(-18, SIGCONT) = 0
+138:    03:19:24.450242 --- SIGCONT {si_signo=SIGCONT, si_code=SI_USER, si_pid=18, si_uid=1000} ---
+139:    03:19:24.450281 rt_sigaction(SIGCONT, {sa_handler=SIG_DFL, sa_mask=[], sa_flags=SA_RESTORER, sa_restorer=0x2dd3f0}, NULL, 8) = 0

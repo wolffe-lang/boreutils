@@ -1,0 +1,47 @@
+SKIP seq: -f %a, the one conversion boreutils does not implement (The hexadecimal float conversion is the C library's, and the two hosts' libraries disagree at the same coreutils 9.11: Apple's prints 0x1p+0 0x1p+1 and glibc prints 0x8p-3 0x8p-2. No answer matches both, so seq refuses %a with GNU's own unknown-directive wording and the divergence is recorded here.)
+SKIP seq: a value too large for a long double to hold exactly (The two hosts do not agree with each other here, let alone with an exact answer: macOS prints 1000000000000000019884624838656 (its long double is a double) and linux prints 1000000000000000000024696061952 (x87 extended), and macOS stops one value earlier. boreutils prints 1e30, 2e30 and 3e30 exactly.)
+SKIP tac: a directory operand (the hosts disagree about reading a directory at one coreutils release: EISDIR ('Is a directory') on Arch and macOS, EINVAL ('Invalid argument') on ubuntu-latest's staged 9.11. boreutils has no errno text behind an fs row (wolf-lang#407) and says 'Is a directory'.)
+SKIP wc: width table: U+00AD, a soft hyphen (the two hosts' wcwidth disagree here: macOS answers 0 and glibc 1, so no single answer can match GNU on both. boreutils follows glibc, where GNU coreutils is native.)
+SKIP wc: width table: U+070F, a Syriac abbreviation mark (the two hosts' wcwidth disagree here: macOS answers 0 and glibc 1, so no single answer can match GNU on both. boreutils follows glibc, where GNU coreutils is native.)
+difftest: 6675 passed, 0 failed, 113 skipped
+FAIL echo: what a terminal received  args=['x']
+FAIL echo: a mask hides only what it names  args=['n=5 tail']
+FAIL echo: a kept line the other side lacks  args=['3']
+FAIL head: an offset one side moves  args=['-']
+FAIL tee: a file one side writes  args=['a']
+FAIL tee: a file whose bytes differ  args=['a']
+FAIL tee: two names of one file  args=['a', 'b']
+FAIL tee: a time one side sets  args=['a']
+FAIL true: true is not false  args=[]
+difftest: 5 passed, 9 failed, 0 skipped
+difftest-evidence:   difftest: 1 passed, 0 failed, 0 skipped
+roottest: 178 passed, 0 failed
+killprobe: gnu = kill (GNU coreutils) 9.11 (.gnu-bin/bin/kill); host Linux x86_64
+killprobe: 240578 numbers: 0..140000, then 100577 edges and a sample of the int range (seed 34), 4000 an invocation; nothing is sent
+killprobe: gnu -l: 61348 numbers name a signal, 179230 are invalid
+agree target/release/kill -l: 240578 numbers alike
+agree target/dev/kill -l: 240578 numbers alike
+killprobe: gnu -t: 61348 numbers name a signal, 179230 are invalid
+agree target/release/kill -t: 240578 numbers alike
+agree target/dev/kill -t: 240578 numbers alike
+killprobe: every number answered alike
+FAIL plant: a target one side leaves alive  args=['{pid0}']
+FAIL plant: a target that must end by KILL  args=['-s', 'KILL', '{pid0}']
+FAIL plant: a process that is not there  args=['{dead}']
+FAIL plant: kill 0 to the group the program leads  args=['0']
+killtest: 1 passed, 4 failed, 0 skipped
+killtest: 365 passed, 0 failed, 0 skipped
+##[group]Run echo "the runner's core pattern: $(cat /proc/sys/kernel/core_pattern)"
+[36;1mecho "the runner's core pattern: $(cat /proc/sys/kernel/core_pattern)"[0m
+the runner's core pattern: |/usr/lib/systemd/systemd-coredump %P %u %g %s %t 9223372036854775808 %h %d
+timeouttest: core pattern 'core.%p': cores-on cases run (a file in the case directory), and must (BORE_CORE_REQUIRE=1)
+FAIL plant: the expiry  args=['0.3', 'sleep', '1']
+FAIL plant: the group  args=['0.3', 'sh', '-c', 'sleep 30 & echo $! > gc; sleep 1']
+FAIL plant: a death by a signal is not an exit status  args=['5', 'sh', '-c', 'kill -TERM $$']
+FAIL plant: a field answered otherwise by design  args=['5', 'sh', '-c', 'exit 3']
+FAIL plant: a cores-on case must run  args=['5', 'sh', '-c', 'kill -SEGV $$']
+timeouttest: 1 passed, 5 failed, 0 skipped
+timeouttest: core pattern 'core.%p': cores-on cases run (a file in the case directory), and must (BORE_CORE_REQUIRE=1)
+FAIL expiry: the command traps TERM and exits 3  args=['0.3', 'sh', '-c', 'trap "echo got TERM; exit 3" TERM; sleep 5 & wait']
+    release stdout: 'got TERM\ngot TERM\n', gnu 'got TERM\n'
+timeouttest: 161 passed, 1 failed, 1 skipped
