@@ -75,6 +75,21 @@ fn main() {
     assert(!bore.signal_listenable(t, entry(t, "SEGV")), "SEGV cannot")
     assert(!bore.signal_listenable(t, -1), "nor EXIT")
     assert(bore.signal_text(t, -1).starts_with("Unknown signal"), "signal 0's words are the host's")
+    // A process's group from its linux record (bu28, timeout's group send).
+    let rec = "4321 (a b) (c)) S 4320 77 77 0 -1 4194304".bytes()
+    assert(bore.stat_group(rec) == 77, "the group, counted from the last )")
+    assert(bore.stat_group("4321 (sh S 1 77".bytes()) == -1, "no ) is no record")
+    assert(bore.stat_group("4321 (sh) S 1".bytes()) == -1, "a record cut short")
+    assert(bore.stat_group("4321 (sh) S 1 7x 0".bytes()) == -1, "a group that is not a number")
+    if bore.built_for_linux() {
+        let own = fs_read_bytes("/proc/self/stat") else |_| {
+            List[byte]()
+        }
+        if own.len > 0 {
+            let g = os_pgid() else -1
+            assert(bore.stat_group(own) == g, "this process's own record names its group")
+        }
+    }
     // The names are POSIX's, whatever the host numbers them.
     assert(bore.signal_meaning(t, entry(t, "HUP")) == signal.reload(), "HUP")
     assert(bore.signal_meaning(t, entry(t, "INT")) == signal.interrupt(), "INT")

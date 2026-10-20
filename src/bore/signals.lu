@@ -401,6 +401,48 @@ pub fn signal_text(t: SignalTable, i: int) -> str {
     os_signal_text(t.meanings[i]) else ""
 }
 
+/// The process group in a linux `/proc/PID/stat` record, or -1 when the
+/// record does not parse: the fifth field, the third after the command's
+/// name, which is in parentheses and may hold spaces and parentheses of
+/// its own, so the fields are counted from the record's LAST `)` (proc(5)).
+pub fn stat_group(raw: List[byte]) -> int {
+    var close = -1
+    var i = 0
+    while i < raw.len {
+        if raw[i] as int == 41 {
+            close = i
+        }
+        i += 1
+    }
+    if close < 0 {
+        return -1
+    }
+    // ") S PPID PGRP ...": state, parent, group.
+    var field = 0
+    var value: int = 0
+    var digits = 0
+    var k = close + 1
+    while k < raw.len {
+        let c = raw[k] as int
+        if c == 32 {
+            if field == 3 {
+                break
+            }
+            field += 1
+        } else if field == 3 && c >= 48 && c <= 57 {
+            value = value * 10 + (c - 48)
+            digits += 1
+        } else if field == 3 {
+            return -1
+        }
+        k += 1
+    }
+    if field != 3 || digits == 0 {
+        return -1
+    }
+    value
+}
+
 /// The meaning `os_signal_send` takes for entry `i`; 0, which sends
 /// nothing and still asks, for -1. A host signal wolf has no meaning for
 /// is `-N` (`[os.signal.host]`), which every sending call takes.
