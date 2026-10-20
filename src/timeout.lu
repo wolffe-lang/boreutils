@@ -31,7 +31,12 @@
 //!   process group (`setpgid(0, 0)`; a session leader cannot move and
 //!   stays its own group's leader), and the command starts in it: at the
 //!   expiry the signal goes to the command and then to the whole group,
-//!   so the command's own children end too. timeout itself does not end
+//!   so the command's own children end too. (GNU's sends the command its
+//!   own copy, then the group: two, which under load now and then arrive
+//!   apart, so a command that traps the signal runs its trap twice. This
+//!   one sends a command still in the group the signal once, by the group
+//!   send; one that left it, and every command where its group cannot be
+//!   read, its own copy as well.) timeout itself does not end
 //!   by that send: it ignores the signal first, whatever the signal — a
 //!   fault (`-s SEGV`, `ILL`, `TRAP`, `BUS`, `FPE`, `SYS`) and a host
 //!   signal (`-s RTMIN`, `16`) included — and GNU's then leaves it ignored
