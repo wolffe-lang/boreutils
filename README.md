@@ -1201,6 +1201,14 @@ utility's row in the tables above.)
   stores nothing under `ulimit -c 0`). The status is GNU's. Three
   `tests/timeout/` rows say so by name (`design`): no call makes a
   process undumpable or sets its own core limit.
+- **One signal, not two** (bu28). GNU's `timeout` sends its command its
+  own copy of a signal and then sends the group the command is in, so the
+  command gets two; under load they now and then arrive apart, and a
+  command that traps the signal runs its trap twice (measured: 2 of 360
+  runs on one cpu). This one sends a command still in its group (read
+  from `/proc/PID/stat` on linux) the signal once, by the group send, and
+  only a command that left the group, or one whose group cannot be read
+  (macOS), its own copy too.
 - **`timeout -s 33`** (bu28). glibc keeps 32 and 33 for itself; GNU's
   timeout, sending either to the group it leads, dies of it. This one
   dies of 32 and lives through 33, on which its process holds a handler
