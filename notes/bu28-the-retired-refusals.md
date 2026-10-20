@@ -207,7 +207,7 @@ build of 9.11 (`~/lanes/bu28/gnu/`, `timeout` `735f79ee…`, `kill`
 | #37 | README entry; ours fill the tmpfs at 8 B and 5,000 B where GNU's stop | `fd36833`; p4 again at 0.2.33: ours **byte-identical** to bu25's `probe-p4-w1rel.log` (`2ec931a1…`), GNU's to `probe-p4-gnu.log` (`f3a4f2aa…`) | right |
 | 10 | static as mkboreutils; `kill`/`timeout` move; `rt_sigaction(SIG_IGN)` for RTMIN, none for SEGV; the end `rt_sigaction(SIG_DFL)`, `rt_sigprocmask(SIG_UNBLOCK)`, `tgkill`; the core from `wait4`; `kill -t 0` none | pax `d6fbcdc`'s `tools/mkboreutils` with the two pin lines at the head: 47 ET_EXEC, no PT_INTERP; release `kill` `f9357f76…`, `timeout` `ea392120…` at `e55da7d` (both moved from bu27's; §4). Calls (`ev/straces.log`): the SEGV ignore makes no call (the guard's handler stays), RTMIN's is `rt_sigaction(SIGRT_2, SIG_IGN)` (strace's name for 34), the sends `kill(-PGID, SEGV/SIGRT_2)` then `kill(-PGID, CONT)`; the end `rt_sigaction(SIG_DFL)`, `rt_sigprocmask(SIG_UNBLOCK, [SEGV])`, `tgkill(pid, pid, SEGV)`; the core is `wait4`'s `WCOREDUMP`; `kill -t 0` `statx` and `write` only | right |
 | plants | each red in a one-job dispatch on the rows it retired | each a branch off `916a55b`, red in a one-job dispatch, every run of it (`ev/ci-<run>-plant-*.txt`): **R1** `370b34c` (`bu28-plant-r1`, the 125 refusal back), run **39327744649**: timeouttest 27, 26, 26 of 163 failed in its 3 runs — the 23 `group send:` rows and the 2 cores-on group rows each time, and 1–2 rows of the double delivery below; **R2** `72cb2b3` (the 139 back for a signal timeout cannot hear), run **39327747898**: 13 in each run — the 10 `no expiry:` fault rows and `core: the command ends by SEGV`, and, by the plant's own reach, the ends by KILL and by RTMIN; **R3** `e5d11b7` (the released poll), run **39327752068**: 11, 10, 11 — the 9 cores-on rows that carry the line each time, and 1–2 double deliveries; **R4** `6604bce` (no words for 0), run **39327755394**: killprobe `PART` 912 of 240,578 on `-t`, each tier (and killtest green) | red, all four |
-| — | (not predicted) | **A double delivery, bu27's race, found by the plants' repeated runs**: on CI's 4-cpu runner a command that traps the passed-on or expiry signal now and then printed its trap's line twice (`release stdout: 'got TERM\ngot TERM\n', gnu 'got TERM\n'`): HUP, USR1, USR2, VTALRM, XFSZ, TERM, ABRT, PIPE across runs 39327744649 and 39327752068. Not this lane's change, nor the pin's: the 0.2.32 control (`bu28-control-0232` = trunk `43ee185`, run **39338981129**) shows it too (`expiry: the command traps TERM and exits 3`, 1 of 3 runs), the pin control (`bu28-control-pin` `16b2445`, run 39338984826) none in 3; never on kasumi (16 cpus, nor 2 under `taskset`). The command gets the signal twice, from its own send and from the group's, and between them sat this timeout's ignore; GNU's make only a `sigaction` between them (strace of the binary, `ev/` `gnu-passon.sh`). `e55da7d` puts the ignore first, so the two sends are adjacent (strace: `sigaction(SIG_IGN)`, `kill(pid)`, `kill(-pgid)`); kasumi 150 / 0 / 13 plain and `--cpus 0-3` (`ev/tt-rx.log`); CI: see §4 | a finding, fixed |
+| — | (not predicted) | **A double delivery, bu27's race, found by the plants' repeated runs**: on CI's 4-cpu runner a command that traps the passed-on or expiry signal now and then printed its trap's line twice (`release stdout: 'got TERM\ngot TERM\n', gnu 'got TERM\n'`): HUP, USR1, USR2, VTALRM, XFSZ, TERM, ABRT, PIPE across runs 39327744649 and 39327752068. Not this lane's change, nor the pin's: the 0.2.32 control (`bu28-control-0232` = trunk `43ee185`, run **39338981129**) shows it too (`expiry: the command traps TERM and exits 3`, 1 of 3 runs), the pin control (`bu28-control-pin` `16b2445`, run 39338984826) none in 3; never on kasumi (16 cpus, nor 2 under `taskset`). The command gets the signal twice, from its own send and from the group's, and between them sat this timeout's ignore; GNU's make only a `sigaction` between them (strace of the binary, `ev/` `gnu-passon.sh`). `e55da7d` puts the ignore first, so the two sends are adjacent (strace: `sigaction(SIG_IGN)`, `kill(pid)`, `kill(-pgid)`); kasumi 150 / 0 / 13 plain and `--cpus 0-3` (`ev/tt-rx.log`); CI 6 of 6 repeats green — and then the `tier full` run at the rebased head, **39352015138** (job 118398995759), red on the same row (`expiry: the command traps TERM and exits 3`, release). **The remaining window, measured** (`ev/double-1.log`, `ev/double-2.log`, `ev/traprow-*.log`, `ev/expiry-trace.log`; probes `sigcount.c`, `double.sh`, `double2.sh`, `traprow.sh`, `gnu-expiry.sh`): GNU's expiry is `SIGALRM`, `kill(pid, TERM)`, `sigaction(TERM, SIG_IGN)`, `kill(0, TERM)`, `kill(pid, CONT)`, `sigaction(CONT, SIG_IGN)`, `kill(0, CONT)`; so it too sends its command two TERMs, and under load the sender is now and then preempted between them: a counting command in a 4-cpu container with 6 busy loops saw two deliveries in 6 of 100 GNU runs (two of them 272 and 395 us apart) and in 4 and 7 of 100 of ours (374 us, 1.5 ms, 2.3 ms; one `-v` line each: no echo of our own send, a split). On ONE cpu the row itself goes red: `d38f4a6`'s dev tier **3 of 300**, release 0 of 300, and **GNU's own 1 of 300** (and 1 of 60 before). **The fix**, `d644ac3`: a command still in timeout's group (its linux record, `/proc/PID/stat`, `bore.stat_group`, `50866bd`) is sent the signal ONCE, by the group send; one that left the group, and every command on macOS, is sent its own copy as before. On one cpu: **0 of 600** (both tiers). timeouttest's 15 rows of a trapped signal (`traps TERM and exits 3`, `traps it and exits 3`), the fixed build: **20 of 20 runs green under `--cpus 0`** (`ev/row20-fx.log`) and **20 of 20 under `--cpus 0-3` beside a container of 10 busy loops on cpus 0–3** (`ev/row20-fx-load.log`). GNU's own race stays GNU's (its row can still part on GNU's side, 2 in 360 on one cpu here) | a finding, fixed twice |
 
 ## 4. Evidence index
 
@@ -241,7 +241,8 @@ two other lanes' cores of 15:49 had landed, none this lane's); bu25's
 and `static-head.log`, `static-digests.txt` (below); CI extracts
 `ci-<run>-*.txt`. Probes and scripts: `notes/bu28/probes/` (`tprobe3.sh`,
 `gnu-passon.sh`, `straces.sh`, `box.sh`, `cbox.sh`, `gauntlet.sh`,
-`suites.sh`, `tt.sh`, `b151.sh`, `run-pin.sh`). Generator:
+`suites.sh`, `tt.sh`, `b151.sh`, `run-pin.sh`; for the double delivery `sigcount.c`, `double.sh`,
+`double2.sh`, `traprow.sh`, `gnu-expiry.sh`). Generator:
 `notes/bu28/gen/kill_cases_0233.py`.
 
 kasumi `~/lanes/bu28/`: `ev/` (the above, the full difftest logs and
@@ -273,6 +274,17 @@ idtest 1,098 / 0 / 28, inouttest 104 / 0 / 0; and two one-job repeats on
 timeouttest 162 / 0 / 1 in each of 6 whole runs, no double delivery. The
 PR's run at the rebased head is named in the PR.
 
+**The second fix** (after the red `tier full` 39352015138, job
+118398995759; extract `ci-39352015138-full-1e55a10-ubuntu.txt`): `50866bd`,
+`d644ac3`, `249dcf8`, `18a6490` (§3a). At `18a6490` on kasumi: the gauntlet
+6,668 / 0 / 120 on both tiers, list `dcdb32cb0d7a5e25` again, killprobe
+alike (`gauntlet-head-18a6490.log`); killtest 365 / 0 / 0 and timeouttest
+150 / 0 / 13 under `--cpus 0-3` (`suites-head-18a6490.log`); the
+static binaries rebuilt (below). The host store went 193 → 196 during
+these runs: three cores at 03:07Z of another lane's container user
+(`nginx-oracle`, `t32-rel`, `t33-rel`, uid 100999), none of this lane's
+programs.
+
 **The rebase.** At the orchestrator's word (tl28's boreutils#42 merged:
 trunk `c4fa4df`, CI tiered) the branch was rebased onto `c4fa4df`; the
 rebase brought tl28's `ci/` and `.github/` and merged this lane's two CI
@@ -293,19 +305,22 @@ keep them on origin. Mapping, pre-rebase → rebased: `be6a9d4` → `44b410a`
 `tools/mkboreutils` with its two pin lines moved to this branch's head, in
 px12-ubuntu, glibc 2.39 `libc.a`; ET_EXEC, no PT_INTERP, each read twice:
 `ev/static-digests.txt`, all 47 in `bin/static-head/release/sums.txt`):
-at `e55da7d`:
+at `18a6490` (the source of the final head):
 
 | binary | sha256 | bytes |
 |---|---|---|
-| `release/kill` | `f9357f765506e2f0dcc8dd33d35c737a15eec9d2baac549ab65496f0228846b9` | 13,999,632 |
-| `release/timeout` | `ea39212046270980b2a86ecef2693880653747dee08f60b28b1ed7b0b8f8e1a1` | 14,575,880 |
-| `dev/kill` | `1180b93de4c7501f6be588c1a839e6df2e6a4396eabbdd58e1eb56a05e715ea5` | 14,858,280 |
-| `dev/timeout` | `e3d59d2d303243d35b0de25d7861f40b476a6ab33fa3c626e23b8522ca63a618` | 15,062,928 |
+| `release/kill` | `b0e452687aec05160f0bc5ce2ae2154d602580a5410153e6b770fca105772a60` | 13,999,664 |
+| `release/timeout` | `245f84148aa713ab72ada916f04e3801b4c303386d3d743ed9534ec198e92d8d` | 14,579,232 |
+| `dev/kill` | `71efa830bc1ce6f84eae47266a82d4b502554f962effc8446a785e586e93f0b8` | 14,859,560 |
+| `dev/timeout` | `d0f6170b47cf83f756c20e0255cf02feeea0997c07d85419d09b5d2c4e6a0bbc` | 15,065,448 |
 
 The other 45 release binaries are in `static-digests.txt`. The build
 repeats: at `916a55b` (before the reorder) every release binary but
-`timeout` had the same digest (`static-digests-916a55b.txt`). Not booted
-on PAX. Their calls beyond bu27's (`ev/straces.log`):
+`timeout` had `e55da7d`'s digest (`static-digests-916a55b.txt`,
+`static-digests-e55da7d.txt`); `bore.stat_group` at `50866bd` moved
+every binary that links bore's signal table, `kill` among them. Not
+booted on PAX. The traces at `18a6490` (`straces.log`): the group send
+is now one `kill(-PGID, SIG)` with no `kill(pid, SIG)` before it. Their calls beyond bu27's (`ev/straces.log`):
 `rt_sigaction(SIGRT_2, SIG_IGN)` (a host signal ignored; SEGV's ignore
 makes no call), `kill(-PGID, SIGSEGV/SIGRT_2)`, `rt_sigaction(SIG_DFL)` +
 `rt_sigprocmask(SIG_UNBLOCK)` + `tgkill(self)` (the end by a signal), a
