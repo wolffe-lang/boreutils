@@ -1,0 +1,7 @@
+FAIL plant: the bytes one side leaves (as root)  run='cat a > g; [ "$who" = gnu ] || printf x >> g'
+FAIL plant: a status one side changes (as root)  run='cat f >> f; [ "$who" = gnu ] || exit 7'
+FAIL plant: a copy that grows is stopped by the file-size limit (as root)  run='if [ "$who" = gnu ]; then cat a >> g; else cat /dev/zero >> g; fi'
+FAIL plant: a side that never ends is stopped by the alarm (as root)  run='if [ "$who" = gnu ]; then cat a > g; else while :; do sleep 1; done; fi'
+ok   control: f >> f, refused on every side (as root)
+ok   control: f >> f, refused on every side (as alice)
+inouttest-selftest: inouttest saw every planted difference and passed the control

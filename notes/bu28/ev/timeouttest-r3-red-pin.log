@@ -1,0 +1,31 @@
+timeouttest: release/timeout is static
+timeouttest: dev/timeout is static
+timeouttest: podman, image ubuntu:24.04, one fresh container a case, no mount, no network, as user 4242
+timeouttest: core pattern '|/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I': cores-on cases cannot run here
+timeouttest: gnu = timeout (GNU coreutils) 9.11 (/home/mfwolffe/lanes/bu28/gnu/bin/timeout)
+FAIL no expiry: the command ends by SEGV  args=['5', 'sh', '-c', 'kill -SEGV $$']
+    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+ok   no expiry: the command ends by SEGV, standard error closed
+FAIL --foreground -s SEGV, the command alone  args=['--foreground', '-s', 'SEGV', '0.3', 'sleep', '5']
+    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+ok   --foreground -s RTMIN, the command alone
+ok   --foreground -s 16, the command alone
+ok   sent: QUIT to timeout, the command traps it and exits 3
+FAIL sent: QUIT to timeout, the command does not trap it  args=['5', 'sleep', '2']
+    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+ok   sent: XCPU to timeout, the command traps it and exits 3
+FAIL sent: XCPU to timeout, the command does not trap it  args=['5', 'sleep', '2']
+    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+ok   sent: XFSZ to timeout, the command traps it and exits 3
+FAIL sent: XFSZ to timeout, the command does not trap it  args=['5', 'sleep', '2']
+    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+ok   sent: ABRT to timeout, the command traps it and exits 3
+FAIL sent: ABRT to timeout, the command does not trap it  args=['5', 'sleep', '2']
+    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeouttest: 7 passed, 6 failed, 0 skipped

@@ -1,0 +1,36 @@
+timeouttest: release/timeout is static
+timeouttest: dev/timeout is static
+timeouttest: podman, image ubuntu:24.04, one fresh container a case, no mount, no network, as user 4242
+timeouttest: core pattern '|/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I': cores-on cases cannot run here
+timeouttest: gnu = timeout (GNU coreutils) 9.11 (/home/mfwolffe/lanes/bu28/gnu/bin/timeout)
+ok   group send: -s SEGV, timeout ignores it and lives
+ok   group send: -s ILL, timeout ignores it and lives
+ok   group send: -s TRAP, timeout ignores it and lives
+ok   group send: -s BUS, timeout ignores it and lives
+ok   group send: -s FPE, timeout ignores it and lives
+ok   group send: -s SYS, timeout ignores it and lives
+ok   group send: -s RTMIN, timeout ignores it and lives
+ok   group send: -s 16 (STKFLT), timeout ignores it and lives
+ok   group send: -s SEGV, the command's child ends too
+ok   group send: -s RTMIN, the command's child ends too
+ok   group send: -s 16, the command's child ends too
+ok   group send: -s RTMAX
+ok   group send: -s RTMIN+5
+ok   group send: -s 40 by number
+SKIP group send: -s EMT (macOS's own) (on Linux: the case is Darwin's)
+ok   group send: -p -s SEGV, 139
+ok   group send: -p -s RTMIN, 162
+ok   group send: -v -s SEGV
+ok   group send: -v -s RTMIN
+ok   group send: -s SEGV -k, a command that ignores SEGV
+ok   group send: -s RTMIN -k, the command ends at the first
+ok   group send: -s 32 ends timeout too
+FAIL group send: -s 33 ends timeout too  args=['-s', '33', '0.3', 'sleep', '5']
+    release status: 'exit 124', gnu 'signal 33'
+    dev status: 'exit 124', gnu 'signal 33'
+ok   group send: -s SEGV, standard error closed
+SKIP core: -s QUIT at the expiry (a cores-on case, and this host's core pattern '|/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I' would write a core outside the case's directory)
+SKIP core: -s KILL, no core (a cores-on case, and this host's core pattern '|/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I' would write a core outside the case's directory)
+SKIP core: -s SEGV to the group (a cores-on case, and this host's core pattern '|/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I' would write a core outside the case's directory)
+SKIP core: -s BUS to the group, the command's child (a cores-on case, and this host's core pattern '|/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I' would write a core outside the case's directory)
+timeouttest: 22 passed, 1 failed, 5 skipped

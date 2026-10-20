@@ -1,0 +1,31 @@
+gauntlet: 2026-10-19T19:45:58Z on kasumi at pin (tree boreutils, 43ee185 + 1 changed), load 5.63 7.70 9.23 4/603 3428492
+fetch rc=0
+wolf 0.2.33 (wolfgang, pin 85dab5d)
+cceda63151430eac07df895fdfffddfa4a0b92c1
+build release rc=0
+build dev rc=0
+47
+47
+fmt rc=0
+test rc=0
+wolf test: 9 passed; 0 failed; 0 rejected; 0 unsupported; 0 filtered out
+/home/mfwolffe/lanes/bu28/ev/build-release-pin.log:0
+/home/mfwolffe/lanes/bu28/ev/build-dev-pin.log:0
+difftest release rc=0
+difftest: 6664 passed, 0 failed, 120 skipped
+difftest dev rc=0
+difftest: 6664 passed, 0 failed, 120 skipped
+verdict list, release: 2ee3368dc3ce6124  ok 6664 FAIL 0 SKIP 120
+verdict list, dev: 2ee3368dc3ce6124  ok 6664 FAIL 0 SKIP 120
+selftest rc=0
+evidence rc=0
+field-verdict-selftest rc=0
+killprobe rc=0
+agree target/release/kill -l: 240578 numbers alike, 0 by design (a -t row for signal 0: no words for it)
+agree target/dev/kill -l: 240578 numbers alike, 0 by design (a -t row for signal 0: no words for it)
+agree target/release/kill -t: 239666 numbers alike, 912 by design (a -t row for signal 0: no words for it)
+agree target/dev/kill -t: 239666 numbers alike, 912 by design (a -t row for signal 0: no words for it)
+killprobe: every number answered alike
+load: 5.41 6.12 8.11 5/711 3494289
+2026-10-19T19:50:38Z
+GAUNTLET-DONE

@@ -1,0 +1,235 @@
+ulimit -c 0, hard 0; core_pattern |/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I
+== the command's own end, no expiry
+== 5 the command ends by SEGV
+  -> raw 11: signal 11, 0.0 s
+  out: 
+  err:         timeout: the monitored command dumped core|
+  cores here: 0
+== 5 the command ends by ILL
+  -> raw 4: signal 4, 0.0 s
+  out: 
+  err:         timeout: the monitored command dumped core|
+  cores here: 0
+== 5 the command ends by ABRT
+  -> raw 6: signal 6, 0.0 s
+  out: 
+  err:         timeout: the monitored command dumped core|
+  cores here: 0
+== 5 the command ends by QUIT
+  -> raw 3: signal 3, 0.0 s
+  out: 
+  err:         timeout: the monitored command dumped core|
+  cores here: 0
+== 5 the command ends by BUS
+  -> raw 7: signal 7, 0.0 s
+  out: 
+  err:         timeout: the monitored command dumped core|
+  cores here: 0
+== 5 the command ends by FPE
+  -> raw 8: signal 8, 0.0 s
+  out: 
+  err:         timeout: the monitored command dumped core|
+  cores here: 0
+== 5 the command ends by TRAP
+  -> raw 5: signal 5, 0.0 s
+  out: 
+  err:         timeout: the monitored command dumped core|
+  cores here: 0
+== 5 the command ends by SYS
+  -> raw 31: signal 31, 0.0 s
+  out: 
+  err:         timeout: the monitored command dumped core|
+  cores here: 0
+== 5 the command ends by XCPU
+  -> raw 24: signal 24, 0.0 s
+  out: 
+  err:         timeout: the monitored command dumped core|
+  cores here: 0
+== 5 the command ends by XFSZ
+  -> raw 25: signal 25, 0.0 s
+  out: 
+  err:         timeout: the monitored command dumped core|
+  cores here: 0
+== 5 the command ends by TERM
+  -> raw 15: signal 15, 0.0 s
+  out: 
+  err: 
+  cores here: 0
+== -p 5 the command ends by SEGV
+  -> raw 11: signal 11, 0.0 s
+  out: 
+  err:         timeout: the monitored command dumped core|
+  cores here: 0
+== -v 5 the command ends by SEGV
+  -> raw 11: signal 11, 0.0 s
+  out: 
+  err:         timeout: the monitored command dumped core|
+  cores here: 0
+== --foreground 5 the command ends by SEGV
+  -> raw 11: signal 11, 0.0 s
+  out: 
+  err:         timeout: the monitored command dumped core|
+  cores here: 0
+== 5 the command ends by 32
+  -> raw 40960: exit 160, 0.0 s
+  out: 
+  err: 
+  cores here: 0
+== 5 the command ends by RTMIN
+  -> raw 34: signal 34, 0.0 s
+  out: 
+  err: 
+  cores here: 0
+== 5 SEGV, standard error closed
+  -> raw 11: signal 11
+== at the expiry
+== -s SEGV 0.3 sleep 5
+  -> raw 31744: exit 124, 0.3 s
+  out: 
+  err:         timeout: the monitored command dumped core|
+  cores here: 0
+== -s ILL 0.3 sleep 5
+  -> raw 31744: exit 124, 0.3 s
+  out: 
+  err:         timeout: the monitored command dumped core|
+  cores here: 0
+== -s TRAP 0.3 sleep 5
+  -> raw 31744: exit 124, 0.3 s
+  out: 
+  err:         timeout: the monitored command dumped core|
+  cores here: 0
+== -s BUS 0.3 sleep 5
+  -> raw 31744: exit 124, 0.3 s
+  out: 
+  err:         timeout: the monitored command dumped core|
+  cores here: 0
+== -s FPE 0.3 sleep 5
+  -> raw 31744: exit 124, 0.3 s
+  out: 
+  err:         timeout: the monitored command dumped core|
+  cores here: 0
+== -s SYS 0.3 sleep 5
+  -> raw 31744: exit 124, 0.3 s
+  out: 
+  err:         timeout: the monitored command dumped core|
+  cores here: 0
+== -s QUIT 0.3 sleep 5
+  -> raw 31744: exit 124, 0.4 s
+  out: 
+  err:         timeout: the monitored command dumped core|
+  cores here: 0
+== -s ABRT 0.3 sleep 5
+  -> raw 31744: exit 124, 0.3 s
+  out: 
+  err:         timeout: the monitored command dumped core|
+  cores here: 0
+== -s RTMIN 0.3 sleep 5
+  -> raw 31744: exit 124, 0.3 s
+  out: 
+  err: 
+  cores here: 0
+== -s RTMAX 0.3 sleep 5
+  -> raw 31744: exit 124, 0.3 s
+  out: 
+  err: 
+  cores here: 0
+== -s RTMIN+5 0.3 sleep 5
+  -> raw 31744: exit 124, 0.3 s
+  out: 
+  err: 
+  cores here: 0
+== -s 16 0.3 sleep 5
+  -> raw 31744: exit 124, 0.3 s
+  out: 
+  err: 
+  cores here: 0
+== -s 32 0.3 sleep 5
+  -> raw 32: signal 32, 0.3 s
+  out: 
+  err: 
+  cores here: 0
+== -s 33 0.3 sleep 5
+  -> raw 33: signal 33, 0.3 s
+  out: 
+  err: 
+  cores here: 0
+== -p -s SEGV 0.3 sleep 5
+  -> raw 35584: exit 139, 0.3 s
+  out: 
+  err:         timeout: the monitored command dumped core|
+  cores here: 0
+== -p -s RTMIN 0.3 sleep 5
+  -> raw 41472: exit 162, 0.3 s
+  out: 
+  err: 
+  cores here: 0
+== -v -s SEGV 0.3 sleep 5
+  -> raw 31744: exit 124, 0.3 s
+  out: 
+  err:         timeout: sending signal SEGV to command 'sleep'|        timeout: the monitored command dumped core|
+  cores here: 0
+== --foreground -s SEGV 0.3 sleep 5
+  -> raw 31744: exit 124, 0.3 s
+  out: 
+  err:         timeout: the monitored command dumped core|
+  cores here: 0
+== --foreground -s QUIT 0.3 sleep 5
+  -> raw 31744: exit 124, 0.3 s
+  out: 
+  err:         timeout: the monitored command dumped core|
+  cores here: 0
+== -s SEGV 0.3, stderr closed
+  -> raw 31744: exit 124
+== -s SEGV -k 0.3 0.3, the command ignores SEGV
+  -> raw 9: signal 9, 0.6 s
+  out: 
+  err: 
+  cores here: 0
+== -s RTMIN -k 0.3 0.3, sleep 5
+  -> raw 31744: exit 124, 0.3 s
+  out: 
+  err: 
+  cores here: 0
+== the group
+== -s SEGV 0.3, the command's child
+  -> raw 31744: exit 124, 0.4 s
+  out: 
+  err:         timeout: the monitored command dumped core|
+  cores here: 0
+  child: gone
+== -s RTMIN 0.3, the command's child
+  -> raw 31744: exit 124, 0.3 s
+  out: 
+  err: 
+  cores here: 0
+  child: gone
+== -s 16 0.3, the command's child
+  -> raw 31744: exit 124, 0.3 s
+  out: 
+  err: 
+  cores here: 0
+  child: gone
+== -s KILL 0.3, the command's child
+  -> raw 9: signal 9, 0.3 s
+  out: 
+  err: 
+  cores here: 0
+  child: gone
+== timeout's own dispositions after a group send the command lives through
+== -s SEGV 0.3, the command ignores it
+  at 1.0 s: SigBlk: 0000000000000000 SigIgn: 0000000000320406 SigCgt: fffffffe7781faf9 
+  -> $? 124
+  err: 
+== -s RTMIN 0.3, the command ignores it
+  at 1.0 s: SigBlk: 0000000000000000 SigIgn: 0000000200320006 SigCgt: fffffffc7781fef9 
+  -> $? 124
+  err: 
+== -s TERM 0.3, the command ignores it
+  at 1.0 s: SigBlk: 0000000000000000 SigIgn: 0000000000324006 SigCgt: fffffffe7781bef9 
+  -> $? 124
+  err: 
+== a SEGV sent to timeout after its group send of SEGV
+  timeout alive after the SEGV
+  -> $? 124
+  err: 
+PROBE-DONE

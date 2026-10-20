@@ -1,0 +1,49 @@
+timeouttest: release/timeout is static
+timeouttest: dev/timeout is static
+timeouttest: podman, image ubuntu:24.04, one fresh container a case, no mount, no network, as user 4242
+timeouttest: core pattern '|/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I': cores-on cases cannot run here
+timeouttest: gnu = timeout (GNU coreutils) 9.11 (/home/mfwolffe/lanes/bu28/gnu/bin/timeout)
+ok   no expiry: DURATION 0
+ok   no expiry: the command exits 3
+ok   no expiry: the command exits 0
+ok   no expiry: the command ends by TERM, and so does timeout
+ok   no expiry: the command ends by KILL
+ok   no expiry: the command ends by HUP
+ok   no expiry: the command ends by USR2
+ok   no expiry: -p, the command ends by TERM
+FAIL no expiry: the command ends by SEGV  args=['5', 'sh', '-c', 'kill -SEGV $$']
+    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+ok   no expiry: the command ends by SEGV, standard error closed
+FAIL no expiry: the command ends by ILL  args=['5', 'sh', '-c', 'kill -ILL $$']
+    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+FAIL no expiry: the command ends by BUS  args=['5', 'sh', '-c', 'kill -BUS $$']
+    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+FAIL no expiry: the command ends by FPE  args=['5', 'sh', '-c', 'kill -FPE $$']
+    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+FAIL no expiry: the command ends by TRAP  args=['5', 'sh', '-c', 'kill -TRAP $$']
+    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+FAIL no expiry: the command ends by SYS  args=['5', 'sh', '-c', 'kill -SYS $$']
+    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+FAIL no expiry: the command ends by ABRT  args=['5', 'sh', '-c', 'kill -ABRT $$']
+    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+FAIL no expiry: -p, the command ends by SEGV  args=['-p', '5', 'sh', '-c', 'kill -SEGV $$']
+    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+FAIL no expiry: --foreground, the command ends by SEGV  args=['--foreground', '5', 'sh', '-c', 'kill -SEGV $$']
+    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+FAIL no expiry: -v, the command ends by BUS  args=['-v', '5', 'sh', '-c', 'kill -BUS $$']
+    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+FAIL no expiry: the command ends by 32  args=['5', 'sh', '-c', 'kill -32 $$']
+    release status: 'signal 32', gnu 'exit 160'
+    dev status: 'signal 32', gnu 'exit 160'
+ok   no expiry: the command ends by a real-time signal
+timeouttest: 10 passed, 11 failed, 0 skipped

@@ -1,0 +1,131 @@
+timeouttest: release/timeout is static
+timeouttest: dev/timeout is static
+timeouttest: podman, image ubuntu:24.04, one fresh container a case, no mount, no network, as user 4242
+timeouttest: core pattern '|/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I': cores-on cases cannot run here
+timeouttest: gnu = timeout (GNU coreutils) 9.11 (/home/mfwolffe/lanes/bu28/gnu/bin/timeout)
+FAIL group send: -s SEGV, timeout ignores it and lives  args=['-s', 'SEGV', '0.3', 'sleep', '5']
+    release status: 'exit 125', gnu 'exit 124'
+    release stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu 'timeout: the monitored command dumped core\n'
+    release elapsed: 0.01 s, gnu 0.37 s
+    dev status: 'exit 125', gnu 'exit 124'
+    dev stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu 'timeout: the monitored command dumped core\n'
+    dev elapsed: 0.01 s, gnu 0.37 s
+FAIL group send: -s ILL, timeout ignores it and lives  args=['-s', 'ILL', '0.3', 'sleep', '5']
+    release status: 'exit 125', gnu 'exit 124'
+    release stderr: "timeout: 'ILL': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu 'timeout: the monitored command dumped core\n'
+    dev status: 'exit 125', gnu 'exit 124'
+    dev stderr: "timeout: 'ILL': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu 'timeout: the monitored command dumped core\n'
+FAIL group send: -s TRAP, timeout ignores it and lives  args=['-s', 'TRAP', '0.3', 'sleep', '5']
+    release status: 'exit 125', gnu 'exit 124'
+    release stderr: "timeout: 'TRAP': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu 'timeout: the monitored command dumped core\n'
+    dev status: 'exit 125', gnu 'exit 124'
+    dev stderr: "timeout: 'TRAP': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu 'timeout: the monitored command dumped core\n'
+FAIL group send: -s BUS, timeout ignores it and lives  args=['-s', 'BUS', '0.3', 'sleep', '5']
+    release status: 'exit 125', gnu 'exit 124'
+    release stderr: "timeout: 'BUS': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu 'timeout: the monitored command dumped core\n'
+    release elapsed: 0.01 s, gnu 0.36 s
+    dev status: 'exit 125', gnu 'exit 124'
+    dev stderr: "timeout: 'BUS': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu 'timeout: the monitored command dumped core\n'
+    dev elapsed: 0.01 s, gnu 0.36 s
+FAIL group send: -s FPE, timeout ignores it and lives  args=['-s', 'FPE', '0.3', 'sleep', '5']
+    release status: 'exit 125', gnu 'exit 124'
+    release stderr: "timeout: 'FPE': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu 'timeout: the monitored command dumped core\n'
+    dev status: 'exit 125', gnu 'exit 124'
+    dev stderr: "timeout: 'FPE': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu 'timeout: the monitored command dumped core\n'
+FAIL group send: -s SYS, timeout ignores it and lives  args=['-s', 'SYS', '0.3', 'sleep', '5']
+    release status: 'exit 125', gnu 'exit 124'
+    release stderr: "timeout: 'SYS': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu 'timeout: the monitored command dumped core\n'
+    release elapsed: 0.01 s, gnu 0.37 s
+    dev status: 'exit 125', gnu 'exit 124'
+    dev stderr: "timeout: 'SYS': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu 'timeout: the monitored command dumped core\n'
+FAIL group send: -s RTMIN, timeout ignores it and lives  args=['-s', 'RTMIN', '0.3', 'sleep', '5']
+    release status: 'exit 125', gnu 'exit 124'
+    release stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+    dev status: 'exit 125', gnu 'exit 124'
+    dev stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+FAIL group send: -s 16 (STKFLT), timeout ignores it and lives  args=['-s', '16', '0.3', 'sleep', '5']
+    release status: 'exit 125', gnu 'exit 124'
+    release stderr: "timeout: 'STKFLT': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+    dev status: 'exit 125', gnu 'exit 124'
+    dev stderr: "timeout: 'STKFLT': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+FAIL group send: -s SEGV, the command's child ends too  args=['-s', 'SEGV', '0.3', 'sh', '-c', 'sleep 30 & echo $! > gc; wait']
+    release status: 'exit 125', gnu 'exit 124'
+    release stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu 'timeout: the monitored command dumped core\n'
+    dev status: 'exit 125', gnu 'exit 124'
+    dev stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu 'timeout: the monitored command dumped core\n'
+FAIL group send: -s RTMIN, the command's child ends too  args=['-s', 'RTMIN', '0.3', 'sh', '-c', 'sleep 30 & echo $! > gc; wait']
+    release status: 'exit 125', gnu 'exit 124'
+    release stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+    dev status: 'exit 125', gnu 'exit 124'
+    dev stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+FAIL group send: -s 16, the command's child ends too  args=['-s', '16', '0.3', 'sh', '-c', 'sleep 30 & echo $! > gc; wait']
+    release status: 'exit 125', gnu 'exit 124'
+    release stderr: "timeout: 'STKFLT': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+    dev status: 'exit 125', gnu 'exit 124'
+    dev stderr: "timeout: 'STKFLT': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+FAIL group send: -s RTMAX  args=['-s', 'RTMAX', '0.3', 'sleep', '5']
+    release status: 'exit 125', gnu 'exit 124'
+    release stderr: "timeout: 'RTMAX': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+    dev status: 'exit 125', gnu 'exit 124'
+    dev stderr: "timeout: 'RTMAX': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+FAIL group send: -s RTMIN+5  args=['-s', 'RTMIN+5', '0.3', 'sleep', '5']
+    release status: 'exit 125', gnu 'exit 124'
+    release stderr: "timeout: 'RTMIN+5': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+    dev status: 'exit 125', gnu 'exit 124'
+    dev stderr: "timeout: 'RTMIN+5': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+FAIL group send: -s 40 by number  args=['-s', '40', '0.3', 'sleep', '5']
+    release status: 'exit 125', gnu 'exit 124'
+    release stderr: "timeout: 'RTMIN+6': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+    dev status: 'exit 125', gnu 'exit 124'
+    dev stderr: "timeout: 'RTMIN+6': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+SKIP group send: -s EMT (macOS's own) (on Linux: the case is Darwin's)
+FAIL group send: -p -s SEGV, 139  args=['-p', '-s', 'SEGV', '0.3', 'sleep', '5']
+    release status: 'exit 125', gnu 'exit 139'
+    release stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu 'timeout: the monitored command dumped core\n'
+    release elapsed: 0.01 s, gnu 0.36 s
+    dev status: 'exit 125', gnu 'exit 139'
+    dev stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu 'timeout: the monitored command dumped core\n'
+    dev elapsed: 0.01 s, gnu 0.36 s
+FAIL group send: -p -s RTMIN, 162  args=['-p', '-s', 'RTMIN', '0.3', 'sleep', '5']
+    release status: 'exit 125', gnu 'exit 162'
+    release stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+    dev status: 'exit 125', gnu 'exit 162'
+    dev stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+FAIL group send: -v -s SEGV  args=['-v', '-s', 'SEGV', '0.3', 'sleep', '5']
+    release status: 'exit 125', gnu 'exit 124'
+    release stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu "timeout: sending signal SEGV to command 'sleep'\ntimeout: the monitored command dumped core\n"
+    dev status: 'exit 125', gnu 'exit 124'
+    dev stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu "timeout: sending signal SEGV to command 'sleep'\ntimeout: the monitored command dumped core\n"
+FAIL group send: -v -s RTMIN  args=['-v', '-s', 'RTMIN', '0.3', 'sleep', '5']
+    release status: 'exit 125', gnu 'exit 124'
+    release stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu "timeout: sending signal RTMIN to command 'sleep'\n"
+    dev status: 'exit 125', gnu 'exit 124'
+    dev stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu "timeout: sending signal RTMIN to command 'sleep'\n"
+FAIL group send: -s SEGV -k, a command that ignores SEGV  args=['-s', 'SEGV', '-k', '0.3', '0.3', 'sh', '-c', "trap '' SEGV; sleep 5"]
+    release status: 'exit 125', gnu 'signal KILL'
+    release stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+    release elapsed: 0.01 s, gnu 0.61 s
+    dev status: 'exit 125', gnu 'signal KILL'
+    dev stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+    dev elapsed: 0.01 s, gnu 0.61 s
+FAIL group send: -s RTMIN -k, the command ends at the first  args=['-s', 'RTMIN', '-k', '0.3', '0.3', 'sleep', '5']
+    release status: 'exit 125', gnu 'exit 124'
+    release stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+    dev status: 'exit 125', gnu 'exit 124'
+    dev stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+FAIL group send: -s 32 ends timeout too  args=['-s', '32', '0.3', 'sleep', '5']
+    release status: 'exit 125', gnu 'signal 32'
+    release stderr: "timeout: '32': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+    dev status: 'exit 125', gnu 'signal 32'
+    dev stderr: "timeout: '32': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+FAIL group send: -s 33, GNU's timeout ends by it  args=['-s', '33', '0.3', 'sleep', '5']
+    release status: got 'exit 125', want 'exit 124' (by design)
+    release stderr: "timeout: '33': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+    dev status: got 'exit 125', want 'exit 124' (by design)
+    dev stderr: "timeout: '33': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+FAIL group send: -s SEGV, standard error closed  args=['-s', 'SEGV', '0.3', 'sleep', '5']
+    release status: 'exit 125', gnu 'exit 124'
+    release elapsed: 0.01 s, gnu 0.37 s
+    dev status: 'exit 125', gnu 'exit 124'
+    dev elapsed: 0.01 s, gnu 0.37 s
+timeouttest: 0 passed, 23 failed, 1 skipped

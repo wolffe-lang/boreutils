@@ -1,0 +1,159 @@
+timeouttest: release/timeout is static
+timeouttest: dev/timeout is static
+timeouttest: podman, image ubuntu:24.04, one fresh container a case, no mount, no network, as user 4242
+timeouttest: core pattern '|/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I': cores-on cases cannot run here
+timeouttest: gnu = timeout (GNU coreutils) 9.11 (/home/mfwolffe/lanes/bu28/gnu/bin/timeout)
+ok   expiry: TERM ends the command, 124
+ok   expiry: -s KILL ends timeout too (its group)
+ok   expiry: -k, a command that ignores TERM
+ok   expiry: --foreground -k, a command that ignores TERM, 137
+ok   expiry: --foreground -s KILL, 137
+ok   expiry: -p, the command's death by TERM as 143
+ok   expiry: -p -s KILL
+ok   expiry: -p -s HUP, 129
+ok   expiry: -p --foreground -s KILL
+ok   expiry: the command traps TERM and exits 3
+ok   expiry: -p, the command traps TERM and exits 3
+ok   expiry: -s 0 sends nothing, 124 when the command ends
+ok   expiry: -s EXIT
+ok   expiry: -s CONT
+ok   expiry: -s TTOU (stopped, then continued)
+ok   expiry: -s USR1
+ok   expiry: -s HUP --foreground
+ok   expiry: -s 9
+ok   expiry: --sig=KILL
+ok   expiry: --fore
+ok   expiry: --k=0.1, a command that ends at TERM
+ok   expiry: -k 0 is no KILL
+ok   expiry: -k 1e-400 is the shortest KILL
+ok   expiry: -k with no expiry (DURATION 0)
+ok   expiry: --signal=HUP --kill-after=0.2 -vp, HUP ignored
+ok   expiry: a DURATION under a millisecond, 1e-9
+ok   expiry: 0.0005
+ok   expiry: 1e-400 is not 0
+ok   no expiry: DURATION 0
+ok   no expiry: the command exits 3
+ok   no expiry: the command exits 0
+ok   no expiry: the command ends by TERM, and so does timeout
+ok   no expiry: the command ends by KILL
+ok   no expiry: the command ends by HUP
+ok   no expiry: the command ends by USR2
+ok   no expiry: -p, the command ends by TERM
+ok   no expiry: the command ends by SEGV
+ok   no expiry: the command ends by SEGV, standard error closed
+ok   no expiry: the command ends by a real-time signal
+ok   -v: the expiry
+ok   -v: -k, both sends
+ok   -v: -s 9 is KILL
+ok   -v: -s 0 is said by number
+ok   -v: -s EXIT is said by number
+ok   -v: a real-time signal by name, --foreground
+ok   -v: a number with no name, --foreground
+ok   -v: -fv
+ok   -v: standard output closed
+ok   -v: standard error closed
+ok   -v: TERM sent to timeout is said
+ok   -v: TERM to timeout -k, both said
+ok   group send: -s SEGV, timeout ignores it and lives
+ok   group send: -s ILL, timeout ignores it and lives
+ok   group send: -s TRAP, timeout ignores it and lives
+ok   group send: -s BUS, timeout ignores it and lives
+ok   group send: -s FPE, timeout ignores it and lives
+ok   group send: -s SYS, timeout ignores it and lives
+ok   group send: -s RTMIN, timeout ignores it and lives
+ok   group send: -s 16 (STKFLT), timeout ignores it and lives
+ok   group send: -s SEGV, the command's child ends too
+ok   group send: -s RTMIN, the command's child ends too
+ok   group send: -s 16, the command's child ends too
+ok   group send: -s RTMAX
+ok   group send: -s RTMIN+5
+ok   group send: -s 40 by number
+SKIP group send: -s EMT (macOS's own) (on Linux: the case is Darwin's)
+ok   group send: -p -s SEGV, 139
+ok   group send: -p -s RTMIN, 162
+ok   group send: -v -s SEGV
+ok   group send: -v -s RTMIN
+ok   group send: -s SEGV -k, a command that ignores SEGV
+ok   group send: -s RTMIN -k, the command ends at the first
+ok   group send: -s 32 ends timeout too
+ok   group send: -s 33, GNU's timeout ends by it
+ok   group send: -s SEGV, standard error closed
+ok   --foreground -s SEGV, the command alone
+ok   --foreground -s RTMIN, the command alone
+ok   --foreground -s 16, the command alone
+ok   hang: -s STOP stops timeout too
+ok   hang: --foreground -s STOP leaves the command stopped
+ok   design: -s CHLD
+SKIP core: the command ends by SEGV (a cores-on case, and this host's core pattern '|/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I' would write a core outside the case's directory)
+SKIP core: the command ends by ABRT, -p (a cores-on case, and this host's core pattern '|/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I' would write a core outside the case's directory)
+SKIP core: the command ends by TERM, no core (a cores-on case, and this host's core pattern '|/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I' would write a core outside the case's directory)
+SKIP core: --foreground -s SEGV at the expiry (a cores-on case, and this host's core pattern '|/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I' would write a core outside the case's directory)
+SKIP core: -s QUIT at the expiry (a cores-on case, and this host's core pattern '|/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I' would write a core outside the case's directory)
+SKIP core: -p -s ABRT at the expiry, 134 (a cores-on case, and this host's core pattern '|/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I' would write a core outside the case's directory)
+SKIP core: -v -s QUIT, both lines (a cores-on case, and this host's core pattern '|/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I' would write a core outside the case's directory)
+SKIP core: -s KILL, no core (a cores-on case, and this host's core pattern '|/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I' would write a core outside the case's directory)
+SKIP core: --foreground -s SEGV, standard error closed (a cores-on case, and this host's core pattern '|/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I' would write a core outside the case's directory)
+SKIP core: -s SEGV to the group (a cores-on case, and this host's core pattern '|/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I' would write a core outside the case's directory)
+SKIP core: -s BUS to the group, the command's child (a cores-on case, and this host's core pattern '|/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I' would write a core outside the case's directory)
+SKIP core: QUIT sent to timeout, the command does not trap it (a cores-on case, and this host's core pattern '|/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I' would write a core outside the case's directory)
+ok   group: the command's child ends at the expiry
+ok   group: --foreground leaves the command's child
+ok   group: -s KILL ends the command's child
+ok   group: a child in a group of its own outlives the expiry
+ok   group: the command leads a group of its own
+ok   group: TERM to timeout reaches the command's child
+ok   group: TERM to timeout --foreground leaves the command's child
+ok   group: timeout leads its group, the command is in it
+ok   group: with --foreground the command is not in timeout's group
+ok   stopped: a stopped command is continued after TERM
+ok   stopped: -s KILL
+ok   stopped: --foreground
+ok   sent: TERM to timeout, the command traps it and exits 3
+ok   sent: TERM to timeout, the command does not trap it
+ok   sent: INT to timeout, the command traps it and exits 3
+ok   sent: INT to timeout, the command does not trap it
+ok   sent: HUP to timeout, the command traps it and exits 3
+ok   sent: HUP to timeout, the command does not trap it
+ok   sent: QUIT to timeout, the command traps it and exits 3
+ok   sent: QUIT to timeout, the command does not trap it
+ok   sent: USR1 to timeout, the command traps it and exits 3
+ok   sent: USR1 to timeout, the command does not trap it
+ok   sent: USR2 to timeout, the command traps it and exits 3
+ok   sent: USR2 to timeout, the command does not trap it
+ok   sent: PIPE to timeout, the command traps it and exits 3
+ok   sent: PIPE to timeout, the command does not trap it
+ok   sent: ALRM to timeout, the command traps it and exits 3
+ok   sent: ALRM to timeout, the command does not trap it
+ok   sent: XCPU to timeout, the command traps it and exits 3
+ok   sent: XCPU to timeout, the command does not trap it
+ok   sent: XFSZ to timeout, the command traps it and exits 3
+ok   sent: XFSZ to timeout, the command does not trap it
+ok   sent: VTALRM to timeout, the command traps it and exits 3
+ok   sent: VTALRM to timeout, the command does not trap it
+ok   sent: PROF to timeout, the command traps it and exits 3
+ok   sent: PROF to timeout, the command does not trap it
+ok   sent: ABRT to timeout, the command traps it and exits 3
+ok   sent: ABRT to timeout, the command does not trap it
+ok   sent: CHLD to timeout changes nothing
+ok   sent: CONT to timeout changes nothing
+ok   sent: WINCH to timeout changes nothing
+ok   sent: URG to timeout changes nothing
+ok   sent: TTIN to timeout changes nothing
+ok   sent: TTOU to timeout changes nothing
+ok   sent: TSTP stops timeout
+ok   sent: TERM to timeout -k, a command that ignores TERM
+ok   sent: ALRM to timeout -k, a command that ignores TERM
+ok   sent: TERM to timeout -p
+ok   sent: TERM to timeout 0 (no expiry)
+ok   fd: standard input passes
+ok   fd: standard input closed
+ok   fd: a descriptor above 2 passes
+ok   fd: standard output closed
+ok   env: passes
+ok   env: argv[0] is the command as written
+ok   signal state: the command's ignored and blocked sets
+ok   signal state: timeout ignores TTIN and TTOU
+ok   run: a bare name not on PATH
+ok   run: a command named --help
+ok   run: a command named -s
+timeouttest: 140 passed, 0 failed, 13 skipped

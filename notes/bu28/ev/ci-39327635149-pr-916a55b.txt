@@ -1,0 +1,480 @@
+gauntlet (macos-latest, g)	the differential suite against the oracle of record	SKIP seq: -f %a, the one conversion boreutils does not implement (The hexadecimal float conversion is the C library's, and the two hosts' libraries disagree at the same coreutils 9.11: Apple's prints 0x1p+0 0x1p+1 and glibc prints 0x8p-3 0x8p-2. No answer matches both, so seq refuses %a with GNU's own unknown-directive wording and the divergence is recorded here.)
+gauntlet (macos-latest, g)	the differential suite against the oracle of record	SKIP seq: a value too large for a long double to hold exactly (The two hosts do not agree with each other here, let alone with an exact answer: macOS prints 1000000000000000019884624838656 (its long double is a double) and linux prints 1000000000000000000024696061952 (x87 extended), and macOS stops one value earlier. boreutils prints 1e30, 2e30 and 3e30 exactly.)
+gauntlet (macos-latest, g)	the differential suite against the oracle of record	SKIP tac: a directory operand (the hosts disagree about reading a directory at one coreutils release: EISDIR ('Is a directory') on Arch and macOS, EINVAL ('Invalid argument') on ubuntu-latest's staged 9.11. boreutils has no errno text behind an fs row (wolf-lang#407) and says 'Is a directory'.)
+gauntlet (macos-latest, g)	the differential suite against the oracle of record	SKIP wc: width table: U+00AD, a soft hyphen (the two hosts' wcwidth disagree here: macOS answers 0 and glibc 1, so no single answer can match GNU on both. boreutils follows glibc, where GNU coreutils is native.)
+gauntlet (macos-latest, g)	the differential suite against the oracle of record	SKIP wc: width table: U+070F, a Syriac abbreviation mark (the two hosts' wcwidth disagree here: macOS answers 0 and glibc 1, so no single answer can match GNU on both. boreutils follows glibc, where GNU coreutils is native.)
+gauntlet (macos-latest, g)	the differential suite against the oracle of record	difftest: 6481 passed, 0 failed, 307 skipped
+gauntlet (macos-latest, g)	the harness sees a difference (the planted red)	FAIL echo: what a terminal received  args=['x']
+gauntlet (macos-latest, g)	the harness sees a difference (the planted red)	FAIL echo: a mask hides only what it names  args=['n=5 tail']
+gauntlet (macos-latest, g)	the harness sees a difference (the planted red)	FAIL echo: a kept line the other side lacks  args=['3']
+gauntlet (macos-latest, g)	the harness sees a difference (the planted red)	FAIL head: an offset one side moves  args=['-']
+gauntlet (macos-latest, g)	the harness sees a difference (the planted red)	FAIL tee: a file one side writes  args=['a']
+gauntlet (macos-latest, g)	the harness sees a difference (the planted red)	FAIL tee: a file whose bytes differ  args=['a']
+gauntlet (macos-latest, g)	the harness sees a difference (the planted red)	FAIL tee: two names of one file  args=['a', 'b']
+gauntlet (macos-latest, g)	the harness sees a difference (the planted red)	FAIL tee: a time one side sets  args=['a']
+gauntlet (macos-latest, g)	the harness sees a difference (the planted red)	FAIL true: true is not false  args=[]
+gauntlet (macos-latest, g)	the harness sees a difference (the planted red)	difftest: 5 passed, 9 failed, 0 skipped
+gauntlet (macos-latest, g)	the report survives the process (boreutils#10)	difftest-evidence:   difftest: 1 passed, 0 failed, 0 skipped
+gauntlet (macos-latest, g)	kill -l and -t of every number, against GNU (boreutils#34,	killprobe: gnu = kill (GNU coreutils) 9.11 (.gnu-bin/bin/kill); host Darwin arm64
+gauntlet (macos-latest, g)	kill -l and -t of every number, against GNU (boreutils#34,	killprobe: 240578 numbers: 0..140000, then 100577 edges and a sample of the int range (seed 34), 4000 an invocation; nothing is sent
+gauntlet (macos-latest, g)	kill -l and -t of every number, against GNU (boreutils#34,	killprobe: gnu -l: 30176 numbers name a signal, 210402 are invalid
+gauntlet (macos-latest, g)	kill -l and -t of every number, against GNU (boreutils#34,	agree target/release/kill -l: 240578 numbers alike
+gauntlet (macos-latest, g)	kill -l and -t of every number, against GNU (boreutils#34,	agree target/dev/kill -l: 240578 numbers alike
+gauntlet (macos-latest, g)	kill -l and -t of every number, against GNU (boreutils#34,	killprobe: gnu -t: 30176 numbers name a signal, 210402 are invalid
+gauntlet (macos-latest, g)	kill -l and -t of every number, against GNU (boreutils#34,	agree target/release/kill -t: 240578 numbers alike
+gauntlet (macos-latest, g)	kill -l and -t of every number, against GNU (boreutils#34,	agree target/dev/kill -t: 240578 numbers alike
+gauntlet (macos-latest, g)	kill -l and -t of every number, against GNU (boreutils#34,	killprobe: every number answered alike
+gauntlet (macos-latest, g)	kill where it sends (this runner, the test's own children)	FAIL plant: a target one side leaves alive  args=['{pid0}']
+gauntlet (macos-latest, g)	kill where it sends (this runner, the test's own children)	FAIL plant: a target that must end by KILL  args=['-s', 'KILL', '{pid0}']
+gauntlet (macos-latest, g)	kill where it sends (this runner, the test's own children)	FAIL plant: a process that is not there  args=['{dead}']
+gauntlet (macos-latest, g)	kill where it sends (this runner, the test's own children)	FAIL plant: kill 0 to the group the program leads  args=['0']
+gauntlet (macos-latest, g)	kill where it sends (this runner, the test's own children)	killtest: 1 passed, 4 failed, 0 skipped
+gauntlet (macos-latest, g)	kill where it sends (this runner, the test's own children)	killtest: 298 passed, 0 failed, 67 skipped
+gauntlet (macos-latest, g)	timeout where it runs a command (this runner, a session a case)	timeouttest: core pattern '/cores/core.%P': cores-on cases cannot run here, and must (BORE_CORE_REQUIRE=1)
+gauntlet (macos-latest, g)	timeout where it runs a command (this runner, a session a case)	FAIL plant: the expiry  args=['0.3', 'sleep', '1']
+gauntlet (macos-latest, g)	timeout where it runs a command (this runner, a session a case)	FAIL plant: the group  args=['0.3', 'sh', '-c', 'sleep 30 & echo $! > gc; sleep 1']
+gauntlet (macos-latest, g)	timeout where it runs a command (this runner, a session a case)	FAIL plant: a death by a signal is not an exit status  args=['5', 'sh', '-c', 'kill -TERM $$']
+gauntlet (macos-latest, g)	timeout where it runs a command (this runner, a session a case)	FAIL plant: a field answered otherwise by design  args=['5', 'sh', '-c', 'exit 3']
+gauntlet (macos-latest, g)	timeout where it runs a command (this runner, a session a case)	FAIL plant: a cores-on case must run  (a cores-on case, and this host's core pattern '/cores/core.%P' would write a core outside the case's directory; BORE_CORE_REQUIRE=1)
+gauntlet (macos-latest, g)	timeout where it runs a command (this runner, a session a case)	timeouttest: 1 passed, 5 failed, 0 skipped
+gauntlet (macos-latest, g)	timeout where it runs a command (this runner, a session a case)	timeouttest: core pattern '/cores/core.%P': cores-on cases cannot run here
+gauntlet (macos-latest, g)	timeout where it runs a command (this runner, a session a case)	SKIP core: the command ends by SEGV (a cores-on case, and this host's core pattern '/cores/core.%P' would write a core outside the case's directory)
+gauntlet (macos-latest, g)	timeout where it runs a command (this runner, a session a case)	SKIP core: the command ends by ABRT, -p (a cores-on case, and this host's core pattern '/cores/core.%P' would write a core outside the case's directory)
+gauntlet (macos-latest, g)	timeout where it runs a command (this runner, a session a case)	SKIP core: the command ends by TERM, no core (a cores-on case, and this host's core pattern '/cores/core.%P' would write a core outside the case's directory)
+gauntlet (macos-latest, g)	timeout where it runs a command (this runner, a session a case)	SKIP core: --foreground -s SEGV at the expiry (a cores-on case, and this host's core pattern '/cores/core.%P' would write a core outside the case's directory)
+gauntlet (macos-latest, g)	timeout where it runs a command (this runner, a session a case)	SKIP core: -s QUIT at the expiry (a cores-on case, and this host's core pattern '/cores/core.%P' would write a core outside the case's directory)
+gauntlet (macos-latest, g)	timeout where it runs a command (this runner, a session a case)	SKIP core: -p -s ABRT at the expiry, 134 (a cores-on case, and this host's core pattern '/cores/core.%P' would write a core outside the case's directory)
+gauntlet (macos-latest, g)	timeout where it runs a command (this runner, a session a case)	SKIP core: -v -s QUIT, both lines (a cores-on case, and this host's core pattern '/cores/core.%P' would write a core outside the case's directory)
+gauntlet (macos-latest, g)	timeout where it runs a command (this runner, a session a case)	SKIP core: -s KILL, no core (a cores-on case, and this host's core pattern '/cores/core.%P' would write a core outside the case's directory)
+gauntlet (macos-latest, g)	timeout where it runs a command (this runner, a session a case)	SKIP core: --foreground -s SEGV, standard error closed (a cores-on case, and this host's core pattern '/cores/core.%P' would write a core outside the case's directory)
+gauntlet (macos-latest, g)	timeout where it runs a command (this runner, a session a case)	SKIP core: -s SEGV to the group (a cores-on case, and this host's core pattern '/cores/core.%P' would write a core outside the case's directory)
+gauntlet (macos-latest, g)	timeout where it runs a command (this runner, a session a case)	SKIP core: -s BUS to the group, the command's child (a cores-on case, and this host's core pattern '/cores/core.%P' would write a core outside the case's directory)
+gauntlet (macos-latest, g)	timeout where it runs a command (this runner, a session a case)	SKIP core: QUIT sent to timeout, the command does not trap it (a cores-on case, and this host's core pattern '/cores/core.%P' would write a core outside the case's directory)
+gauntlet (macos-latest, g)	timeout where it runs a command (this runner, a session a case)	timeouttest: 126 passed, 0 failed, 37 skipped
+gauntlet (macos-latest, g)	the identity tools on this runner, as its own user	idtest: 28 passed, 0 failed, 1098 skipped
+gauntlet (macos-latest, g)	cat where its input is its output (this runner, under a file-size limit)	FAIL plant: the bytes one side leaves (as root)  run='cat a > g; [ "$who" = gnu ] || printf x >> g'
+gauntlet (macos-latest, g)	cat where its input is its output (this runner, under a file-size limit)	FAIL plant: a status one side changes (as root)  run='cat f >> f; [ "$who" = gnu ] || exit 7'
+gauntlet (macos-latest, g)	cat where its input is its output (this runner, under a file-size limit)	FAIL plant: a copy that grows is stopped by the file-size limit (as root)  run='if [ "$who" = gnu ]; then cat a >> g; else cat /dev/zero >> g; fi'
+gauntlet (macos-latest, g)	cat where its input is its output (this runner, under a file-size limit)	FAIL plant: a side that never ends is stopped by the alarm (as root)  run='if [ "$who" = gnu ]; then cat a > g; else while :; do sleep 1; done; fi'
+gauntlet (macos-latest, g)	cat where its input is its output (this runner, under a file-size limit)	inouttest: 52 passed, 0 failed, 52 skipped
+gauntlet (ubuntu-latest)	the differential suite against the oracle of record	SKIP seq: -f %a, the one conversion boreutils does not implement (The hexadecimal float conversion is the C library's, and the two hosts' libraries disagree at the same coreutils 9.11: Apple's prints 0x1p+0 0x1p+1 and glibc prints 0x8p-3 0x8p-2. No answer matches both, so seq refuses %a with GNU's own unknown-directive wording and the divergence is recorded here.)
+gauntlet (ubuntu-latest)	the differential suite against the oracle of record	SKIP seq: a value too large for a long double to hold exactly (The two hosts do not agree with each other here, let alone with an exact answer: macOS prints 1000000000000000019884624838656 (its long double is a double) and linux prints 1000000000000000000024696061952 (x87 extended), and macOS stops one value earlier. boreutils prints 1e30, 2e30 and 3e30 exactly.)
+gauntlet (ubuntu-latest)	the differential suite against the oracle of record	SKIP tac: a directory operand (the hosts disagree about reading a directory at one coreutils release: EISDIR ('Is a directory') on Arch and macOS, EINVAL ('Invalid argument') on ubuntu-latest's staged 9.11. boreutils has no errno text behind an fs row (wolf-lang#407) and says 'Is a directory'.)
+gauntlet (ubuntu-latest)	the differential suite against the oracle of record	SKIP wc: width table: U+00AD, a soft hyphen (the two hosts' wcwidth disagree here: macOS answers 0 and glibc 1, so no single answer can match GNU on both. boreutils follows glibc, where GNU coreutils is native.)
+gauntlet (ubuntu-latest)	the differential suite against the oracle of record	SKIP wc: width table: U+070F, a Syriac abbreviation mark (the two hosts' wcwidth disagree here: macOS answers 0 and glibc 1, so no single answer can match GNU on both. boreutils follows glibc, where GNU coreutils is native.)
+gauntlet (ubuntu-latest)	the differential suite against the oracle of record	difftest: 6675 passed, 0 failed, 113 skipped
+gauntlet (ubuntu-latest)	the harness sees a difference (the planted red)	FAIL echo: what a terminal received  args=['x']
+gauntlet (ubuntu-latest)	the harness sees a difference (the planted red)	FAIL echo: a mask hides only what it names  args=['n=5 tail']
+gauntlet (ubuntu-latest)	the harness sees a difference (the planted red)	FAIL echo: a kept line the other side lacks  args=['3']
+gauntlet (ubuntu-latest)	the harness sees a difference (the planted red)	FAIL head: an offset one side moves  args=['-']
+gauntlet (ubuntu-latest)	the harness sees a difference (the planted red)	FAIL tee: a file one side writes  args=['a']
+gauntlet (ubuntu-latest)	the harness sees a difference (the planted red)	FAIL tee: a file whose bytes differ  args=['a']
+gauntlet (ubuntu-latest)	the harness sees a difference (the planted red)	FAIL tee: two names of one file  args=['a', 'b']
+gauntlet (ubuntu-latest)	the harness sees a difference (the planted red)	FAIL tee: a time one side sets  args=['a']
+gauntlet (ubuntu-latest)	the harness sees a difference (the planted red)	FAIL true: true is not false  args=[]
+gauntlet (ubuntu-latest)	the harness sees a difference (the planted red)	difftest: 5 passed, 9 failed, 0 skipped
+gauntlet (ubuntu-latest)	the report survives the process (boreutils#10)	difftest-evidence:   difftest: 1 passed, 0 failed, 0 skipped
+gauntlet (ubuntu-latest)	rm, mv and cp where / is disposable (a throwaway container)	roottest: 178 passed, 0 failed
+gauntlet (ubuntu-latest)	kill -l and -t of every number, against GNU (boreutils#34,	killprobe: gnu = kill (GNU coreutils) 9.11 (.gnu-bin/bin/kill); host Linux x86_64
+gauntlet (ubuntu-latest)	kill -l and -t of every number, against GNU (boreutils#34,	killprobe: 240578 numbers: 0..140000, then 100577 edges and a sample of the int range (seed 34), 4000 an invocation; nothing is sent
+gauntlet (ubuntu-latest)	kill -l and -t of every number, against GNU (boreutils#34,	killprobe: gnu -l: 61348 numbers name a signal, 179230 are invalid
+gauntlet (ubuntu-latest)	kill -l and -t of every number, against GNU (boreutils#34,	agree target/release/kill -l: 240578 numbers alike
+gauntlet (ubuntu-latest)	kill -l and -t of every number, against GNU (boreutils#34,	agree target/dev/kill -l: 240578 numbers alike
+gauntlet (ubuntu-latest)	kill -l and -t of every number, against GNU (boreutils#34,	killprobe: gnu -t: 61348 numbers name a signal, 179230 are invalid
+gauntlet (ubuntu-latest)	kill -l and -t of every number, against GNU (boreutils#34,	agree target/release/kill -t: 240578 numbers alike
+gauntlet (ubuntu-latest)	kill -l and -t of every number, against GNU (boreutils#34,	agree target/dev/kill -t: 240578 numbers alike
+gauntlet (ubuntu-latest)	kill -l and -t of every number, against GNU (boreutils#34,	killprobe: every number answered alike
+gauntlet (ubuntu-latest)	kill where it sends (a throwaway container a case)	FAIL plant: a target one side leaves alive  args=['{pid0}']
+gauntlet (ubuntu-latest)	kill where it sends (a throwaway container a case)	FAIL plant: a target that must end by KILL  args=['-s', 'KILL', '{pid0}']
+gauntlet (ubuntu-latest)	kill where it sends (a throwaway container a case)	FAIL plant: a process that is not there  args=['{dead}']
+gauntlet (ubuntu-latest)	kill where it sends (a throwaway container a case)	FAIL plant: kill 0 to the group the program leads  args=['0']
+gauntlet (ubuntu-latest)	kill where it sends (a throwaway container a case)	killtest: 1 passed, 4 failed, 0 skipped
+gauntlet (ubuntu-latest)	kill where it sends (a throwaway container a case)	killtest: 365 passed, 0 failed, 0 skipped
+gauntlet (ubuntu-latest)	timeout where it runs a command (a throwaway container a case)	﻿2026-10-19T22:16:54.0238849Z ##[group]Run echo "the runner's core pattern: $(cat /proc/sys/kernel/core_pattern)"
+gauntlet (ubuntu-latest)	timeout where it runs a command (a throwaway container a case)	^[[36;1mecho "the runner's core pattern: $(cat /proc/sys/kernel/core_pattern)"^[[0m
+gauntlet (ubuntu-latest)	timeout where it runs a command (a throwaway container a case)	^[[36;1msudo sysctl -w kernel.core_pattern=core.%p^[[0m
+gauntlet (ubuntu-latest)	timeout where it runs a command (a throwaway container a case)	the runner's core pattern: |/usr/lib/systemd/systemd-coredump %P %u %g %s %t 9223372036854775808 %h %d
+gauntlet (ubuntu-latest)	timeout where it runs a command (a throwaway container a case)	kernel.core_pattern = core.%p
+gauntlet (ubuntu-latest)	timeout where it runs a command (a throwaway container a case)	timeouttest: core pattern 'core.%p': cores-on cases run (a file in the case directory), and must (BORE_CORE_REQUIRE=1)
+gauntlet (ubuntu-latest)	timeout where it runs a command (a throwaway container a case)	FAIL plant: the expiry  args=['0.3', 'sleep', '1']
+gauntlet (ubuntu-latest)	timeout where it runs a command (a throwaway container a case)	FAIL plant: the group  args=['0.3', 'sh', '-c', 'sleep 30 & echo $! > gc; sleep 1']
+gauntlet (ubuntu-latest)	timeout where it runs a command (a throwaway container a case)	FAIL plant: a death by a signal is not an exit status  args=['5', 'sh', '-c', 'kill -TERM $$']
+gauntlet (ubuntu-latest)	timeout where it runs a command (a throwaway container a case)	FAIL plant: a field answered otherwise by design  args=['5', 'sh', '-c', 'exit 3']
+gauntlet (ubuntu-latest)	timeout where it runs a command (a throwaway container a case)	FAIL plant: a cores-on case must run  args=['5', 'sh', '-c', 'kill -SEGV $$']
+gauntlet (ubuntu-latest)	timeout where it runs a command (a throwaway container a case)	timeouttest: 1 passed, 5 failed, 0 skipped
+gauntlet (ubuntu-latest)	timeout where it runs a command (a throwaway container a case)	timeouttest: core pattern 'core.%p': cores-on cases run (a file in the case directory), and must (BORE_CORE_REQUIRE=1)
+gauntlet (ubuntu-latest)	timeout where it runs a command (a throwaway container a case)	timeouttest: 162 passed, 0 failed, 1 skipped
+gauntlet (ubuntu-latest)	the identity tools as root and as users (a throwaway container a case)	FAIL plant: an owner one side changes  args=['-v', ':pack', 'f'] as=root
+gauntlet (ubuntu-latest)	the identity tools as root and as users (a throwaway container a case)	FAIL plant: an account one side cannot see  args=['alice'] as=root
+gauntlet (ubuntu-latest)	the identity tools as root and as users (a throwaway container a case)	FAIL plant: the actor took (ours would be root's 0)  args=['-u'] as=alice
+gauntlet (ubuntu-latest)	the identity tools as root and as users (a throwaway container a case)	FAIL plant: the terminal and its record reached ours (ours would say nothing)  args=[] as=root
+gauntlet (ubuntu-latest)	the identity tools as root and as users (a throwaway container a case)	idtest: 1098 passed, 0 failed, 28 skipped
+gauntlet (ubuntu-latest)	cat where its input is its output (a throwaway container a case)	FAIL plant: the bytes one side leaves (as root)  run='cat a > g; [ "$who" = gnu ] || printf x >> g'
+gauntlet (ubuntu-latest)	cat where its input is its output (a throwaway container a case)	FAIL plant: a status one side changes (as root)  run='cat f >> f; [ "$who" = gnu ] || exit 7'
+gauntlet (ubuntu-latest)	cat where its input is its output (a throwaway container a case)	FAIL plant: a copy that grows is stopped by the file-size limit (as root)  run='if [ "$who" = gnu ]; then cat a >> g; else cat /dev/zero >> g; fi'
+gauntlet (ubuntu-latest)	cat where its input is its output (a throwaway container a case)	FAIL plant: a side that never ends is stopped by the alarm (as root)  run='if [ "$who" = gnu ]; then cat a > g; else while :; do sleep 1; done; fi'
+gauntlet (ubuntu-latest)	cat where its input is its output (a throwaway container a case)	inouttest: 104 passed, 0 failed, 0 skipped
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL chgrp: --from  args=['--from']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b"PROG: option '--from' requires an argument\nTry 'PROG --help' for more information.\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b"PROG: unrecognized option '--from'\nTry 'PROG --help' for more information.\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL chgrp: --from=nosuch-bu24 x  args=['--from=nosuch-bu24', 'x']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b"PROG: invalid user: 'nosuch-bu24'\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b"PROG: unrecognized option '--from=nosuch-bu24'\nTry 'PROG --help' for more information.\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL chmod: -h on a link  args=['-vh', '700', 'lf']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b"neither symbolic link 'lf' nor referent has been changed\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore files: [('dang', 'link', b'nowhere'), ('f', 'file', b'x\n'), ('lf', 'link', b'f')]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore tree: [('.', 'dir', 493, None, None, None), ('dang', 'link', None, 1, None, None), ('f', 'file', 420, 1, 2, None), ('lf', 'link', None, 1, None, None)]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b"PROG: invalid option -- 'h'\nTry 'PROG --help' for more information.\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  files: [('dang', 'link', b'nowhere'), ('f', 'file', b'x\n'), ('lf', 'link', b'f')]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  tree: [('.', 'dir', 493, None, None, None), ('dang', 'link', None, 1, None, None), ('f', 'file', 420, 1, 2, None), ('lf', 'link', None, 1, None, None)]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL chmod: --no-dereference on a link  args=['-v', '--no-dereference', '700', 'lf']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b"neither symbolic link 'lf' nor referent has been changed\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore files: [('dang', 'link', b'nowhere'), ('f', 'file', b'x\n'), ('lf', 'link', b'f')]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore tree: [('.', 'dir', 493, None, None, None), ('dang', 'link', None, 1, None, None), ('f', 'file', 420, 1, 2, None), ('lf', 'link', None, 1, None, None)]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b"PROG: unrecognized option '--no-dereference'\nTry 'PROG --help' for more information.\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  files: [('dang', 'link', b'nowhere'), ('f', 'file', b'x\n'), ('lf', 'link', b'f')]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  tree: [('.', 'dir', 493, None, None, None), ('dang', 'link', None, 1, None, None), ('f', 'file', 420, 1, 2, None), ('lf', 'link', None, 1, None, None)]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL chmod: -h on a file  args=['-h', '755', 'f']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore files: [('dang', 'link', b'nowhere'), ('f', 'file', b'x\n'), ('lf', 'link', b'f')]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore tree: [('.', 'dir', 493, None, None, None), ('dang', 'link', None, 1, None, None), ('f', 'file', 493, 1, 2, None), ('lf', 'link', None, 1, None, None)]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b"PROG: invalid option -- 'h'\nTry 'PROG --help' for more information.\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  files: [('dang', 'link', b'nowhere'), ('f', 'file', b'x\n'), ('lf', 'link', b'f')]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  tree: [('.', 'dir', 493, None, None, None), ('dang', 'link', None, 1, None, None), ('f', 'file', 420, 1, 2, None), ('lf', 'link', None, 1, None, None)]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL chmod: --dereference  args=['--dereference', '755', 'lf']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore files: [('dang', 'link', b'nowhere'), ('f', 'file', b'x\n'), ('lf', 'link', b'f')]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore tree: [('.', 'dir', 493, None, None, None), ('dang', 'link', None, 1, None, None), ('f', 'file', 493, 1, 2, None), ('lf', 'link', None, 1, None, None)]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b"PROG: unrecognized option '--dereference'\nTry 'PROG --help' for more information.\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  files: [('dang', 'link', b'nowhere'), ('f', 'file', b'x\n'), ('lf', 'link', b'f')]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  tree: [('.', 'dir', 493, None, None, None), ('dang', 'link', None, 1, None, None), ('f', 'file', 420, 1, 2, None), ('lf', 'link', None, 1, None, None)]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL chmod: -h then --dereference  args=['-h', '--dereference', '755', 'lf']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore files: [('dang', 'link', b'nowhere'), ('f', 'file', b'x\n'), ('lf', 'link', b'f')]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore tree: [('.', 'dir', 493, None, None, None), ('dang', 'link', None, 1, None, None), ('f', 'file', 493, 1, 2, None), ('lf', 'link', None, 1, None, None)]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b"PROG: invalid option -- 'h'\nTry 'PROG --help' for more information.\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  files: [('dang', 'link', b'nowhere'), ('f', 'file', b'x\n'), ('lf', 'link', b'f')]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  tree: [('.', 'dir', 493, None, None, None), ('dang', 'link', None, 1, None, None), ('f', 'file', 420, 1, 2, None), ('lf', 'link', None, 1, None, None)]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL chmod: walk: -R -L 700 d  args=['-R', '-L', '700', 'd']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b"PROG: cannot operate on dangling symlink 'd/dang'\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore files: [('d', 'dir', b''), ('d/dang', 'link', b'nowhere'), ('d/f', 'file', b'x\n'), ('d/l', 'link', b'../e'), ('d/s', 'dir', b''), ('e', 'dir', b''), ('e/sub', 'dir', b''), ('e/x', 'file', b'y\n'), ('ld', 'link', b'e'), ('lf', 'link', b'd/f')]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore tree: [('.', 'dir', 493, None, None, None), ('d', 'dir', 448, None, None, None), ('d/dang', 'link', None, 1, None, None), ('d/f', 'file', 448, 1, 2, None), ('d/l', 'link', None, 1, None, None), ('d/s', 'dir', 448, None, None, None), ('e', 'dir', 448, None, None, None), ('e/sub', 'dir', 448, None, None, None), ('e/x', 'file', 448, 1, 2, None), ('ld', 'link', None, 1, None, None), ('lf', 'link', None, 1, None, None)]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b"PROG: invalid option -- 'L'\nTry 'PROG --help' for more information.\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  files: [('d', 'dir', b''), ('d/dang', 'link', b'nowhere'), ('d/f', 'file', b'x\n'), ('d/l', 'link', b'../e'), ('d/s', 'dir', b''), ('e', 'dir', b''), ('e/sub', 'dir', b''), ('e/x', 'file', b'y\n'), ('ld', 'link', b'e'), ('lf', 'link', b'd/f')]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  tree: [('.', 'dir', 493, None, None, None), ('d', 'dir', 493, None, None, None), ('d/dang', 'link', None, 1, None, None), ('d/f', 'file', 420, 1, 2, None), ('d/l', 'link', None, 1, None, None), ('d/s', 'dir', 493, None, None, None), ('e', 'dir', 493, None, None, None), ('e/sub', 'dir', 493, None, None, None), ('e/x', 'file', 420, 1, 2, None), ('ld', 'link', None, 1, None, None), ('lf', 'link', None, 1, None, None)]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL chmod: walk: -R -H 700 d  args=['-R', '-H', '700', 'd']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore files: [('d', 'dir', b''), ('d/dang', 'link', b'nowhere'), ('d/f', 'file', b'x\n'), ('d/l', 'link', b'../e'), ('d/s', 'dir', b''), ('e', 'dir', b''), ('e/sub', 'dir', b''), ('e/x', 'file', b'y\n'), ('ld', 'link', b'e'), ('lf', 'link', b'd/f')]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore tree: [('.', 'dir', 493, None, None, None), ('d', 'dir', 448, None, None, None), ('d/dang', 'link', None, 1, None, None), ('d/f', 'file', 448, 1, 2, None), ('d/l', 'link', None, 1, None, None), ('d/s', 'dir', 448, None, None, None), ('e', 'dir', 493, None, None, None), ('e/sub', 'dir', 493, None, None, None), ('e/x', 'file', 420, 1, 2, None), ('ld', 'link', None, 1, None, None), ('lf', 'link', None, 1, None, None)]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b"PROG: invalid option -- 'H'\nTry 'PROG --help' for more information.\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  files: [('d', 'dir', b''), ('d/dang', 'link', b'nowhere'), ('d/f', 'file', b'x\n'), ('d/l', 'link', b'../e'), ('d/s', 'dir', b''), ('e', 'dir', b''), ('e/sub', 'dir', b''), ('e/x', 'file', b'y\n'), ('ld', 'link', b'e'), ('lf', 'link', b'd/f')]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  tree: [('.', 'dir', 493, None, None, None), ('d', 'dir', 493, None, None, None), ('d/dang', 'link', None, 1, None, None), ('d/f', 'file', 420, 1, 2, None), ('d/l', 'link', None, 1, None, None), ('d/s', 'dir', 493, None, None, None), ('e', 'dir', 493, None, None, None), ('e/sub', 'dir', 493, None, None, None), ('e/x', 'file', 420, 1, 2, None), ('ld', 'link', None, 1, None, None), ('lf', 'link', None, 1, None, None)]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL chmod: walk: -vR -L u-x d  args=['-vR', '-L', 'u-x', 'd']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b"mode of 'd' changed from 0755 (rwxr-xr-x) to 0655 (rw-r-xr-x)\n'd/f' could not be accessed\n'd/s' could not be accessed\n'd/dang' could not be accessed\n'd/l' could not be accessed\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b"PROG: cannot access 'd/f': Permission denied\nPROG: cannot access 'd/s': Permission denied\nPROG: cannot access 'd/dang': Permission denied\nPROG: cannot access 'd/l': Permission denied\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore files: [('d', 'dir', b''), ('d/dang', 'other', b''), ('d/f', 'other', b''), ('d/l', 'other', b''), ('d/s', 'dir', b''), ('e', 'dir', b''), ('e/sub', 'dir', b''), ('e/x', 'file', b'y\n'), ('ld', 'link', b'e'), ('lf', 'link', b'd/f')]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore tree: [('.', 'dir', 493, None, None, None), ('d', 'dir', 429, None, None, None), ('d/dang', 'unseen', 13, None, None, None), ('d/f', 'unseen', 13, None, None, None), ('d/l', 'unseen', 13, None, None, None), ('d/s', 'unseen', 13, None, None, None), ('e', 'dir', 493, None, None, None), ('e/sub', 'dir', 493, None, None, None), ('e/x', 'file', 420, 1, 2, None), ('ld', 'link', None, 1, None, None), ('lf', 'link', None, 1, None, None)]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b"PROG: invalid option -- 'L'\nTry 'PROG --help' for more information.\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  files: [('d', 'dir', b''), ('d/dang', 'link', b'nowhere'), ('d/f', 'file', b'x\n'), ('d/l', 'link', b'../e'), ('d/s', 'dir', b''), ('e', 'dir', b''), ('e/sub', 'dir', b''), ('e/x', 'file', b'y\n'), ('ld', 'link', b'e'), ('lf', 'link', b'd/f')]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  tree: [('.', 'dir', 493, None, None, None), ('d', 'dir', 493, None, None, None), ('d/dang', 'link', None, 1, None, None), ('d/f', 'file', 420, 1, 2, None), ('d/l', 'link', None, 1, None, None), ('d/s', 'dir', 493, None, None, None), ('e', 'dir', 493, None, None, None), ('e/sub', 'dir', 493, None, None, None), ('e/x', 'file', 420, 1, 2, None), ('ld', 'link', None, 1, None, None), ('lf', 'link', None, 1, None, None)]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL chmod: walk: -vRh 700 d  args=['-vRh', '700', 'd']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b"mode of 'd' changed from 0755 (rwxr-xr-x) to 0700 (rwx------)\nmode of 'd/f' changed from 0644 (rw-r--r--) to 0700 (rwx------)\nmode of 'd/s' changed from 0755 (rwxr-xr-x) to 0700 (rwx------)\nneither symbolic link 'd/dang' nor referent has been changed\nneither symbolic link 'd/l' nor referent has been changed\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore files: [('d', 'dir', b''), ('d/dang', 'link', b'nowhere'), ('d/f', 'file', b'x\n'), ('d/l', 'link', b'../e'), ('d/s', 'dir', b''), ('e', 'dir', b''), ('e/sub', 'dir', b''), ('e/x', 'file', b'y\n'), ('ld', 'link', b'e'), ('lf', 'link', b'd/f')]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore tree: [('.', 'dir', 493, None, None, None), ('d', 'dir', 448, None, None, None), ('d/dang', 'link', None, 1, None, None), ('d/f', 'file', 448, 1, 2, None), ('d/l', 'link', None, 1, None, None), ('d/s', 'dir', 448, None, None, None), ('e', 'dir', 493, None, None, None), ('e/sub', 'dir', 493, None, None, None), ('e/x', 'file', 420, 1, 2, None), ('ld', 'link', None, 1, None, None), ('lf', 'link', None, 1, None, None)]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b"PROG: invalid option -- 'h'\nTry 'PROG --help' for more information.\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  files: [('d', 'dir', b''), ('d/dang', 'link', b'nowhere'), ('d/f', 'file', b'x\n'), ('d/l', 'link', b'../e'), ('d/s', 'dir', b''), ('e', 'dir', b''), ('e/sub', 'dir', b''), ('e/x', 'file', b'y\n'), ('ld', 'link', b'e'), ('lf', 'link', b'd/f')]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  tree: [('.', 'dir', 493, None, None, None), ('d', 'dir', 493, None, None, None), ('d/dang', 'link', None, 1, None, None), ('d/f', 'file', 420, 1, 2, None), ('d/l', 'link', None, 1, None, None), ('d/s', 'dir', 493, None, None, None), ('e', 'dir', 493, None, None, None), ('e/sub', 'dir', 493, None, None, None), ('e/x', 'file', 420, 1, 2, None), ('ld', 'link', None, 1, None, None), ('lf', 'link', None, 1, None, None)]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL chmod: walk: -vR -H 700 ld  args=['-vR', '-H', '700', 'ld']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b"mode of 'ld' changed from 0755 (rwxr-xr-x) to 0700 (rwx------)\nmode of 'ld/x' changed from 0644 (rw-r--r--) to 0700 (rwx------)\nmode of 'ld/sub' changed from 0755 (rwxr-xr-x) to 0700 (rwx------)\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore files: [('d', 'dir', b''), ('d/dang', 'link', b'nowhere'), ('d/f', 'file', b'x\n'), ('d/l', 'link', b'../e'), ('d/s', 'dir', b''), ('e', 'dir', b''), ('e/sub', 'dir', b''), ('e/x', 'file', b'y\n'), ('ld', 'link', b'e'), ('lf', 'link', b'd/f')]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore tree: [('.', 'dir', 493, None, None, None), ('d', 'dir', 493, None, None, None), ('d/dang', 'link', None, 1, None, None), ('d/f', 'file', 420, 1, 2, None), ('d/l', 'link', None, 1, None, None), ('d/s', 'dir', 493, None, None, None), ('e', 'dir', 448, None, None, None), ('e/sub', 'dir', 448, None, None, None), ('e/x', 'file', 448, 1, 2, None), ('ld', 'link', None, 1, None, None), ('lf', 'link', None, 1, None, None)]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b"PROG: invalid option -- 'H'\nTry 'PROG --help' for more information.\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  files: [('d', 'dir', b''), ('d/dang', 'link', b'nowhere'), ('d/f', 'file', b'x\n'), ('d/l', 'link', b'../e'), ('d/s', 'dir', b''), ('e', 'dir', b''), ('e/sub', 'dir', b''), ('e/x', 'file', b'y\n'), ('ld', 'link', b'e'), ('lf', 'link', b'd/f')]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  tree: [('.', 'dir', 493, None, None, None), ('d', 'dir', 493, None, None, None), ('d/dang', 'link', None, 1, None, None), ('d/f', 'file', 420, 1, 2, None), ('d/l', 'link', None, 1, None, None), ('d/s', 'dir', 493, None, None, None), ('e', 'dir', 493, None, None, None), ('e/sub', 'dir', 493, None, None, None), ('e/x', 'file', 420, 1, 2, None), ('ld', 'link', None, 1, None, None), ('lf', 'link', None, 1, None, None)]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL chmod: walk: -vR -P 700 ld  args=['-vR', '-P', '700', 'ld']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b"neither symbolic link 'ld' nor referent has been changed\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore files: [('d', 'dir', b''), ('d/dang', 'link', b'nowhere'), ('d/f', 'file', b'x\n'), ('d/l', 'link', b'../e'), ('d/s', 'dir', b''), ('e', 'dir', b''), ('e/sub', 'dir', b''), ('e/x', 'file', b'y\n'), ('ld', 'link', b'e'), ('lf', 'link', b'd/f')]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore tree: [('.', 'dir', 493, None, None, None), ('d', 'dir', 493, None, None, None), ('d/dang', 'link', None, 1, None, None), ('d/f', 'file', 420, 1, 2, None), ('d/l', 'link', None, 1, None, None), ('d/s', 'dir', 493, None, None, None), ('e', 'dir', 493, None, None, None), ('e/sub', 'dir', 493, None, None, None), ('e/x', 'file', 420, 1, 2, None), ('ld', 'link', None, 1, None, None), ('lf', 'link', None, 1, None, None)]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b"PROG: invalid option -- 'P'\nTry 'PROG --help' for more information.\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  files: [('d', 'dir', b''), ('d/dang', 'link', b'nowhere'), ('d/f', 'file', b'x\n'), ('d/l', 'link', b'../e'), ('d/s', 'dir', b''), ('e', 'dir', b''), ('e/sub', 'dir', b''), ('e/x', 'file', b'y\n'), ('ld', 'link', b'e'), ('lf', 'link', b'd/f')]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  tree: [('.', 'dir', 493, None, None, None), ('d', 'dir', 493, None, None, None), ('d/dang', 'link', None, 1, None, None), ('d/f', 'file', 420, 1, 2, None), ('d/l', 'link', None, 1, None, None), ('d/s', 'dir', 493, None, None, None), ('e', 'dir', 493, None, None, None), ('e/sub', 'dir', 493, None, None, None), ('e/x', 'file', 420, 1, 2, None), ('ld', 'link', None, 1, None, None), ('lf', 'link', None, 1, None, None)]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL chmod: walk: -vR -L 700 ld  args=['-vR', '-L', '700', 'ld']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b"mode of 'ld' changed from 0755 (rwxr-xr-x) to 0700 (rwx------)\nmode of 'ld/x' changed from 0644 (rw-r--r--) to 0700 (rwx------)\nmode of 'ld/sub' changed from 0755 (rwxr-xr-x) to 0700 (rwx------)\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore files: [('d', 'dir', b''), ('d/dang', 'link', b'nowhere'), ('d/f', 'file', b'x\n'), ('d/l', 'link', b'../e'), ('d/s', 'dir', b''), ('e', 'dir', b''), ('e/sub', 'dir', b''), ('e/x', 'file', b'y\n'), ('ld', 'link', b'e'), ('lf', 'link', b'd/f')]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore tree: [('.', 'dir', 493, None, None, None), ('d', 'dir', 493, None, None, None), ('d/dang', 'link', None, 1, None, None), ('d/f', 'file', 420, 1, 2, None), ('d/l', 'link', None, 1, None, None), ('d/s', 'dir', 493, None, None, None), ('e', 'dir', 448, None, None, None), ('e/sub', 'dir', 448, None, None, None), ('e/x', 'file', 448, 1, 2, None), ('ld', 'link', None, 1, None, None), ('lf', 'link', None, 1, None, None)]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b"PROG: invalid option -- 'L'\nTry 'PROG --help' for more information.\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  files: [('d', 'dir', b''), ('d/dang', 'link', b'nowhere'), ('d/f', 'file', b'x\n'), ('d/l', 'link', b'../e'), ('d/s', 'dir', b''), ('e', 'dir', b''), ('e/sub', 'dir', b''), ('e/x', 'file', b'y\n'), ('ld', 'link', b'e'), ('lf', 'link', b'd/f')]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  tree: [('.', 'dir', 493, None, None, None), ('d', 'dir', 493, None, None, None), ('d/dang', 'link', None, 1, None, None), ('d/f', 'file', 420, 1, 2, None), ('d/l', 'link', None, 1, None, None), ('d/s', 'dir', 493, None, None, None), ('e', 'dir', 493, None, None, None), ('e/sub', 'dir', 493, None, None, None), ('e/x', 'file', 420, 1, 2, None), ('ld', 'link', None, 1, None, None), ('lf', 'link', None, 1, None, None)]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL chmod: walk: -vRh 700 ld  args=['-vRh', '700', 'ld']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b"neither symbolic link 'ld' nor referent has been changed\nmode of 'ld/x' changed from 0644 (rw-r--r--) to 0700 (rwx------)\nmode of 'ld/sub' changed from 0755 (rwxr-xr-x) to 0700 (rwx------)\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore files: [('d', 'dir', b''), ('d/dang', 'link', b'nowhere'), ('d/f', 'file', b'x\n'), ('d/l', 'link', b'../e'), ('d/s', 'dir', b''), ('e', 'dir', b''), ('e/sub', 'dir', b''), ('e/x', 'file', b'y\n'), ('ld', 'link', b'e'), ('lf', 'link', b'd/f')]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore tree: [('.', 'dir', 493, None, None, None), ('d', 'dir', 493, None, None, None), ('d/dang', 'link', None, 1, None, None), ('d/f', 'file', 420, 1, 2, None), ('d/l', 'link', None, 1, None, None), ('d/s', 'dir', 493, None, None, None), ('e', 'dir', 493, None, None, None), ('e/sub', 'dir', 448, None, None, None), ('e/x', 'file', 448, 1, 2, None), ('ld', 'link', None, 1, None, None), ('lf', 'link', None, 1, None, None)]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b"PROG: invalid option -- 'h'\nTry 'PROG --help' for more information.\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  files: [('d', 'dir', b''), ('d/dang', 'link', b'nowhere'), ('d/f', 'file', b'x\n'), ('d/l', 'link', b'../e'), ('d/s', 'dir', b''), ('e', 'dir', b''), ('e/sub', 'dir', b''), ('e/x', 'file', b'y\n'), ('ld', 'link', b'e'), ('lf', 'link', b'd/f')]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  tree: [('.', 'dir', 493, None, None, None), ('d', 'dir', 493, None, None, None), ('d/dang', 'link', None, 1, None, None), ('d/f', 'file', 420, 1, 2, None), ('d/l', 'link', None, 1, None, None), ('d/s', 'dir', 493, None, None, None), ('e', 'dir', 493, None, None, None), ('e/sub', 'dir', 493, None, None, None), ('e/x', 'file', 420, 1, 2, None), ('ld', 'link', None, 1, None, None), ('lf', 'link', None, 1, None, None)]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL chmod: walk: -RP -vL 700 d  args=['-RP', '-vL', '700', 'd']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b"mode of 'd' changed from 0755 (rwxr-xr-x) to 0700 (rwx------)\nmode of 'd/f' changed from 0644 (rw-r--r--) to 0700 (rwx------)\nmode of 'd/s' changed from 0755 (rwxr-xr-x) to 0700 (rwx------)\n'd/dang' could not be accessed\nmode of 'd/l' changed from 0755 (rwxr-xr-x) to 0700 (rwx------)\nmode of 'd/l/x' changed from 0644 (rw-r--r--) to 0700 (rwx------)\nmode of 'd/l/sub' changed from 0755 (rwxr-xr-x) t...(419 bytes)"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b"PROG: cannot operate on dangling symlink 'd/dang'\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore files: [('d', 'dir', b''), ('d/dang', 'link', b'nowhere'), ('d/f', 'file', b'x\n'), ('d/l', 'link', b'../e'), ('d/s', 'dir', b''), ('e', 'dir', b''), ('e/sub', 'dir', b''), ('e/x', 'file', b'y\n'), ('ld', 'link', b'e'), ('lf', 'link', b'd/f')]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore tree: [('.', 'dir', 493, None, None, None), ('d', 'dir', 448, None, None, None), ('d/dang', 'link', None, 1, None, None), ('d/f', 'file', 448, 1, 2, None), ('d/l', 'link', None, 1, None, None), ('d/s', 'dir', 448, None, None, None), ('e', 'dir', 448, None, None, None), ('e/sub', 'dir', 448, None, None, None), ('e/x', 'file', 448, 1, 2, None), ('ld', 'link', None, 1, None, None), ('lf', 'link', None, 1, None, None)]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b"PROG: invalid option -- 'P'\nTry 'PROG --help' for more information.\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  files: [('d', 'dir', b''), ('d/dang', 'link', b'nowhere'), ('d/f', 'file', b'x\n'), ('d/l', 'link', b'../e'), ('d/s', 'dir', b''), ('e', 'dir', b''), ('e/sub', 'dir', b''), ('e/x', 'file', b'y\n'), ('ld', 'link', b'e'), ('lf', 'link', b'd/f')]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  tree: [('.', 'dir', 493, None, None, None), ('d', 'dir', 493, None, None, None), ('d/dang', 'link', None, 1, None, None), ('d/f', 'file', 420, 1, 2, None), ('d/l', 'link', None, 1, None, None), ('d/s', 'dir', 493, None, None, None), ('e', 'dir', 493, None, None, None), ('e/sub', 'dir', 493, None, None, None), ('e/x', 'file', 420, 1, 2, None), ('ld', 'link', None, 1, None, None), ('lf', 'link', None, 1, None, None)]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL chmod: walk: -RL -P 700 ld  args=['-RL', '-P', '700', 'ld']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore files: [('d', 'dir', b''), ('d/dang', 'link', b'nowhere'), ('d/f', 'file', b'x\n'), ('d/l', 'link', b'../e'), ('d/s', 'dir', b''), ('e', 'dir', b''), ('e/sub', 'dir', b''), ('e/x', 'file', b'y\n'), ('ld', 'link', b'e'), ('lf', 'link', b'd/f')]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore tree: [('.', 'dir', 493, None, None, None), ('d', 'dir', 493, None, None, None), ('d/dang', 'link', None, 1, None, None), ('d/f', 'file', 420, 1, 2, None), ('d/l', 'link', None, 1, None, None), ('d/s', 'dir', 493, None, None, None), ('e', 'dir', 493, None, None, None), ('e/sub', 'dir', 493, None, None, None), ('e/x', 'file', 420, 1, 2, None), ('ld', 'link', None, 1, None, None), ('lf', 'link', None, 1, None, None)]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b"PROG: invalid option -- 'L'\nTry 'PROG --help' for more information.\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  files: [('d', 'dir', b''), ('d/dang', 'link', b'nowhere'), ('d/f', 'file', b'x\n'), ('d/l', 'link', b'../e'), ('d/s', 'dir', b''), ('e', 'dir', b''), ('e/sub', 'dir', b''), ('e/x', 'file', b'y\n'), ('ld', 'link', b'e'), ('lf', 'link', b'd/f')]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  tree: [('.', 'dir', 493, None, None, None), ('d', 'dir', 493, None, None, None), ('d/dang', 'link', None, 1, None, None), ('d/f', 'file', 420, 1, 2, None), ('d/l', 'link', None, 1, None, None), ('d/s', 'dir', 493, None, None, None), ('e', 'dir', 493, None, None, None), ('e/sub', 'dir', 493, None, None, None), ('e/x', 'file', 420, 1, 2, None), ('ld', 'link', None, 1, None, None), ('lf', 'link', None, 1, None, None)]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL chmod: walk: a link back up, -L  args=['-R', '-L', '700', 'c']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore files: [('c', 'dir', b''), ('c/sub', 'dir', b''), ('c/sub/up', 'link', b'..')]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore tree: [('.', 'dir', 493, None, None, None), ('c', 'dir', 448, None, None, None), ('c/sub', 'dir', 448, None, None, None), ('c/sub/up', 'link', None, 1, None, None)]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b"PROG: invalid option -- 'L'\nTry 'PROG --help' for more information.\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  files: [('c', 'dir', b''), ('c/sub', 'dir', b''), ('c/sub/up', 'link', b'..')]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  tree: [('.', 'dir', 493, None, None, None), ('c', 'dir', 493, None, None, None), ('c/sub', 'dir', 493, None, None, None), ('c/sub/up', 'link', None, 1, None, None)]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL expand: binary input  args=['tests/fixtures/binary.bin']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b'\x00\x01\x02\x03\x04\x05\x06\x07\x08  \n\x0b\x0c\r\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~\x7f\x80\x81\x82\x83\x84\x85\x86\x87\x88\x89\x8a\x8b\x8c\x8d\x8e\x8f\x90\x91\x92\x93\x94\x95\x96\x97\x98\x99\x9a\x9b\x9c\x9d\x9e\x9f\xa0\xa1\xa2\xa3\xa4\xa5\xa6\xa7\xa8\xa9\xaa\xab\xac\xad\xae\xaf\xb0\xb1\xb2\xb3\xb4\xb5\xb6\xb7\xb8\xb9\xba\xbb\xbc\xbd\xbe\xbf\xc0\xc1\xc2\xc3\xc4\xc5\xc6\xc7\xc8\xc9\xca\xcb\xcc\xcd\xce\xcf\xd0\xd1\xd2\xd3\xd4\xd5\xd6\xd7\xd8\xd9\xda\xdb\xdc\xdd\xde\xdf\xe0\xe1\xe2\xe3\xe4\xe5\xe6\xe7\xe8\xe9\xea\xeb\xec\xed\xee\xef\xf0\xf1\xf2\xf3\xf4\xf5\xf6\xf7\xf8\xf9\xfa\xfb\xfc\xfd\xfe\xff'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b'\x00\x01\x02\x03\x04\x05\x06\x07\x08 \n\x0b\x0c\r\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~\x7f\x80\x81\x82\x83\x84\x85\x86\x87\x88\x89\x8a\x8b\x8c\x8d\x8e\x8f\x90\x91\x92\x93\x94\x95\x96\x97\x98\x99\x9a\x9b\x9c\x9d\x9e\x9f\xa0\xa1\xa2\xa3\xa4\xa5\xa6\xa7\xa8\xa9\xaa\xab\xac\xad\xae\xaf\xb0\xb1\xb2\xb3\xb4\xb5\xb6\xb7\xb8\xb9\xba\xbb\xbc\xbd\xbe\xbf\xc0\xc1\xc2\xc3\xc4\xc5\xc6\xc7\xc8\xc9\xca\xcb\xcc\xcd\xce\xcf\xd0\xd1\xd2\xd3\xd4\xd5\xd6\xd7\xd8\xd9\xda\xdb\xdc\xdd\xde\xdf\xe0\xe1\xe2\xe3\xe4\xe5\xe6\xe7\xe8\xe9\xea\xeb\xec\xed\xee\xef\xf0\xf1\xf2\xf3\xf4\xf5\xf6\xf7\xf8\xf9\xfa\xfb\xfc\xfd\xfe\xff'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL expand: UTF-8 characters are one column each  args=[]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b'\xc3\xa9       x\n'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b'\xc3\xa9      x\n'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL expand: a wide character is two columns  args=[]
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b'\xe4\xb8\x96      x\n'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b'\xe4\xb8\x96     x\n'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL fold: -c in the C locale is -b  args=['-c', '-w', '3']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b'abc\ndef\nghi\nj\n'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b"PROG: invalid option -- 'c'\nTry 'PROG --help' for more information.\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL fold: --characters  args=['--characters', '-w', '3']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b'abc\ndef\nghi\nj\n'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b"PROG: unrecognized option '--characters'\nTry 'PROG --help' for more information.\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL fold: -c counts characters under UTF-8  args=['-c', '-w', '2']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b'\xc3\xa9\xc3\xa9\n\xc3\xa9\n'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b"PROG: invalid option -- 'c'\nTry 'PROG --help' for more information.\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL fold: -c counts a wide character as one  args=['-c', '-w', '3']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b'\xe4\xb8\x96\xe4\xb8\x96\n'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b"PROG: invalid option -- 'c'\nTry 'PROG --help' for more information.\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL fold: -c on an invalid UTF-8 byte counts it alone  args=['-c', '-w', '2', 'tests/fixtures/bad.dat']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b'\xff\xfe\n o\nk\n'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b"PROG: invalid option -- 'c'\nTry 'PROG --help' for more information.\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL fold: -c under LC_ALL=C is bytes again  args=['-c', '-w', '2']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b'\xc3\xa9\n\xc3\xa9\n\xc3\xa9\n'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b"PROG: invalid option -- 'c'\nTry 'PROG --help' for more information.\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL fold: -b then -c, the last wins  args=['--bytes', '--characters', '-w', '2']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b'\xc3\xa9\xc3\xa9\n'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b"PROG: unrecognized option '--characters'\nTry 'PROG --help' for more information.\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL fold: -c then -b, the last wins  args=['--characters', '--bytes', '-w', '2']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b'\xc3\xa9\n\xc3\xa9\n'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b"PROG: unrecognized option '--characters'\nTry 'PROG --help' for more information.\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL fold: the default mode on narrow multibyte characters  args=['-w', '2']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b'\xc3\xa9\xc3\xa9\n\xc3\xa9\n'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b'\xc3\xa9\n\xc3\xa9\n\xc3\xa9\n'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL fold: the default mode on a combining sequence  args=['-w', '2', 'tests/fixtures/wide.txt']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b'\xe6\xbc\xa2\n\xe5\xad\x97\ne\xcc\x81x\n\xf0\x9f\x98\x80\n'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b'\xe6\xbc\n\xa2\xe5\n\xad\x97\ne\xcc\n\x81x\n\xf0\x9f\n\x98\x80\n'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL id: -n  args=['-n']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b'PROG: printing only names or real IDs requires -u, -g, or -G\n'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b'PROG: cannot print only names or real IDs in default format\n'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL id: -r  args=['-r']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b'PROG: printing only names or real IDs requires -u, -g, or -G\n'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b'PROG: cannot print only names or real IDs in default format\n'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL id: -nz  args=['-nz']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b'PROG: printing only names or real IDs requires -u, -g, or -G\n'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b'PROG: cannot print only names or real IDs in default format\n'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL id: -rz  args=['-rz']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b'PROG: printing only names or real IDs requires -u, -g, or -G\n'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b'PROG: cannot print only names or real IDs in default format\n'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL id: --na  args=['--na']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b'PROG: printing only names or real IDs requires -u, -g, or -G\n'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b'PROG: cannot print only names or real IDs in default format\n'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL id: -n nosuch-bu24  args=['-n', 'nosuch-bu24']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b'PROG: printing only names or real IDs requires -u, -g, or -G\n'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b'PROG: cannot print only names or real IDs in default format\n'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL id: ''  args=['']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b"PROG: '': no such user\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b"PROG: '': no such user: No such file or directory\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 1
+the field's GNU (information, not a verdict)	UNKNOWN STEP	SKIP seq: -f %a, the one conversion boreutils does not implement (The hexadecimal float conversion is the C library's, and the two hosts' libraries disagree at the same coreutils 9.11: Apple's prints 0x1p+0 0x1p+1 and glibc prints 0x8p-3 0x8p-2. No answer matches both, so seq refuses %a with GNU's own unknown-directive wording and the divergence is recorded here.)
+the field's GNU (information, not a verdict)	UNKNOWN STEP	SKIP seq: a value too large for a long double to hold exactly (The two hosts do not agree with each other here, let alone with an exact answer: macOS prints 1000000000000000019884624838656 (its long double is a double) and linux prints 1000000000000000000024696061952 (x87 extended), and macOS stops one value earlier. boreutils prints 1e30, 2e30 and 3e30 exactly.)
+the field's GNU (information, not a verdict)	UNKNOWN STEP	SKIP tac: a directory operand (the hosts disagree about reading a directory at one coreutils release: EISDIR ('Is a directory') on Arch and macOS, EINVAL ('Invalid argument') on ubuntu-latest's staged 9.11. boreutils has no errno text behind an fs row (wolf-lang#407) and says 'Is a directory'.)
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL timeout: usage: too few operands: -f -p -v 1  args=['-f', '-p', '-v', '1']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b"Try 'PROG --help' for more information.\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 125
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b"PROG: invalid option -- 'f'\nTry 'PROG --help' for more information.\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 125
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL timeout: command: not found, -v -p  args=['-v', '-p', '5', '/nonexistent/x']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b"PROG: failed to run command '/nonexistent/x': No such file or directory\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 127
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b"PROG: invalid option -- 'p'\nTry 'PROG --help' for more information.\n"
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 125
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL unexpand: UTF-8 characters are one column each  args=['-a']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b'\xc3\xa9\tx\n'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b'\xc3\xa9\t x\n'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	FAIL unexpand: a wide character is two columns  args=['-a']
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stdout: b'\xe4\xb8\x96\tx\n'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    bore exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stdout: b'\xe4\xb8\x96\t x\n'
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  stderr: b''
+the field's GNU (information, not a verdict)	UNKNOWN STEP	    gnu  exit: 0
+the field's GNU (information, not a verdict)	UNKNOWN STEP	SKIP wc: width table: U+00AD, a soft hyphen (the two hosts' wcwidth disagree here: macOS answers 0 and glibc 1, so no single answer can match GNU on both. boreutils follows glibc, where GNU coreutils is native.)
+the field's GNU (information, not a verdict)	UNKNOWN STEP	SKIP wc: width table: U+070F, a Syriac abbreviation mark (the two hosts' wcwidth disagree here: macOS answers 0 and glibc 1, so no single answer can match GNU on both. boreutils follows glibc, where GNU coreutils is native.)
+the field's GNU (information, not a verdict)	UNKNOWN STEP	difftest: 5649 passed, 42 failed, 1097 skipped

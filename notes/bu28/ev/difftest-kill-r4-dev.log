@@ -1,0 +1,903 @@
+difftest: gnu = true (GNU coreutils) 9.11 (prefix '') on Linux x86_64
+difftest: bore = /l/dev/target/dev
+difftest: oracle environment, LC_ALL=C _POSIX2_VERSION=200112
+difftest: oracle of record, GNU coreutils 9.11
+difftest: oracle profile OK — `uniq +1 /dev/null` exits 1 (the obsolete +N operand form is off, so +1 is a file name (B73))
+difftest: scratch root /l/scratch
+difftest: gnu kill = /g/bin/kill
+ok   kill: help: --help
+ok   kill: help: --version
+ok   kill: help: --h
+ok   kill: help: --v
+ok   kill: help: --he
+ok   kill: help: --ve
+ok   kill: help: --help extra
+ok   kill: help: --version extra
+ok   kill: help: -l --help
+ok   kill: help: --help -l
+ok   kill: help: --help -x
+ok   kill: help: --help -s FOO
+ok   kill: help: -s TERM --version
+ok   kill: help: -l --version
+ok   kill: help: -TERM -l --version
+ok   kill: help: -l -s TERM --help
+ok   kill: help: -l --help -l
+ok   kill: help: with standard output closed
+ok   kill: version: with standard output closed
+ok   kill: table: -l
+ok   kill: table: --list
+ok   kill: table: --li
+ok   kill: table: --l
+ok   kill: table: -l --
+ok   kill: table: -t
+ok   kill: table: -L
+ok   kill: table: --table
+ok   kill: table: --ta
+ok   kill: table: --t
+ok   kill: table: -t --
+ok   kill: table: -l with standard output closed
+ok   kill: table: -t KILL with standard output closed
+ok   kill: table: -l KILL to a full device
+ok   kill: table: -l FOO with standard output closed
+ok   kill: name: -l EXIT
+ok   kill: name: -l SIGEXIT
+ok   kill: name: -l exit
+ok   kill: name: -l sigexit
+ok   kill: name: -l SigExit
+ok   kill: name: -t EXIT
+ok   kill: name: -l HUP
+ok   kill: name: -l SIGHUP
+ok   kill: name: -l hup
+ok   kill: name: -l sighup
+ok   kill: name: -l SigHup
+ok   kill: name: -t HUP
+ok   kill: name: -l INT
+ok   kill: name: -l SIGINT
+ok   kill: name: -l int
+ok   kill: name: -l sigint
+ok   kill: name: -l SigInt
+ok   kill: name: -t INT
+ok   kill: name: -l QUIT
+ok   kill: name: -l SIGQUIT
+ok   kill: name: -l quit
+ok   kill: name: -l sigquit
+ok   kill: name: -l SigQuit
+ok   kill: name: -t QUIT
+ok   kill: name: -l ILL
+ok   kill: name: -l SIGILL
+ok   kill: name: -l ill
+ok   kill: name: -l sigill
+ok   kill: name: -l SigIll
+ok   kill: name: -t ILL
+ok   kill: name: -l TRAP
+ok   kill: name: -l SIGTRAP
+ok   kill: name: -l trap
+ok   kill: name: -l sigtrap
+ok   kill: name: -l SigTrap
+ok   kill: name: -t TRAP
+ok   kill: name: -l ABRT
+ok   kill: name: -l SIGABRT
+ok   kill: name: -l abrt
+ok   kill: name: -l sigabrt
+ok   kill: name: -l SigAbrt
+ok   kill: name: -t ABRT
+ok   kill: name: -l BUS
+ok   kill: name: -l SIGBUS
+ok   kill: name: -l bus
+ok   kill: name: -l sigbus
+ok   kill: name: -l SigBus
+ok   kill: name: -t BUS
+ok   kill: name: -l FPE
+ok   kill: name: -l SIGFPE
+ok   kill: name: -l fpe
+ok   kill: name: -l sigfpe
+ok   kill: name: -l SigFpe
+ok   kill: name: -t FPE
+ok   kill: name: -l KILL
+ok   kill: name: -l SIGKILL
+ok   kill: name: -l kill
+ok   kill: name: -l sigkill
+ok   kill: name: -l SigKill
+ok   kill: name: -t KILL
+ok   kill: name: -l USR1
+ok   kill: name: -l SIGUSR1
+ok   kill: name: -l usr1
+ok   kill: name: -l sigusr1
+ok   kill: name: -l SigUsr1
+ok   kill: name: -t USR1
+ok   kill: name: -l SEGV
+ok   kill: name: -l SIGSEGV
+ok   kill: name: -l segv
+ok   kill: name: -l sigsegv
+ok   kill: name: -l SigSegv
+ok   kill: name: -t SEGV
+ok   kill: name: -l USR2
+ok   kill: name: -l SIGUSR2
+ok   kill: name: -l usr2
+ok   kill: name: -l sigusr2
+ok   kill: name: -l SigUsr2
+ok   kill: name: -t USR2
+ok   kill: name: -l PIPE
+ok   kill: name: -l SIGPIPE
+ok   kill: name: -l pipe
+ok   kill: name: -l sigpipe
+ok   kill: name: -l SigPipe
+ok   kill: name: -t PIPE
+ok   kill: name: -l ALRM
+ok   kill: name: -l SIGALRM
+ok   kill: name: -l alrm
+ok   kill: name: -l sigalrm
+ok   kill: name: -l SigAlrm
+ok   kill: name: -t ALRM
+ok   kill: name: -l TERM
+ok   kill: name: -l SIGTERM
+ok   kill: name: -l term
+ok   kill: name: -l sigterm
+ok   kill: name: -l SigTerm
+ok   kill: name: -t TERM
+ok   kill: name: -l CHLD
+ok   kill: name: -l SIGCHLD
+ok   kill: name: -l chld
+ok   kill: name: -l sigchld
+ok   kill: name: -l SigChld
+ok   kill: name: -t CHLD
+ok   kill: name: -l CONT
+ok   kill: name: -l SIGCONT
+ok   kill: name: -l cont
+ok   kill: name: -l sigcont
+ok   kill: name: -l SigCont
+ok   kill: name: -t CONT
+ok   kill: name: -l STOP
+ok   kill: name: -l SIGSTOP
+ok   kill: name: -l stop
+ok   kill: name: -l sigstop
+ok   kill: name: -l SigStop
+ok   kill: name: -t STOP
+ok   kill: name: -l TSTP
+ok   kill: name: -l SIGTSTP
+ok   kill: name: -l tstp
+ok   kill: name: -l sigtstp
+ok   kill: name: -l SigTstp
+ok   kill: name: -t TSTP
+ok   kill: name: -l TTIN
+ok   kill: name: -l SIGTTIN
+ok   kill: name: -l ttin
+ok   kill: name: -l sigttin
+ok   kill: name: -l SigTtin
+ok   kill: name: -t TTIN
+ok   kill: name: -l TTOU
+ok   kill: name: -l SIGTTOU
+ok   kill: name: -l ttou
+ok   kill: name: -l sigttou
+ok   kill: name: -l SigTtou
+ok   kill: name: -t TTOU
+ok   kill: name: -l URG
+ok   kill: name: -l SIGURG
+ok   kill: name: -l urg
+ok   kill: name: -l sigurg
+ok   kill: name: -l SigUrg
+ok   kill: name: -t URG
+ok   kill: name: -l XCPU
+ok   kill: name: -l SIGXCPU
+ok   kill: name: -l xcpu
+ok   kill: name: -l sigxcpu
+ok   kill: name: -l SigXcpu
+ok   kill: name: -t XCPU
+ok   kill: name: -l XFSZ
+ok   kill: name: -l SIGXFSZ
+ok   kill: name: -l xfsz
+ok   kill: name: -l sigxfsz
+ok   kill: name: -l SigXfsz
+ok   kill: name: -t XFSZ
+ok   kill: name: -l VTALRM
+ok   kill: name: -l SIGVTALRM
+ok   kill: name: -l vtalrm
+ok   kill: name: -l sigvtalrm
+ok   kill: name: -l SigVtalrm
+ok   kill: name: -t VTALRM
+ok   kill: name: -l PROF
+ok   kill: name: -l SIGPROF
+ok   kill: name: -l prof
+ok   kill: name: -l sigprof
+ok   kill: name: -l SigProf
+ok   kill: name: -t PROF
+ok   kill: name: -l WINCH
+ok   kill: name: -l SIGWINCH
+ok   kill: name: -l winch
+ok   kill: name: -l sigwinch
+ok   kill: name: -l SigWinch
+ok   kill: name: -t WINCH
+ok   kill: name: -l SYS
+ok   kill: name: -l SIGSYS
+ok   kill: name: -l sys
+ok   kill: name: -l sigsys
+ok   kill: name: -l SigSys
+ok   kill: name: -t SYS
+ok   kill: name: -l IOT
+ok   kill: name: -l SIGIOT
+ok   kill: name: -l iot
+ok   kill: name: -l CLD
+ok   kill: name: -l SIGCLD
+ok   kill: name: -l cld
+ok   kill: name: -l sIgTeRm
+ok   kill: name: -l SIG9
+ok   kill: name: -l SIG0
+ok   kill: name: -l SIG15
+ok   kill: name: -l SIG09
+ok   kill: number: -l 0
+ok   kill: number: -t 0
+ok   kill: number: -l 1
+ok   kill: number: -t 1
+ok   kill: number: -l 2
+ok   kill: number: -t 2
+ok   kill: number: -l 3
+ok   kill: number: -t 3
+ok   kill: number: -l 4
+ok   kill: number: -t 4
+ok   kill: number: -l 5
+ok   kill: number: -t 5
+ok   kill: number: -l 6
+ok   kill: number: -t 6
+ok   kill: number: -l 7
+ok   kill: number: -t 7
+ok   kill: number: -l 8
+ok   kill: number: -t 8
+ok   kill: number: -l 9
+ok   kill: number: -t 9
+ok   kill: number: -l 10
+ok   kill: number: -t 10
+ok   kill: number: -l 11
+ok   kill: number: -t 11
+ok   kill: number: -l 12
+ok   kill: number: -t 12
+ok   kill: number: -l 13
+ok   kill: number: -t 13
+ok   kill: number: -l 14
+ok   kill: number: -t 14
+ok   kill: number: -l 15
+ok   kill: number: -t 15
+ok   kill: number: -l 16
+ok   kill: number: -t 16
+ok   kill: number: -l 17
+ok   kill: number: -t 17
+ok   kill: number: -l 18
+ok   kill: number: -t 18
+ok   kill: number: -l 19
+ok   kill: number: -t 19
+ok   kill: number: -l 20
+ok   kill: number: -t 20
+ok   kill: number: -l 21
+ok   kill: number: -t 21
+ok   kill: number: -l 22
+ok   kill: number: -t 22
+ok   kill: number: -l 23
+ok   kill: number: -t 23
+ok   kill: number: -l 24
+ok   kill: number: -t 24
+ok   kill: number: -l 25
+ok   kill: number: -t 25
+ok   kill: number: -l 26
+ok   kill: number: -t 26
+ok   kill: number: -l 27
+ok   kill: number: -t 27
+ok   kill: number: -l 28
+ok   kill: number: -t 28
+ok   kill: number: -l 29
+ok   kill: number: -t 29
+ok   kill: number: -l 30
+ok   kill: number: -t 30
+ok   kill: number: -l 31
+ok   kill: number: -t 31
+ok   kill: number: -l 32
+ok   kill: number: -l 33
+ok   kill: number: -l 34
+ok   kill: number: -l 35
+ok   kill: number: -l 36
+ok   kill: number: -l 37
+ok   kill: number: -l 38
+ok   kill: number: -l 39
+ok   kill: number: -l 40
+ok   kill: number: -l 41
+ok   kill: number: -l 42
+ok   kill: number: -l 43
+ok   kill: number: -l 44
+ok   kill: number: -l 45
+ok   kill: number: -l 46
+ok   kill: number: -l 47
+ok   kill: number: -l 48
+ok   kill: number: -l 49
+ok   kill: number: -l 50
+ok   kill: number: -l 51
+ok   kill: number: -l 52
+ok   kill: number: -l 53
+ok   kill: number: -l 54
+ok   kill: number: -l 55
+ok   kill: number: -l 56
+ok   kill: number: -l 57
+ok   kill: number: -l 58
+ok   kill: number: -l 59
+ok   kill: number: -l 60
+ok   kill: number: -l 61
+ok   kill: number: -l 62
+ok   kill: number: -l 63
+ok   kill: number: -l 64
+ok   kill: number: -l 65
+ok   kill: number: -l 66
+ok   kill: number: -l 67
+ok   kill: number: -l 68
+ok   kill: number: -l 69
+ok   kill: number: -l 120
+ok   kill: number: -l 121
+ok   kill: number: -l 122
+ok   kill: number: -l 123
+ok   kill: number: -l 124
+ok   kill: number: -l 125
+ok   kill: number: -l 126
+ok   kill: number: -l 127
+ok   kill: number: -l 128
+ok   kill: number: -l 129
+ok   kill: number: -l 130
+ok   kill: number: -l 131
+ok   kill: number: -l 132
+ok   kill: number: -l 133
+ok   kill: number: -l 134
+ok   kill: number: -l 135
+ok   kill: number: -l 136
+ok   kill: number: -l 137
+ok   kill: number: -l 138
+ok   kill: number: -l 139
+ok   kill: number: -l 140
+ok   kill: number: -l 141
+ok   kill: number: -l 142
+ok   kill: number: -l 143
+ok   kill: number: -l 144
+ok   kill: number: -l 145
+ok   kill: number: -l 146
+ok   kill: number: -l 147
+ok   kill: number: -l 148
+ok   kill: number: -l 149
+ok   kill: number: -l 150
+ok   kill: number: -l 151
+ok   kill: number: -l 152
+ok   kill: number: -l 153
+ok   kill: number: -l 154
+ok   kill: number: -l 155
+ok   kill: number: -l 156
+ok   kill: number: -l 157
+ok   kill: number: -l 158
+ok   kill: number: -l 159
+ok   kill: number: -l 160
+ok   kill: number: -l 161
+ok   kill: number: -l 162
+ok   kill: number: -l 163
+ok   kill: number: -l 164
+ok   kill: number: -l 165
+ok   kill: number: -l 166
+ok   kill: number: -l 167
+ok   kill: number: -l 168
+ok   kill: number: -l 169
+ok   kill: number: -l 170
+ok   kill: number: -l 171
+ok   kill: number: -l 172
+ok   kill: number: -l 173
+ok   kill: number: -l 174
+ok   kill: number: -l 175
+ok   kill: number: -l 176
+ok   kill: number: -l 177
+ok   kill: number: -l 178
+ok   kill: number: -l 179
+ok   kill: number: -l 180
+ok   kill: number: -l 181
+ok   kill: number: -l 182
+ok   kill: number: -l 183
+ok   kill: number: -l 184
+ok   kill: number: -l 185
+ok   kill: number: -l 186
+ok   kill: number: -l 187
+ok   kill: number: -l 188
+ok   kill: number: -l 189
+ok   kill: number: -l 190
+ok   kill: number: -l 191
+ok   kill: number: -l 192
+ok   kill: number: -l 193
+ok   kill: number: -l 194
+ok   kill: number: -l 195
+ok   kill: number: -l 196
+ok   kill: number: -l 197
+ok   kill: number: -l 198
+ok   kill: number: -l 199
+ok   kill: number: -l 250
+ok   kill: number: -l 251
+ok   kill: number: -l 252
+ok   kill: number: -l 253
+ok   kill: number: -l 254
+ok   kill: number: -l 255
+ok   kill: number: -l 256
+ok   kill: number: -l 257
+ok   kill: number: -l 258
+ok   kill: number: -l 259
+ok   kill: number: -l 260
+ok   kill: number: -l 261
+ok   kill: number: -l 262
+ok   kill: number: -l 263
+ok   kill: number: -l 264
+ok   kill: number: -l 265
+ok   kill: number: -l 266
+ok   kill: number: -l 267
+ok   kill: number: -l 268
+ok   kill: number: -l 269
+ok   kill: number: -l 270
+ok   kill: number: -l 271
+ok   kill: number: -l 272
+ok   kill: number: -l 273
+ok   kill: number: -l 274
+ok   kill: number: -l 275
+ok   kill: number: -l 276
+ok   kill: number: -l 277
+ok   kill: number: -l 278
+ok   kill: number: -l 279
+ok   kill: number: -l 280
+ok   kill: number: -l 281
+ok   kill: number: -l 282
+ok   kill: number: -l 283
+ok   kill: number: -l 284
+ok   kill: number: -l 285
+ok   kill: number: -l 286
+ok   kill: number: -l 287
+ok   kill: number: -l 288
+ok   kill: number: -l 289
+ok   kill: number: -l 290
+ok   kill: number: -l 291
+ok   kill: number: -l 292
+ok   kill: number: -l 293
+ok   kill: number: -l 294
+ok   kill: number: -l 295
+ok   kill: number: -l 296
+ok   kill: number: -l 297
+ok   kill: number: -l 298
+ok   kill: number: -l 299
+ok   kill: number: -l 300
+ok   kill: number: -l 301
+ok   kill: number: -l 302
+ok   kill: number: -l 303
+ok   kill: number: -l 304
+ok   kill: number: -l 305
+ok   kill: number: -l 306
+ok   kill: number: -l 307
+ok   kill: number: -l 308
+ok   kill: number: -l 309
+ok   kill: number: -l 310
+ok   kill: number: -l 311
+ok   kill: number: -l 312
+ok   kill: number: -l 313
+ok   kill: number: -l 314
+ok   kill: number: -l 315
+ok   kill: number: -l 316
+ok   kill: number: -l 317
+ok   kill: number: -l 318
+ok   kill: number: -l 319
+ok   kill: number: -l 320
+ok   kill: number: -l 321
+ok   kill: number: -l 322
+ok   kill: number: -l 323
+ok   kill: number: -l 324
+ok   kill: number: -l 325
+ok   kill: number: -l 326
+ok   kill: number: -l 327
+ok   kill: number: -l 328
+ok   kill: number: -l 329
+ok   kill: number: -l 384
+ok   kill: number: -l 385
+ok   kill: number: -l 393
+ok   kill: number: -l 448
+ok   kill: number: -l 511
+ok   kill: number: -l 512
+ok   kill: number: -l 521
+ok   kill: number: -l 576
+ok   kill: number: -l 577
+ok   kill: number: -l 640
+ok   kill: number: -l 649
+ok   kill: number: -l 1024
+ok   kill: number: -l 1033
+ok   kill: number: -l 32777
+ok   kill: number: -l 65535
+ok   kill: number: -l 65536
+ok   kill: number: -l 65545
+ok   kill: number: -l 65673
+ok   kill: number: -l 2147483392
+ok   kill: number: -l 2147483401
+ok   kill: number: -l 2147483583
+ok   kill: number: -l 2147483647
+ok   kill: number: -l "09"
+ok   kill: number: -l "009"
+ok   kill: number: -l "00"
+ok   kill: number: -l "000"
+ok   kill: number: -l "0137"
+ok   kill: number: -l "+9"
+ok   kill: number: -l " 9"
+ok   kill: number: -l "9 "
+ok   kill: number: -l "9x"
+ok   kill: number: -l "0x9"
+ok   kill: number: -l "9.0"
+ok   kill: number: -l "9,9"
+ok   kill: number: -l "2147483648"
+ok   kill: number: -l "4294967305"
+ok   kill: number: -l "99999999999999999999"
+ok   kill: number: -l "-1"
+ok   kill: number: -l "-9"
+ok   kill: number: -t 137
+ok   kill: number: -t 265
+ok   kill: number: -t EXIT
+ok   kill: invalid: -l "FOO"
+ok   kill: invalid: -s "FOO"
+ok   kill: invalid: a process id "xFOO"
+ok   kill: invalid: -l "T"
+ok   kill: invalid: -s "T"
+ok   kill: invalid: a process id "xT"
+ok   kill: invalid: -l ""
+ok   kill: invalid: -s ""
+ok   kill: invalid: a process id "x"
+ok   kill: invalid: -l " TERM"
+ok   kill: invalid: -s " TERM"
+ok   kill: invalid: a process id "x TERM"
+ok   kill: invalid: -l "TERM "
+ok   kill: invalid: -s "TERM "
+ok   kill: invalid: a process id "xTERM "
+ok   kill: invalid: -l "TERM,"
+ok   kill: invalid: -s "TERM,"
+ok   kill: invalid: a process id "xTERM,"
+ok   kill: invalid: -l "SIG"
+ok   kill: invalid: -s "SIG"
+ok   kill: invalid: a process id "xSIG"
+ok   kill: invalid: -l "SIGSIGTERM"
+ok   kill: invalid: -s "SIGSIGTERM"
+ok   kill: invalid: a process id "xSIGSIGTERM"
+ok   kill: invalid: -l "TERMX"
+ok   kill: invalid: -s "TERMX"
+ok   kill: invalid: a process id "xTERMX"
+ok   kill: invalid: -l "NULL"
+ok   kill: invalid: -s "NULL"
+ok   kill: invalid: a process id "xNULL"
+ok   kill: invalid: -l "SIGNULL"
+ok   kill: invalid: -s "SIGNULL"
+ok   kill: invalid: a process id "xSIGNULL"
+ok   kill: invalid: -l "UNUSED"
+ok   kill: invalid: -s "UNUSED"
+ok   kill: invalid: a process id "xUNUSED"
+ok   kill: invalid: -l "ERR"
+ok   kill: invalid: -s "ERR"
+ok   kill: invalid: a process id "xERR"
+ok   kill: invalid: -l "DEBUG"
+ok   kill: invalid: -s "DEBUG"
+ok   kill: invalid: a process id "xDEBUG"
+ok   kill: invalid: -l "RETURN"
+ok   kill: invalid: -s "RETURN"
+ok   kill: invalid: a process id "xRETURN"
+ok   kill: invalid: -l "LOST"
+ok   kill: invalid: -s "LOST"
+ok   kill: invalid: a process id "xLOST"
+ok   kill: invalid: -l "RTMIN+"
+ok   kill: invalid: -s "RTMIN+"
+ok   kill: invalid: a process id "xRTMIN+"
+ok   kill: invalid: -l "RTMIN-1"
+ok   kill: invalid: -s "RTMIN-1"
+ok   kill: invalid: a process id "xRTMIN-1"
+ok   kill: invalid: -l "RTMIN+31"
+ok   kill: invalid: -s "RTMIN+31"
+ok   kill: invalid: a process id "xRTMIN+31"
+ok   kill: invalid: -l "RTMAX+1"
+ok   kill: invalid: -s "RTMAX+1"
+ok   kill: invalid: a process id "xRTMAX+1"
+ok   kill: invalid: -l "RTMAX-31"
+ok   kill: invalid: -s "RTMAX-31"
+ok   kill: invalid: a process id "xRTMAX-31"
+ok   kill: invalid: -l "a'b"
+ok   kill: invalid: -s "a'b"
+ok   kill: invalid: a process id "xa'b"
+ok   kill: invalid: -l "a\"b"
+ok   kill: invalid: -s "a\"b"
+ok   kill: invalid: a process id "xa\"b"
+ok   kill: invalid: -l "a'b\"c"
+ok   kill: invalid: -s "a'b\"c"
+ok   kill: invalid: a process id "xa'b\"c"
+ok   kill: invalid: -l "a b"
+ok   kill: invalid: -s "a b"
+ok   kill: invalid: a process id "xa b"
+ok   kill: invalid: -l "a\\b"
+ok   kill: invalid: -s "a\\b"
+ok   kill: invalid: a process id "xa\\b"
+ok   kill: invalid: -l "a\tb"
+ok   kill: invalid: -s "a\tb"
+ok   kill: invalid: a process id "xa\tb"
+ok   kill: invalid: -l "a\nb"
+ok   kill: invalid: -s "a\nb"
+ok   kill: invalid: a process id "xa\nb"
+ok   kill: invalid: -l "\u00e9"
+ok   kill: invalid: -s "\u00e9"
+ok   kill: invalid: a process id "x\u00e9"
+ok   kill: invalid: -l "a\u0001b"
+ok   kill: invalid: -s "a\u0001b"
+ok   kill: invalid: a process id "xa\u0001b"
+ok   kill: invalid: -l "*"
+ok   kill: invalid: -s "*"
+ok   kill: invalid: a process id "x*"
+ok   kill: invalid: -l "$x"
+ok   kill: invalid: -s "$x"
+ok   kill: invalid: a process id "x$x"
+ok   kill: invalid: -l "a;b"
+ok   kill: invalid: -s "a;b"
+ok   kill: invalid: a process id "xa;b"
+ok   kill: invalid: -l "~"
+ok   kill: invalid: -s "~"
+ok   kill: invalid: a process id "x~"
+ok   kill: invalid: -l "#"
+ok   kill: invalid: -s "#"
+ok   kill: invalid: a process id "x#"
+ok   kill: invalid: -l "'"
+ok   kill: invalid: -s "'"
+ok   kill: invalid: a process id "x'"
+ok   kill: invalid: -l "\""
+ok   kill: invalid: -s "\""
+ok   kill: invalid: a process id "x\""
+ok   kill: invalid: -l "\\"
+ok   kill: invalid: -s "\\"
+ok   kill: invalid: a process id "x\\"
+ok   kill: invalid: -l "`"
+ok   kill: invalid: -s "`"
+ok   kill: invalid: a process id "x`"
+ok   kill: invalid: -l "a!b"
+ok   kill: invalid: -s "a!b"
+ok   kill: invalid: a process id "xa!b"
+ok   kill: invalid: -l "a\u001bb"
+ok   kill: invalid: -s "a\u001bb"
+ok   kill: invalid: a process id "xa\u001bb"
+ok   kill: invalid: -l "%s"
+ok   kill: invalid: -s "%s"
+ok   kill: invalid: a process id "x%s"
+ok   kill: invalid: -l "-"
+ok   kill: invalid: -s "-"
+ok   kill: invalid: a process id "x-"
+ok   kill: invalid: -l "\u017figterm"
+ok   kill: invalid: -s "\u017figterm"
+ok   kill: invalid: a process id "x\u017figterm"
+SKIP kill: invalid: an argument that is not UTF-8 (a non-UTF-8 argument aborts the runtime in env_args (wolf-lang#406); GNU says kill: '\377': invalid signal)
+ok   kill: no meaning: -l STKFLT
+ok   kill: no meaning: -l PWR
+ok   kill: no meaning: -l RTMIN
+ok   kill: no meaning: -l RTMIN+0
+ok   kill: no meaning: -l RTMIN+1
+ok   kill: no meaning: -l RTMIN+01
+ok   kill: no meaning: -l RTMIN+30
+ok   kill: no meaning: -l RTMAX
+ok   kill: no meaning: -l RTMAX-0
+ok   kill: no meaning: -l RTMAX-1
+ok   kill: no meaning: -l RTMAX-30
+ok   kill: no meaning: -l RTMAX+0
+ok   kill: no meaning: -l SIGRTMIN+2
+ok   kill: no meaning: -l rtmin+1
+ok   kill: no meaning: -l RtMin+1
+ok   kill: no meaning: -l sigRTMIN
+ok   kill: no meaning: -l POLL
+ok   kill: no meaning: -l IO
+ok   kill: no meaning: -l EMT
+ok   kill: no meaning: -l INFO
+ok   kill: operands: -l KILL TERM HUP
+ok   kill: operands: -l HUP FOO INT
+ok   kill: operands: -l FOO HUP
+ok   kill: operands: -t KILL FOO TERM
+ok   kill: operands: -L KILL kill
+ok   kill: operands: -l HUP INT QUIT TERM KILL
+ok   kill: operands: --list KILL
+ok   kill: operands: --table KILL
+ok   kill: operands: --tab TERM
+ok   kill: operands: -l 1 FOO 2
+ok   kill: operands: -l 9 15 HUP
+ok   kill: operands: -t 1 2 3 15
+ok   kill: operands: -L 9 KILL
+ok   kill: operands: -t 9 FOO 15
+ok   kill: operands: -l -- 9
+ok   kill: operands: -t 9 -- 9
+ok   kill: operands: -l 9 -- -t
+ok   kill: operands: -l -- -l
+ok   kill: operands: -l -- -1
+ok   kill: operands: -l -
+ok   kill: operands: -l - 9
+ok   kill: operands: -l 5 -9
+ok   kill: operands: -l -5
+ok   kill: operands: -t -5
+ok   kill: operands: -l 9 -9 5
+ok   kill: usage: -l -l
+ok   kill: usage: -l -t
+ok   kill: usage: -t -l
+ok   kill: usage: -t -t
+ok   kill: usage: -l -L
+ok   kill: usage: -lt
+ok   kill: usage: -tl
+ok   kill: usage: -tL
+ok   kill: usage: -Ll
+ok   kill: usage: -L -L
+ok   kill: usage: -lL
+ok   kill: usage: -l -s TERM
+ok   kill: usage: -l -s TERM 9
+ok   kill: usage: -t -s 9
+ok   kill: usage: -l -KILL
+ok   kill: usage: -l -n 9
+ok   kill: usage: -ln KILL
+ok   kill: usage: -lsTERM
+ok   kill: usage: -ls TERM
+ok   kill: usage: -l -x
+ok   kill: usage: -l -l -x
+ok   kill: usage: -l -s FOO
+ok   kill: usage: -l -FOO
+ok   kill: usage: -l -s TERM -x
+ok   kill: usage: -l -s TERM -l
+ok   kill: usage: -l -TERM -x
+ok   kill: usage: -l -s TERM --bogus
+ok   kill: usage: -l -l --help
+ok   kill: usage: -l -n
+ok   kill: usage: -l 9 -s
+ok   kill: usage: -lKILL
+ok   kill: usage: -l9
+ok   kill: usage: -tKILL
+ok   kill: usage: -t9
+ok   kill: usage: -LKILL
+ok   kill: usage: -L1
+ok   kill: usage: -LOST
+ok   kill: usage: -l0
+ok   kill: usage: --list=9
+ok   kill: usage: --list=KILL
+ok   kill: usage: --table=9
+ok   kill: usage: --l=
+ok   kill: usage: -l 9 -t
+ok   kill: usage: -l --list
+ok   kill: usage: --list --table
+ok   kill: usage: --table -l
+ok   kill: usage: POSIXLY_CORRECT, -l 9 -t
+ok   kill: usage: POSIXLY_CORRECT, -l 9 --version
+ok   kill: usage: POSIXLY_CORRECT, -l KILL -l
+ok   kill: send: (no arguments)
+ok   kill: send: -s
+ok   kill: send: -s TERM
+ok   kill: send: --signal
+ok   kill: send: --signal TERM
+ok   kill: send: --signal=TERM
+ok   kill: send: -TERM
+ok   kill: send: -SIGTERM
+ok   kill: send: -term
+ok   kill: send: -sFOO
+ok   kill: send: --signal=FOO
+ok   kill: send: --sig=FOO
+ok   kill: send: --s=FOO
+ok   kill: send: -FOO
+ok   kill: send: -x
+ok   kill: send: --bogus
+ok   kill: send: -s TERM -s INT
+ok   kill: send: -TERM -INT
+ok   kill: send: -KILL -KILL
+ok   kill: send: -s TERM -s TERM
+ok   kill: send: -s TERM -l
+ok   kill: send: -KILL -l
+ok   kill: send: -s FOO -l
+ok   kill: send: -FOO -l
+ok   kill: send: -x -l -l
+ok   kill: send: -s TERM -s FOO
+ok   kill: send: -s FOO -s TERM
+ok   kill: send: -s FOO --help
+ok   kill: send: --bogus --help
+ok   kill: send: -sl
+ok   kill: send: -s --help
+ok   kill: send: -x --help
+ok   kill: send: -Kill
+ok   kill: send: -Term
+ok   kill: send: -Sigterm
+ok   kill: send: -SIGkill
+ok   kill: send: -K
+ok   kill: send: -T
+ok   kill: send: -E
+ok   kill: send: -Z
+ok   kill: send: -A
+ok   kill: send: -I
+ok   kill: send: -S
+ok   kill: send: -N
+ok   kill: send: -_
+ok   kill: send: -@
+ok   kill: send: -HUP,INT
+ok   kill: send: -+9
+ok   kill: send: -9KILL
+ok   kill: send: -1L
+ok   kill: send: -0x9
+ok   kill: send: -9-
+ok   kill: send: -9,9
+ok   kill: send: abc
+ok   kill: send: ""
+ok   kill: send: 12x
+ok   kill: send: " "
+ok   kill: send: -s TERM ""
+ok   kill: send: a b c
+ok   kill: send: -s TERM a b
+ok   kill: send: -s TERM -- a
+ok   kill: send: --
+ok   kill: send: -
+ok   kill: send: - -
+ok   kill: send: -s TERM -
+ok   kill: send: -- -l
+ok   kill: send: -- -s TERM
+ok   kill: send: -- --help
+ok   kill: send: -s -- 5x
+ok   kill: send: -s TERM -- -s
+ok   kill: send: --signal=
+ok   kill: send: --si
+ok   kill: send: --sig=
+ok   kill: send: --help=x
+ok   kill: send: --version=x
+ok   kill: send: ---
+ok   kill: send: --=
+ok   kill: send: -n
+ok   kill: send: -n TERM
+ok   kill: send: -nTERM
+ok   kill: send: -EXIT
+ok   kill: send: -s EXIT
+ok   kill: send: -s exit
+ok   kill: send: -s TERM -s a'b
+ok   kill: send: -A'b
+ok   kill: send: abc -s FOO
+ok   kill: send: abc -l
+ok   kill: send: 12x -l
+ok   kill: send: abc -s KILL
+ok   kill: send: abc -KILL
+ok   kill: send: abc -- -KILL
+ok   kill: send: 0x10
+ok   kill: send: 1.5
+ok   kill: send: 1e3
+ok   kill: send: --signal=KILL --signal=KILL
+ok   kill: send: -s KILL abc
+ok   kill: send: -KILL abc
+ok   kill: send: -IOT
+ok   kill: send: -CLD
+ok   kill: send: POSIXLY_CORRECT, abc -l
+ok   kill: send: POSIXLY_CORRECT, 12x -l
+ok   kill: send: POSIXLY_CORRECT, abc -s KILL
+ok   kill: send: POSIXLY_CORRECT, abc -KILL
+ok   kill: send: POSIXLY_CORRECT, abc --help
+ok   kill: no meaning: -RTMIN
+ok   kill: no meaning: -s RTMIN
+ok   kill: no meaning: -RTMIN+1
+ok   kill: no meaning: -s RTMIN+1
+ok   kill: no meaning: -RTMAX-1
+ok   kill: no meaning: -s RTMAX-1
+ok   kill: no meaning: -STKFLT
+ok   kill: no meaning: -s STKFLT
+ok   kill: no meaning: -PWR
+ok   kill: no meaning: -s PWR
+ok   kill: no meaning: -s POLL
+ok   kill: no meaning: -s IO
+ok   kill: no meaning: -s EMT
+ok   kill: no meaning: -s INFO
+ok   kill: host: -l RTMIN1
+ok   kill: host: -l 'RTMIN 1'
+ok   kill: host: -l 'RTMAX -1'
+ok   kill: host: -l 'RTMIN  +1'
+ok   kill: host: -l RTMIN0
+ok   kill: host: -l RTMAX0
+ok   kill: host: -l RTMAX1
+ok   kill: host: -l RTMIN-0
+ok   kill: host: -l 'RTMIN '
+ok   kill: host: -l RTMIN+-1
+ok   kill: host: -l RTMIN+1x
+ok   kill: host: -l RTMIN00000000000000000000001
+ok   kill: host: -l RTMIN99999999999999999999
+ok   kill: host: -l SIGRTMAX
+ok   kill: host: -l rtmax-30
+ok   kill: host: -l RTMAX-31
+ok   kill: host: -l RTMIN_1
+ok   kill: host: -t RTMIN+15 RTMAX-14
+ok   kill: host: -l IO POLL SIGPOLL SIGIO
+ok   kill: host: -l STKFLT PWR EMT INFO
+ok   kill: host: -t STKFLT PWR EMT INFO IO
+ok   kill: host: a number with no name, -l 32 33
+ok   kill: host: a number with no name, -t 32 33
+ok   kill: host: -l SIG32
+ok   kill: host: -t 160 161 (exit statuses of 32 and 33)
+ok   kill: host: -l every number from 1 to 70
+ok   kill: host: -t every number from 0 to 70
+difftest: 894 passed, 0 failed, 1 skipped

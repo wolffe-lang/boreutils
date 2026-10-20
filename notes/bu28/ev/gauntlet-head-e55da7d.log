@@ -1,0 +1,31 @@
+gauntlet: 2026-10-19T23:43:48Z on kasumi at head-e55da7d (tree boreutils, e55da7d + 0 changed), load 0.87 0.80 0.67 1/515 1871675
+fetch rc=0
+wolf 0.2.33 (wolfgang, pin 85dab5d)
+cceda63151430eac07df895fdfffddfa4a0b92c1
+build release rc=0
+build dev rc=0
+47
+47
+fmt rc=0
+test rc=0
+wolf test: 9 passed; 0 failed; 0 rejected; 0 unsupported; 0 filtered out
+/home/mfwolffe/lanes/bu28/ev/build-release-head-e55da7d.log:0
+/home/mfwolffe/lanes/bu28/ev/build-dev-head-e55da7d.log:0
+difftest release rc=0
+difftest: 6668 passed, 0 failed, 120 skipped
+difftest dev rc=0
+difftest: 6668 passed, 0 failed, 120 skipped
+verdict list, release: dcdb32cb0d7a5e25  ok 6668 FAIL 0 SKIP 120
+verdict list, dev: dcdb32cb0d7a5e25  ok 6668 FAIL 0 SKIP 120
+selftest rc=0
+evidence rc=0
+field-verdict-selftest rc=0
+killprobe rc=0
+agree target/release/kill -l: 240578 numbers alike
+agree target/dev/kill -l: 240578 numbers alike
+agree target/release/kill -t: 240578 numbers alike
+agree target/dev/kill -t: 240578 numbers alike
+killprobe: every number answered alike
+load: 0.94 0.93 0.76 1/513 1905210
+2026-10-19T23:47:51Z
+GAUNTLET-DONE

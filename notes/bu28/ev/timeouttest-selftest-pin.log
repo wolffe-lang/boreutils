@@ -1,0 +1,10 @@
+timeouttest: release/timeout is static
+timeouttest: dev/timeout is static
+timeouttest: podman, image ubuntu:24.04, one fresh container a case, no mount, no network, as user 4242
+timeouttest: gnu = timeout (GNU coreutils) 9.11 (/home/mfwolffe/lanes/bu28/gnu/bin/timeout)
+FAIL plant: the expiry  args=['0.3', 'sleep', '1']
+FAIL plant: the group  args=['0.3', 'sh', '-c', 'sleep 30 & echo $! > gc; sleep 1']
+FAIL plant: a death by a signal is not an exit status  args=['5', 'sh', '-c', 'kill -TERM $$']
+ok   control: a command that ends by itself
+timeouttest: 1 passed, 3 failed, 0 skipped
+timeouttest-selftest: the tool saw every planted difference

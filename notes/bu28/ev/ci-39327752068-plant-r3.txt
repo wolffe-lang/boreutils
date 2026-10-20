@@ -1,0 +1,108 @@
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	^[[36;1m  # bu28: a file core pattern, so the cores-on cases run and must.^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	^[[36;1m  echo "the runner's core pattern: $(cat /proc/sys/kernel/core_pattern)"^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	^[[36;1m  sudo sysctl -w kernel.core_pattern=core.%p^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	^[[36;1mecho "timeouttest: selftest exit $selftest; $bad of 3 runs red"^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	the runner's core pattern: |/usr/lib/systemd/systemd-coredump %P %u %g %s %t 9223372036854775808 %h %d
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	kernel.core_pattern = core.%p
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	timeouttest: core pattern 'core.%p': cores-on cases run (a file in the case directory), and must (BORE_CORE_REQUIRE=1)
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL plant: the expiry  args=['0.3', 'sleep', '1']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL plant: the group  args=['0.3', 'sh', '-c', 'sleep 30 & echo $! > gc; sleep 1']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL plant: a death by a signal is not an exit status  args=['5', 'sh', '-c', 'kill -TERM $$']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL plant: a field answered otherwise by design  args=['5', 'sh', '-c', 'exit 3']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL plant: a cores-on case must run  args=['5', 'sh', '-c', 'kill -SEGV $$']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	timeouttest: 1 passed, 5 failed, 0 skipped
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	whole run 1: exit 1; timeouttest: 151 passed, 11 failed, 1 skipped
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL core: the command ends by SEGV  args=['5', 'sh', '-c', 'kill -SEGV $$']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL core: the command ends by ABRT, -p  args=['-p', '5', 'sh', '-c', 'kill -ABRT $$']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL core: --foreground -s SEGV at the expiry  args=['--foreground', '-s', 'SEGV', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL core: -s QUIT at the expiry  args=['-s', 'QUIT', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL core: -p -s ABRT at the expiry, 134  args=['-p', '-s', 'ABRT', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL core: -v -s QUIT, both lines  args=['-v', '-s', 'QUIT', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release stderr: "timeout: sending signal QUIT to command 'sleep'\n", gnu "timeout: sending signal QUIT to command 'sleep'\ntimeout: the monitored command dumped core\n"
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    dev stderr: "timeout: sending signal QUIT to command 'sleep'\n", gnu "timeout: sending signal QUIT to command 'sleep'\ntimeout: the monitored command dumped core\n"
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL core: -s SEGV to the group  args=['-s', 'SEGV', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL core: -s BUS to the group, the command's child  args=['-s', 'BUS', '0.3', 'sh', '-c', 'sleep 30 & echo $! > gc; wait']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL core: QUIT sent to timeout, the command does not trap it  args=['5', 'sleep', '2']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL sent: TERM to timeout, the command traps it and exits 3  args=['5', 'sh', '-c', "trap 'echo got TERM; exit 3' TERM; sleep 5 & wait"]
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release stdout: 'got TERM\ngot TERM\n', gnu 'got TERM\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL sent: ABRT to timeout, the command traps it and exits 3  args=['5', 'sh', '-c', "trap 'echo got ABRT; exit 3' ABRT; sleep 5 & wait"]
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release stdout: 'got ABRT\ngot ABRT\n', gnu 'got ABRT\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	whole run 2: exit 1; timeouttest: 152 passed, 10 failed, 1 skipped
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL core: the command ends by SEGV  args=['5', 'sh', '-c', 'kill -SEGV $$']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL core: the command ends by ABRT, -p  args=['-p', '5', 'sh', '-c', 'kill -ABRT $$']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL core: --foreground -s SEGV at the expiry  args=['--foreground', '-s', 'SEGV', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL core: -s QUIT at the expiry  args=['-s', 'QUIT', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL core: -p -s ABRT at the expiry, 134  args=['-p', '-s', 'ABRT', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL core: -v -s QUIT, both lines  args=['-v', '-s', 'QUIT', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release stderr: "timeout: sending signal QUIT to command 'sleep'\n", gnu "timeout: sending signal QUIT to command 'sleep'\ntimeout: the monitored command dumped core\n"
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    dev stderr: "timeout: sending signal QUIT to command 'sleep'\n", gnu "timeout: sending signal QUIT to command 'sleep'\ntimeout: the monitored command dumped core\n"
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL core: -s SEGV to the group  args=['-s', 'SEGV', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL core: -s BUS to the group, the command's child  args=['-s', 'BUS', '0.3', 'sh', '-c', 'sleep 30 & echo $! > gc; wait']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL core: QUIT sent to timeout, the command does not trap it  args=['5', 'sleep', '2']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL sent: PIPE to timeout, the command traps it and exits 3  args=['5', 'sh', '-c', "trap 'echo got PIPE; exit 3' PIPE; sleep 5 & wait"]
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    dev stdout: 'got PIPE\ngot PIPE\n', gnu 'got PIPE\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	whole run 3: exit 1; timeouttest: 151 passed, 11 failed, 1 skipped
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL core: the command ends by SEGV  args=['5', 'sh', '-c', 'kill -SEGV $$']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL core: the command ends by ABRT, -p  args=['-p', '5', 'sh', '-c', 'kill -ABRT $$']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL core: --foreground -s SEGV at the expiry  args=['--foreground', '-s', 'SEGV', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL core: -s QUIT at the expiry  args=['-s', 'QUIT', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL core: -p -s ABRT at the expiry, 134  args=['-p', '-s', 'ABRT', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL core: -v -s QUIT, both lines  args=['-v', '-s', 'QUIT', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release stderr: "timeout: sending signal QUIT to command 'sleep'\n", gnu "timeout: sending signal QUIT to command 'sleep'\ntimeout: the monitored command dumped core\n"
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    dev stderr: "timeout: sending signal QUIT to command 'sleep'\n", gnu "timeout: sending signal QUIT to command 'sleep'\ntimeout: the monitored command dumped core\n"
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL core: -s SEGV to the group  args=['-s', 'SEGV', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL core: -s BUS to the group, the command's child  args=['-s', 'BUS', '0.3', 'sh', '-c', 'sleep 30 & echo $! > gc; wait']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL core: QUIT sent to timeout, the command does not trap it  args=['5', 'sleep', '2']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    dev stderr: '', gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL sent: USR1 to timeout, the command traps it and exits 3  args=['5', 'sh', '-c', "trap 'echo got USR1; exit 3' USR1; sleep 5 & wait"]
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release stdout: 'got USR1\ngot USR1\n', gnu 'got USR1\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL sent: ABRT to timeout, the command traps it and exits 3  args=['5', 'sh', '-c', "trap 'echo got ABRT; exit 3' ABRT; sleep 5 & wait"]
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    dev stdout: 'got ABRT\ngot ABRT\n', gnu 'got ABRT\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	timeouttest: selftest exit 0; 3 of 3 runs red

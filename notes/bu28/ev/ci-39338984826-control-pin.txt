@@ -1,0 +1,17 @@
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	^[[36;1mecho "timeouttest: selftest exit $selftest; $bad of 3 runs red"^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL plant: the expiry  args=['0.3', 'sleep', '1']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL plant: the group  args=['0.3', 'sh', '-c', 'sleep 30 & echo $! > gc; sleep 1']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL plant: a death by a signal is not an exit status  args=['5', 'sh', '-c', 'kill -TERM $$']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	whole run 1: exit 1; timeouttest: 123 passed, 1 failed, 0 skipped
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL no expiry: the command ends by SEGV  args=['5', 'sh', '-c', 'kill -SEGV $$']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release status: got 'signal SEGV', want 'exit 139' (by design)
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    dev status: got 'signal SEGV', want 'exit 139' (by design)
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	whole run 2: exit 1; timeouttest: 123 passed, 1 failed, 0 skipped
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL no expiry: the command ends by SEGV  args=['5', 'sh', '-c', 'kill -SEGV $$']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release status: got 'signal SEGV', want 'exit 139' (by design)
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    dev status: got 'signal SEGV', want 'exit 139' (by design)
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	whole run 3: exit 1; timeouttest: 123 passed, 1 failed, 0 skipped
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL no expiry: the command ends by SEGV  args=['5', 'sh', '-c', 'kill -SEGV $$']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release status: got 'signal SEGV', want 'exit 139' (by design)
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    dev status: got 'signal SEGV', want 'exit 139' (by design)
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	timeouttest: selftest exit 0; 3 of 3 runs red

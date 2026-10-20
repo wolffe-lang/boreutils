@@ -1,0 +1,146 @@
+timeout, repeated (bu27)	UNKNOWN STEP	^[[36;1m  # bu28: a file core pattern, so the cores-on cases run and must.^[[0m
+timeout, repeated (bu27)	UNKNOWN STEP	^[[36;1m  echo "the runner's core pattern: $(cat /proc/sys/kernel/core_pattern)"^[[0m
+timeout, repeated (bu27)	UNKNOWN STEP	^[[36;1m  sudo sysctl -w kernel.core_pattern=core.%p^[[0m
+timeout, repeated (bu27)	UNKNOWN STEP	^[[36;1mecho "timeouttest: selftest exit $selftest; $bad of 3 runs red"^[[0m
+timeout, repeated (bu27)	UNKNOWN STEP	the runner's core pattern: |/usr/lib/systemd/systemd-coredump %P %u %g %s %t 9223372036854775808 %h %d
+timeout, repeated (bu27)	UNKNOWN STEP	kernel.core_pattern = core.%p
+timeout, repeated (bu27)	UNKNOWN STEP	timeouttest: core pattern 'core.%p': cores-on cases run (a file in the case directory), and must (BORE_CORE_REQUIRE=1)
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL plant: the expiry  args=['0.3', 'sleep', '1']
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL plant: the group  args=['0.3', 'sh', '-c', 'sleep 30 & echo $! > gc; sleep 1']
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL plant: a death by a signal is not an exit status  args=['5', 'sh', '-c', 'kill -TERM $$']
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL plant: a field answered otherwise by design  args=['5', 'sh', '-c', 'exit 3']
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL plant: a cores-on case must run  args=['5', 'sh', '-c', 'kill -SEGV $$']
+timeout, repeated (bu27)	UNKNOWN STEP	timeouttest: 1 passed, 5 failed, 0 skipped
+timeout, repeated (bu27)	UNKNOWN STEP	whole run 1: exit 1; timeouttest: 149 passed, 13 failed, 1 skipped
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: the command ends by KILL  args=['5', 'sh', '-c', 'kill -KILL $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 137', gnu 'signal KILL'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 137', gnu 'signal KILL'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: the command ends by SEGV  args=['5', 'sh', '-c', 'kill -SEGV $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 139', gnu 'signal SEGV'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 139', gnu 'signal SEGV'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: the command ends by SEGV, standard error closed  args=['5', 'sh', '-c', 'kill -SEGV $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 139', gnu 'signal SEGV'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 139', gnu 'signal SEGV'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: the command ends by ILL  args=['5', 'sh', '-c', 'kill -ILL $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 132', gnu 'signal ILL'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 132', gnu 'signal ILL'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: the command ends by BUS  args=['5', 'sh', '-c', 'kill -BUS $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 135', gnu 'signal BUS'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 135', gnu 'signal BUS'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: the command ends by FPE  args=['5', 'sh', '-c', 'kill -FPE $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 136', gnu 'signal FPE'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 136', gnu 'signal FPE'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: the command ends by TRAP  args=['5', 'sh', '-c', 'kill -TRAP $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 133', gnu 'signal TRAP'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 133', gnu 'signal TRAP'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: the command ends by SYS  args=['5', 'sh', '-c', 'kill -SYS $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 159', gnu 'signal SYS'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 159', gnu 'signal SYS'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: -p, the command ends by SEGV  args=['-p', '5', 'sh', '-c', 'kill -SEGV $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 139', gnu 'signal SEGV'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 139', gnu 'signal SEGV'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: --foreground, the command ends by SEGV  args=['--foreground', '5', 'sh', '-c', 'kill -SEGV $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 139', gnu 'signal SEGV'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 139', gnu 'signal SEGV'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: -v, the command ends by BUS  args=['-v', '5', 'sh', '-c', 'kill -BUS $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 135', gnu 'signal BUS'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 135', gnu 'signal BUS'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: the command ends by a real-time signal  args=['5', 'sh', '-c', 'kill -s RTMIN $$ 2>/dev/null || kill -34 $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 162', gnu 'signal RTMIN'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 162', gnu 'signal RTMIN'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL core: the command ends by SEGV  args=['5', 'sh', '-c', 'kill -SEGV $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release core: got 'none', want 'core' (by design)
+timeout, repeated (bu27)	UNKNOWN STEP	    release cores: got 1, want 2 (by design)
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 139', gnu 'signal SEGV'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev core: got 'none', want 'core' (by design)
+timeout, repeated (bu27)	UNKNOWN STEP	    dev cores: got 1, want 2 (by design)
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 139', gnu 'signal SEGV'
+timeout, repeated (bu27)	UNKNOWN STEP	whole run 2: exit 1; timeouttest: 149 passed, 13 failed, 1 skipped
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: the command ends by KILL  args=['5', 'sh', '-c', 'kill -KILL $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 137', gnu 'signal KILL'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 137', gnu 'signal KILL'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: the command ends by SEGV  args=['5', 'sh', '-c', 'kill -SEGV $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 139', gnu 'signal SEGV'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 139', gnu 'signal SEGV'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: the command ends by SEGV, standard error closed  args=['5', 'sh', '-c', 'kill -SEGV $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 139', gnu 'signal SEGV'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 139', gnu 'signal SEGV'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: the command ends by ILL  args=['5', 'sh', '-c', 'kill -ILL $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 132', gnu 'signal ILL'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 132', gnu 'signal ILL'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: the command ends by BUS  args=['5', 'sh', '-c', 'kill -BUS $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 135', gnu 'signal BUS'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 135', gnu 'signal BUS'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: the command ends by FPE  args=['5', 'sh', '-c', 'kill -FPE $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 136', gnu 'signal FPE'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 136', gnu 'signal FPE'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: the command ends by TRAP  args=['5', 'sh', '-c', 'kill -TRAP $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 133', gnu 'signal TRAP'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 133', gnu 'signal TRAP'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: the command ends by SYS  args=['5', 'sh', '-c', 'kill -SYS $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 159', gnu 'signal SYS'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 159', gnu 'signal SYS'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: -p, the command ends by SEGV  args=['-p', '5', 'sh', '-c', 'kill -SEGV $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 139', gnu 'signal SEGV'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 139', gnu 'signal SEGV'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: --foreground, the command ends by SEGV  args=['--foreground', '5', 'sh', '-c', 'kill -SEGV $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 139', gnu 'signal SEGV'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 139', gnu 'signal SEGV'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: -v, the command ends by BUS  args=['-v', '5', 'sh', '-c', 'kill -BUS $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 135', gnu 'signal BUS'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 135', gnu 'signal BUS'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: the command ends by a real-time signal  args=['5', 'sh', '-c', 'kill -s RTMIN $$ 2>/dev/null || kill -34 $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 162', gnu 'signal RTMIN'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 162', gnu 'signal RTMIN'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL core: the command ends by SEGV  args=['5', 'sh', '-c', 'kill -SEGV $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release core: got 'none', want 'core' (by design)
+timeout, repeated (bu27)	UNKNOWN STEP	    release cores: got 1, want 2 (by design)
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 139', gnu 'signal SEGV'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev core: got 'none', want 'core' (by design)
+timeout, repeated (bu27)	UNKNOWN STEP	    dev cores: got 1, want 2 (by design)
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 139', gnu 'signal SEGV'
+timeout, repeated (bu27)	UNKNOWN STEP	whole run 3: exit 1; timeouttest: 149 passed, 13 failed, 1 skipped
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: the command ends by KILL  args=['5', 'sh', '-c', 'kill -KILL $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 137', gnu 'signal KILL'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 137', gnu 'signal KILL'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: the command ends by SEGV  args=['5', 'sh', '-c', 'kill -SEGV $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 139', gnu 'signal SEGV'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 139', gnu 'signal SEGV'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: the command ends by SEGV, standard error closed  args=['5', 'sh', '-c', 'kill -SEGV $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 139', gnu 'signal SEGV'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 139', gnu 'signal SEGV'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: the command ends by ILL  args=['5', 'sh', '-c', 'kill -ILL $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 132', gnu 'signal ILL'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 132', gnu 'signal ILL'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: the command ends by BUS  args=['5', 'sh', '-c', 'kill -BUS $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 135', gnu 'signal BUS'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 135', gnu 'signal BUS'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: the command ends by FPE  args=['5', 'sh', '-c', 'kill -FPE $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 136', gnu 'signal FPE'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 136', gnu 'signal FPE'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: the command ends by TRAP  args=['5', 'sh', '-c', 'kill -TRAP $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 133', gnu 'signal TRAP'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 133', gnu 'signal TRAP'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: the command ends by SYS  args=['5', 'sh', '-c', 'kill -SYS $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 159', gnu 'signal SYS'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 159', gnu 'signal SYS'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: -p, the command ends by SEGV  args=['-p', '5', 'sh', '-c', 'kill -SEGV $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 139', gnu 'signal SEGV'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 139', gnu 'signal SEGV'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: --foreground, the command ends by SEGV  args=['--foreground', '5', 'sh', '-c', 'kill -SEGV $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 139', gnu 'signal SEGV'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 139', gnu 'signal SEGV'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: -v, the command ends by BUS  args=['-v', '5', 'sh', '-c', 'kill -BUS $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 135', gnu 'signal BUS'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 135', gnu 'signal BUS'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL no expiry: the command ends by a real-time signal  args=['5', 'sh', '-c', 'kill -s RTMIN $$ 2>/dev/null || kill -34 $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 162', gnu 'signal RTMIN'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 162', gnu 'signal RTMIN'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL core: the command ends by SEGV  args=['5', 'sh', '-c', 'kill -SEGV $$']
+timeout, repeated (bu27)	UNKNOWN STEP	    release core: got 'none', want 'core' (by design)
+timeout, repeated (bu27)	UNKNOWN STEP	    release cores: got 1, want 2 (by design)
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 139', gnu 'signal SEGV'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev core: got 'none', want 'core' (by design)
+timeout, repeated (bu27)	UNKNOWN STEP	    dev cores: got 1, want 2 (by design)
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 139', gnu 'signal SEGV'
+timeout, repeated (bu27)	UNKNOWN STEP	timeouttest: selftest exit 0; 3 of 3 runs red

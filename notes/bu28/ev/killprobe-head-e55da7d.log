@@ -1,0 +1,9 @@
+killprobe: gnu = kill (GNU coreutils) 9.11 (/g/bin/kill); host Linux x86_64
+killprobe: 240578 numbers: 0..140000, then 100577 edges and a sample of the int range (seed 34), 4000 an invocation; nothing is sent
+killprobe: gnu -l: 61348 numbers name a signal, 179230 are invalid
+agree target/release/kill -l: 240578 numbers alike
+agree target/dev/kill -l: 240578 numbers alike
+killprobe: gnu -t: 61348 numbers name a signal, 179230 are invalid
+agree target/release/kill -t: 240578 numbers alike
+agree target/dev/kill -t: 240578 numbers alike
+killprobe: every number answered alike

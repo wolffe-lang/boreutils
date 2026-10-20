@@ -1,0 +1,123 @@
+difftest: gnu = true (GNU coreutils) 9.11 (prefix '') on Linux x86_64
+difftest: bore = /l/dev/target/dev
+difftest: oracle environment, LC_ALL=C _POSIX2_VERSION=200112
+difftest: oracle of record, GNU coreutils 9.11
+difftest: oracle profile OK — `uniq +1 /dev/null` exits 1 (the obsolete +N operand form is off, so +1 is a file name (B73))
+difftest: scratch root /l/scratch
+ok   timeout: help: --help
+ok   timeout: help: --version
+ok   timeout: help: --help after an option
+ok   timeout: help: --help with standard output closed
+ok   timeout: help: --version to a full device
+ok   timeout: help: an option that is wrong before --help
+ok   timeout: usage: too few operands: none
+ok   timeout: usage: too few operands: 1
+ok   timeout: usage: too few operands: -v
+ok   timeout: usage: too few operands: -s KILL
+ok   timeout: usage: too few operands: -k 1
+ok   timeout: usage: too few operands: --
+ok   timeout: usage: too few operands: -- 1
+ok   timeout: usage: too few operands: -f -p -v 1
+ok   timeout: usage: an unknown option
+ok   timeout: usage: an unknown short option
+ok   timeout: usage: -s without its argument
+ok   timeout: usage: -k without its argument
+ok   timeout: usage: --signal without its argument
+ok   timeout: usage: --kill-after without its argument
+ok   timeout: usage: --verbose=x
+ok   timeout: usage: --v is ambiguous
+ok   timeout: usage: --fo is --foreground
+ok   timeout: usage: -1 is an option
+ok   timeout: usage: -0.5 is an option
+ok   timeout: usage: POSIXLY_CORRECT changes nothing
+ok   timeout: duration: invalid [x]
+ok   timeout: duration: invalid [0.1 ]
+ok   timeout: duration: invalid [nan]
+ok   timeout: duration: invalid [NaN]
+ok   timeout: duration: invalid [0x]
+ok   timeout: duration: invalid [1.5.2]
+ok   timeout: duration: invalid []
+ok   timeout: duration: invalid [ss]
+ok   timeout: duration: invalid [1ss]
+ok   timeout: duration: invalid [0.1S]
+ok   timeout: duration: invalid [0.1x]
+ok   timeout: duration: invalid [1,5]
+ok   timeout: duration: invalid [1e]
+ok   timeout: duration: invalid [1e+]
+ok   timeout: duration: invalid [0x.]
+ok   timeout: duration: invalid [inf1]
+ok   timeout: duration: invalid [1 s]
+ok   timeout: duration: invalid [--1]
+ok   timeout: duration: [0.1]
+ok   timeout: duration: [.1]
+ok   timeout: duration: [0.1s]
+ok   timeout: duration: [1e-1]
+ok   timeout: duration: [0x.2]
+ok   timeout: duration: [0x1p-3]
+ok   timeout: duration: [ 0.1]
+ok   timeout: duration: [	1]
+ok   timeout: duration: [+0.1]
+ok   timeout: duration: [1d]
+ok   timeout: duration: [1m]
+ok   timeout: duration: [1h]
+ok   timeout: duration: [inf]
+ok   timeout: duration: [infinity]
+ok   timeout: duration: [INF]
+ok   timeout: duration: [Infinity]
+ok   timeout: duration: [1e100]
+ok   timeout: duration: [99999999999999999999]
+ok   timeout: duration: [0]
+ok   timeout: duration: [00]
+ok   timeout: duration: [0.0]
+ok   timeout: duration: [-0] after --
+ok   timeout: duration: [1e999]
+ok   timeout: duration: [0x1d]
+ok   timeout: duration: [1.]
+ok   timeout: duration: [5s]
+ok   timeout: kill-after: invalid [x]
+ok   timeout: kill-after: invalid [-1]
+ok   timeout: kill-after: invalid [nan]
+ok   timeout: kill-after: invalid [1S]
+ok   timeout: kill-after: attached
+ok   timeout: kill-after: --kill-after=
+ok   timeout: kill-after: an invalid one after an invalid signal
+ok   timeout: kill-after: an invalid signal after an invalid one
+ok   timeout: signal: invalid [FOO]
+ok   timeout: signal: invalid [-1]
+ok   timeout: signal: invalid [SIGFOO]
+ok   timeout: signal: invalid [0x9]
+ok   timeout: signal: invalid [9x]
+ok   timeout: signal: invalid [65]
+ok   timeout: signal: -s SEGV, a command no host can run
+ok   timeout: signal: -s RTMIN, a command no host can run
+ok   timeout: signal: -s 16, a command no host can run
+ok   timeout: signal: -s BUS -k 1, a command no host can run
+ok   timeout: signal: invalid [RTMIN+31]
+ok   timeout: signal: invalid [ TERM]
+ok   timeout: signal: invalid []
+ok   timeout: signal: [TERM] --foreground
+ok   timeout: signal: [term] --foreground
+ok   timeout: signal: [SIGTERM] --foreground
+ok   timeout: signal: [9] --foreground
+ok   timeout: signal: [KILL] --foreground
+ok   timeout: signal: [0] --foreground
+ok   timeout: signal: [EXIT] --foreground
+ok   timeout: signal: [HUP] --foreground
+ok   timeout: signal: [USR1] --foreground
+ok   timeout: signal: [137] --foreground
+ok   timeout: signal: [CONT] --foreground
+ok   timeout: signal: [RTMIN] --foreground
+ok   timeout: signal: [RTMAX-1] --foreground
+ok   timeout: signal: [STKFLT] --foreground
+ok   timeout: signal: --signal=HUP
+ok   timeout: signal: -sKILL
+ok   timeout: signal: two, the last wins
+ok   timeout: command: not found
+ok   timeout: command: not found, with arguments
+ok   timeout: command: a directory
+ok   timeout: command: a file that is not executable
+ok   timeout: command: a directory, --foreground
+ok   timeout: command: not found, -v -p
+ok   timeout: command: not found, 0
+ok   timeout: command: after --
+difftest: 116 passed, 0 failed, 0 skipped

@@ -1,0 +1,412 @@
+timeout, repeated (bu27)	UNKNOWN STEP	^[[36;1m  # bu28: a file core pattern, so the cores-on cases run and must.^[[0m
+timeout, repeated (bu27)	UNKNOWN STEP	^[[36;1m  echo "the runner's core pattern: $(cat /proc/sys/kernel/core_pattern)"^[[0m
+timeout, repeated (bu27)	UNKNOWN STEP	^[[36;1m  sudo sysctl -w kernel.core_pattern=core.%p^[[0m
+timeout, repeated (bu27)	UNKNOWN STEP	^[[36;1mecho "timeouttest: selftest exit $selftest; $bad of 3 runs red"^[[0m
+timeout, repeated (bu27)	UNKNOWN STEP	the runner's core pattern: |/usr/lib/systemd/systemd-coredump %P %u %g %s %t 9223372036854775808 %h %d
+timeout, repeated (bu27)	UNKNOWN STEP	kernel.core_pattern = core.%p
+timeout, repeated (bu27)	UNKNOWN STEP	timeouttest: core pattern 'core.%p': cores-on cases run (a file in the case directory), and must (BORE_CORE_REQUIRE=1)
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL plant: the expiry  args=['0.3', 'sleep', '1']
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL plant: the group  args=['0.3', 'sh', '-c', 'sleep 30 & echo $! > gc; sleep 1']
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL plant: a death by a signal is not an exit status  args=['5', 'sh', '-c', 'kill -TERM $$']
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL plant: a field answered otherwise by design  args=['5', 'sh', '-c', 'exit 3']
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL plant: a cores-on case must run  args=['5', 'sh', '-c', 'kill -SEGV $$']
+timeout, repeated (bu27)	UNKNOWN STEP	timeouttest: 1 passed, 5 failed, 0 skipped
+timeout, repeated (bu27)	UNKNOWN STEP	whole run 1: exit 1; timeouttest: 135 passed, 27 failed, 1 skipped
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s SEGV, timeout ignores it and lives  args=['-s', 'SEGV', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s ILL, timeout ignores it and lives  args=['-s', 'ILL', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'ILL': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'ILL': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s TRAP, timeout ignores it and lives  args=['-s', 'TRAP', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'TRAP': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'TRAP': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s BUS, timeout ignores it and lives  args=['-s', 'BUS', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'BUS': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'BUS': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s FPE, timeout ignores it and lives  args=['-s', 'FPE', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'FPE': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'FPE': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s SYS, timeout ignores it and lives  args=['-s', 'SYS', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'SYS': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'SYS': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s RTMIN, timeout ignores it and lives  args=['-s', 'RTMIN', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s 16 (STKFLT), timeout ignores it and lives  args=['-s', '16', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'STKFLT': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'STKFLT': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s SEGV, the command's child ends too  args=['-s', 'SEGV', '0.3', 'sh', '-c', 'sleep 30 & echo $! > gc; wait']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s RTMIN, the command's child ends too  args=['-s', 'RTMIN', '0.3', 'sh', '-c', 'sleep 30 & echo $! > gc; wait']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s 16, the command's child ends too  args=['-s', '16', '0.3', 'sh', '-c', 'sleep 30 & echo $! > gc; wait']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'STKFLT': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'STKFLT': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s RTMAX  args=['-s', 'RTMAX', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'RTMAX': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'RTMAX': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s RTMIN+5  args=['-s', 'RTMIN+5', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'RTMIN+5': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'RTMIN+5': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s 40 by number  args=['-s', '40', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'RTMIN+6': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'RTMIN+6': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -p -s SEGV, 139  args=['-p', '-s', 'SEGV', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 139'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 139'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -p -s RTMIN, 162  args=['-p', '-s', 'RTMIN', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 162'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 162'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -v -s SEGV  args=['-v', '-s', 'SEGV', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu "timeout: sending signal SEGV to command 'sleep'\n"
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu "timeout: sending signal SEGV to command 'sleep'\n"
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -v -s RTMIN  args=['-v', '-s', 'RTMIN', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu "timeout: sending signal RTMIN to command 'sleep'\n"
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu "timeout: sending signal RTMIN to command 'sleep'\n"
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s SEGV -k, a command that ignores SEGV  args=['-s', 'SEGV', '-k', '0.3', '0.3', 'sh', '-c', "trap '' SEGV; sleep 5"]
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'signal KILL'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    release elapsed: 0.01 s, gnu 0.62 s
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'signal KILL'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev elapsed: 0.01 s, gnu 0.62 s
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s RTMIN -k, the command ends at the first  args=['-s', 'RTMIN', '-k', '0.3', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s 32 ends timeout too  args=['-s', '32', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'signal 32'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: '32': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'signal 32'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: '32': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s 33, GNU's timeout ends by it  args=['-s', '33', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: got 'exit 125', want 'exit 124' (by design)
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: '33': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: got 'exit 125', want 'exit 124' (by design)
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: '33': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s SEGV, standard error closed  args=['-s', 'SEGV', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL core: -s SEGV to the group  args=['-s', 'SEGV', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	UNKNOWN STEP	    release cores: 0, gnu 1
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev cores: 0, gnu 1
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL core: -s BUS to the group, the command's child  args=['-s', 'BUS', '0.3', 'sh', '-c', 'sleep 30 & echo $! > gc; wait']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'BUS': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	UNKNOWN STEP	    release cores: 0, gnu 2
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'BUS': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev cores: 0, gnu 2
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL sent: USR2 to timeout, the command traps it and exits 3  args=['5', 'sh', '-c', "trap 'echo got USR2; exit 3' USR2; sleep 5 & wait"]
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stdout: 'got USR2\ngot USR2\n', gnu 'got USR2\n'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL sent: VTALRM to timeout, the command traps it and exits 3  args=['5', 'sh', '-c', "trap 'echo got VTALRM; exit 3' VTALRM; sleep 5 & wait"]
+timeout, repeated (bu27)	UNKNOWN STEP	    release stdout: 'got VTALRM\ngot VTALRM\n', gnu 'got VTALRM\n'
+timeout, repeated (bu27)	UNKNOWN STEP	whole run 2: exit 1; timeouttest: 136 passed, 26 failed, 1 skipped
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s SEGV, timeout ignores it and lives  args=['-s', 'SEGV', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s ILL, timeout ignores it and lives  args=['-s', 'ILL', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'ILL': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'ILL': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s TRAP, timeout ignores it and lives  args=['-s', 'TRAP', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'TRAP': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'TRAP': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s BUS, timeout ignores it and lives  args=['-s', 'BUS', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'BUS': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'BUS': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s FPE, timeout ignores it and lives  args=['-s', 'FPE', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'FPE': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'FPE': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s SYS, timeout ignores it and lives  args=['-s', 'SYS', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'SYS': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'SYS': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s RTMIN, timeout ignores it and lives  args=['-s', 'RTMIN', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s 16 (STKFLT), timeout ignores it and lives  args=['-s', '16', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'STKFLT': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'STKFLT': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s SEGV, the command's child ends too  args=['-s', 'SEGV', '0.3', 'sh', '-c', 'sleep 30 & echo $! > gc; wait']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s RTMIN, the command's child ends too  args=['-s', 'RTMIN', '0.3', 'sh', '-c', 'sleep 30 & echo $! > gc; wait']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s 16, the command's child ends too  args=['-s', '16', '0.3', 'sh', '-c', 'sleep 30 & echo $! > gc; wait']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'STKFLT': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'STKFLT': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s RTMAX  args=['-s', 'RTMAX', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'RTMAX': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'RTMAX': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s RTMIN+5  args=['-s', 'RTMIN+5', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'RTMIN+5': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'RTMIN+5': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s 40 by number  args=['-s', '40', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'RTMIN+6': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'RTMIN+6': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -p -s SEGV, 139  args=['-p', '-s', 'SEGV', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 139'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 139'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -p -s RTMIN, 162  args=['-p', '-s', 'RTMIN', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 162'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 162'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -v -s SEGV  args=['-v', '-s', 'SEGV', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu "timeout: sending signal SEGV to command 'sleep'\n"
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu "timeout: sending signal SEGV to command 'sleep'\n"
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -v -s RTMIN  args=['-v', '-s', 'RTMIN', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu "timeout: sending signal RTMIN to command 'sleep'\n"
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu "timeout: sending signal RTMIN to command 'sleep'\n"
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s SEGV -k, a command that ignores SEGV  args=['-s', 'SEGV', '-k', '0.3', '0.3', 'sh', '-c', "trap '' SEGV; sleep 5"]
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'signal KILL'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    release elapsed: 0.01 s, gnu 0.61 s
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'signal KILL'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev elapsed: 0.01 s, gnu 0.61 s
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s RTMIN -k, the command ends at the first  args=['-s', 'RTMIN', '-k', '0.3', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s 32 ends timeout too  args=['-s', '32', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'signal 32'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: '32': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'signal 32'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: '32': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s 33, GNU's timeout ends by it  args=['-s', '33', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: got 'exit 125', want 'exit 124' (by design)
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: '33': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: got 'exit 125', want 'exit 124' (by design)
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: '33': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s SEGV, standard error closed  args=['-s', 'SEGV', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL core: -s SEGV to the group  args=['-s', 'SEGV', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	UNKNOWN STEP	    release cores: 0, gnu 1
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev cores: 0, gnu 1
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL core: -s BUS to the group, the command's child  args=['-s', 'BUS', '0.3', 'sh', '-c', 'sleep 30 & echo $! > gc; wait']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'BUS': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	UNKNOWN STEP	    release cores: 0, gnu 2
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'BUS': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev cores: 0, gnu 2
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL sent: XFSZ to timeout, the command traps it and exits 3  args=['5', 'sh', '-c', "trap 'echo got XFSZ; exit 3' XFSZ; sleep 5 & wait"]
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stdout: 'got XFSZ\ngot XFSZ\n', gnu 'got XFSZ\n'
+timeout, repeated (bu27)	UNKNOWN STEP	whole run 3: exit 1; timeouttest: 136 passed, 26 failed, 1 skipped
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s SEGV, timeout ignores it and lives  args=['-s', 'SEGV', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s ILL, timeout ignores it and lives  args=['-s', 'ILL', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'ILL': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'ILL': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s TRAP, timeout ignores it and lives  args=['-s', 'TRAP', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'TRAP': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'TRAP': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s BUS, timeout ignores it and lives  args=['-s', 'BUS', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'BUS': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'BUS': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s FPE, timeout ignores it and lives  args=['-s', 'FPE', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'FPE': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'FPE': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s SYS, timeout ignores it and lives  args=['-s', 'SYS', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'SYS': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'SYS': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s RTMIN, timeout ignores it and lives  args=['-s', 'RTMIN', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s 16 (STKFLT), timeout ignores it and lives  args=['-s', '16', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'STKFLT': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'STKFLT': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s SEGV, the command's child ends too  args=['-s', 'SEGV', '0.3', 'sh', '-c', 'sleep 30 & echo $! > gc; wait']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s RTMIN, the command's child ends too  args=['-s', 'RTMIN', '0.3', 'sh', '-c', 'sleep 30 & echo $! > gc; wait']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s 16, the command's child ends too  args=['-s', '16', '0.3', 'sh', '-c', 'sleep 30 & echo $! > gc; wait']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'STKFLT': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'STKFLT': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s RTMAX  args=['-s', 'RTMAX', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'RTMAX': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'RTMAX': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s RTMIN+5  args=['-s', 'RTMIN+5', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'RTMIN+5': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'RTMIN+5': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s 40 by number  args=['-s', '40', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'RTMIN+6': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'RTMIN+6': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -p -s SEGV, 139  args=['-p', '-s', 'SEGV', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 139'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 139'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -p -s RTMIN, 162  args=['-p', '-s', 'RTMIN', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 162'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 162'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -v -s SEGV  args=['-v', '-s', 'SEGV', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu "timeout: sending signal SEGV to command 'sleep'\n"
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu "timeout: sending signal SEGV to command 'sleep'\n"
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -v -s RTMIN  args=['-v', '-s', 'RTMIN', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu "timeout: sending signal RTMIN to command 'sleep'\n"
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu "timeout: sending signal RTMIN to command 'sleep'\n"
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s SEGV -k, a command that ignores SEGV  args=['-s', 'SEGV', '-k', '0.3', '0.3', 'sh', '-c', "trap '' SEGV; sleep 5"]
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'signal KILL'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    release elapsed: 0.01 s, gnu 0.62 s
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'signal KILL'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev elapsed: 0.01 s, gnu 0.62 s
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s RTMIN -k, the command ends at the first  args=['-s', 'RTMIN', '-k', '0.3', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'RTMIN': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s 32 ends timeout too  args=['-s', '32', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'signal 32'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: '32': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'signal 32'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: '32': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s 33, GNU's timeout ends by it  args=['-s', '33', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: got 'exit 125', want 'exit 124' (by design)
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: '33': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: got 'exit 125', want 'exit 124' (by design)
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: '33': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu ''
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL group send: -s SEGV, standard error closed  args=['-s', 'SEGV', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL core: -s SEGV to the group  args=['-s', 'SEGV', '0.3', 'sleep', '5']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	UNKNOWN STEP	    release cores: 0, gnu 1
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'SEGV': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev cores: 0, gnu 1
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL core: -s BUS to the group, the command's child  args=['-s', 'BUS', '0.3', 'sh', '-c', 'sleep 30 & echo $! > gc; wait']
+timeout, repeated (bu27)	UNKNOWN STEP	    release status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    release stderr: "timeout: 'BUS': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	UNKNOWN STEP	    release cores: 0, gnu 2
+timeout, repeated (bu27)	UNKNOWN STEP	    dev status: 'exit 125', gnu 'exit 124'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev stderr: "timeout: 'BUS': wolf cannot ignore this signal, so timeout cannot send it to the group it leads ([os.signal.disp]); with --foreground it is sent to the command alone\n", gnu 'timeout: the monitored command dumped core\n'
+timeout, repeated (bu27)	UNKNOWN STEP	    dev cores: 0, gnu 2
+timeout, repeated (bu27)	UNKNOWN STEP	FAIL sent: HUP to timeout, the command traps it and exits 3  args=['5', 'sh', '-c', "trap 'echo got HUP; exit 3' HUP; sleep 5 & wait"]
+timeout, repeated (bu27)	UNKNOWN STEP	    release stdout: 'got HUP\ngot HUP\n', gnu 'got HUP\n'
+timeout, repeated (bu27)	UNKNOWN STEP	timeouttest: selftest exit 0; 3 of 3 runs red

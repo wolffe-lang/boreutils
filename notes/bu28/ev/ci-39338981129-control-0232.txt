@@ -1,0 +1,10 @@
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	^[[36;1mecho "timeouttest: selftest exit $selftest; $bad of 3 runs red"^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL plant: the expiry  args=['0.3', 'sleep', '1']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL plant: the group  args=['0.3', 'sh', '-c', 'sleep 30 & echo $! > gc; sleep 1']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL plant: a death by a signal is not an exit status  args=['5', 'sh', '-c', 'kill -TERM $$']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	whole run 1: exit 0; timeouttest: 124 passed, 0 failed, 0 skipped
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	whole run 2: exit 1; timeouttest: 123 passed, 1 failed, 0 skipped
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	FAIL expiry: the command traps TERM and exits 3  args=['0.3', 'sh', '-c', 'trap "echo got TERM; exit 3" TERM; sleep 5 & wait']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	    release stdout: 'got TERM\ngot TERM\n', gnu 'got TERM\n'
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	whole run 3: exit 0; timeouttest: 124 passed, 0 failed, 0 skipped
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	timeouttest: selftest exit 0; 1 of 3 runs red
