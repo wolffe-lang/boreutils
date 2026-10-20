@@ -265,7 +265,29 @@ difftest 6,481 / 0 / 307, killprobe alike, killtest 298 / 0 / 67,
 timeouttest **126 / 0 / 37** (the cores-on rows skipped by name:
 `/cores/core.%P`), idtest 28, inouttest 52 / 0 / 52. Every other FAIL
 line in the log is a selftest plant. Plants: §3a. Controls: 39338981129
-(0.2.32), 39338984826 (the pin). At `e55da7d` (the reorder): see the PR.
+(0.2.32), 39338984826 (the pin). At `e55da7d` (the reorder): PR run
+**39343017440**, ubuntu leg log read — difftest 6,675 / 0 / 113, killprobe
+alike, roottest 178 / 0, killtest 365 / 0 / 0, timeouttest 162 / 0 / 1,
+idtest 1,098 / 0 / 28, inouttest 104 / 0 / 0; and two one-job repeats on
+`bu28-repeat` (the same sha), runs **39343014033** and **39343025169**:
+timeouttest 162 / 0 / 1 in each of 6 whole runs, no double delivery. The
+PR's run at the rebased head is named in the PR.
+
+**The rebase.** At the orchestrator's word (tl28's boreutils#42 merged:
+trunk `c4fa4df`, CI tiered) the branch was rebased onto `c4fa4df`; the
+rebase brought tl28's `ci/` and `.github/` and merged this lane's two CI
+commits into them without a conflict, and moved no other line
+(`git diff e55da7d d38f4a6 -- src tests tools wolf-toolchain.toml`
+is empty). The shas above are the pre-rebase ones, where every
+measurement was made; `bu28-repeat` (`e55da7d`) and the plant branches
+keep them on origin. Mapping, pre-rebase → rebased: `be6a9d4` → `44b410a`
+(the prediction), `16b2445` → `8491a4c` (the pin), `569c1cc` → `6938f95`,
+`269737a` → `ae4ebb1`, `1111c92` → `c7881e9`, `33344d6` → `8f3a969` (R3),
+`56c203e` → `1037370` (R4), `43ce223` → `8d93a41`, `5d1bb71` → `9e6ffcb`,
+`17a1749` → `24c9847`, `fa84e4b` → `5a532be` (R1), `ac543c9` → `f0f46e5`
+(R2), `a5e0cbd` → `bd838b0`, `fd36833` → `85b0311` (#37), `926d8b6` →
+`52da449`, `ba37d56` → `01e60cf`, `916a55b` → `285cf5b`, `e55da7d` →
+`d38f4a6` (the reorder).
 
 **Static binaries for PAX's next pin** (linux x86-64, pax `d6fbcdc`'s
 `tools/mkboreutils` with its two pin lines moved to this branch's head, in
