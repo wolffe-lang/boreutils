@@ -390,14 +390,16 @@ fn to_all(r: Run, t: bore.SignalTable, e: int, m: int, child: int) {
         }
         return
     }
-    // The ignore comes FIRST, so the command's send and the group's are
-    // back to back. GNU's make no other call between them but its
-    // `sigaction` (strace'd, bu28: `kill(pid)`, the ignore, `kill(0)`); the
-    // command is in the group and gets the signal twice, and one that
-    // traps it must find the second pending before its trap has run. With
-    // this runtime's ignore between the two sends, a command now and then
-    // ran its trap on each (`got TERM` twice: CI runs 39327744649,
-    // 39327752068).
+    // A command still in the group is sent the signal ONCE, by the group
+    // send. GNU sends the command its own copy too, then the group, so its
+    // command gets two; under load the sender is preempted between them
+    // now and then (measured with a counting command in a 4-cpu container
+    // on kasumi: GNU's two deliveries 272 and 395 us apart, this one's up
+    // to 2.3 ms), and a command that traps the signal runs its trap twice
+    // (`got TERM` twice: CI runs 39327744649, 39327752068, 39352015138).
+    // A command that left the group (`setsid`) is sent its own copy, as
+    // GNU's is; so is any command where its group cannot be read.
+    let in_group = child > 0 && in_group_of(child, own)
     let quiet = bore.signal_listenable(t, e)
     if quiet {
         os_signal_ignore(m) else |_| {}
@@ -412,7 +414,7 @@ fn to_all(r: Run, t: bore.SignalTable, e: int, m: int, child: int) {
         // sends it.
         os_signal_ignore_one(m) else |_| {}
     }
-    if child > 0 {
+    if child > 0 && !in_group {
         os_signal_send(child, m) else |_| {}
     }
     os_signal_send_group(own, m) else |_| {}
@@ -423,6 +425,20 @@ fn to_all(r: Run, t: bore.SignalTable, e: int, m: int, child: int) {
             os_signal_default(m) else |_| {}
         }
     }
+}
+
+/// Whether process `pid` stands in group `own`, by linux's record of it
+/// (`/proc/PID/stat`, `bore.stat_group`); false on any other host, and
+/// wherever the record cannot be read or parsed.
+fn in_group_of(pid: int, own: int) -> bool {
+    if !bore.built_for_linux() {
+        return false
+    }
+    let raw = fs_read_bytes("/proc/{pid}/stat") else |_| {
+        return false
+    }
+    let g = bore.stat_group(raw)
+    g > 0 && g == own
 }
 
 /// How timeout ends once its command has, `core_st` the poll's status
