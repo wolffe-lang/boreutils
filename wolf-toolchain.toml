@@ -48,6 +48,36 @@
 #     `List[T]()` and pushes, because lupin 0.1.36 refused list
 #     literals, so the literal's element type is unreachable here.
 #
+# ## The bump to 0.2.34 / 0.1.55 (bu29, 2026-10-21)
+#
+# One release on each half (0.2.34 pairs with lupin 0.1.55). From the
+# release archives by digest, each archive read twice and both reads
+# equal to the release API's digests (wolf release 419552903, lupin
+# 418932753; `notes/bu29/ev/archives.log`). `_wolf` keeps
+# a368c8eccce8b1800c80aa818ae482e541aa9636b676540851e23863d333eb8b in
+# all three wolf archives; `std/STD-REV` is e036bec in all three.
+#
+# What a downstream has to read at this bump:
+#
+#   * Nothing here asked for it: the CHANGELOG's line for boreutils is
+#     "the pin". s247's `os_fork` and s248's calls for an editor
+#     (`os_term_restore_at_exit`, `os_signal_wait_fds`, `fs_sync`,
+#     `fs_sync_dir`, `fs_realpath`, `os_clock_ns`) are not called here,
+#     and the pin commit changes no line of `src/`.
+#   * Seven new prelude names and the mark `busy`: `src/` declares none,
+#     so no W0304 under `--deny-warnings`.
+#   * `wolf test` runs a test file's own `test_*` (#799): this package's
+#     members are its nine `*_test.lu` files alone (every utility is
+#     `member: false`), each a `main`, so `tools/check-test` runs the
+#     same nine; a failure planted in the last of them fails that row
+#     alone at 0.2.33 and at 0.2.34 (`notes/bu29/ev/checkplant.log`).
+#   * A mode int without bits 5-7 now WRITES the usual terminal setting:
+#     no utility here sets a terminal mode.
+#   * The bundled std moves cceda63 -> e036bec (sc66's wrappers for
+#     0.2.33's five calls, sc67, sc68); `kill` and `timeout` still call
+#     the builtins directly. boreutils#44 (`timeout` calling
+#     `os_core_off()` before it re-raises) waits on 0.2.35.
+#
 # ## The bump to 0.2.33 / 0.1.54 (bu28, 2026-10-19)
 #
 # One release on the wolf half, none on lupin's (0.2.33 pairs with the
@@ -534,27 +564,26 @@
 # TAG names, which is the thing this file pins.
 
 [wolf]
-version = "0.2.33"
+version = "0.2.34"
 repo = "wolffe-lang/wolf-lang"
-rev = "85dab5d7e597680d6fd7034f1d7ed2acb9a92f97"
-version_line = "wolf 0.2.33 (wolfgang, pin 85dab5d)"
-aarch64-apple-darwin = "9152dbd136d858539100088394cbaa97cf23f7ddd2816512cd9b48c70a9f40eb"
-x86_64-unknown-linux-gnu = "4f955e8dfe6eaafa441903eeba43c009c4ec2b45a8da09fe13431e8b12340af8"
-aarch64-unknown-linux-gnu = "24cde9e4668d17448527f774db602d93a348d285c2219a1edff791519530a2ac"
+rev = "9da7bdcf2aea9adf48df6570bedc58e16e9ef853"
+version_line = "wolf 0.2.34 (wolfgang, pin 9da7bdc)"
+aarch64-apple-darwin = "29c8331f5d188b00c4580bc7677b1238891c5734d00b0512df10c60eab236ee3"
+x86_64-unknown-linux-gnu = "88a9dd3da1c9a0e38c08eb6e2de9c1ef04d1ed93dcf51024d8dbbb76890c1821"
+aarch64-unknown-linux-gnu = "ca5cadf936dc0d4396e92733fc65e953d549f3b61f0aa354e7be2e78ea8c3ad0"
 
 [lupin]
-# The reference interpreter wolf 0.2.33 declares as its pairing (as
-# 0.2.32 did):
-# `wolf --version` line 2 reads "paired with lupin 0.1.54 (reference
-# interpreter), pin 294d626". Its spec pin is wolf v0.2.24. The `rev`
-# below is the commit the 0.1.54 TAG names.
-version = "0.1.54"
+# The reference interpreter wolf 0.2.34 declares as its pairing:
+# `wolf --version` line 2 reads "paired with lupin 0.1.55 (reference
+# interpreter), pin 294d626". Its spec pin is wolf v0.2.24, as 0.1.54's
+# was. The `rev` below is the commit the 0.1.55 TAG names.
+version = "0.1.55"
 repo = "wolffe-lang/wolf-interp"
-rev = "0e536e8fb4518eaa798ac426901ab81275db5c9f"
-version_line = "lupin 0.1.54 (wolf-interp, reference interpreter at pin 294d626)"
-aarch64-apple-darwin = "9cd14db71e32c277829b5e05cdae27bf60cd6f269a9a24f97a7dba67e28a4093"
-x86_64-unknown-linux-gnu = "175df23880cd5bb993b778e5c8fdd7d0d96c176696802e640f6fc87d3dab40dd"
-aarch64-unknown-linux-gnu = "5fb15e31289d810129b40a9a0af07417d85d5090e74045f66b1f7f4016d166e7"
+rev = "e642f2630ad4c7f53740428d5cca705f2e0d295b"
+version_line = "lupin 0.1.55 (wolf-interp, reference interpreter at pin 294d626)"
+aarch64-apple-darwin = "2eac1cccdc8a5bec5831787604098982a7ac42e41561a037c3b5ccf0ac21741a"
+x86_64-unknown-linux-gnu = "1152abc0bef65d334b94bc881a26463fac345919cc2ca07a291796e6048a8a38"
+aarch64-unknown-linux-gnu = "5854ab268a835bb75749bce7601441858ac342351906a0838e8602e4edbd45d7"
 
 [std]
 # wolf-std ships no release archive, so the tree is pinned by commit:
@@ -669,5 +698,16 @@ aarch64-unknown-linux-gnu = "5fb15e31289d810129b40a9a0af07417d85d5090e74045f66b1
 # utilities under 0.2.33 with --deny-warnings on both tiers
 # (`notes/bu28/ev/b151.log`). `kill` and `timeout` still call the
 # builtins directly.
+# MOVED AT THE 0.2.34 BUMP to wolf-std e036bec (sc66's wrappers for
+# 0.2.33's five calls, ruling #94; sc67's `net.Addr` and the accounts'
+# documented limit; sc68's lupin lines at the 0.1.55 pin), the commit
+# the 0.2.34 archives bundle (`std/STD-REV` in all three; the bundle and
+# the tree fetched at e036bec differ only by the archive's two LICENSE
+# files). wolf-std trunk had moved on to 3bacc5f (sc69, 0.2.35's
+# STD-PIN) when this lane began; the pin takes the bundle. B151 first:
+# cceda63 and e036bec both build all 47 utilities under 0.2.34 with
+# --deny-warnings on both tiers, 94 builds each, 0 failed, 0 warnings
+# (`notes/bu29/ev/b151.log`); 70 of the 94 binaries differ between the
+# two (`bore` reaches `std.signal` and `std.process`).
 repo = "wolffe-lang/wolf-std"
-rev = "cceda63151430eac07df895fdfffddfa4a0b92c1"
+rev = "e036bec318ad81ecd5a025612bc2c2adb17527f3"
