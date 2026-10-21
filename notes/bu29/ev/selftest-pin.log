@@ -1,0 +1,35 @@
+difftest: gnu = true (GNU coreutils) 9.11 (prefix '') on Linux x86_64
+difftest: bore = /l/boreutils/target/release
+difftest: oracle environment, LC_ALL=C _POSIX2_VERSION=200112
+difftest: oracle of record, GNU coreutils 9.11
+difftest: oracle profile OK — `uniq +1 /dev/null` exits 1 (the obsolete +N operand form is off, so +1 is a file name (B73))
+difftest: scratch root /l/scratch
+FAIL echo: what a terminal received  args=['x']
+FAIL echo: a mask hides only what it names  args=['n=5 tail']
+FAIL echo: a kept line the other side lacks  args=['3']
+FAIL head: an offset one side moves  args=['-']
+FAIL tee: a file one side writes  args=['a']
+FAIL tee: a file whose bytes differ  args=['a']
+FAIL tee: two names of one file  args=['a', 'b']
+FAIL tee: a time one side sets  args=['a']
+FAIL true: true is not false  args=[]
+difftest: 5 passed, 9 failed, 0 skipped
+difftest-selftest: the harness saw every planted difference
+difftest: /l/boreutils/tests/refuse/attached/mkdir.toml: refusing case 'attached': '-m/' is absolute and outside the scratch directory (mkdir changes the file system)
+difftest: /l/boreutils/tests/refuse/climb/mkdir.toml: refusing case 'a climb': 'd/../../x' has a .. component (mkdir changes the file system)
+difftest: /l/boreutils/tests/refuse/cwd/mkdir.toml: refusing case 'a working directory': '..' has a .. component (mkdir changes the file system)
+difftest: /l/boreutils/tests/refuse/home/mkdir.toml: refusing case 'a home directory': '~' begins with ~ (mkdir changes the file system)
+difftest: /l/boreutils/tests/refuse/kill-after-word/kill.toml: refusing case 'a list option after an operand': '2147483647' is a number, and so could be a process id (kill sends: such a case belongs to tools/killtest, in a container)
+difftest: /l/boreutils/tests/refuse/kill-group/kill.toml: refusing case 'a group': '-2147483647' is a number, and so could be a process id (kill sends: such a case belongs to tools/killtest, in a container)
+difftest: /l/boreutils/tests/refuse/kill-number/kill.toml: refusing case 'a number': '2147483647' is a number, and so could be a process id (kill sends: such a case belongs to tools/killtest, in a container)
+difftest: /l/boreutils/tests/refuse/longopt/mkdir.toml: refusing case 'a long option': '--mode=../x' has a .. component (mkdir changes the file system)
+difftest: /l/boreutils/tests/refuse/outside/mkdir.toml: refusing case 'outside': '/nonexistent-bore-refuse/x' is absolute and outside the scratch directory (mkdir changes the file system)
+difftest: /l/boreutils/tests/refuse/owner-after-dashes/chgrp.toml: refusing case 'after dashes': 'bu24-no-such-file' is a FILE operand (chgrp changes an owner: such a case belongs to tools/idtest, in a container)
+difftest: /l/boreutils/tests/refuse/owner-file/chown.toml: refusing case 'a file': 'bu24-no-such-file' is a FILE operand (chown changes an owner: such a case belongs to tools/idtest, in a container)
+difftest: /l/boreutils/tests/refuse/owner-reference/chgrp.toml: refusing case 'a reference': '--reference=bu24-no-such-file' makes every operand a FILE (chgrp changes an owner: such a case belongs to tools/idtest, in a container)
+difftest: /l/boreutils/tests/refuse/root/mkdir.toml: refusing case 'the root': '/' is absolute and outside the scratch directory (mkdir changes the file system)
+difftest: /l/boreutils/tests/refuse/timeout-after-options/timeout.toml: refusing case 'a command after options': 'true' is a command it could run (timeout runs a command and signals its group: such a case belongs to tools/timeouttest, in a container)
+difftest: /l/boreutils/tests/refuse/timeout-command/timeout.toml: refusing case 'a command': 'true' is a command it could run (timeout runs a command and signals its group: such a case belongs to tools/timeouttest, in a container)
+difftest: refusing the scratch root '/': it is the file system's root or a home directory
+difftest: refusing the scratch root '/l/tmp': it is the file system's root or a home directory
+difftest-selftest: the harness refused every unsafe operand and root

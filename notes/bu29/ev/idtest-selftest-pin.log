@@ -1,0 +1,6 @@
+FAIL plant: an owner one side changes  args=['-v', ':pack', 'f'] as=root
+FAIL plant: an account one side cannot see  args=['alice'] as=root
+FAIL plant: the actor took (ours would be root's 0)  args=['-u'] as=alice
+FAIL plant: the terminal and its record reached ours (ours would say nothing)  args=[] as=root
+ok   control: the actor's own id
+idtest-selftest: idtest saw every planted difference and passed the control

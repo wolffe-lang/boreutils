@@ -1,0 +1,58 @@
+run-checkplant: 2026-10-21T21:53:54Z on kasumi, load 3.27 3.42 2.35 3/605 188124
+wolf-0.2.33-x86_64-unknown-linux-gnu.tar.gz read1 4f955e8dfe6eaafa441903eeba43c009c4ec2b45a8da09fe13431e8b12340af8 read2 4f955e8dfe6eaafa441903eeba43c009c4ec2b45a8da09fe13431e8b12340af8 pin 4f955e8dfe6eaafa441903eeba43c009c4ec2b45a8da09fe13431e8b12340af8 OK
+checkplant 0233: wolf 0.2.33 (wolfgang, pin 85dab5d), std cceda63151430eac07df895fdfffddfa4a0b92c1
+test files, sorted: src/bore_test.lu src/change_test.lu src/duration_test.lu src/ids_rows_test.lu src/ids_test.lu src/inout_test.lu src/owner_rows_test.lu src/signals_send_test.lu src/signals_test.lu 
+plain rc=0
+test ./src/bore_test.lu::main ... ok
+test ./src/change_test.lu::main ... ok
+test ./src/duration_test.lu::main ... ok
+test ./src/ids_rows_test.lu::main ... ok
+test ./src/ids_test.lu::main ... ok
+test ./src/inout_test.lu::main ... ok
+test ./src/owner_rows_test.lu::main ... ok
+test ./src/signals_send_test.lu::main ... ok
+test ./src/signals_test.lu::main ... ok
+wolf test: 9 passed; 0 failed; 0 rejected; 0 unsupported; 0 filtered out
+fn main() {
+    assert(false, "bu29 plant: signals_test.lu runs its own main")
+    let t = bore.signal_table()
+planted rc=1
+test ./src/bore_test.lu::main ... ok
+test ./src/change_test.lu::main ... ok
+test ./src/duration_test.lu::main ... ok
+test ./src/ids_rows_test.lu::main ... ok
+test ./src/ids_test.lu::main ... ok
+test ./src/inout_test.lu::main ... ok
+test ./src/owner_rows_test.lu::main ... ok
+test ./src/signals_send_test.lu::main ... ok
+test ./src/signals_test.lu::main ... FAILED (trap(assert))
+wolf test: 8 passed; 1 failed; 0 rejected; 0 unsupported; 0 filtered out
+checkplant 0234: wolf 0.2.34 (wolfgang, pin 9da7bdc), std e036bec318ad81ecd5a025612bc2c2adb17527f3
+test files, sorted: src/bore_test.lu src/change_test.lu src/duration_test.lu src/ids_rows_test.lu src/ids_test.lu src/inout_test.lu src/owner_rows_test.lu src/signals_send_test.lu src/signals_test.lu 
+plain rc=0
+test ./src/bore_test.lu::main ... ok
+test ./src/change_test.lu::main ... ok
+test ./src/duration_test.lu::main ... ok
+test ./src/ids_rows_test.lu::main ... ok
+test ./src/ids_test.lu::main ... ok
+test ./src/inout_test.lu::main ... ok
+test ./src/owner_rows_test.lu::main ... ok
+test ./src/signals_send_test.lu::main ... ok
+test ./src/signals_test.lu::main ... ok
+wolf test: 9 passed; 0 failed; 0 rejected; 0 unsupported; 0 filtered out
+fn main() {
+    assert(false, "bu29 plant: signals_test.lu runs its own main")
+    let t = bore.signal_table()
+planted rc=1
+test ./src/bore_test.lu::main ... ok
+test ./src/change_test.lu::main ... ok
+test ./src/duration_test.lu::main ... ok
+test ./src/ids_rows_test.lu::main ... ok
+test ./src/ids_test.lu::main ... ok
+test ./src/inout_test.lu::main ... ok
+test ./src/owner_rows_test.lu::main ... ok
+test ./src/signals_send_test.lu::main ... ok
+test ./src/signals_test.lu::main ... FAILED (trap(assert))
+wolf test: 8 passed; 1 failed; 0 rejected; 0 unsupported; 0 filtered out
+done 2026-10-21T21:54:32Z
+RUN-CHECKPLANT-DONE

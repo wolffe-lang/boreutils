@@ -1,0 +1,14 @@
+ok   agreement is quiet (code 0 -> 0)
+ok   a verdict difference is an advisory, not a failure (code 1 -> 0)
+ok   a harness that could not run is loud (code 2 -> 1)
+ok   a broken pipe is loud (signal 13, boreutils#10's shape) (code 141 -> 1)
+ok   a SIGTERM is loud (code 143 -> 1)
+ok   a SIGKILL is loud (code 137 -> 1)
+ok   an exit code this leg does not know is loud (code 9 -> 1)
+ok   a non-number is loud (code banana -> 1)
+field-verdict-selftest: planting a signal death in tools/difftest
+field-verdict-selftest: the plant exited 141 (the pipeline's
+field-verdict-selftest: own status was 0, which is B98 in one line)
+ok   the ruling is LOUD about the planted death (141)
+field-verdict-selftest: the field leg is LOUD about a death and quiet
+field-verdict-selftest: about a difference (B98)

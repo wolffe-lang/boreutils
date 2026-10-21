@@ -1,0 +1,28 @@
+bu29 plant: run 39683548043 (workflow_dispatch, -f tier=pr, branch bu29-plant, 99a5a45: the pin's digests under 0.2.33's version_line)
+job 119511798465 plan: success
+job 119511893615 the field's GNU (information, not a verdict): failure at step: build (release)
+job 119511893621 gauntlet (ubuntu-latest): failure at step: wolf fmt --check
+job 119511895341 the ls suite, repeated (boreutils#27): skipped
+job 119511895383 cat where its input is its output (boreutils#28): skipped
+job 119511895789 timeout, repeated (bu27): skipped
+job 119511896324 kill, measured and repeated (boreutils#36,: skipped
+job 119511896861 the terminal read, measured (boreutils#27): skipped
+job 119512108967 tier pr: failure at step: every chosen job succeeded, every other was skipped
+job 119512175747 nightly red, an issue: skipped
+--- job 119511893621, the lines read
+fetch-toolchain: sha256 88a9dd3da1c9a0e38c08eb6e2de9c1ef04d1ed93dcf51024d8dbbb76890c1821 OK
+fetch-toolchain: sha256 1152abc0bef65d334b94bc881a26463fac345919cc2ca07a291796e6048a8a38 OK
+fetch-toolchain: staged x86_64-unknown-linux-gnu into .wolf-bin/
+toolchain: REFUSED — wolf identity: have "wolf 0.2.34 (wolfgang, pin 9da7bdc)", pin wants "wolf 0.2.33 (wolfgang, pin 85dab5d)"
+toolchain: run tools/fetch-toolchain to stage the pin into .wolf-bin/
+##[error]Process completed with exit code 1.
+--- job 119511893615, the lines read
+fetch-toolchain: sha256 88a9dd3da1c9a0e38c08eb6e2de9c1ef04d1ed93dcf51024d8dbbb76890c1821 OK
+fetch-toolchain: sha256 1152abc0bef65d334b94bc881a26463fac345919cc2ca07a291796e6048a8a38 OK
+fetch-toolchain: staged x86_64-unknown-linux-gnu into .wolf-bin/
+toolchain: REFUSED — wolf identity: have "wolf 0.2.34 (wolfgang, pin 9da7bdc)", pin wants "wolf 0.2.33 (wolfgang, pin 85dab5d)"
+toolchain: run tools/fetch-toolchain to stage the pin into .wolf-bin/
+##[error]Process completed with exit code 1.
+--- job 119512108967, the lines read
+tier pr: 2 of 7 job(s) chosen
+##[error]Process completed with exit code 1.

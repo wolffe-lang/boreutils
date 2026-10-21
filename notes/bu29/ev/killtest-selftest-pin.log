@@ -1,0 +1,14 @@
+killtest: release/kill is dynamic
+killtest: dev/kill is dynamic
+killtest: podman, image ubuntu:24.04, one fresh container a case, no mount, no network
+killtest: gnu = kill (GNU coreutils) 9.11 (/home/mfwolffe/lanes/bu29/gnu/bin/kill)
+FAIL plant: a target one side leaves alive  args=['{pid0}']
+FAIL plant: a target that must end by KILL  args=['-s', 'KILL', '{pid0}']
+FAIL plant: a process that is not there  args=['{dead}']
+ok   control: signal 0 leaves the target alone
+FAIL plant: kill 0 to the group the program leads  args=['0']
+killtest: 1 passed, 4 failed, 0 skipped
+killtest-selftest: the tool saw every planted difference
+killtest: refusing case 'a literal id': '1' is a literal number that could be a process id, and the case is not `container = true`
+killtest: refusing case "a signal's number as an id": '{n:HUP}' is a literal number that could be a process id, and the case is not `container = true`
+killtest-selftest: the tool refused a literal process id and a signal's number in its place

@@ -1,0 +1,13 @@
+timeouttest: release/timeout is static
+timeouttest: dev/timeout is static
+timeouttest: podman, image ubuntu:24.04, one fresh container a case, no mount, no network, as user 4242
+timeouttest: core pattern '|/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I': cores-on cases cannot run here, and must (BORE_CORE_REQUIRE=1)
+timeouttest: gnu = timeout (GNU coreutils) 9.11 (/home/mfwolffe/lanes/bu29/gnu/bin/timeout)
+FAIL plant: the expiry  args=['0.3', 'sleep', '1']
+FAIL plant: the group  args=['0.3', 'sh', '-c', 'sleep 30 & echo $! > gc; sleep 1']
+FAIL plant: a death by a signal is not an exit status  args=['5', 'sh', '-c', 'kill -TERM $$']
+FAIL plant: a field answered otherwise by design  args=['5', 'sh', '-c', 'exit 3']
+FAIL plant: a cores-on case must run  (a cores-on case, and this host's core pattern '|/usr/lib/systemd/systemd-coredump %P %u %g %s %t %c %h %d %F %I' would write a core outside the case's directory; BORE_CORE_REQUIRE=1)
+ok   control: a command that ends by itself
+timeouttest: 1 passed, 5 failed, 0 skipped
+timeouttest-selftest: the tool saw every planted difference
