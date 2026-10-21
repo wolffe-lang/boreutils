@@ -99,3 +99,74 @@ touches it.
    at `build (release)`) with `toolchain: REFUSED — wolf identity: have "wolf
    0.2.34 (wolfgang, pin 9da7bdc)", pin wants "wolf 0.2.33 (wolfgang, pin
    85dab5d)"`, and green at the pin.
+
+## 3a. The prediction, scored
+
+§3 above is as committed (`30f56a1`), before the pin moved and before
+anything was measured at it. Scored in place, by line. "kasumi" is a fresh
+`--network none` container: `localhost/px12-ubuntu` for B151, the check-test
+plant and the gauntlet (`box.sh`, `--ulimit core=0:0`), `ubuntu:24.04` for
+the suites (one container a case, the suites' own). GNU is bu25's build of
+9.11 (`~/lanes/bu29/gnu/`, copied from bu28's: `timeout` `735f79ee…`, `kill`
+`a78a3c72…`). The `ev/` paths are committed under `notes/bu29/ev/`.
+
+| # | predicted | measured | verdict |
+|---|---|---|---|
+| 1 | B151: `cceda63` and `e036bec` each 94 builds, 0 failed, 0 warnings; most binaries differ between them | **94 builds, 0 failed, 0 warning lines, 0 error lines, each** (`ev/b151.log`); **70 of 94 differ** (all 47 dev, 23 release), 24 alike; the archive's bundled `std/` and the tree fetched at `e036bec` differ only by the bundle's `LICENSE` and `LICENSE-EXCEPTION` | right |
+| 2 | no diagnostic; all 94 differ from 0.2.33's; fmt rc 0; check-test 9 / 0; the plant in `signals_test.lu` fails that row alone at both pins | no diagnostic on either tier (`grep -c` 0 in both build logs); **0 of 94 alike** against bu28's build of the same source at 0.2.33 (`bins-head-18a6490.txt`); the pin's 94 are byte-identical to B151's `e036bec` builds (the build repeats); fmt rc 0; `wolf test` **9 passed, 0 failed** (`ev/check-test-pin.log`); planted, **8 passed, 1 failed, `signals_test.lu::main ... FAILED (trap(assert))`, at 0.2.33 and at 0.2.34** (`ev/checkplant.log`) | right |
+| 3 | difftest 6,668 / 0 / 120 both tiers, list `dcdb32cb0d7a5e25`; selftests rc 0; killprobe alike | **release 6,668 / 0 / 120, dev 6,668 / 0 / 120, list `dcdb32cb0d7a5e25` on both** (`ev/gauntlet-pin.log`); stronger than predicted: both whole difftest logs are **byte-identical** to r39's own of the published 0.2.34 (`difftest-{release,dev}-pub-0234.log` on kasumi `~/lanes/r39/bu/ev/`, sha256 `e28fc7cf…` and `4774a352…`) and to its 0.2.33 control; `difftest-selftest`, `difftest-evidence`, `field-verdict-selftest` rc 0; killprobe 240,578 numbers alike on `-l` and `-t`, both tiers | right |
+| 4 | killtest 365 / 0 / 0, timeouttest 150 / 0 / 13 under `--cpus 0-3`, idtest 1,098 / 0 / 28, inouttest 104 / 0 / 0, roottest 178 / 0; selftests rc 0; core store unmoved by the lane | **killtest 365 / 0 / 0, timeouttest 150 / 0 / 13** (both "every case under taskset -c 0-3 (Cpus_allowed_list 0-3, read inside)"), **idtest 1,098 / 0 / 28, inouttest 104 / 0 / 0, roottest 178 / 0**; every selftest rc 0 (`ev/suites-pin.log`). Every case line of killtest, timeouttest, idtest and inouttest (name, verdict, SKIP reason) equal to bu28's at `18a6490` / `ac543c9`. The store went 161 → 167, all six `core.threads.1000…` of px57's probe (`~/lanes/px57/…/threads`, 18:26 and 18:29 EDT); this lane's timeouttest rows left 204 journal entries (`sleep`, `dash`, both tiers' `timeout`, the container's uid) with COREFILE `none`, nothing stored (`ev/coredumps-during-bu29.txt`, `ev/corestore-after.txt`) | right |
+| 5 | nothing moves: no case reaches 0.2.34's changes | so: every verdict, every SKIP reason and both difftest logs byte for byte; only the bytes of the binaries moved | right |
+| 6 | CI `tier pr` ubuntu as at `cc64f68`, field 5,649 / 42 / 1,097 ADVISORY; `tier full` adds macOS as at `cc64f68` | scored at the PR's runs (§4) | — |
+| 7 | the plant red on both legs at the first tool that sources `lib-toolchain.sh`, `toolchain: REFUSED — wolf identity …` | **red as predicted**: branch `bu29-plant` `99a5a45`, dispatch `-f tier=pr`, run **39683548043**: `gauntlet (ubuntu-latest)` job 119511893621 at `wolf fmt --check`, the field job 119511893615 at `build (release)`, both after the two digests read OK, both `toolchain: REFUSED — wolf identity: have "wolf 0.2.34 (wolfgang, pin 9da7bdc)", pin wants "wolf 0.2.33 (wolfgang, pin 85dab5d)"`; `tier pr` 119512108967 red (`ev/ci-39683548043-plant.txt`) | right |
+
+## 4. Evidence index
+
+Committed, `notes/bu29/ev/`: `archives.log` (seven archives, two reads each
+against the release API's digests; `_wolf`, `STD-REV`, member counts, both
+version lines, the staged binaries' digests); `b151.log`,
+`b151-bins-{cceda63,e036bec}.txt`; `checkplant.log` and its four
+`checkplant-*.log` (0.2.33's archive read twice against trunk's digest
+`4f955e8d…` first); `gauntlet-pin.log` (fetch by digest, identity, build,
+fmt, test, both difftests and the verdict list's digest, the selftests,
+killprobe, the core store) with `build-*-pin.log`, `check-test-pin.log`,
+`bins-pin.txt`, `difftest-{release,dev}-pin.log` (whole), `selftest-pin.log`,
+`evidence-pin.log`, `field-verdict-selftest-pin.log`, `killprobe-pin.log`;
+`suites-pin.log` with each suite's and selftest's own log; the core store
+(`corestore-after.txt`, `coredumps-during-bu29.txt`); the plant's CI extract
+`ci-39683548043-plant.txt`. Probes: `notes/bu29/probes/` (`archives.sh`,
+`box.sh`, `b151.sh`, `run-b151.sh`, `checkplant.sh`, `run-checkplant.sh`,
+`gauntlet.sh`, `suites.sh`, `run-pin.sh`; bu28's shapes with this lane's
+paths, `suites.sh` adding roottest).
+
+**The difftest of record** (kasumi, px12-ubuntu) at the pin `626efc5`:
+**6,668 / 0 / 120 on both tiers, list `dcdb32cb0d7a5e25`**: r39's, and
+bu28's at `18a6490`. Nothing moved.
+
+**CI.** The plant: run 39683548043 (§3a line 7). The PR's `tier pr` and
+`tier full` runs are named in the PR.
+
+**Not built here:** static binaries for PAX (the contract: PAX's `user/*`
+pins move in px57 and after); the bench (no program changed).
+
+## 5. Findings, and what was not verified
+
+- **Nothing moved.** At wolf 0.2.34 / lupin 0.1.55 / std `e036bec` every
+  differential verdict, every suite's case lines and both whole difftest logs
+  are what they were at 0.2.33; only the binaries' bytes changed (the runtime
+  archive). No issue to file from this lane.
+- **#799 cannot reach this layout**, measured rather than argued: the nine
+  test files are the package's only members, and a failure planted in the
+  last-sorted one fails its own row at both pins.
+- **boreutils#44 waits on 0.2.35** (`os_core_off()`, s253, wolf-lang#847):
+  the three `design` rows of `timeout`'s own core stay at this pin.
+- **The field leg's advisory stands** as at `cc64f68`: ubuntu's own GNU 9.4,
+  information, not a verdict (B98).
+- **Not verified here:** the macOS pin (`29c8331f…` / `2eac1ccc…`), measured
+  only by CI's `tier full`; linux aarch64 (pinned by digest, read twice, never
+  run); no build on nomad-1 by rule.
+
+**Housekeeping.** kasumi `~/lanes/bu29/` (the archives, the extracted
+toolchains, the two std trees, GNU's copy, the tree and its `target/`) is
+removed at hand-back once the logs above are committed. The branch
+`bu29-plant` stays on origin: §3a cites it.
