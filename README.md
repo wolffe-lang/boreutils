@@ -171,10 +171,11 @@ run as root and as users or change an owner (`tests/ids/`,
 `tools/idtest`: 28 of them only on CI's macOS runner). A run in a
 throwaway Ubuntu 24.04 container on kasumi (linux x86-64; the utilities
 that change files, owners or send signals are run nowhere else on a
-lane's host) at wolf 0.2.33 answers **6,668 passed, 0 failed, 120
+lane's host) at wolf 0.2.34 answers **6,668 passed, 0 failed, 120
 skipped**, the same list on the release and the dev tier, and
-`tools/idtest` **1,098 passed, 0 failed** (bu28's figures are in
-`notes/bu28-the-retired-refusals.md` and its PR). The edition before
+`tools/idtest` **1,098 passed, 0 failed**: at 0.2.33 the same, case for
+case (bu29's figures are in `notes/bu29-the-pin-0234.md`, bu28's in
+`notes/bu28-the-retired-refusals.md`, each with its PR). The edition before
 bu28 said 6,784 cases and 6,664 passed, 0 failed, 120 skipped at wolf
 0.2.32, and `tools/timeouttest` 124 passed, 0 failed (bu27's figures
 are in `notes/bu27-the-groups.md`). The edition before bu27 said
