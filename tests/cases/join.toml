@@ -1132,3 +1132,8 @@ name = "review 6 auto missing later fields"
 args = ["-o", "auto", "-e", "?", "a", "b"]
 scratch = { "a" = "k X\nk\n", "b" = "k Y\nk\n" }
 
+
+[[case]]
+name = "empty first header retains its own missing join key"
+args = ["--header", "--check-order", "a", "b"]
+scratch = { a="\n\n", b="a  x\ty \nÿ q\n" }

@@ -8,7 +8,7 @@ use bore
 use textio
 use numcli
 
-struct Line { raw: List[byte], fields: List[textio.Rec] }
+struct Line { raw: List[byte], fields: List[textio.Rec], present: bool }
 
 struct Conf {
     field1: int,
@@ -146,7 +146,7 @@ fn main() -> int {
     if b.len > 0 { c.auto2 = b[0].fields.len }
     var ck = Check { unpaired: false, bad1: false, bad2: false, stop: false }
     var i = 0, j = 0
-    let empty = Line { raw: List[byte](), fields: List[textio.Rec]() }
+    let empty = Line { raw: List[byte](), fields: List[textio.Rec](), present: false }
     if c.header && (a.len > 0 || b.len > 0) {
         let left = if a.len > 0 then copy a[0] else copy empty
         let right = if b.len > 0 then copy b[0] else copy empty
@@ -278,7 +278,7 @@ fn lines(rows: List[textio.Rec], sep: int) -> List[Line] {
                 if start < i { (mut fields).push(textio.Rec { data: r.data[start..i] }) }
             }
         }
-        (mut answer).push(Line { raw: copy r.data, fields: fields })
+        (mut answer).push(Line { raw: copy r.data, fields: fields, present: true })
     }
     answer
 }
@@ -321,7 +321,7 @@ fn output(mut out: bore.Out, a: Line, b: Line, c: Conf) -> () ! {io} {
         let pick = copy picks[k]
         var data = List[byte]()
         if pick.file == 0 {
-            if a.fields.len > 0 { data = field(a, c.field1) } else { data = field(b, c.field2) }
+            if a.present { data = field(a, c.field1) } else { data = field(b, c.field2) }
         } else if pick.file == 1 {
             data = field(a, pick.field)
         } else {
