@@ -149,6 +149,18 @@ class Checksums(unittest.TestCase):
             self.assertIn(phrase, p.stderr)
             self.assertIn(b"not supported", p.stderr)
 
+        for tool, algorithm in ALGORITHMS.items():
+            digest = hashlib.new(algorithm, b"abc").hexdigest().encode()
+            manifest = digest + b"  bad\xff\n"
+            p = run(BIN / tool, ["-c"], manifest)
+            self.assertEqual(p.returncode, 1)
+            self.assertEqual(p.stdout, b"")
+            self.assertIn(b"non-UTF-8 file names", p.stderr)
+            self.assertIn(b"fs_open requires a UTF-8 path", p.stderr)
+        p = run(BIN / "cksum", ["-c"], b"MD5 (bad\xff) = 900150983cd24fb0d6963f7d28e17f72\n")
+        self.assertEqual(p.returncode, 1)
+        self.assertIn(b"non-UTF-8 file names", p.stderr)
+
     @unittest.skipUnless(os.uname().sysname == "Linux", "peak RSS gate is normalized for Linux wait4")
     def test_memory_is_bounded(self):
         with tempfile.TemporaryDirectory(prefix="bore-checksum-rss.") as td:

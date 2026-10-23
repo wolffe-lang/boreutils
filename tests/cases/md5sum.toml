@@ -1601,3 +1601,9 @@ name = "strict raw non UTF8 hash comment"
 args = ["-c", "--strict"]
 stdin_file = "checksum-comment.bin"
 scratch = { "f" = "abc" }
+
+[[case]]
+name = "raw byte filename requires a byte path open"
+args = ["-c"]
+stdin_file = "checksum-rawname.bin"
+skip = "R-bu32-2: named raw-path refusal; wolf fs_open takes UTF-8 str paths; checksumtest checks the refusal"

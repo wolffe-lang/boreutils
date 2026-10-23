@@ -294,6 +294,7 @@ fn check_file(c: Settings, path: str) -> int {
     }
     var bad_read = false
     var bad_write = false
+    var unsupported_path = false
     loop {
         region row {
             let bytes = manifest_line(mut r) else |e| match e {
@@ -306,7 +307,15 @@ fn check_file(c: Settings, path: str) -> int {
             }
             n.line += 1
             if bytes.len > 0 && bytes[0] as int == 35 { continue }
-            let line = str_from_utf8(bytes) else { malformed_line(c, path, mut n); continue }
+            let line = str_from_utf8(bytes) else {
+                if raw_name_record(c, bytes, n.reverse_style) {
+                    bore.warn(c.prog, "non-UTF-8 file names in checksum lists are not supported: wolf 0.2.35 fs_open requires a UTF-8 path")
+                    unsupported_path = true
+                    break
+                }
+                malformed_line(c, path, mut n)
+                continue
+            }
             if line.len == 0 || line == "\r" || line.starts_with("#") { continue }
             let rec = parse_record(c, line, path == "-", n.reverse_style) else {
                 malformed_line(c, path, mut n)
@@ -339,6 +348,7 @@ fn check_file(c: Settings, path: str) -> int {
     }
     bore.close_input(src)
     if bad_write { return 2 }
+    if unsupported_path { return 1 }
     if n.proper == 0 {
         bore.warn(c.prog, "{manifest_name(path)}: no properly formatted checksum lines found")
         return 1
@@ -399,4 +409,38 @@ fn check_result(c: Settings, name: str, status: str) -> bool {
     let shown = bore.quote_name(name)
     bore.put(mut out, "{shown}: {status}\n") else |_| {}
     bore.finish(mut out, c.prog, 0) == 0
+}
+
+// A malformed byte line is still GNU's malformed line. Only diagnose the
+// missing byte-path surface when replacing its name alone yields a valid
+// record. Comments have already been ignored before UTF-8 decoding.
+fn raw_name_record(c: Settings, bytes: List[byte], style: int) -> bool {
+    var open = -1
+    var close = -1
+    var i = 0
+    while i < bytes.len {
+        let b = bytes[i] as int
+        if b == 40 && open < 0 { open = i }
+        if b == 41 { close = i }
+        i += 1
+    }
+    var clean = List[byte]()
+    if open >= 0 && close > open {
+        i = 0
+        while i <= open { (mut clean).push(bytes[i]); i += 1 }
+        (mut clean).push(102 as byte)
+        i = close
+        while i < bytes.len { (mut clean).push(bytes[i]); i += 1 }
+    } else {
+        i = 0
+        while i < bytes.len && ascii_blank(bytes[i]) { (mut clean).push(bytes[i]); i += 1 }
+        while i < bytes.len && !ascii_blank(bytes[i]) { (mut clean).push(bytes[i]); i += 1 }
+        if i == bytes.len { return false }
+        (mut clean).push(32 as byte)
+        (mut clean).push(32 as byte)
+        (mut clean).push(102 as byte)
+    }
+    let sanitized = str_from_utf8(clean) else { return false }
+    let _ = parse_record(c, sanitized, false, style) else { return false }
+    true
 }
