@@ -193,6 +193,17 @@ def large_answers():
                     raise AssertionError((tool, tier, rc, stdout, stderr, want))
                 print(f"LARGE {tool} {tier} bytes={size} seconds={elapsed:.6f} peak_kib={peak} digest={state.hexdigest()} PASS", flush=True)
 
+        for tool, flags, label in [("cksum", [], "crc"), ("cksum", ["-a", "crc32b"], "crc32b"),
+                                   ("sum", [], "bsd"), ("sum", ["-s"], "sysv")]:
+            reference = run(gnu(tool), [*flags, str(p)])
+            if reference.returncode:
+                raise AssertionError((label, reference.returncode, reference.stderr))
+            for tier in ["release", "dev"]:
+                rc, stdout, stderr, elapsed, peak = measured([ROOT / "target" / tier / tool, *flags, p], timeout=600)
+                if (rc, stdout, stderr) != (0, reference.stdout, b""):
+                    raise AssertionError((label, tier, rc, stdout, stderr, reference.stdout))
+                print(f"LARGE {label} {tier} bytes={size} seconds={elapsed:.6f} peak_kib={peak} PASS", flush=True)
+
 
 def measure():
     rows = []
