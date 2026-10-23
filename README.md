@@ -159,7 +159,7 @@ derives no boreutils code from GPL source.
 
 Every shipped utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus, except where a case says otherwise and is
-skipped with its reason. The corpus holds **7,147 cases**; `kill` has
+skipped with its reason. The corpus holds **7,150 cases**; `kill` has
 365 more that SEND, each run in a container of its own (`tests/kill/`,
 `tools/killtest`: **365 passed, 0 failed** on hasu at bu30, groups,
 `kill 0` and `kill -1` among them), `timeout` 163 more that run a
@@ -170,8 +170,8 @@ macOS's), and the six identity tools 1,126 more that
 run as root and as users or change an owner (`tests/ids/`,
 `tools/idtest`: 28 of them only on CI's macOS runner). The bu30 measurement in an unprivileged Ubuntu 24.04 container on hasu
 (linux x86-64, CPUs 0–5), at wolf 0.2.35 / lupin 0.1.56 with bundled
-std `2386522e`, answers **7,017 passed, 0 failed, 130 skipped** on both
-release and dev. Eight new utilities add 356 cases (346 passed, ten
+std `2386522e`, answers **7,020 passed, 0 failed, 130 skipped** on both
+release and dev. Eight new utilities add 359 cases (349 passed, ten
 named surface skips), and three `readlink` regressions cover recovered
 prefixes and a link target ending in a slash. Random
 `mktemp` names are checked by fixed prefix, suffix, replaced X count,
@@ -1174,7 +1174,7 @@ depth is start-up on both sides.
 | `chown` | done: OWNER[:[GROUP]] by name or number, `USER:`, the old `.`, `--from`, `--reference`, `-c`, `-f`, `-v`, `-h`, `--dereference`, `-R` with `-H`/`-L`/`-P`, `--preserve-root` | not benched |
 | `chgrp` | done: as `chown`, for the group | not benched |
 | `mkfifo` | done: named pipes and `-m`; `-Z`/`--context` refused (no SELinux surface) | not benched |
-| `link` | done: exactly two operands, hard-link semantics | not benched |
+| `link` | exactly two operands; source symlinks refused on macOS (no atomic-follow fs_link surface) | not benched |
 | `unlink` | done: exactly one operand; directories never removed, links themselves removed | not benched |
 | `truncate` | `-s` with suffixes and `+ - < > / %`, `-r`, `-c`; `-o` refused (#684), FIFOs refused (no non-blocking writable open), and `-c` races an unlinked operand (no non-creating writable open) | not benched |
 | `sync` | readable operand files and directories, `-d` with the stronger full sync; bare `sync`, `-f`, and write-only operands refused by name (missing global/filesystem syncs and non-creating writable open) | not benched |
@@ -1294,15 +1294,15 @@ table answers it per utility, from the evidence and from nothing else.
 | `chown` | 13 / 13 | 17 / 0, and 373 / 0 as root and as users | not benched | drop-in where the accounts are in `/etc/passwd` and `/etc/group`; `-v` on a link to nothing it follows says `failed to change ownership of 'F' to …` where GNU prints an uninitialized owner |
 | `chgrp` | 13 / 13 | 17 / 0, and 170 / 0 | not benched | as `chown` |
 | `mkfifo` | 3 / 5 | 32 / 2 | not benched (hasu cases) | drop-in for scripts that avoid SELinux contexts (`-Z`/`--context` refused by name) |
-| `link` | 2 / 2 | 16 / 0 | not benched (hasu cases) | drop-in |
+| `link` | 2 / 2 | 17 / 0 on Linux; two source-symlink cases skipped on Darwin | not benched (hasu cases) | drop-in for scripts that avoid source symlinks on macOS; fs_link never follows them, unlike macOS link(1) |
 | `unlink` | 2 / 2 | 16 / 0 | not benched (hasu cases) | drop-in |
 | `truncate` | 5 / 6 | 92 / 4 | not benched (hasu cases) | drop-in for scripts that avoid `-o`/`--io-blocks` (#684), FIFOs, and `-c` where another process removes or replaces the operand during the stat/open window |
 | `sync` | 3 / 4 | 15 / 4 | not benched (hasu cases) | drop-in for scripts that name readable operands and avoid `-f`/`--file-system`; write-only operands are refused by name |
 | `mktemp` | 8 / 8 | 49 / 0 | not benched (hasu cases) | drop-in |
-| `realpath` | 12 / 12 | 114 / 0 | not benched (hasu cases) | drop-in |
+| `realpath` | 12 / 12 | 116 / 0 | not benched (hasu cases) | drop-in |
 | `tty` | 3 / 3 | 12 / 0 | not benched (hasu cases) | drop-in |
 
-**24 drop-in, 31 drop-in for scripts that avoid a named thing, none shipped not
+**23 drop-in, 32 drop-in for scripts that avoid a named thing, none shipped not
 yet** (bu28: `kill`'s two named things became one, and `timeout`'s four
 became three narrower ones; bu27: `timeout` arrived with named things, and `kill`'s three
 became two narrower ones; bu24: the six identity tools arrived with a named thing each —
@@ -1463,5 +1463,13 @@ Newly measured surface gaps (bu30, `notes/bu30/probes/surface.lu`):
   after stat remains a race until the surface exists. The bounded
   witnesses are `notes/bu30/probes/review-oracle.py` and the FIFO cases.
 - **`unlink` needs no further surface:** the empty-directory witness
-  gets `Is a directory` from `fs_remove`, and the entry remains. The
+  gets the host refusal from `fs_remove` (`Is a directory` on Linux,
+  `Operation not permitted` on macOS), and the entry remains. The
   utility also checks `lstat`; its final removal is still file-only.
+
+- **Following a hard-link source on macOS** needs an atomic follow option
+  for `fs_link`. The pinned call never follows a final symlink on any
+  host; GNU's macOS `link` does. Source symlinks are refused by name on
+  macOS, not linked to the wrong inode or reported as a fabricated ENOENT.
+  The host-scoped witnesses are the two link cases and
+  `notes/bu30/ev/ci-macos-red.log` (run 39987951234).
