@@ -31,7 +31,7 @@ fn resolved(path: str, mode: int, logical: bool, strip: bool) -> bore.Resolved {
     var input = if logical || strip then lexical(path) else path
     if (logical || strip) && path.ends_with("/") && !input.ends_with("/") { input = "{input}/" }
     if strip {
-        if mode == bore.missing() { return bore.Resolved { ok: true, path: input, why: "" } }
+        if mode == bore.missing() { return bore.Resolved { ok: true, path: lexical(input), why: "" } }
         let _ = fs_stat(input) else |e| {
             let why = bore.io_error()
             match e {
@@ -42,12 +42,6 @@ fn resolved(path: str, mode: int, logical: bool, strip: bool) -> bore.Resolved {
             List[int]()
         }
         return bore.Resolved { ok: true, path: lexical(input), why: "" }
-    }
-    if mode == bore.all_but_last() { check = bore.parent_of(input) }
-        let _ = fs_stat(check) else |_| {
-            return bore.Resolved { ok: false, path: "", why: bore.io_error() }
-        }
-        return bore.Resolved { ok: true, path: input, why: "" }
     }
     if mode == bore.all_but_last() {
         let canonical = fs_realpath(input) else |_| ""
