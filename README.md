@@ -1164,23 +1164,24 @@ depth is start-up on both sides.
 
 Hasu, Linux x86-64, CPUs 6–11 inside Ubuntu 24.04, 12 GiB cap; wolf
 0.2.35 release tier against GNU 9.11. These are three-run medians on a
-warm, sparse zero-filled file. Speed is recorded, not gated. The digest
+warm, sparse zero-filled file, rebuilt at `d6f0fbb` (source-identical to the
+final documentation head). Speed is recorded, not gated. The digest
 engine retains one 64 KiB input chunk and at most 128 pending bytes;
 peak RSS is gated separately on 8 MiB and 256 MiB inputs.
 
 | algorithm / command | boreutils | GNU | GNU / boreutils |
 |---|---:|---:|---:|
-| POSIX CRC / `cksum` | 565.2 ms | 26.7 ms | 0.05x |
-| BSD / `sum` | 367.3 ms | 322.7 ms | 0.88x |
-| SysV / `sum -s` | 294.0 ms | 36.6 ms | 0.12x |
-| CRC32B / `cksum -a crc32b` | 511.3 ms | 30.3 ms | 0.06x |
-| `md5sum` | 958.6 ms | 310.4 ms | 0.32x |
-| `sha1sum` | 1005.7 ms | 288.1 ms | 0.29x |
-| `sha224sum` | 1789.5 ms | 610.0 ms | 0.34x |
-| `sha256sum` | 1761.5 ms | 609.7 ms | 0.35x |
-| `sha384sum` | 1090.6 ms | 435.4 ms | 0.40x |
-| `sha512sum` | 1089.5 ms | 434.2 ms | 0.40x |
-| `b2sum` | 986.4 ms | 239.4 ms | 0.24x |
+| POSIX CRC / `cksum` | 563.3 ms | 26.4 ms | 0.05x |
+| BSD / `sum` | 343.3 ms | 323.5 ms | 0.94x |
+| SysV / `sum -s` | 249.9 ms | 35.6 ms | 0.14x |
+| CRC32B / `cksum -a crc32b` | 503.0 ms | 29.8 ms | 0.06x |
+| `md5sum` | 974.7 ms | 311.5 ms | 0.32x |
+| `sha1sum` | 1006.1 ms | 293.7 ms | 0.29x |
+| `sha224sum` | 1779.3 ms | 613.5 ms | 0.34x |
+| `sha256sum` | 1761.3 ms | 611.7 ms | 0.35x |
+| `sha384sum` | 1089.5 ms | 434.6 ms | 0.40x |
+| `sha512sum` | 1086.5 ms | 436.1 ms | 0.40x |
+| `b2sum` | 986.6 ms | 239.0 ms | 0.24x |
 
 These are scalar standards implementations, not hardware-dispatched
 ones. `cksum -a sha3`, `-a sm3` and hardware `--debug` refuse by name.

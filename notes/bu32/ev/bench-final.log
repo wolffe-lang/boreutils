@@ -1,0 +1,97 @@
+BENCH-HEAD d6f0fbbbaac767543e91dd80681b648d1ea5d8d8
+build: target/release/cksum
+build: target/release/sum
+build: target/release/md5sum
+build: target/release/sha1sum
+build: target/release/sha224sum
+build: target/release/sha256sum
+build: target/release/sha384sum
+build: target/release/sha512sum
+build: target/release/b2sum
+a0b88d82e106ea2f3fec5788a9d1bc48ba2d3b7952d9644ff5d285ae5f87e329  target/release/cksum
+11e7e43dcf4e4389a1380259365979e3349288c4533cf4dfa6c9899d92b2a927  target/release/sum
+a0a88db3f11f9f911dc5a7cfd2bf12ae8978cdba7e8d8a8a9523d3be686f1e03  target/release/md5sum
+3b7d7b9ea7e78f9e1e8f2cb9a121ac8843fc5f7e5503cbfb6550afa2450a338b  target/release/sha1sum
+b2df31deaa15471830b70c59cc89d248f6ed3ca1ffbb706b6cd6ade5db71327f  target/release/sha224sum
+cce0af0b51ac3e77734afedb3cefdeec4412b0659ce7b9f92033167bc3ed5656  target/release/sha256sum
+bf4cdf1aa375feba44edc0800d1b251b3db2df2d0ab3b3e6cf6e7fcd15ac68cb  target/release/sha384sum
+def834d017c01514864b1ff4fcd227c20b6ae30a49f9933e9a038182ef17fe02  target/release/sha512sum
+9df1ab85856229d7be62692da66dcd73cbf48039ce72933167cd7ce8c9c2ded0  target/release/b2sum
+SPEED-PROGRESS cksum bore 1 1.800388s
+SPEED-PROGRESS cksum gnu 1 0.388580s
+SPEED-PROGRESS cksum bore 2 0.561910s
+SPEED-PROGRESS cksum gnu 2 0.025969s
+SPEED-PROGRESS cksum bore 3 0.563290s
+SPEED-PROGRESS cksum gnu 3 0.026428s
+SPEED {"algorithm": "cksum", "tier": "release", "mib": 256, "runs": 3, "bore_s": 0.5632899219635874, "gnu_s": 0.02642823103815317, "peak_kib": 21428, "gnu_over_bore": 0.04691763514253245}
+SPEED-PROGRESS sum bore 1 0.344448s
+SPEED-PROGRESS sum gnu 1 0.323519s
+SPEED-PROGRESS sum bore 2 0.342486s
+SPEED-PROGRESS sum gnu 2 0.324912s
+SPEED-PROGRESS sum bore 3 0.343272s
+SPEED-PROGRESS sum gnu 3 0.322679s
+SPEED {"algorithm": "sum", "tier": "release", "mib": 256, "runs": 3, "bore_s": 0.34327162301633507, "gnu_s": 0.32351887004915625, "peak_kib": 21428, "gnu_over_bore": 0.9424573671612848}
+SPEED-PROGRESS md5sum bore 1 0.974722s
+SPEED-PROGRESS md5sum gnu 1 0.311970s
+SPEED-PROGRESS md5sum bore 2 0.974183s
+SPEED-PROGRESS md5sum gnu 2 0.309734s
+SPEED-PROGRESS md5sum bore 3 0.978742s
+SPEED-PROGRESS md5sum gnu 3 0.311488s
+SPEED {"algorithm": "md5sum", "tier": "release", "mib": 256, "runs": 3, "bore_s": 0.974722360027954, "gnu_s": 0.3114880119683221, "peak_kib": 21428, "gnu_over_bore": 0.31956588331408436}
+SPEED-PROGRESS sha1sum bore 1 1.006070s
+SPEED-PROGRESS sha1sum gnu 1 0.293692s
+SPEED-PROGRESS sha1sum bore 2 1.009893s
+SPEED-PROGRESS sha1sum gnu 2 0.293882s
+SPEED-PROGRESS sha1sum bore 3 1.006137s
+SPEED-PROGRESS sha1sum gnu 3 0.288301s
+SPEED {"algorithm": "sha1sum", "tier": "release", "mib": 256, "runs": 3, "bore_s": 1.0061374589568004, "gnu_s": 0.2936919779749587, "peak_kib": 21428, "gnu_over_bore": 0.2919004509378561}
+SPEED-PROGRESS sha224sum bore 1 1.795863s
+SPEED-PROGRESS sha224sum gnu 1 0.612195s
+SPEED-PROGRESS sha224sum bore 2 1.769532s
+SPEED-PROGRESS sha224sum gnu 2 0.615496s
+SPEED-PROGRESS sha224sum bore 3 1.779340s
+SPEED-PROGRESS sha224sum gnu 3 0.613457s
+SPEED {"algorithm": "sha224sum", "tier": "release", "mib": 256, "runs": 3, "bore_s": 1.7793398449430242, "gnu_s": 0.6134565179236233, "peak_kib": 21428, "gnu_over_bore": 0.3447663579653423}
+SPEED-PROGRESS sha256sum bore 1 1.761348s
+SPEED-PROGRESS sha256sum gnu 1 0.614353s
+SPEED-PROGRESS sha256sum bore 2 1.768483s
+SPEED-PROGRESS sha256sum gnu 2 0.611743s
+SPEED-PROGRESS sha256sum bore 3 1.756354s
+SPEED-PROGRESS sha256sum gnu 3 0.611177s
+SPEED {"algorithm": "sha256sum", "tier": "release", "mib": 256, "runs": 3, "bore_s": 1.7613478989806026, "gnu_s": 0.6117434169864282, "peak_kib": 21428, "gnu_over_bore": 0.34731549476425455}
+SPEED-PROGRESS sha384sum bore 1 1.084011s
+SPEED-PROGRESS sha384sum gnu 1 0.434570s
+SPEED-PROGRESS sha384sum bore 2 1.089944s
+SPEED-PROGRESS sha384sum gnu 2 0.434627s
+SPEED-PROGRESS sha384sum bore 3 1.089535s
+SPEED-PROGRESS sha384sum gnu 3 0.433592s
+SPEED {"algorithm": "sha384sum", "tier": "release", "mib": 256, "runs": 3, "bore_s": 1.0895346670877188, "gnu_s": 0.43457035499159247, "peak_kib": 21428, "gnu_over_bore": 0.3988586762027326}
+SPEED-PROGRESS sha512sum bore 1 1.086488s
+SPEED-PROGRESS sha512sum gnu 1 0.433680s
+SPEED-PROGRESS sha512sum bore 2 1.086476s
+SPEED-PROGRESS sha512sum gnu 2 0.436140s
+SPEED-PROGRESS sha512sum bore 3 1.089376s
+SPEED-PROGRESS sha512sum gnu 3 0.438310s
+SPEED {"algorithm": "sha512sum", "tier": "release", "mib": 256, "runs": 3, "bore_s": 1.086487833992578, "gnu_s": 0.4361402509966865, "peak_kib": 21428, "gnu_over_bore": 0.40142212121600784}
+SPEED-PROGRESS b2sum bore 1 0.988336s
+SPEED-PROGRESS b2sum gnu 1 0.239109s
+SPEED-PROGRESS b2sum bore 2 0.986598s
+SPEED-PROGRESS b2sum gnu 2 0.238954s
+SPEED-PROGRESS b2sum bore 3 0.986121s
+SPEED-PROGRESS b2sum gnu 3 0.238865s
+SPEED {"algorithm": "b2sum", "tier": "release", "mib": 256, "runs": 3, "bore_s": 0.9865977900335565, "gnu_s": 0.23895386792719364, "peak_kib": 21428, "gnu_over_bore": 0.24219988159416642}
+SPEED-PROGRESS sum-sysv bore 1 0.252881s
+SPEED-PROGRESS sum-sysv gnu 1 0.035628s
+SPEED-PROGRESS sum-sysv bore 2 0.249893s
+SPEED-PROGRESS sum-sysv gnu 2 0.035525s
+SPEED-PROGRESS sum-sysv bore 3 0.248164s
+SPEED-PROGRESS sum-sysv gnu 3 0.035705s
+SPEED {"algorithm": "sum-sysv", "tier": "release", "mib": 256, "runs": 3, "bore_s": 0.24989274702966213, "gnu_s": 0.035627595032565296, "peak_kib": 21428, "gnu_over_bore": 0.14257154501701613}
+SPEED-PROGRESS crc32b bore 1 0.502970s
+SPEED-PROGRESS crc32b gnu 1 0.029424s
+SPEED-PROGRESS crc32b bore 2 0.503464s
+SPEED-PROGRESS crc32b gnu 2 0.029760s
+SPEED-PROGRESS crc32b bore 3 0.502367s
+SPEED-PROGRESS crc32b gnu 3 0.030026s
+SPEED {"algorithm": "crc32b", "tier": "release", "mib": 256, "runs": 3, "bore_s": 0.5029700909508392, "gnu_s": 0.029760158038698137, "peak_kib": 21428, "gnu_over_bore": 0.059168842390683866}
+BENCH-EXIT=0
