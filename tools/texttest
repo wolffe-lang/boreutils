@@ -59,6 +59,16 @@ class StreamAndRefusals(unittest.TestCase):
         self.assertIn(b'--random-source is not supported',p.stderr)
         self.assertEqual(p.stdout,b'')
 
+    def test_full_unsigned_ranges(self):
+        tier=os.environ.get('BORE_TEXT_TIER','release')
+        for low,high in [(0,18446744073709551614),(9223372036854775808,18446744073709551615)]:
+            p=subprocess.run([str(ROOT/'target'/tier/'shuf'),'-i',f'{low}-{high}','-n','100'],capture_output=True,timeout=5)
+            self.assertEqual((p.returncode,p.stderr),(0,b''))
+            numbers=[int(x) for x in p.stdout.splitlines()]
+            self.assertEqual(len(numbers),100)
+            self.assertEqual(len(set(numbers)),100)
+            self.assertTrue(all(low<=x<=high for x in numbers))
+
     def test_named_complex_cycle(self):
         tier=os.environ.get('BORE_TEXT_TIER','release')
         for graph in [b'a b b a a c c a',b'b a b c c b']:
