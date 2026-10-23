@@ -53,8 +53,10 @@
 # One release on each half, with the bundled std 2386522e. Each digest
 # was read from the release API twice and compared with r40-evidence's
 # published readback table. The downstream control at 12de639 predicts
-# 6,668 / 0 / 120 on both tiers, unchanged. The thirteen new prelude
-# names declare no bore name; --deny-warnings remains the build gate.
+# 6,668 / 0 / 120 on both tiers, unchanged. The pin-only run on hasu
+# measured exactly that (notes/bu30/ev/difftest-pin-*.log). The thirteen
+# new prelude names declare no bore name; both deny-warnings builds
+# had no warning, W0304 included.
 # os_core_off is the call timeout needs before it re-raises a signal;
 # fs_mkfifo and fs_fstat_record unlock the small file tools below.
 # os_name and os_arch are lowercase words, not uname's raw fields.
