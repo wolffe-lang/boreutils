@@ -185,7 +185,8 @@ fn check_file(mut out: bore.Out, c: Settings, path: str) -> int {
             let rec = parse_record(c, line, path == "-") else { malformed_line(c, path, mut n); continue }
             n.proper += 1
             let a = compute(c, rec.name, rec.kind, rec.bits) else |e| {
-                if e == failed {
+                let unread = match e { failed => true, missing => false }
+                if unread {
                     n.unread += 1
                     check_result(mut out, c, rec.name, "FAILED open or read")
                 }

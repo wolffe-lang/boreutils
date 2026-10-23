@@ -89,7 +89,7 @@ pub fn command(prog: str, default_kind: int, default_bits: int) -> int {
     }
     if have_length {
         let n = length_number(length) else |e| {
-            let why = if e == overflow then ": Value too large for defined data type" else ""
+            let why = match e { overflow => ": Value too large for defined data type", invalid => "" }
             bore.warn(prog, "invalid length: {bore.quote(length)}{why}")
             return 1
         }
@@ -224,7 +224,8 @@ struct Answer { bytes: List[byte], size: wrapping[u64], number: int }
 
 fn compute(c: Settings, name: str, kind: int, bits: int) -> Answer ! {missing, failed} {
     let src = bore.open_input(name) else |e| {
-        if e == not_found && c.ignore { return missing }
+        let absent = match e { not_found => true, denied => false, is_dir => false, io => false }
+        if absent && c.ignore { return missing }
         let why = match e {
             not_found => bore.no_such_file(), denied => bore.permission_denied(),
             is_dir => bore.directory_reason(), io => bore.io_error(),
