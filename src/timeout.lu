@@ -479,7 +479,6 @@ fn ended(r: Run, core_st: int, timed_out: bool) -> int {
     // leaves this process alive, and the call exits 128 + N, as GNU's
     // timeout does (measured, bu28).
     // Do not dump a second core for the wrapper (boreutils#44).
-    os_core_off() else |_| {}
     let e = bore.signal_entry(r.table, "{n}") else -1
     let m = bore.signal_meaning(r.table, e)
     if e >= 0 && m != 0 {
