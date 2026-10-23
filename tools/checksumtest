@@ -139,6 +139,22 @@ class Checksums(unittest.TestCase):
                                          (expected.returncode, expected.stdout, expected.stderr.replace(b"cksum", b"PROG")),
                                          (args, check))
 
+    def test_closed_standard_input_and_list_directories(self):
+        with tempfile.TemporaryDirectory(prefix="bore-checksum-io.") as td:
+            (Path(td) / "d").mkdir()
+            for tool in ["cksum", "sum", *ALGORITHMS]:
+                options = [([], True)]
+                if tool != "sum":
+                    options += [(["-c"], True), (["-c", "d"], False)]
+                for flags, close_stdin in options:
+                    preexec = (lambda: os.close(0)) if close_stdin else None
+                    results = [subprocess.run([str(exe), *flags], cwd=td, capture_output=True,
+                                              env=ENV, preexec_fn=preexec, timeout=120)
+                               for exe in [BIN / tool, gnu(tool)]]
+                    a, b = results
+                    self.assertEqual((a.returncode, a.stdout, a.stderr),
+                                     (b.returncode, b.stdout, b.stderr), (tool, flags, close_stdin))
+
     def test_named_refusals(self):
         for flags, phrase in [(["-a", "sha3", "-l", "256"], b"--algorithm=sha3"),
                               (["-a", "sm3"], b"--algorithm=sm3"),

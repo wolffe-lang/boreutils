@@ -1607,3 +1607,8 @@ name = "raw byte filename requires a byte path open"
 args = ["-c"]
 stdin_file = "checksum-rawname.bin"
 skip = "R-bu32-2: named raw-path refusal; wolf fs_open takes UTF-8 str paths; checksumtest checks the refusal"
+
+[[case]]
+name = "directory as checksum list reports read error"
+args = ["-c", "listdir"]
+scratch_dirs = ["listdir"]

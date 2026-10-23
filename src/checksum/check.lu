@@ -269,12 +269,13 @@ struct CheckCounts {
     reverse_style: int,
 }
 
-fn check_file(c: Settings, path: str) -> int {
+fn check_file(mut seen: InputUse, c: Settings, path: str) -> int {
+    if path == "-" { seen.stdin = true }
     let src = bore.open_input(path) else |e| {
         let why = match e {
             not_found => bore.no_such_file(),
             denied => bore.permission_denied(),
-            is_dir => bore.directory_reason(),
+            is_dir => "read error",
             io => bore.io_error(),
         }
         bore.input_error(c.prog, path, why)
@@ -300,7 +301,7 @@ fn check_file(c: Settings, path: str) -> int {
             let bytes = manifest_line(mut r) else |e| match e {
                 eof => { break },
                 io => {
-                    bore.input_error(c.prog, path, bore.io_error())
+                    bore.warn(c.prog, "{manifest_name(path)}: read error")
                     bad_read = true
                     break
                 },
@@ -325,7 +326,7 @@ fn check_file(c: Settings, path: str) -> int {
             if rec.style != 0 { n.reverse_style = rec.style }
             n.last_kind = rec.kind
             n.last_bits = rec.bits
-            let a = compute(c, rec.name, rec.kind, rec.bits) else |e| {
+            let a = compute(mut seen, c, rec.name, rec.kind, rec.bits) else |e| {
                 let unread = match e {
                     failed => true,
                     missing => false,
@@ -349,6 +350,7 @@ fn check_file(c: Settings, path: str) -> int {
     bore.close_input(src)
     if bad_write { return 2 }
     if unsupported_path { return 1 }
+    if bad_read && n.proper == 0 { return 1 }
     if n.proper == 0 {
         bore.warn(c.prog, "{manifest_name(path)}: no properly formatted checksum lines found")
         return 1

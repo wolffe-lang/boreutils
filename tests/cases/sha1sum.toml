@@ -1583,3 +1583,8 @@ name = "reverse format marked then old"
 args = ["-cw"]
 stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f\na9993e364706816aba3e25717850c26c9cd0d89d f\n"
 scratch = {"f" = "abc"}
+
+[[case]]
+name = "directory as checksum list reports read error"
+args = ["-c", "listdir"]
+scratch_dirs = ["listdir"]

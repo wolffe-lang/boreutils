@@ -2134,3 +2134,8 @@ name = "infer BLAKE2b 512 tag=True base64=True"
 args = ["-c", "-a", "blake2b"]
 stdin = "BLAKE2b (f) = uoClP5gcTQ1qJ5e2nxL26UwhLxRoWsS3SxK7b9v/otF9h8U5Kqt5LcJS1d5FM8yVGNOKqNvxklq5I4bt1ACZIw==\n"
 scratch = {"f" = "abc"}
+
+[[case]]
+name = "directory as checksum list reports read error"
+args = ["-c", "listdir"]
+scratch_dirs = ["listdir"]

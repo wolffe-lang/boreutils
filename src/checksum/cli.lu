@@ -6,6 +6,8 @@
 
 use bore
 
+struct InputUse { stdin: bool }
+
 struct Settings {
     prog: str,
     kind: int,
@@ -220,15 +222,22 @@ pub fn command(prog: str, default_kind: int, default_bits: int) -> int {
         return 1
     }
     var status = 0
+    var seen = InputUse { stdin: false }
     if p.operands.len == 0 {
-        status = checksum_operand(c, "-", false)
+        status = checksum_operand(mut seen, c, "-", false)
     } else {
         for name in p.operands {
             region operand {
-                let code = checksum_operand(c, name, true)
-                if code == 2 { return 1 }
+                let code = checksum_operand(mut seen, c, name, true)
+                if code == 2 { status = 1; break }
                 if code != 0 { status = code }
             }
+        }
+    }
+    if seen.stdin {
+        fs_close(0) else |_| {
+            bore.warn(prog, "standard input: {bore.io_error()}")
+            status = 1
         }
     }
     bore.finish(mut out, prog, if status == 2 then 1 else status)
@@ -337,7 +346,8 @@ fn length_number(s: str) -> int ! {invalid, overflow} {
 
 struct Answer { bytes: List[byte], size: wrapping[u64], number: int }
 
-fn compute(c: Settings, name: str, kind: int, bits: int) -> Answer ! {missing, failed} {
+fn compute(mut seen: InputUse, c: Settings, name: str, kind: int, bits: int) -> Answer ! {missing, failed} {
+    if name == "-" { seen.stdin = true }
     let src = bore.open_input(name) else |e| {
         let absent = match copy e {
             not_found => true,
@@ -377,10 +387,10 @@ fn compute(c: Settings, name: str, kind: int, bits: int) -> Answer ! {missing, f
     Answer { bytes: bytes, size: d.lo, number: d.crc }
 }
 
-fn checksum_operand(c: Settings, name: str, explicit: bool) -> int {
-    if c.check { return check_file(c, name) }
+fn checksum_operand(mut seen: InputUse, c: Settings, name: str, explicit: bool) -> int {
+    if c.check { return check_file(mut seen, c, name) }
     var out = bore.stdout()
-    let a = compute(c, name, c.kind, c.bits) else |_| { return 1 }
+    let a = compute(mut seen, c, name, c.kind, c.bits) else |_| { return 1 }
     if c.raw {
         var i = if c.kind == 2 || c.kind == 3 then 2 else 0
         while i < a.bytes.len { bore.put_byte(mut out, a.bytes[i]) else |_| {}; i += 1 }
