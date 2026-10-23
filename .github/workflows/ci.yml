@@ -221,6 +221,9 @@ jobs:
       - name: the differential suite against the oracle of record
         run: tools/difftest
 
+      - name: Checksum vectors, interoperability and bounded memory (bu32)
+        run: tools/checksumtest
+
       - name: the harness sees a difference (the planted red)
         run: tools/difftest-selftest
 

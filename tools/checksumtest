@@ -1,0 +1,171 @@
+#!/usr/bin/env python3
+"""Standards vectors, cross-tool manifests, hostile input and bounded memory.
+
+No GNU or other implementation source is used. hashlib is an independent
+executable oracle for message answers; CLI answers come from GNU 9.11.
+Run --measure for 256 MiB, three-run median speed and peak-RSS rows.
+"""
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path
+import random
+import statistics
+import subprocess
+import tempfile
+import time
+import unittest
+
+ROOT = Path(__file__).resolve().parent.parent
+TIER = os.environ.get("BORE_CHECKSUM_TIER", "release")
+BIN = ROOT / "target" / TIER
+GNU = ROOT / ".gnu-bin" / "bin"
+ALGORITHMS = {"md5sum": "md5", "sha1sum": "sha1", "sha224sum": "sha224",
+              "sha256sum": "sha256", "sha384sum": "sha384", "sha512sum": "sha512", "b2sum": "blake2b"}
+ENV = dict(os.environ, LC_ALL="C", _POSIX2_VERSION="200112")
+
+
+def run(path, args=(), data=b"", cwd=None):
+    return subprocess.run([str(path), *args], input=data, cwd=cwd, env=ENV,
+                          capture_output=True, timeout=120)
+
+
+def gnu(tool):
+    p = GNU / tool
+    if p.exists():
+        return p
+    import shutil
+    return Path(shutil.which(("g" if os.uname().sysname == "Darwin" else "") + tool) or "/missing-gnu")
+
+
+class Checksums(unittest.TestCase):
+    def test_reference_identity(self):
+        for tool in ["cksum", "sum", *ALGORITHMS]:
+            self.assertIn(b"9.11", run(gnu(tool), ["--version"]).stdout.splitlines()[0])
+
+    def test_boundary_answers(self):
+        rng = random.Random(0xB032)
+        sizes = [0, 1, 3, 55, 56, 57, 63, 64, 65, 111, 112, 113, 127, 128, 129,
+                 255, 256, 511, 512, 1023, 1024, 65535, 65536, 65537, 131073]
+        for tool, algorithm in ALGORITHMS.items():
+            for size in sizes:
+                with self.subTest(tool=tool, size=size):
+                    data = rng.randbytes(size)
+                    answer = hashlib.new(algorithm, data).hexdigest().encode() + b"  -\n"
+                    p = run(BIN / tool, data=data)
+                    self.assertEqual((p.returncode, p.stdout, p.stderr), (0, answer, b""))
+        for bits in [8, 16, 24, 128, 224, 256, 384, 504, 512]:
+            data = rng.randbytes(129)
+            answer = hashlib.blake2b(data, digest_size=bits // 8).hexdigest().encode() + b"  -\n"
+            p = run(BIN / "b2sum", ["-l", str(bits)], data)
+            self.assertEqual((p.returncode, p.stdout, p.stderr), (0, answer, b""))
+
+    def test_cross_tool_manifests(self):
+        with tempfile.TemporaryDirectory(prefix="bore-checksum.") as td:
+            names = ["plain", "back\\slash", "new\nline", "car\rriage", "sp ace", "right) = paren", "é"]
+            for n in names:
+                (Path(td) / n).write_bytes(b"abc\x00\xff" * 101)
+            for tool in ALGORITHMS:
+                for flags in [[], ["--tag"], *([["-l", "8"], ["-l", "256", "--tag"]] if tool == "b2sum" else [])]:
+                    with self.subTest(tool=tool, flags=flags):
+                        produced = [run(path, [*flags, *names], cwd=td) for path in [BIN / tool, gnu(tool)]]
+                        self.assertEqual(produced[0].returncode, 0, produced[0].stderr)
+                        self.assertEqual(produced[0].stdout, produced[1].stdout)
+                        for manifest in produced:
+                            for checker in [BIN / tool, gnu(tool)]:
+                                p = run(checker, ["-c"], manifest.stdout, td)
+                                self.assertEqual(p.returncode, 0, (checker, p.stdout, p.stderr))
+                        if "--tag" in flags:
+                            for checker in [BIN / "cksum", gnu("cksum")]:
+                                p = run(checker, ["-c"], produced[0].stdout, td)
+                                self.assertEqual(p.returncode, 0, (checker, p.stdout, p.stderr))
+
+    def test_malformed_bytes_and_manifest_state(self):
+        with tempfile.TemporaryDirectory(prefix="bore-checksum.") as td:
+            (Path(td) / "f").write_bytes(b"abc")
+            good = b"900150983cd24fb0d6963f7d28e17f72  f\n"
+            data = [b"\xff\n", b"\x00\n", b"bad\x00line\n", b" " * 17 + b"\n",
+                    good + b"\xff\n", good + b"\x00\n", b"#\xff\n" + good,
+                    good * 2000, good.replace(b"  f", b" f") + good,
+                    good + good.replace(b"  f", b" f")]
+            for content in data:
+                for flags in [["-c"], ["-cw"], ["-c", "--strict"], ["-c", "--status"]]:
+                    a = run(BIN / "md5sum", flags, content, td)
+                    b = run(gnu("md5sum"), flags, content, td)
+                    self.assertEqual((a.returncode, a.stdout, a.stderr.replace(b"md5sum", b"PROG")),
+                                     (b.returncode, b.stdout, b.stderr.replace(b"md5sum", b"PROG")),
+                                     (content[:80], flags))
+
+    def test_named_refusals(self):
+        for flags, phrase in [(["-a", "sha3", "-l", "256"], b"--algorithm=sha3"),
+                              (["-a", "sm3"], b"--algorithm=sm3"),
+                              (["--debug"], b"--debug")]:
+            p = run(BIN / "cksum", flags, b"abc")
+            self.assertEqual(p.returncode, 1)
+            self.assertEqual(p.stdout, b"")
+            self.assertIn(phrase, p.stderr)
+            self.assertIn(b"not supported", p.stderr)
+
+    @unittest.skipUnless(os.uname().sysname == "Linux", "peak RSS gate uses Linux time -v")
+    def test_memory_is_bounded(self):
+        with tempfile.TemporaryDirectory(prefix="bore-checksum-rss.") as td:
+            p = Path(td)
+            large = p / "large"
+            with large.open("wb") as f:
+                f.truncate(256 * 1024 * 1024)
+            rss = []
+            for size in [8, 256]:
+                with large.open("r+b") as f:
+                    f.truncate(size * 1024 * 1024)
+                report = p / "time.txt"
+                done = subprocess.run(["/usr/bin/time", "-v", "-o", str(report), str(BIN / "sha256sum"), str(large)],
+                                      capture_output=True, env=ENV, timeout=300)
+                self.assertEqual(done.returncode, 0, done.stderr)
+                peak = int(next(x.split(":", 1)[1] for x in report.read_text().splitlines() if "Maximum resident set size" in x))
+                rss.append(peak)
+                print(f"MEMORY {TIER} sha256sum {size}MiB peak_kib={peak}", flush=True)
+            self.assertLess(rss[1], 65536)
+            self.assertLess(rss[1] - rss[0], 16384)
+
+
+def measure():
+    rows = []
+    with tempfile.TemporaryDirectory(prefix="bore-checksum-bench.") as td:
+        p = Path(td)
+        data = p / "256MiB"
+        with data.open("wb") as f:
+            f.truncate(256 * 1024 * 1024)
+        commands = [(name, [], name) for name in ["cksum", "sum", *ALGORITHMS]]
+        commands += [("sum", ["-s"], "sum-sysv"), ("cksum", ["-a", "crc32b"], "crc32b")]
+        for tool, flags, label in commands:
+            times = {"bore": [], "gnu": []}
+            peak = 0
+            for trial in range(3):
+                for side, exe in [("bore", BIN / tool), ("gnu", gnu(tool))]:
+                    start = time.perf_counter()
+                    report = p / "rss"
+                    done = subprocess.run(["/usr/bin/time", "-v", "-o", str(report), str(exe), *flags, str(data)],
+                                          capture_output=True, env=ENV, timeout=600)
+                    elapsed = time.perf_counter() - start
+                    if done.returncode:
+                        raise RuntimeError((label, side, done.returncode, done.stderr))
+                    times[side].append(elapsed)
+                    if side == "bore":
+                        peak = max(peak, int(next(x.split(":", 1)[1] for x in report.read_text().splitlines() if "Maximum resident set size" in x)))
+                    print(f"SPEED-PROGRESS {label} {side} {trial + 1} {elapsed:.6f}s", flush=True)
+            row = dict(algorithm=label, tier=TIER, mib=256, runs=3,
+                       bore_s=statistics.median(times["bore"]), gnu_s=statistics.median(times["gnu"]), peak_kib=peak)
+            row["gnu_over_bore"] = row["gnu_s"] / row["bore_s"]
+            rows.append(row)
+            print("SPEED " + json.dumps(row), flush=True)
+    return rows
+
+
+if __name__ == "__main__":
+    if "--measure" in __import__("sys").argv:
+        measure()
+    else:
+        if os.uname().sysname != "Linux":
+            print("SKIP checksumtest: Linux time -v peak-RSS gate (not Linux)", flush=True)
+        unittest.main(verbosity=2)
