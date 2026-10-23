@@ -45,3 +45,11 @@ args = ["2"]
 gnu_util = "seq"
 gnu_keep = "^2$"
 compare = ["stdout"]
+
+# Both sides print the SAME invalid name. Shape validation must still
+# fail: equality is not evidence that either side obeyed the contract.
+[[case]]
+name = "two identical invalid random shapes still fail"
+args = ["fixed.a_0"]
+scratch = {}
+temp_shape = { prefix = "fixed.", xs = 3, suffix = "", directory = "", kind = "none", mode = 384 }
