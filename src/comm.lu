@@ -100,35 +100,22 @@ fn main() -> int {
         if c != 1 { i += 1 }
         if c != 0 { j += 1 }
         if c != 2 { unpaired = true }
-        // Checks happen when a record is read, before it can be output.
-        if order == 1 {
-            if i > 0 &&
-                i < a.items.len &&
-                !bad1 &&
-                textio.cmp(a.items[i - 1].data, a.items[i].data, false) > 0 {
-                bore.warn("comm", "file 1 is not in sorted order")
-                bad1 = true
+        // At EOF GNU rechecks the last retained record; otherwise check
+        // only the file advanced by this merge step. A previously paired
+        // disorder can therefore be silent until that file ends.
+        if order >= 0 && (order == 1 || unpaired) {
+            var ai = i, bj = j
+            if ai == a.items.len { ai -= 1 }
+            if bj == b.items.len { bj -= 1 }
+            if c != 1 && ai > 0 && !bad1 && textio.cmp(a.items[ai-1].data, a.items[ai].data, false) > 0 {
+                bore.warn("comm", "file 1 is not in sorted order"); bad1 = true
                 if order == 1 { return bore.finish(mut out, "comm", 1) }
             }
-            if j > 0 &&
-                j < b.items.len &&
-                !bad2 &&
-                textio.cmp(b.items[j - 1].data, b.items[j].data, false) > 0 {
-                bore.warn("comm", "file 2 is not in sorted order")
-                bad2 = true
+            if c != 0 && bj > 0 && !bad2 && textio.cmp(b.items[bj-1].data, b.items[bj].data, false) > 0 {
+                bore.warn("comm", "file 2 is not in sorted order"); bad2 = true
                 if order == 1 { return bore.finish(mut out, "comm", 1) }
             }
         }
-    }
-    if order == 0 && unpaired {
-        for k in 1..a.items.len {
-            if textio.cmp(a.items[k-1].data, a.items[k].data, false) > 0 { bad1 = true; break }
-        }
-        for k in 1..b.items.len {
-            if textio.cmp(b.items[k-1].data, b.items[k].data, false) > 0 { bad2 = true; break }
-        }
-        if bad1 { bore.warn("comm", "file 1 is not in sorted order") }
-        if bad2 { bore.warn("comm", "file 2 is not in sorted order") }
     }
     if total {
         let s = if sep.len == 0 then "\0" else sep
