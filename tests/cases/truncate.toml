@@ -394,6 +394,8 @@ args = ["-r", "", "f"]
 scratch = { f = "abcdef" }
 
 [[case]]
+# GNU 9.11, no reader: exit 1, "cannot open ... for writing: No such device or address".
+# Bore refuses the absent non-blocking writable surface instead; smalltest runs it with a 2 s guard.
 skip = "Listed open-surface gap: no non-blocking writable open; named FIFO refusal tested by smalltest"
 name = "review 3 fifo without reader"
 args = ["-s", "0", "fifo"]
@@ -401,6 +403,8 @@ scratch_fifos = ["fifo"]
 timeout = 2
 
 [[case]]
+# GNU 9.11, no reader: exit 1, "cannot open ... for writing: No such device or address".
+# Bore refuses the absent non-blocking writable surface instead; smalltest runs it with a 2 s guard.
 skip = "Listed open-surface gap: no non-blocking writable open; named FIFO refusal tested by smalltest"
 name = "review 3 fifo no-create"
 args = ["-c", "-s", "0", "fifo"]
@@ -408,6 +412,8 @@ scratch_fifos = ["fifo"]
 timeout = 2
 
 [[case]]
+# GNU 9.11, no reader: exit 1, "cannot open ... for writing: No such device or address".
+# Bore refuses the absent non-blocking writable surface instead; smalltest runs it with a 2 s guard.
 skip = "Listed open-surface gap: no non-blocking writable open; named FIFO refusal tested by smalltest"
 name = "review 3 fifo through symlink"
 args = ["-s", "0", "l"]

@@ -87,6 +87,8 @@ scratch = { "f" = "x" }
 skip = "No syncfs(2) surface; named refusal tested by smalltest"
 
 [[case]]
+# GNU 9.11 at uid 1000, owner mode 0200: exit 0, stdout/stderr empty, tree unchanged.
+# Bore refuses the missing non-creating writable open by name (smalltest, bounded).
 skip = "R-bu30-3: no non-creating writable open; named write-only refusal tested by smalltest"
 name = "review uncertain write-only owner file"
 args = ["f"]
@@ -94,6 +96,8 @@ scratch = { f = "abcdef" }
 scratch_modes = { f = 128 }
 
 [[case]]
+# GNU 9.11 at uid 1000, owner mode 0200: exit 0, stdout/stderr empty, tree unchanged.
+# Bore refuses the missing non-creating writable open by name (smalltest, bounded).
 skip = "R-bu30-3: no non-creating writable open; named write-only refusal tested by smalltest"
 name = "review uncertain write-only owner data file"
 args = ["-d", "f"]
