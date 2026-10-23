@@ -745,3 +745,8 @@ stdin = "b\na\nb\na\n"
 name = "delta shared stream 'b\\na\\nb\\na\\n'['--nocheck-order']"
 args = ["--nocheck-order", "-", "-"]
 stdin = "b\na\nb\na\n"
+
+[[case]]
+name = "shared EOF checks the last newly unpaired record first"
+args = ["-", "-"]
+stdin = "z\nz\nc\n"
