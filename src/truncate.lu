@@ -10,6 +10,8 @@ use bore
 fn size_word(text: str) -> int ! {invalid, large} {
     var i = 0
     var n = 0
+    while i < text.len && (text.bytes()[i] == 32 as byte || text.bytes()[i] as int >= 9 && text.bytes()[i] as int <= 13) { i += 1 }
+    let start = i
     while i < text.len {
         let b = text.bytes()[i] as int
         if b < 48 || b > 57 { break }
@@ -18,7 +20,7 @@ fn size_word(text: str) -> int ! {invalid, large} {
         n = n * 10 + d
         i += 1
     }
-    if i == 0 { return invalid }
+    if i == start { return invalid }
     let tail = text[i..text.len]
     if tail.len == 0 { return n }
     var power = 0
@@ -188,7 +190,7 @@ fn main() -> int {
             old = bore.rec_size(r)
         }
         let length = adjusted(old, n, how) else |_| {
-            bore.warn("truncate", "overflow in {bore.quote_always(name)}")
+            bore.warn("truncate", "overflow extending size of file {bore.quote_always(name)}")
             fs_close(fd) else |_| {}
             status = 1
             continue
