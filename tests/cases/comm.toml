@@ -650,3 +650,7 @@ args = ["a", "b"]
 scratch = { "a" = "a\n", "b" = "b\n" }
 stdout_closed = true
 
+[[case]]
+name = "short option is not a long option"
+args = ["--1", "a", "b"]
+scratch = { a="", b="" }

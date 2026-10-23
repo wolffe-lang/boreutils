@@ -6,6 +6,7 @@
 
 use bore
 use textio
+use numcli
 
 struct Line { raw: List[byte], fields: List[textio.Rec] }
 
@@ -51,7 +52,7 @@ fn main() -> int {
         auto2: 0,
     }
     var spec = List[bore.Opt]()
-    for s in ["a", "v", "e", "o", "t", "1", "2", "j"] { (mut spec).push(bore.takes(s, s)) }
+    for s in ["a", "v", "e", "o", "t", "1", "2", "j"] { (mut spec).push(bore.takes(s, "")) }
     (mut spec).push(bore.flag("i", "ignore-case"))
     (mut spec).push(bore.flag("z", "zero-terminated"))
     for s in ["check-order", "nocheck-order", "header", "help", "version"] {
@@ -224,7 +225,8 @@ fn main() -> int {
 }
 
 fn field_number(v: str) -> int {
-    let n = v.to_int() else 0
+    let parsed = numcli.count(v, false) else numcli.Count { value: 0, large: false }
+    let n = parsed.value
     if n <= 0 { bore.warn("join", "invalid field number: {bore.quote(v)}"); return -1 }
     n - 1
 }

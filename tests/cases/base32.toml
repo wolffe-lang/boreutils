@@ -994,3 +994,98 @@ args = ["-w", "7"]
 stdin = "ab"
 stdin_repeat = 100000
 
+[[case]]
+name = "numeric boundary ' 2'"
+args = ["-w", " 2"]
+stdin = "a"
+
+[[case]]
+name = "numeric boundary '2 '"
+args = ["-w", "2 "]
+stdin = "a"
+
+[[case]]
+name = "numeric boundary '-0'"
+args = ["-w", "-0"]
+stdin = "a"
+
+[[case]]
+name = "numeric boundary '+0'"
+args = ["-w", "+0"]
+stdin = "a"
+
+[[case]]
+name = "numeric boundary '18446744073709551615'"
+args = ["-w", "18446744073709551615"]
+stdin = "a"
+
+[[case]]
+name = "numeric boundary '18446744073709551616'"
+args = ["-w", "18446744073709551616"]
+stdin = "a"
+
+[[case]]
+name = "numeric boundary '9223372036854775808'"
+args = ["-w", "9223372036854775808"]
+stdin = "a"
+
+[[case]]
+name = "numeric boundary '0002'"
+args = ["-w", "0002"]
+stdin = "a"
+
+[[case]]
+name = "numeric boundary '2x'"
+args = ["-w", "2x"]
+stdin = "a"
+
+[[case]]
+name = "numeric boundary '+'"
+args = ["-w", "+"]
+stdin = "a"
+
+[[case]]
+name = "numeric boundary '\\t2'"
+args = ["-w", "\t2"]
+stdin = "a"
+
+[[case]]
+name = "quantum regression 'AA!='"
+args = ["-d"]
+stdin = "AA!="
+
+[[case]]
+name = "quantum regression 'AAA====='"
+args = ["-d"]
+stdin = "AAA====="
+
+[[case]]
+name = "quantum regression 'AA!====='"
+args = ["-d"]
+stdin = "AA!====="
+
+[[case]]
+name = "quantum regression 'AA==AA'"
+args = ["-d"]
+stdin = "AA==AA"
+
+[[case]]
+name = "quantum regression 'AA!A'"
+args = ["-d"]
+stdin = "AA!A"
+
+[[case]]
+name = "quantum regression 'A=AA'"
+args = ["-d"]
+stdin = "A=AA"
+
+[[case]]
+name = "quantum regression 'AB======'"
+args = ["-d"]
+stdin = "AB======"
+
+[[case]]
+name = "quantum regression 'AAB====='"
+args = ["-d"]
+stdin = "AAB====="
+

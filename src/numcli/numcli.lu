@@ -1,0 +1,28 @@
+//! Decimal CLI quantities measured against GNU 9.11 binaries.
+/// A nonnegative quantity capped at the process's signed index limit.
+/// `large` preserves the overflow distinction for GNU's wrap counter.
+pub struct Count { value: int, large: bool }
+/// Parse leading C whitespace, optional plus, and decimal digits only.
+/// Negative zero is allowed only where the caller measured that grammar.
+/// `parse` means an absent digit, a negative value, or trailing junk.
+pub fn count(word: str, negative_zero: bool) -> Count ! {parse} {
+    var k = 0
+    while k < word.len && (word.bytes()[k] as int == 32 || (word.bytes()[k] as int >= 9 && word.bytes()[k] as int <= 13)) { k += 1 }
+    var neg = false
+    if k < word.len && (word.bytes()[k] as int == 43 || word.bytes()[k] as int == 45) {
+        neg = word.bytes()[k] as int == 45; k += 1
+    }
+    if k >= word.len || (neg && !negative_zero) { return parse }
+    var n: int = 0
+    var large = false
+    while k < word.len {
+        let d = word.bytes()[k] as int - 48
+        if d < 0 || d > 9 || (neg && d != 0) { return parse }
+        if !large {
+            if n > (9223372036854775807 - d) / 10 { large = true; n = 9223372036854775807 }
+            else { n = n * 10 + d }
+        }
+        k += 1
+    }
+    Count { value: n, large: large }
+}

@@ -984,3 +984,62 @@ args = ["a", "b"]
 scratch = { "a" = "a\n", "b" = "a\n" }
 stdout_closed = true
 
+[[case]]
+name = "numeric boundary ' 2'"
+args = ["-1", " 2", "a", "b"]
+scratch = { a = "a\n", b = "a\n" }
+
+[[case]]
+name = "numeric boundary '2 '"
+args = ["-1", "2 ", "a", "b"]
+scratch = { a = "a\n", b = "a\n" }
+
+[[case]]
+name = "numeric boundary '-0'"
+args = ["-1", "-0", "a", "b"]
+scratch = { a = "a\n", b = "a\n" }
+
+[[case]]
+name = "numeric boundary '+0'"
+args = ["-1", "+0", "a", "b"]
+scratch = { a = "a\n", b = "a\n" }
+
+[[case]]
+name = "numeric boundary '18446744073709551615'"
+args = ["-1", "18446744073709551615", "a", "b"]
+scratch = { a = "a\n", b = "a\n" }
+
+[[case]]
+name = "numeric boundary '18446744073709551616'"
+args = ["-1", "18446744073709551616", "a", "b"]
+scratch = { a = "a\n", b = "a\n" }
+
+[[case]]
+name = "numeric boundary '9223372036854775808'"
+args = ["-1", "9223372036854775808", "a", "b"]
+scratch = { a = "a\n", b = "a\n" }
+
+[[case]]
+name = "numeric boundary '0002'"
+args = ["-1", "0002", "a", "b"]
+scratch = { a = "a\n", b = "a\n" }
+
+[[case]]
+name = "numeric boundary '2x'"
+args = ["-1", "2x", "a", "b"]
+scratch = { a = "a\n", b = "a\n" }
+
+[[case]]
+name = "numeric boundary '+'"
+args = ["-1", "+", "a", "b"]
+scratch = { a = "a\n", b = "a\n" }
+
+[[case]]
+name = "numeric boundary '\\t2'"
+args = ["-1", "\t2", "a", "b"]
+scratch = { a = "a\n", b = "a\n" }
+
+[[case]]
+name = "short option is not a long option"
+args = ["--a", "1", "a", "b"]
+scratch = { a="", b="" }

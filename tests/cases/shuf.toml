@@ -422,3 +422,58 @@ args = ["--random-source=r", "-e", "a", "b"]
 scratch = { "r" = "abcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd" }
 skip = "R-bu31-1: GNU byte-draw rule not derived; named refusal asserted by texttest"
 
+[[case]]
+name = "numeric boundary ' 2'"
+args = ["-n", " 2", "-e", "a"]
+stdin = "a"
+
+[[case]]
+name = "numeric boundary '2 '"
+args = ["-n", "2 ", "-e", "a"]
+stdin = "a"
+
+[[case]]
+name = "numeric boundary '-0'"
+args = ["-n", "-0", "-e", "a"]
+stdin = "a"
+
+[[case]]
+name = "numeric boundary '+0'"
+args = ["-n", "+0", "-e", "a"]
+stdin = "a"
+
+[[case]]
+name = "numeric boundary '18446744073709551615'"
+args = ["-n", "18446744073709551615", "-e", "a"]
+stdin = "a"
+
+[[case]]
+name = "numeric boundary '18446744073709551616'"
+args = ["-n", "18446744073709551616", "-e", "a"]
+stdin = "a"
+
+[[case]]
+name = "numeric boundary '9223372036854775808'"
+args = ["-n", "9223372036854775808", "-e", "a"]
+stdin = "a"
+
+[[case]]
+name = "numeric boundary '0002'"
+args = ["-n", "0002", "-e", "a"]
+stdin = "a"
+
+[[case]]
+name = "numeric boundary '2x'"
+args = ["-n", "2x", "-e", "a"]
+stdin = "a"
+
+[[case]]
+name = "numeric boundary '+'"
+args = ["-n", "+", "-e", "a"]
+stdin = "a"
+
+[[case]]
+name = "numeric boundary '\\t2'"
+args = ["-n", "\t2", "-e", "a"]
+stdin = "a"
+

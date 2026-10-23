@@ -3,6 +3,7 @@
 //! named, no implementation source consulted (including GNU/gnulib).
 
 use bore
+use numcli
 
 /// Execute the RFC 4648 CLI with five- or six-bit alphabet symbols.
 pub fn run(prog: str, width: int) -> int {
@@ -32,11 +33,11 @@ pub fn run(prog: str, width: int) -> int {
         if key == "ignore-garbage" { ignore = true }
         if key == "wrap" {
             let v = p.values[k]
-            wrap = v.to_int() else -1
-            if wrap < 0 {
+            let parsed = numcli.count(v, true) else |_| {
                 bore.warn(prog, "invalid wrap size: {bore.quote(v)}")
                 return 1
             }
+            wrap = if parsed.large then 0 else parsed.value
         }
     }
     if !bore.ok(p) { return bore.usage_error(prog, p.error) }
