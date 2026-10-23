@@ -66,7 +66,10 @@ fn main() -> int {
                 }
                 if writable { fs_access(name, 2) else |_| { writable = false } }
                 if writable {
-                    bore.warn("sync", "a non-creating writable open is not supported by this sync: {bore.quote_always(name)}")
+                    bore.warn(
+                        "sync",
+                        "a non-creating writable open is not supported by this sync: {bore.quote_always(name)}",
+                    )
                 } else {
                     bore.warn("sync", "error opening {bore.quote_always(name)}: {why}")
                 }

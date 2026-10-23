@@ -55,7 +55,9 @@ fn size_word(text: str, leading: bool, negative: bool) -> int ! {invalid, large}
     while power > 0 {
         if negative {
             if n < -9223372036854775808 / base { return large }
-        } else if n > 9223372036854775807 / base { return large }
+        } else if n > 9223372036854775807 / base {
+            return large
+        }
         n *= base
         power -= 1
     }
@@ -190,7 +192,10 @@ fn main() -> int {
         }
         let kind = fs_stat(name) else |_| List[int]()
         if kind.len == 20 && bore.rec_kind(kind) == bore.kind_fifo() {
-            bore.warn("truncate", "a non-blocking writable open is not supported by this truncate: {bore.quote_always(name)}")
+            bore.warn(
+                "truncate",
+                "a non-blocking writable open is not supported by this truncate: {bore.quote_always(name)}",
+            )
             status = 1
             continue
         }
