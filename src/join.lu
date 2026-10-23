@@ -80,12 +80,20 @@ fn main() -> int {
             let n = field_number(v)
             if n < 0 { return 1 }
             if key != "2" {
-                if given1 && c.field1 != n { bore.warn("join", "incompatible join fields {c.field1}, {n}"); return 1 }
-                c.field1 = n; given1 = true
+                if given1 && c.field1 != n {
+                    bore.warn("join", "incompatible join fields {c.field1}, {n}")
+                    return 1
+                }
+                c.field1 = n
+                given1 = true
             }
             if key != "1" {
-                if given2 && c.field2 != n { bore.warn("join", "incompatible join fields {c.field2}, {n}"); return 1 }
-                c.field2 = n; given2 = true
+                if given2 && c.field2 != n {
+                    bore.warn("join", "incompatible join fields {c.field2}, {n}")
+                    return 1
+                }
+                c.field2 = n
+                given2 = true
             }
         }
         if key == "a" || key == "v" {
@@ -354,26 +362,41 @@ fn legacy_args(args: List[str], extra_operands: int) -> List[str] {
     while i < args.len {
         let word = args[i]
         if word == "--" { literal = true }
-        if !literal && extra > 0 && (word == "-j1" || word == "-j2") && i + 1 < args.len && !args[i+1].starts_with("-") {
+        if !literal &&
+            extra > 0 &&
+            (word == "-j1" || word == "-j2") &&
+            i + 1 < args.len &&
+            !args[i + 1].starts_with("-") {
             (mut result).push(if word == "-j1" then "-1" else "-2")
-            i += 1; (mut result).push(args[i]); extra -= 1
-        } else if !literal && (word == "-o" || (word.starts_with("-o") && !word.starts_with("--") && word.len > 2)) {
+            i += 1
+            (mut result).push(args[i])
+            extra -= 1
+        } else if !literal &&
+            (word == "-o" || word.starts_with("-o") && !word.starts_with("--") && word.len > 2) {
             var format = ""
             if word == "-o" {
                 (mut result).push(word)
                 i += 1
                 if i >= args.len { break }
                 format = args[i]
-            } else { (mut result).push("-o"); format = word[2..] }
-            while extra > 0 && i + 1 < args.len && field_word(args[i+1]) {
-                i += 1; format += " {args[i]}"; extra -= 1
+            } else {
+                (mut result).push("-o")
+                format = word[2..]
+            }
+            while extra > 0 && i + 1 < args.len && field_word(args[i + 1]) {
+                i += 1
+                format += " {args[i]}"
+                extra -= 1
             }
             (mut result).push(format)
-        } else { (mut result).push(word) }
+        } else {
+            (mut result).push(word)
+        }
         i += 1
     }
     result
 }
+
 fn field_word(word: str) -> bool {
     word == "0" || word.starts_with("1.") || word.starts_with("2.")
 }

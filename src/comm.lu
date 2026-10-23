@@ -63,9 +63,16 @@ fn main() -> int {
     let shared_stdin = p.operands[0] == "-" && p.operands[1] == "-"
     var a = textio.Rows { items: List[textio.Rec](), failed: false }
     var b = textio.Rows { items: List[textio.Rec](), failed: false }
-    var reader = SharedInput { chunk: List[byte](), pos: 0, exhausted: false, eof_given: false, why: "" }
+    var reader = SharedInput {
+        chunk: List[byte](),
+        pos: 0,
+        exhausted: false,
+        eof_given: false,
+        why: "",
+    }
     if shared_stdin {
-        if !push_shared(mut reader, mut a.items, delim) || !push_shared(mut reader, mut b.items, delim) {
+        if !push_shared(mut reader, mut a.items, delim) ||
+            !push_shared(mut reader, mut b.items, delim) {
             bore.input_error("comm", "-", reader.why)
             return 1
         }
@@ -166,6 +173,7 @@ fn main() -> int {
 // A single cursor, shared by both merge sides. Only the consumed side
 // receives the next record; an unpaired record therefore shifts ownership.
 struct SharedInput { chunk: List[byte], pos: int, exhausted: bool, eof_given: bool, why: str }
+
 fn push_shared(mut reader: SharedInput, mut rows: List[textio.Rec], delim: int) -> bool {
     let row = next_shared(mut reader, delim) else |e| match e {
         eof => { return true },
@@ -174,6 +182,7 @@ fn push_shared(mut reader: SharedInput, mut rows: List[textio.Rec], delim: int) 
     (mut rows).push(row)
     true
 }
+
 fn next_shared(mut reader: SharedInput, delim: int) -> textio.Rec ! {eof, io} {
     if reader.exhausted {
         if !reader.eof_given { reader.eof_given = true; return eof }
