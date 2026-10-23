@@ -1,0 +1,101 @@
+From https://github.com/wolffe-lang/boreutils
+   fcea320..9f7f218  bu30       -> origin/bu30
+Updating fcea320..9f7f218
+Fast-forward
+ README.md     |  8 ++++----
+ src/mktemp.lu | 10 +++++++++-
+ 2 files changed, 13 insertions(+), 5 deletions(-)
+gauntlet 2026-10-23T15:57:33Z 9f7f21801b9311326669dcfccf3bbeb098a78a2e
+test ./src/bore_test.lu::main ... ok
+change: the root and dot refusals hold
+test ./src/change_test.lu::main ... ok
+test ./src/duration_test.lu::main ... ok
+test ./src/ids_rows_test.lu::main ... ok
+test ./src/ids_test.lu::main ... ok
+test ./src/inout_test.lu::main ... ok
+test ./src/owner_rows_test.lu::main ... ok
+test ./src/signals_send_test.lu::main ... ok
+test ./src/signals_test.lu::main ... ok
+wolf test: 9 passed; 0 failed; 0 rejected; 0 unsupported; 0 filtered out
+==> /l/ev/difftest-final-release.log <==
+difftest: 7017 passed, 0 failed, 130 skipped
+
+==> /l/ev/difftest-final-dev.log <==
+difftest: 7017 passed, 0 failed, 130 skipped
+difftest: gnu = true (GNU coreutils) 9.11 (prefix '') on Linux x86_64
+difftest: bore = /l/boreutils/target/release
+difftest: oracle environment, LC_ALL=C _POSIX2_VERSION=200112
+difftest: oracle of record, GNU coreutils 9.11
+difftest: oracle profile OK — `uniq +1 /dev/null` exits 1 (the obsolete +N operand form is off, so +1 is a file name (B73))
+difftest: scratch root /l/scratch
+FAIL echo: what a terminal received  args=['x']
+FAIL echo: a mask hides only what it names  args=['n=5 tail']
+FAIL echo: a kept line the other side lacks  args=['3']
+FAIL echo: two identical invalid random shapes still fail  args=['fixed.a_0']
+FAIL echo: a made-up terminal name is not the slave name  args=['/dev/pts/999999']
+FAIL head: an offset one side moves  args=['-']
+FAIL tee: a file one side writes  args=['a']
+FAIL tee: a file whose bytes differ  args=['a']
+FAIL tee: two names of one file  args=['a', 'b']
+FAIL tee: a time one side sets  args=['a']
+FAIL true: true is not false  args=[]
+difftest: 5 passed, 11 failed, 0 skipped
+difftest-selftest: the harness saw every planted difference
+difftest: /l/boreutils/tests/refuse/attached/mkdir.toml: refusing case 'attached': '-m/' is absolute and outside the scratch directory (mkdir changes the file system)
+difftest: /l/boreutils/tests/refuse/climb/mkdir.toml: refusing case 'a climb': 'd/../../x' has a .. component (mkdir changes the file system)
+difftest: /l/boreutils/tests/refuse/cwd/mkdir.toml: refusing case 'a working directory': '..' has a .. component (mkdir changes the file system)
+difftest: /l/boreutils/tests/refuse/home/mkdir.toml: refusing case 'a home directory': '~' begins with ~ (mkdir changes the file system)
+difftest: /l/boreutils/tests/refuse/kill-after-word/kill.toml: refusing case 'a list option after an operand': '2147483647' is a number, and so could be a process id (kill sends: such a case belongs to tools/killtest, in a container)
+difftest: /l/boreutils/tests/refuse/kill-group/kill.toml: refusing case 'a group': '-2147483647' is a number, and so could be a process id (kill sends: such a case belongs to tools/killtest, in a container)
+difftest: /l/boreutils/tests/refuse/kill-number/kill.toml: refusing case 'a number': '2147483647' is a number, and so could be a process id (kill sends: such a case belongs to tools/killtest, in a container)
+difftest: /l/boreutils/tests/refuse/longopt/mkdir.toml: refusing case 'a long option': '--mode=../x' has a .. component (mkdir changes the file system)
+difftest: /l/boreutils/tests/refuse/outside/mkdir.toml: refusing case 'outside': '/nonexistent-bore-refuse/x' is absolute and outside the scratch directory (mkdir changes the file system)
+difftest: /l/boreutils/tests/refuse/owner-after-dashes/chgrp.toml: refusing case 'after dashes': 'bu24-no-such-file' is a FILE operand (chgrp changes an owner: such a case belongs to tools/idtest, in a container)
+difftest: /l/boreutils/tests/refuse/owner-file/chown.toml: refusing case 'a file': 'bu24-no-such-file' is a FILE operand (chown changes an owner: such a case belongs to tools/idtest, in a container)
+difftest: /l/boreutils/tests/refuse/owner-reference/chgrp.toml: refusing case 'a reference': '--reference=bu24-no-such-file' makes every operand a FILE (chgrp changes an owner: such a case belongs to tools/idtest, in a container)
+difftest: /l/boreutils/tests/refuse/root/mkdir.toml: refusing case 'the root': '/' is absolute and outside the scratch directory (mkdir changes the file system)
+difftest: /l/boreutils/tests/refuse/timeout-after-options/timeout.toml: refusing case 'a command after options': 'true' is a command it could run (timeout runs a command and signals its group: such a case belongs to tools/timeouttest, in a container)
+difftest: /l/boreutils/tests/refuse/timeout-command/timeout.toml: refusing case 'a command': 'true' is a command it could run (timeout runs a command and signals its group: such a case belongs to tools/timeouttest, in a container)
+difftest: refusing the scratch root '/': it is the file system's root or a home directory
+difftest: refusing the scratch root '/l/tmp': it is the file system's root or a home directory
+difftest-selftest: the harness refused every unsafe operand and root
+.....
+----------------------------------------------------------------------
+Ran 5 tests in 0.009s
+
+OK
+.....
+----------------------------------------------------------------------
+Ran 5 tests in 0.005s
+
+OK
+difftest-evidence: a broken pipe to a child leaves the run standing
+difftest-evidence:   ok   cat: a child that is gone before its standard input arrives
+difftest-evidence:   difftest: 1 passed, 0 failed, 0 skipped
+difftest-evidence: killed alive at 0.2s: 1 decided case(s) had already reached the reader in 406 bytes, under one 4096-byte block
+difftest-evidence:   ok   basename: a path
+difftest-evidence: the report cannot be lost with the process (boreutils#10)
+ok   agreement is quiet (code 0 -> 0)
+ok   a verdict difference is an advisory, not a failure (code 1 -> 0)
+ok   a harness that could not run is loud (code 2 -> 1)
+ok   a broken pipe is loud (signal 13, boreutils#10's shape) (code 141 -> 1)
+ok   a SIGTERM is loud (code 143 -> 1)
+ok   a SIGKILL is loud (code 137 -> 1)
+ok   an exit code this leg does not know is loud (code 9 -> 1)
+ok   a non-number is loud (code banana -> 1)
+field-verdict-selftest: planting a signal death in tools/difftest
+field-verdict-selftest: the plant exited 141 (the pipeline's
+field-verdict-selftest: own status was 0, which is B98 in one line)
+ok   the ruling is LOUD about the planted death (141)
+field-verdict-selftest: the field leg is LOUD about a death and quiet
+field-verdict-selftest: about a difference (B98)
+killprobe: gnu = kill (GNU coreutils) 9.11 (.gnu-bin/bin/kill); host Linux x86_64
+killprobe: 240578 numbers: 0..140000, then 100577 edges and a sample of the int range (seed 34), 4000 an invocation; nothing is sent
+killprobe: gnu -l: 61348 numbers name a signal, 179230 are invalid
+agree target/release/kill -l: 240578 numbers alike
+agree target/dev/kill -l: 240578 numbers alike
+killprobe: gnu -t: 61348 numbers name a signal, 179230 are invalid
+agree target/release/kill -t: 240578 numbers alike
+agree target/dev/kill -t: 240578 numbers alike
+killprobe: every number answered alike
+GAUNTLET-DONE

@@ -1,0 +1,55 @@
+bu30 measurements; hasu; Ubuntu 24.04; unprivileged keep-id box; memory 12 GiB; inner CPUs 0-5.
+before release: difftest: 6668 passed, 0 failed, 120 skipped
+  sha256 eb1e361d1aa6553af9277fd9e952a5b91146e653eec2babfad3f9ec4f36af96b  difftest-pin-release.log
+  named SKIP lines: 120
+before dev: difftest: 6668 passed, 0 failed, 120 skipped
+  sha256 b9ed15c42cbe4d9ba14ac5f873b9acd52edec34d5ef5a3ad459160953e7425e2  difftest-pin-dev.log
+  named SKIP lines: 120
+after release: difftest: 7017 passed, 0 failed, 130 skipped
+  sha256 350673a10e62c5dea8f1b9afe3987dc156423d614542c6cee47dc86358b557c3  difftest-final-release.log
+  named SKIP lines: 130
+  mkfifo: passed=32 failed=0 skipped=2
+  link: passed=16 failed=0 skipped=0
+  unlink: passed=16 failed=0 skipped=0
+  truncate: passed=92 failed=0 skipped=4
+  sync: passed=15 failed=0 skipped=4
+  mktemp: passed=49 failed=0 skipped=0
+  realpath: passed=114 failed=0 skipped=0
+  tty: passed=12 failed=0 skipped=0
+  readlink: passed=100 failed=0 skipped=0
+after dev: difftest: 7017 passed, 0 failed, 130 skipped
+  sha256 8aa9993fe15de481a682e563f8ec39890fab3067c16c33369ac774d3a64b9d66  difftest-final-dev.log
+  named SKIP lines: 130
+  mkfifo: passed=32 failed=0 skipped=2
+  link: passed=16 failed=0 skipped=0
+  unlink: passed=16 failed=0 skipped=0
+  truncate: passed=92 failed=0 skipped=4
+  sync: passed=15 failed=0 skipped=4
+  mktemp: passed=49 failed=0 skipped=0
+  realpath: passed=114 failed=0 skipped=0
+  tty: passed=12 failed=0 skipped=0
+  readlink: passed=100 failed=0 skipped=0
+release builds: 55; diagnostic lines: 0
+dev builds: 55; diagnostic lines: 0
+gauntlet 2026-10-23T15:57:33Z 9f7f21801b9311326669dcfccf3bbeb098a78a2e
+wolf test: 9 passed; 0 failed; 0 rejected; 0 unsupported; 0 filtered out
+Ran 5 tests in 0.009s
+Ran 5 tests in 0.005s
+agree target/release/kill -l: 240578 numbers alike
+agree target/dev/kill -l: 240578 numbers alike
+agree target/release/kill -t: 240578 numbers alike
+agree target/dev/kill -t: 240578 numbers alike
+GAUNTLET-DONE
+suite timeouttest 2026-10-23T15:35:06Z head a16af68a68b3af14f0d5b09c7a29dabbb68a71e4
+timeouttest: every case under taskset -c 0-3 (Cpus_allowed_list 0-3, read inside)
+timeouttest: 150 passed, 0 failed, 13 skipped
+suite killtest 2026-10-23T15:40:31Z head ed051050925fb4693e3f64fe06daf4253e4ff136
+killtest: every case under taskset -c 0-3 (Cpus_allowed_list 0-3, read inside)
+killtest: 365 passed, 0 failed, 0 skipped
+suite idtest 2026-10-23T15:48:17Z head d82ed442f2d162fd1a0a2c8a0eaebe56f9d9c59a
+idtest: 1098 passed, 0 failed, 28 skipped
+suite inouttest 2026-10-23T15:53:32Z head fcea3203534aae1e18de224a0f073b430eda1691
+inouttest: 104 passed, 0 failed, 0 skipped
+suite roottest 2026-10-23T15:54:04Z head fcea3203534aae1e18de224a0f073b430eda1691
+roottest: 178 passed, 0 failed
+The last source change is cf8671b (mktemp only), covered by the final 55-utility gauntlet. Fresh container-suite utilities and shared bore source are unchanged after a16af68.
