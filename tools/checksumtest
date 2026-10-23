@@ -74,7 +74,7 @@ class Checksums(unittest.TestCase):
                     answer = hashlib.new(algorithm, data).hexdigest().encode() + b"  -\n"
                     p = run(BIN / tool, data=data)
                     self.assertEqual((p.returncode, p.stdout, p.stderr), (0, answer, b""))
-        for bits in [8, 16, 24, 128, 224, 256, 384, 504, 512]:
+        for bits in [8, 16, 24, 32, 128, 224, 256, 384, 504, 512]:
             data = rng.randbytes(129)
             answer = hashlib.blake2b(data, digest_size=bits // 8).hexdigest().encode() + b"  -\n"
             p = run(BIN / "b2sum", ["-l", str(bits)], data)
@@ -125,7 +125,7 @@ class Checksums(unittest.TestCase):
             (Path(td) / "f").write_bytes(b"abc")
             algorithms = [(a, []) for a in ["md5", "sha1", "sha224", "sha256", "sha384", "sha512"]]
             algorithms += [("sha2", ["-l", str(n)]) for n in [224, 256, 384, 512]]
-            algorithms += [("blake2b", ["-l", str(n)]) for n in [8, 16, 24, 128, 224, 256, 384, 504, 512]]
+            algorithms += [("blake2b", ["-l", str(n)]) for n in [8, 16, 24, 32, 128, 224, 256, 384, 504, 512]]
             for algorithm, length in algorithms:
                 for flags in [[], ["--base64"], ["--untagged"], ["--base64", "--untagged"]]:
                     args = ["-a", algorithm, *length, *flags, "f"]
@@ -154,6 +154,23 @@ class Checksums(unittest.TestCase):
                     a, b = results
                     self.assertEqual((a.returncode, a.stdout, a.stderr),
                                      (b.returncode, b.stdout, b.stderr), (tool, flags, close_stdin))
+
+    def test_raw_path_refusal_boundary(self):
+        h = b"900150983cd24fb0d6963f7d28e17f72"
+        good = h + b"  f\n"
+        with tempfile.TemporaryDirectory(prefix="bore-raw-boundary.") as td:
+            (Path(td) / "f").write_bytes(b"abc")
+            malformed = [good + b"\\" + h + b"  bad\\q\xff\n" + good,
+                         good + h + b" \xff\n" + good]
+            for manifest in malformed:
+                for flags in [["-c"], ["-c", "--strict"], ["-cw"]]:
+                    a = run(BIN / "md5sum", flags, manifest, td)
+                    b = run(gnu("md5sum"), flags, manifest, td)
+                    self.assertEqual((a.returncode, a.stdout, a.stderr), (b.returncode, b.stdout, b.stderr), manifest)
+            p = run(BIN / "md5sum", ["-c"], good + h + b"  (x)\xff\n", td)
+            self.assertEqual(p.returncode, 1)
+            self.assertEqual(p.stdout, b"f: OK\n")
+            self.assertIn(b"non-UTF-8 file names", p.stderr)
 
     def test_named_refusals(self):
         for flags, phrase in [(["-a", "sha3", "-l", "256"], b"--algorithm=sha3"),

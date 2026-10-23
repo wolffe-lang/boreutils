@@ -44,7 +44,7 @@ fn manifest_line(mut r: ManifestReader) -> List[byte] ! {eof, io} {
     line
 }
 
-struct Record { name: str, expected: str, kind: int, bits: int, base64: bool, style: int }
+struct Record { name: str, expected: str, kind: int, bits: int, base64: bool, style: int, name_start: int, name_end: int }
 
 fn ascii_blank(b: byte) -> bool { b as int == 32 || b as int == 9 }
 
@@ -94,13 +94,16 @@ fn parse_record(c: Settings, line: str, from_stdin: bool, reverse_style: int) ->
     if s.ends_with("\r") { s = s[..s.len - 1] }
     var pos = 0
     while pos < s.len && ascii_blank(s.bytes()[pos]) { pos += 1 }
+    var base = pos
     s = s[pos..]
     var escaped = false
-    if s.starts_with("\\") { escaped = true; s = s[1..] }
+    if s.starts_with("\\") { escaped = true; s = s[1..]; base += 1 }
     var kind = c.kind
     var bits = c.bits
     var name = ""
     var expected = ""
+    var name_start = 0
+    var name_end = 0
     var tagged = false
     var style = reverse_style
     let open = s.find("(") else -1
@@ -120,7 +123,9 @@ fn parse_record(c: Settings, line: str, from_stdin: bool, reverse_style: int) ->
             !(c.kind == 11 && kind >= 6 && kind <= 9) {
             return invalid
         }
-        name = s[open + 1..close]
+        name_start = open + 1
+        name_end = close
+        name = s[name_start..name_end]
         var tail = s[close + 1..]
         if tail.starts_with(" ") { tail = tail[1..] }
         if !tail.starts_with("=") { return invalid }
@@ -142,6 +147,8 @@ fn parse_record(c: Settings, line: str, from_stdin: bool, reverse_style: int) ->
             pos += 1
         }
         if pos == s.len { return invalid }
+        name_start = pos
+        name_end = s.len
         name = s[pos..]
         if kind == 10 || kind == 11 {
             var all_hex = expected.len % 2 == 0
@@ -202,6 +209,8 @@ fn parse_record(c: Settings, line: str, from_stdin: bool, reverse_style: int) ->
         bits: bits,
         base64: false,
         style: if tagged then 0 else style,
+        name_start: base + name_start,
+        name_end: base + name_end,
     }
 }
 
@@ -416,43 +425,52 @@ fn check_result(c: Settings, name: str, status: str) -> bool {
     bore.finish(mut out, c.prog, 0) == 0
 }
 
-// A malformed byte line is still GNU's malformed line. Only diagnose the
-// missing byte-path surface when replacing its name alone yields a valid
-// record. Comments have already been ignored before UTF-8 decoding.
+// Substitute only invalid UTF-8 bytes, preserving every separator,
+// backslash escape and parenthesis. The ordinary parser decides the grammar
+// and exposes the name span; invalid bytes anywhere else remain malformed.
 fn raw_name_record(c: Settings, bytes: List[byte], style: int) -> bool {
-    var open = -1
-    var close = -1
+    var clean = List[byte]()
     var i = 0
     while i < bytes.len {
-        let b = bytes[i] as int
-        if b == 40 && open < 0 { open = i }
-        if b == 41 { close = i }
-        i += 1
+        let width = utf8_span(bytes, i)
+        if width == 0 { (mut clean).push(120 as byte); i += 1 }
+        else {
+            var j = 0
+            while j < width { (mut clean).push(bytes[i + j]); j += 1 }
+            i += width
+        }
     }
-    var clean = List[byte]()
-    if open >= 0 && close > open {
-        i = 0
-        while i <= open { (mut clean).push(bytes[i]); i += 1 }
-        (mut clean).push(102 as byte)
-        i = close
-        while i < bytes.len { (mut clean).push(bytes[i]); i += 1 }
-        if valid_raw_substitute(c, clean, style) { return true }
-    }
-    // Parentheses can belong to a reversed-format file name too. If the
-    // tagged interpretation failed, independently try that name boundary.
-    clean = List[byte]()
-    i = 0
-    while i < bytes.len && ascii_blank(bytes[i]) { (mut clean).push(bytes[i]); i += 1 }
-    while i < bytes.len && !ascii_blank(bytes[i]) { (mut clean).push(bytes[i]); i += 1 }
-    if i == bytes.len { return false }
-    (mut clean).push(32 as byte)
-    (mut clean).push(32 as byte)
-    (mut clean).push(102 as byte)
-    valid_raw_substitute(c, clean, style)
+    let sanitized = str_from_utf8(clean) else { return false }
+    let rec = parse_record(c, sanitized, false, style) else { return false }
+    utf8_range_ok(bytes, 0, rec.name_start) &&
+        utf8_range_ok(bytes, rec.name_end, bytes.len) &&
+        !utf8_range_ok(bytes, rec.name_start, rec.name_end)
 }
 
-fn valid_raw_substitute(c: Settings, bytes: List[byte], style: int) -> bool {
-    let sanitized = str_from_utf8(bytes) else { return false }
-    let _ = parse_record(c, sanitized, false, style) else { return false }
+fn utf8_range_ok(bytes: List[byte], start: int, end: int) -> bool {
+    var i = start
+    while i < end {
+        let width = utf8_span(bytes, i)
+        if width == 0 || i + width > end { return false }
+        i += width
+    }
     true
+}
+
+// RFC 3629's byte ranges; no allocation or locale-dependent decoding.
+fn utf8_span(bytes: List[byte], at: int) -> int {
+    let b = bytes[at] as int
+    if b < 128 { return 1 }
+    let width = if b >= 194 && b <= 223 then 2 else if b >= 224 && b <= 239 then 3 else if b >= 240 && b <= 244 then 4 else 0
+    if width == 0 || at + width > bytes.len { return 0 }
+    var j = 1
+    while j < width {
+        let n = bytes[at + j] as int
+        if n < 128 || n > 191 { return 0 }
+        j += 1
+    }
+    let second = bytes[at + 1] as int
+    if b == 224 && second < 160 || b == 237 && second > 159 ||
+        b == 240 && second < 144 || b == 244 && second > 143 { return 0 }
+    width
 }

@@ -1612,3 +1612,22 @@ skip = "R-bu32-2: named raw-path refusal; wolf fs_open takes UTF-8 str paths; ch
 name = "directory as checksum list reports read error"
 args = ["-c", "listdir"]
 scratch_dirs = ["listdir"]
+
+[[case]]
+name = "raw path boundary checksum-invalid-escape.bin"
+args = ["-c"]
+stdin_file = "checksum-invalid-escape.bin"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "raw path boundary checksum-invalid-marker.bin"
+args = ["-c"]
+stdin_file = "checksum-invalid-marker.bin"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "raw path boundary checksum-parenthesized-raw.bin"
+args = ["-c"]
+stdin_file = "checksum-parenthesized-raw.bin"
+scratch = { "f" = "abc" }
+skip = "R-bu32-2: valid parenthesized raw-byte path refuses by name; checksumtest checks this boundary"
