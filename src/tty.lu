@@ -1,0 +1,61 @@
+//! member: false
+//! tty — say whether standard input is a terminal, and name it.
+//! References consulted: POSIX.1-2024 tty; GNU coreutils 9.11's documented
+//! invocation and black-box runs. No implementation source.
+//! Linux reads /proc/self/fd/0. macOS scans the immediate /dev entries
+//! only (not recursively), follows each entry, and matches fd 0's dev
+//! and ino (fs_fstat_record words 9 and 10), never just its filename.
+//! This covers Darwin's /dev/ttysNNN ptys without probing other trees.
+use bore
+
+fn terminal_name() -> str {
+    if bore.built_for_linux() {
+        let bytes = fs_read_link("/proc/self/fd/0") else |_| { return "" }
+        return str_from_utf8(bytes) else ""
+    }
+    let fd = fs_fstat_record(0) else |_| { return "" }
+    let names = fs_read_dir("/dev") else |_| { return "" }
+    for name in names {
+        let path = "/dev/{name}"
+        let r = fs_stat(path) else |_| { continue }
+        if r[9] == fd[9] && r[10] == fd[10] { return path }
+    }
+    ""
+}
+
+fn main() -> int {
+    var opts = List[bore.Opt]()
+    (mut opts).push(bore.flag("s", "silent"))
+    (mut opts).push(bore.flag("", "quiet"))
+    (mut opts).push(bore.flag("", "help"))
+    (mut opts).push(bore.flag("", "version"))
+    let p = bore.parse(opts, env_args(), bore.permute())
+    var out = bore.stdout()
+    var silent = false
+    for k in p.keys {
+        if k == "help" {
+            bore.put(mut out, "Usage: tty [OPTION]...\nName standard input's terminal; -s/--silent/--quiet only tests it.\n") else |_| {}
+            return bore.finish(mut out, "tty", 0)
+        }
+        if k == "version" {
+            bore.put(mut out, bore.version_text("tty")) else |_| {}
+            return bore.finish(mut out, "tty", 0)
+        }
+        if k == "silent" || k == "quiet" { silent = true }
+    }
+    if !bore.ok(p) { bore.usage_error("tty", p.error); return 2 }
+    if p.operands.len > 0 { bore.usage_error("tty", "extra operand {bore.quote(p.operands[0])}"); return 2 }
+    let terminal = os_isatty(0) else false
+    if silent { return if terminal then 0 else 1 }
+    if !terminal {
+        bore.put(mut out, "not a tty\n") else |_| {}
+        return bore.finish(mut out, "tty", 1)
+    }
+    let name = terminal_name()
+    if name.len == 0 {
+        bore.put(mut out, "not a tty\n") else |_| {}
+        return bore.finish(mut out, "tty", 1)
+    }
+    bore.put(mut out, "{name}\n") else |_| {}
+    bore.finish(mut out, "tty", 0)
+}

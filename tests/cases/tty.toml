@@ -1,0 +1,56 @@
+# GNU coreutils 9.11 black-box cases; bu30. No implementation source.
+
+[[case]]
+name = "help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "version"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "bad option"
+args = ["--not-an-option"]
+
+[[case]]
+name = "closed help"
+args = ["--help"]
+stdout_closed = true
+
+[[case]]
+name = "pipe input"
+args = []
+
+[[case]]
+name = "silent pipe"
+args = ["-s"]
+
+[[case]]
+name = "quiet pipe"
+args = ["--quiet"]
+
+[[case]]
+name = "extra operand"
+args = ["extra"]
+
+[[case]]
+name = "input pty"
+args = []
+tty_stdin = true
+
+[[case]]
+name = "silent input pty"
+args = ["-s"]
+tty_stdin = true
+
+[[case]]
+name = "quiet input pty"
+args = ["--quiet"]
+tty_stdin = true
+
+[[case]]
+name = "stdout tty is not stdin"
+args = []
+tty = 80
