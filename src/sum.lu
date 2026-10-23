@@ -1,0 +1,12 @@
+//! member: false
+//! sum — bounded streaming checksums and GNU 9.11 command semantics.
+//! References: POSIX sum / GNU 9.11 manual BSD and SysV definitions.
+//! Published vectors are unit tests in checksum_test.lu. CLI measured from
+//! GNU 9.11 --help, manual and black-box runs only, LC_ALL=C.
+//! uutils/coreutils (MIT), toybox (0BSD): design references only;
+//! never GNU coreutils, gnulib or another hash implementation's source.
+use checksum
+
+fn main() -> int {
+    checksum.command("sum", 3, 16)
+}
