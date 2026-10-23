@@ -1,0 +1,12 @@
+//! member: false
+//! b2sum — bounded streaming checksums and GNU 9.11 command semantics.
+//! References: RFC 7693 sections 2-3 and Appendix A vector.
+//! Published vectors are unit tests in checksum_test.lu. CLI measured from
+//! GNU 9.11 --help, manual and black-box runs only, LC_ALL=C.
+//! uutils/coreutils (MIT), toybox (0BSD): design references only;
+//! never GNU coreutils, gnulib or another hash implementation's source.
+use checksum
+
+fn main() -> int {
+    checksum.command("b2sum", 10, 512)
+}
