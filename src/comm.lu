@@ -60,9 +60,18 @@ fn main() -> int {
     if p.operands.len > 2 {
         return bore.usage_error("comm", "extra operand {bore.quote(p.operands[2])}")
     }
-    let a = textio.load("comm", p.operands[0], delim)
+    let shared_stdin = p.operands[0] == "-" && p.operands[1] == "-"
+    var a = textio.load("comm", p.operands[0], delim)
     if a.failed { return 1 }
-    let b = textio.load("comm", p.operands[1], delim)
+    var b = textio.Rows { items: List[textio.Rec](), failed: false }
+    if shared_stdin {
+        var left = List[textio.Rec](), right = List[textio.Rec]()
+        for k in 0..a.items.len {
+            if k % 2 == 0 { (mut left).push(copy a.items[k]) }
+            else { (mut right).push(copy a.items[k]) }
+        }
+        a.items = left; b.items = right
+    } else { b = textio.load("comm", p.operands[1], delim) }
     if b.failed { return 1 }
     var i = 0, j = 0, unpaired = false, bad1 = false, bad2 = false
     var counts = [0, 0, 0]
@@ -116,6 +125,12 @@ fn main() -> int {
                 if order == 1 { return bore.finish(mut out, "comm", 1) }
             }
         }
+    }
+    if shared_stdin {
+        // GNU alternates one FILE stream, then closes it at the first EOF.
+        // Its other reader's next access reports EBADF, not a second EOF.
+        bore.input_error("comm", "-", bore.bad_descriptor())
+        return bore.finish(mut out, "comm", 1)
     }
     if total {
         let s = if sep.len == 0 then "\0" else sep
