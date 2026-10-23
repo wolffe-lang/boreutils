@@ -58,9 +58,11 @@ fn main() -> int {
             }
         }
         if key == "head-count" {
-            let n = v.to_int() else -1
-            if n < 0 { bore.warn("shuf", "invalid line count: {bore.quote(v)}"); return 1 }
-            if n < limit { limit = n }
+            let parsed = numcli.count(v, false) else |_| {
+                bore.warn("shuf", "invalid line count: {bore.quote(v)}")
+                return 1
+            }
+            if parsed.value < limit { limit = parsed.value }
         }
         if key == "output" {
             if output_given && output_path != v {
