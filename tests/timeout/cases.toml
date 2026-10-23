@@ -491,15 +491,13 @@ ours = { status = "exit 124", stdout = "", stderr = "" }
 name = "core: the command ends by SEGV"
 args = ["5", "sh", "-c", "kill -SEGV $$"]
 cores = "on"
-design = { core = "core", cores = 2 }
 expect = { status = "signal SEGV", stderr = "timeout: the monitored command dumped core\n", core = "none", cores = 1 }
 
-# timeout ends by the command's ABRT, as GNU's does; GNU's own end dumps no core, and this timeout's is the host's default end by ABRT, which dumps where the host writes cores (wolf has no call to make a process undumpable or set its own core limit)
+# timeout disables its own core before re-raising (os_core_off, #44).
 [[case]]
 name = "core: the command ends by ABRT, -p"
 args = ["-p", "5", "sh", "-c", "kill -ABRT $$"]
 cores = "on"
-design = { core = "core", cores = 2 }
 expect = { status = "signal ABRT", stderr = "timeout: the monitored command dumped core\n", core = "none", cores = 1 }
 
 [[case]]
@@ -570,7 +568,6 @@ name = "core: QUIT sent to timeout, the command does not trap it"
 args = ["5", "sleep", "2"]
 send = { signal = "QUIT", after = 0.3 }
 cores = "on"
-design = { core = "core", cores = 2 }
 expect = { status = "signal QUIT", stderr = "timeout: the monitored command dumped core\n", core = "none", cores = 1 }
 
 [[case]]
