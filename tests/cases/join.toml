@@ -1137,3 +1137,38 @@ scratch = { "a" = "k X\nk\n", "b" = "k Y\nk\n" }
 name = "empty first header retains its own missing join key"
 args = ["--header", "--check-order", "a", "b"]
 scratch = { a="\n\n", b="a  x\ty \nÿ q\n" }
+
+[[case]]
+name = "GNU compatibility ['-1', '1', '-1', '2']"
+args = ["-1", "1", "-1", "2", "a", "b"]
+scratch = { a="L k A\n", b="R k B\n" }
+
+[[case]]
+name = "GNU compatibility ['-1', '2', '-j', '1']"
+args = ["-1", "2", "-j", "1", "a", "b"]
+scratch = { a="L k A\n", b="R k B\n" }
+
+[[case]]
+name = "GNU compatibility ['-j1', '2']"
+args = ["-j1", "2", "a", "b"]
+scratch = { a="L k A\n", b="R k B\n" }
+
+[[case]]
+name = "GNU compatibility ['-j2', '2']"
+args = ["-j2", "2", "a", "b"]
+scratch = { a="L k A\n", b="R k B\n" }
+
+[[case]]
+name = "GNU compatibility ['-o', '1.2', '2.2']"
+args = ["-o", "1.2", "2.2", "a", "b"]
+scratch = { a="L k A\n", b="R k B\n" }
+
+[[case]]
+name = "GNU compatibility ['-o', '0', '-o', '1.1']"
+args = ["-o", "0", "-o", "1.1", "a", "b"]
+scratch = { a="L k A\n", b="R k B\n" }
+
+[[case]]
+name = "GNU compatibility ['-o', 'auto', '-o', '1.1']"
+args = ["-o", "auto", "-o", "1.1", "a", "b"]
+scratch = { a="L k A\n", b="R k B\n" }

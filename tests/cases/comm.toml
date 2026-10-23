@@ -670,3 +670,78 @@ name = "review 3 both stdin True"
 args = ["-z", "-", "-"]
 stdin = "a\u0000a\u0000"
 
+
+[[case]]
+name = "delta shared stream 'a\\nc\\nb\\nc\\n'[]"
+args = ["-", "-"]
+stdin = "a\nc\nb\nc\n"
+
+[[case]]
+name = "delta shared stream 'a\\nc\\nb\\nc\\n'['-z']"
+args = ["-z", "-", "-"]
+stdin = "a\u0000c\u0000b\u0000c\u0000"
+
+[[case]]
+name = "delta shared stream 'a\\nc\\nb\\nc\\n'['--check-order']"
+args = ["--check-order", "-", "-"]
+stdin = "a\nc\nb\nc\n"
+
+[[case]]
+name = "delta shared stream 'a\\nc\\nb\\nc\\n'['--total']"
+args = ["--total", "-", "-"]
+stdin = "a\nc\nb\nc\n"
+
+[[case]]
+name = "delta shared stream 'a\\nc\\nb\\nc\\n'['--nocheck-order']"
+args = ["--nocheck-order", "-", "-"]
+stdin = "a\nc\nb\nc\n"
+
+[[case]]
+name = "delta shared stream 'c\\na\\nb\\nc\\n'[]"
+args = ["-", "-"]
+stdin = "c\na\nb\nc\n"
+
+[[case]]
+name = "delta shared stream 'c\\na\\nb\\nc\\n'['-z']"
+args = ["-z", "-", "-"]
+stdin = "c\u0000a\u0000b\u0000c\u0000"
+
+[[case]]
+name = "delta shared stream 'c\\na\\nb\\nc\\n'['--check-order']"
+args = ["--check-order", "-", "-"]
+stdin = "c\na\nb\nc\n"
+
+[[case]]
+name = "delta shared stream 'c\\na\\nb\\nc\\n'['--total']"
+args = ["--total", "-", "-"]
+stdin = "c\na\nb\nc\n"
+
+[[case]]
+name = "delta shared stream 'c\\na\\nb\\nc\\n'['--nocheck-order']"
+args = ["--nocheck-order", "-", "-"]
+stdin = "c\na\nb\nc\n"
+
+[[case]]
+name = "delta shared stream 'b\\na\\nb\\na\\n'[]"
+args = ["-", "-"]
+stdin = "b\na\nb\na\n"
+
+[[case]]
+name = "delta shared stream 'b\\na\\nb\\na\\n'['-z']"
+args = ["-z", "-", "-"]
+stdin = "b\u0000a\u0000b\u0000a\u0000"
+
+[[case]]
+name = "delta shared stream 'b\\na\\nb\\na\\n'['--check-order']"
+args = ["--check-order", "-", "-"]
+stdin = "b\na\nb\na\n"
+
+[[case]]
+name = "delta shared stream 'b\\na\\nb\\na\\n'['--total']"
+args = ["--total", "-", "-"]
+stdin = "b\na\nb\na\n"
+
+[[case]]
+name = "delta shared stream 'b\\na\\nb\\na\\n'['--nocheck-order']"
+args = ["--nocheck-order", "-", "-"]
+stdin = "b\na\nb\na\n"
