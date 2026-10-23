@@ -61,7 +61,7 @@ fn main() -> int {
     if random_given { bore.warn("shuf", "--random-source is not supported: GNU byte-draw compatibility is not derived"); return 1 }
     var rows = List[textio.Rec]()
     if echo { for arg in operands { (mut rows).push(textio.Rec { data: arg.bytes() }) } }
-    else if !range_given {
+    else if !range_given && limit > 0 {
         let path = if operands.len == 0 then "-" else operands[0]
         let got = textio.load("shuf", path, delim)
         if got.failed { return 1 }
