@@ -44,7 +44,7 @@ fn manifest_line(mut r: ManifestReader) -> List[byte] ! {eof, io} {
     line
 }
 
-struct Record { name: str, expected: str, kind: int, bits: int, base64: bool }
+struct Record { name: str, expected: str, kind: int, bits: int, base64: bool, style: int }
 
 fn ascii_blank(b: byte) -> bool { b as int == 32 || b as int == 9 }
 
