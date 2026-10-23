@@ -85,3 +85,15 @@ name = "filesystem sync refused"
 args = ["-f", "f"]
 scratch = { "f" = "x" }
 skip = "No syncfs(2) surface; named refusal tested by smalltest"
+
+[[case]]
+name = "review uncertain write-only owner file"
+args = ["f"]
+scratch = { f = "abcdef" }
+scratch_modes = { f = 128 }
+
+[[case]]
+name = "review uncertain write-only owner data file"
+args = ["-d", "f"]
+scratch = { f = "abcdef" }
+scratch_modes = { f = 128 }

@@ -37,6 +37,7 @@ for planted in "true: true is not false" \
                "echo: a mask hides only what it names" \
                "echo: a kept line the other side lacks" \
                "echo: two identical invalid random shapes still fail" \
+               "echo: a made-up terminal name is not the slave name" \
                "tee: two names of one file" \
                "tee: a time one side sets"; do
     if ! echo "$out" | grep -qF "FAIL $planted"; then

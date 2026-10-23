@@ -53,3 +53,8 @@ name = "two identical invalid random shapes still fail"
 args = ["fixed.a_0"]
 scratch = {}
 temp_shape = { prefix = "fixed.", xs = 3, suffix = "", directory = "", kind = "none", mode = 384 }
+
+[[case]]
+name = "a made-up terminal name is not the slave name"
+args = ["/dev/pts/999999"]
+tty_stdin = true

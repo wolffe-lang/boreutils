@@ -741,3 +741,31 @@ scratch_links = { dangling = "absent" }
 name = "explicit E permits only a missing last component"
 args = ["-E", "missing"]
 scratch = {}
+
+[[case]]
+name = "review 4 link target slash requires directory existing"
+args = ["-e", "l"]
+scratch = { f = "abcdef" }
+scratch_links = { l = "f/" }
+
+[[case]]
+name = "review 4 link target slash requires directory E"
+args = ["-E", "l"]
+scratch = { f = "abcdef" }
+scratch_links = { l = "f/" }
+
+[[case]]
+name = "review 5 cyclic prefix recovery"
+args = ["-m", "cycle/../l"]
+scratch_dirs = ["d"]
+scratch_links = { cycle = "cycle", l = "d" }
+
+[[case]]
+name = "review 6 empty relative-to"
+args = ["--relative-to=", "f"]
+scratch = { f = "abcdef" }
+
+[[case]]
+name = "review 6 empty relative-base"
+args = ["--relative-base=", "f"]
+scratch = { f = "abcdef" }

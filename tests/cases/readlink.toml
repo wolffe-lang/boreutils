@@ -514,3 +514,15 @@ name = "missing component then parent recovers symlink"
 args = ["-m", "missing/../l"]
 scratch_dirs = ["d"]
 scratch_links = { l = "d" }
+
+[[case]]
+name = "review 4 link target slash requires directory existing"
+args = ["-e", "l"]
+scratch = { f = "abcdef" }
+scratch_links = { l = "f/" }
+
+[[case]]
+name = "review 5 cyclic prefix recovery"
+args = ["-m", "cycle/../l"]
+scratch_dirs = ["d"]
+scratch_links = { cycle = "cycle", l = "d" }

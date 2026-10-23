@@ -382,3 +382,32 @@ scratch = { f = "abcdef" }
 [[case]]
 name = "non-ASCII invalid size is a diagnostic, not a trap"
 args = ["-s", "é", "f"]
+
+[[case]]
+name = "review 2 empty reference with relative size"
+args = ["-r", "", "-s", "+1", "f"]
+scratch = { f = "abcdef" }
+
+[[case]]
+name = "review 2 empty reference alone"
+args = ["-r", "", "f"]
+scratch = { f = "abcdef" }
+
+[[case]]
+name = "review 3 fifo without reader"
+args = ["-s", "0", "fifo"]
+scratch_fifos = ["fifo"]
+timeout = 2
+
+[[case]]
+name = "review 3 fifo no-create"
+args = ["-c", "-s", "0", "fifo"]
+scratch_fifos = ["fifo"]
+timeout = 2
+
+[[case]]
+name = "review 3 fifo through symlink"
+args = ["-s", "0", "l"]
+scratch_fifos = ["fifo"]
+scratch_links = { l = "fifo" }
+timeout = 2
