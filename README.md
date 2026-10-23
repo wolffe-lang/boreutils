@@ -198,16 +198,17 @@ been emitted, a cyclic residual must have exactly one live incoming and
 one live outgoing edge per node; complex cyclic components and cycles
 with outgoing tails are refused by name. The measured GNU answers and
 those refusals are retained in `notes/bu31/refusals.jsonl`.
-The checksum pass adds nine command binaries and **2,207 cases**: 2,203
-passed and four named skips on both native tiers. The whole differential
-corpus is **9,223 passed, 0 failed, 134 skipped** in the hasu B Ubuntu
+
+The checksum pass adds nine command binaries and **2,218 cases**: 2,213
+passed and five named skips on both native tiers. The whole differential
+corpus is **9,233 passed, 0 failed, 135 skipped** in the hasu B Ubuntu
 24.04 container. The new commands are `cksum`, `sum`, `md5sum`, `sha1sum`,
 `sha224sum`, `sha256sum`, `sha384sum`, `sha512sum` and `b2sum`. Their
 algorithms are written from POSIX's CRC definition, RFC 1321, FIPS 180-4
 and RFC 7693. Twelve wolf test programs include published short/long
 vectors and synthetic 128-bit counter carries; the million-`a` program
 runs through the toolchain's explicit native fallback when its checked
-step budget is exhausted. Seven independent executable tests per tier
+step budget is exhausted. Nine independent executable tests per tier
 cover encoded manifests, escaped names, malformed bytes and bounded RSS.
 A separate `--large` test independently hashes a sparse input of
 4,295,032,833 bytes and compares all seven digest commands on both tiers;
@@ -1390,15 +1391,15 @@ table answers it per utility, from the evidence and from nothing else.
 | `tsort` | 2 / 2 | 69 / 26 | not benched (hasu) | drop-in for DAGs and residual unions of simple cycles; complex cyclic components and cycles with outgoing tails refused by name |
 | `shuf` | 8 / 9 | 97 / 1 | not benched (hasu) | drop-in for scripts that avoid --random-source, refused by name |
 
-| `cksum` | 15 / 16 | 382 / 3 | 0.05x to 0.88x (hasu) | drop-in for UTF-8 file names and scripts that avoid `-a sha3`, `-a sm3` and hardware `--debug`, each refused by name |
+| `cksum` | 15 / 16 | 383 / 3 | 0.05x to 0.88x (hasu) | drop-in for UTF-8 file names and scripts that avoid `-a sha3`, `-a sm3` and hardware `--debug`, each refused by name |
 | `sum` | 4 / 4 | 58 / 0 | 0.12x to 0.88x (hasu) | drop-in for UTF-8 file names |
-| `md5sum` | 12 / 12 | 250 / 1 | 0.32x (hasu) | drop-in for UTF-8 file names; valid raw-byte name records refuse by name |
-| `sha1sum` | 12 / 12 | 247 / 0 | 0.29x (hasu) | drop-in for UTF-8 file names |
-| `sha224sum` | 12 / 12 | 247 / 0 | 0.34x (hasu) | drop-in for UTF-8 file names |
-| `sha256sum` | 12 / 12 | 247 / 0 | 0.35x (hasu) | drop-in for UTF-8 file names |
-| `sha384sum` | 12 / 12 | 247 / 0 | 0.40x (hasu) | drop-in for UTF-8 file names |
-| `sha512sum` | 12 / 12 | 247 / 0 | 0.40x (hasu) | drop-in for UTF-8 file names |
-| `b2sum` | 13 / 13 | 278 / 0 | 0.24x (hasu) | drop-in for UTF-8 file names |
+| `md5sum` | 12 / 12 | 253 / 2 | 0.32x (hasu) | drop-in for UTF-8 file names; valid raw-byte name records refuse by name |
+| `sha1sum` | 12 / 12 | 248 / 0 | 0.29x (hasu) | drop-in for UTF-8 file names |
+| `sha224sum` | 12 / 12 | 248 / 0 | 0.34x (hasu) | drop-in for UTF-8 file names |
+| `sha256sum` | 12 / 12 | 248 / 0 | 0.35x (hasu) | drop-in for UTF-8 file names |
+| `sha384sum` | 12 / 12 | 248 / 0 | 0.40x (hasu) | drop-in for UTF-8 file names |
+| `sha512sum` | 12 / 12 | 248 / 0 | 0.40x (hasu) | drop-in for UTF-8 file names |
+| `b2sum` | 13 / 13 | 279 / 0 | 0.24x (hasu) | drop-in for UTF-8 file names |
 
 **24 drop-in, 40 drop-in for scripts that avoid a named thing, none shipped not
 yet** (command rows, not the manual's grouped utility units; new checksum
