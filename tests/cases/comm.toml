@@ -658,3 +658,15 @@ scratch = { a="", b="" }
 name = "deferred disorder in both files preserves diagnostic order"
 args = ["a", "b"]
 scratch = { a="c\nc\na\nÿ\nb\n", b="c\nB\nÿ\nc\nB\n" }
+
+[[case]]
+name = "review 3 both stdin False"
+args = ["-", "-"]
+stdin = "a\na\n"
+
+
+[[case]]
+name = "review 3 both stdin True"
+args = ["-z", "-", "-"]
+stdin = "a\u0000a\u0000"
+

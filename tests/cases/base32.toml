@@ -1089,3 +1089,10 @@ name = "quantum regression 'AAB====='"
 args = ["-d"]
 stdin = "AAB====="
 
+
+[[case]]
+name = "review decode quantum crosses read boundary"
+args = ["-d"]
+stdin = "ME======\n"
+stdin_repeat = 50000
+

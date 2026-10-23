@@ -1072,3 +1072,63 @@ scratch = { a = "a\n", b = "b\n" }
 name = "carriage return belongs to the key"
 args = ["-i", "a", "b"]
 scratch = { a="a\rX\na x\n", b="a\rX\na y\n" }
+
+[[case]]
+name = "review 1 upper folding ['-i']"
+args = ["-i", "a", "b"]
+scratch = { "a" = "Z\n[\n", "b" = "[\n" }
+
+
+[[case]]
+name = "review 1 upper folding ['-i', '--check-order']"
+args = ["-i", "--check-order", "a", "b"]
+scratch = { "a" = "Z\n[\n", "b" = "[\n" }
+
+
+[[case]]
+name = "review 2 nonblank '\\r'"
+args = ["a", "b"]
+scratch = { "a" = "k\rL\n", "b" = "k R\n" }
+
+
+[[case]]
+name = "review 2 nonblank '\\x0b'"
+args = ["a", "b"]
+scratch = { "a" = "k\u000bL\n", "b" = "k R\n" }
+
+
+[[case]]
+name = "review 2 nonblank '\\x0c'"
+args = ["a", "b"]
+scratch = { "a" = "k\fL\n", "b" = "k R\n" }
+
+
+[[case]]
+name = "review 2 zero records newline field"
+args = ["-z", "a", "b"]
+scratch = { "a" = "k\nL\u0000", "b" = "k R\u0000" }
+
+
+[[case]]
+name = "review 6 real asymmetric fields"
+args = ["-1", "2", "-2", "3", "a", "b"]
+scratch = { "a" = "L k\n", "b" = "R X k\n" }
+
+
+[[case]]
+name = "review 6 real j2 fields"
+args = ["-j2", "a", "b"]
+scratch = { "a" = "L k\n", "b" = "R k\n" }
+
+
+[[case]]
+name = "review 6 NUL record pairs"
+args = ["-z", "a", "b"]
+scratch = { "a" = "a L\u0000b M\u0000", "b" = "a R\u0000c X\u0000" }
+
+
+[[case]]
+name = "review 6 auto missing later fields"
+args = ["-o", "auto", "-e", "?", "a", "b"]
+scratch = { "a" = "k X\nk\n", "b" = "k Y\nk\n" }
+
