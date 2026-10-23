@@ -74,26 +74,6 @@ fn main() -> int {
             let cmp = textio.cmp(a.items[i].data, b.items[j].data, false)
             if cmp == 0 { c = 2 } else if cmp > 0 { c = 1 }
         }
-        if c != 2 { unpaired = true }
-        // Checks happen when a record is read, before it can be output.
-        if order >= 0 && (order == 1 || unpaired) {
-            if i > 0 &&
-                i < a.items.len &&
-                !bad1 &&
-                textio.cmp(a.items[i - 1].data, a.items[i].data, false) > 0 {
-                bore.warn("comm", "file 1 is not in sorted order")
-                bad1 = true
-                if order == 1 { return bore.finish(mut out, "comm", 1) }
-            }
-            if j > 0 &&
-                j < b.items.len &&
-                !bad2 &&
-                textio.cmp(b.items[j - 1].data, b.items[j].data, false) > 0 {
-                bore.warn("comm", "file 2 is not in sorted order")
-                bad2 = true
-                if order == 1 { return bore.finish(mut out, "comm", 1) }
-            }
-        }
         counts[c] += 1
         if show[c] {
             for col in 0..c {
@@ -119,6 +99,26 @@ fn main() -> int {
         }
         if c != 1 { i += 1 }
         if c != 0 { j += 1 }
+        // Checks happen when a record is read, before it can be output.
+        if order >= 0 && (order == 1 || unpaired) {
+            if i > 0 &&
+                i < a.items.len &&
+                !bad1 &&
+                textio.cmp(a.items[i - 1].data, a.items[i].data, false) > 0 {
+                bore.warn("comm", "file 1 is not in sorted order")
+                bad1 = true
+                if order == 1 { return bore.finish(mut out, "comm", 1) }
+            }
+            if j > 0 &&
+                j < b.items.len &&
+                !bad2 &&
+                textio.cmp(b.items[j - 1].data, b.items[j].data, false) > 0 {
+                bore.warn("comm", "file 2 is not in sorted order")
+                bad2 = true
+                if order == 1 { return bore.finish(mut out, "comm", 1) }
+            }
+        }
+        if c != 2 { unpaired = true }
     }
     if total {
         let s = if sep.len == 0 then "\0" else sep

@@ -654,3 +654,7 @@ stdout_closed = true
 name = "short option is not a long option"
 args = ["--1", "a", "b"]
 scratch = { a="", b="" }
+[[case]]
+name = "deferred disorder in both files preserves diagnostic order"
+args = ["a", "b"]
+scratch = { a="c\nc\na\nÿ\nb\n", b="c\nB\nÿ\nc\nB\n" }
