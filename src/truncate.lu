@@ -88,6 +88,7 @@ fn main() -> int {
     var text = ""
     var sized = false
     var reference = ""
+    var referenced = false
     var nocreate = false
     var blocks = false
     var i = 0
@@ -105,7 +106,7 @@ fn main() -> int {
             return bore.finish(mut out, "truncate", 0)
         }
         if k == "size" { sized = true; text = p.values[i] }
-        if k == "reference" { reference = p.values[i] }
+        if k == "reference" { reference = p.values[i]; referenced = true }
         if k == "no-create" { nocreate = true }
         if k == "io-blocks" { blocks = true }
         i += 1
@@ -118,7 +119,7 @@ fn main() -> int {
         )
         return 1
     }
-    if !sized && reference.len == 0 {
+    if !sized && !referenced {
         return bore.usage_error(
             "truncate",
             "you must specify either {bore.quote_always("--size")} or {bore.quote_always("--reference")}",
@@ -149,14 +150,14 @@ fn main() -> int {
             return 1
         }
     }
-    if reference.len > 0 && sized && how.len == 0 {
+    if referenced && sized && how.len == 0 {
         return bore.usage_error(
             "truncate",
             "you must specify a relative {bore.quote_always("--size")} with {bore.quote_always("--reference")}",
         )
     }
     var refsize = -1
-    if reference.len > 0 {
+    if referenced {
         let r = fs_stat(reference) else |_| {
             bore.warn("truncate", "cannot stat {bore.quote_always(reference)}: {bore.io_error()}")
             return 1
