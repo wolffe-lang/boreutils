@@ -159,7 +159,7 @@ derives no boreutils code from GPL source.
 
 Every shipped utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus, except where a case says otherwise and is
-skipped with its reason. The corpus holds **7,145 cases**; `kill` has
+skipped with its reason. The corpus holds **7,147 cases**; `kill` has
 365 more that SEND, each run in a container of its own (`tests/kill/`,
 `tools/killtest`: **365 passed, 0 failed** on hasu at bu30, groups,
 `kill 0` and `kill -1` among them), `timeout` 163 more that run a
@@ -170,8 +170,8 @@ macOS's), and the six identity tools 1,126 more that
 run as root and as users or change an owner (`tests/ids/`,
 `tools/idtest`: 28 of them only on CI's macOS runner). The bu30 measurement in an unprivileged Ubuntu 24.04 container on hasu
 (linux x86-64, CPUs 0–5), at wolf 0.2.35 / lupin 0.1.56 with bundled
-std `2386522e`, answers **7,015 passed, 0 failed, 130 skipped** on both
-release and dev. Eight new utilities add 354 cases (344 passed, ten
+std `2386522e`, answers **7,017 passed, 0 failed, 130 skipped** on both
+release and dev. Eight new utilities add 356 cases (346 passed, ten
 named surface skips), and three `readlink` regressions cover recovered
 prefixes and a link target ending in a slash. Random
 `mktemp` names are checked by fixed prefix, suffix, replaced X count,
@@ -1298,7 +1298,7 @@ table answers it per utility, from the evidence and from nothing else.
 | `unlink` | 2 / 2 | 16 / 0 | not benched (hasu cases) | drop-in |
 | `truncate` | 5 / 6 | 92 / 4 | not benched (hasu cases) | drop-in for scripts that avoid `-o`/`--io-blocks` (#684), FIFOs, and `-c` where another process removes or replaces the operand during the stat/open window |
 | `sync` | 3 / 4 | 15 / 4 | not benched (hasu cases) | drop-in for scripts that name readable operands and avoid `-f`/`--file-system`; write-only operands are refused by name |
-| `mktemp` | 8 / 8 | 47 / 0 | not benched (hasu cases) | drop-in |
+| `mktemp` | 8 / 8 | 49 / 0 | not benched (hasu cases) | drop-in |
 | `realpath` | 12 / 12 | 114 / 0 | not benched (hasu cases) | drop-in |
 | `tty` | 3 / 3 | 12 / 0 | not benched (hasu cases) | drop-in |
 
