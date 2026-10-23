@@ -1,0 +1,10 @@
+//! member: false
+//! cksum: POSIX.1-2024 / GNU 9.11 CLI, standards-based checksum module.
+//! uutils (MIT), toybox (0BSD): design references only. Never GNU source.
+use checksum
+fn main() -> int {
+    var d = checksum.digest_new(7, 256)
+    checksum.digest_feed(mut d, "abc".bytes())
+    print(checksum.hex_bytes(checksum.digest_end(mut d)))
+    0
+}
