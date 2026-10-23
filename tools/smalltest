@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """bu30: shape-guard plants and named surface refusals (no GNU source)."""
 import copy
+import contextlib
+import io
 import os
 from pathlib import Path
 import runpy
@@ -45,6 +47,19 @@ class ShapeGate(unittest.TestCase):
         self.assertEqual(list(H["changer_paths"]("truncate", ["--size=/2", "f"])), ["f"])
         self.assertEqual(list(H["changer_paths"]("truncate", ["--", "-s", "/2"])), ["-s", "/2"])
         self.assertEqual(list(H["changer_paths"]("truncate", ["-r", "/outside", "f"])), ["-r", "/outside", "f"])
+
+
+    def test_loader_refuses_outside_tmpdir(self):
+        with tempfile.TemporaryDirectory(prefix="bore-loader.") as top:
+            cases = Path(top) / "mktemp.toml"
+            cases.write_text('[[case]]\nname="outside"\nargs=["-t","fXXX"]\nenv={ TMPDIR="/nonexistent-bore-refusal-root" }\n')
+            with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as error:
+                H["load"](str(cases), "mktemp")
+            self.assertEqual(error.exception.code, 2)
+            cases.write_text('[[case]]\nname="safe default"\nargs=[]\n')
+            loaded = H["load"](str(cases), "mktemp")
+            self.assertEqual(loaded[0]["env"]["TMPDIR"], "{scratch}")
+
 
 
 class SurfaceRefusals(unittest.TestCase):
