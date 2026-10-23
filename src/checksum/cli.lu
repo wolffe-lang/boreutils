@@ -53,9 +53,9 @@ pub fn command(prog: str, default_kind: int, default_bits: int) -> int {
             return bore.finish(mut out, prog, 0)
         }
         if k == "algorithm" {
-            let a = bore.argmatch(p.values[i], algorithm_names(), algorithm_meanings())
+            let a = exact_algorithm(p.values[i])
             if a < 0 {
-                return bore.argmatch_error(prog, p.values[i], "algorithm", algorithm_names(), algorithm_meanings(), a == -2)
+                return bore.argmatch_error(prog, p.values[i], "algorithm", algorithm_names(), algorithm_meanings(), false)
             }
             c.explicit_kind = true
             c.kind = a
@@ -117,7 +117,7 @@ pub fn command(prog: str, default_kind: int, default_bits: int) -> int {
             bore.warn(prog, "--length is only supported with --algorithm blake2b, sha2, or sha3")
             return 1
         }
-    } else if sha2 {
+    } else if sha2 && !c.check {
         bore.warn(prog, "--algorithm=sha2 requires specifying --length 224, 256, 384, or 512")
         return 1
     }
@@ -213,8 +213,8 @@ fn length_number(s: str) -> int ! {invalid, overflow} {
     while i < bs.len {
         let b = bs[i] as int
         if b < 48 || b > 57 { return invalid }
-        if n > (9223372036854775807 - (b - 48)) / 10 { return overflow }
-        n = n * 10 + b - 48
+        if n <= (9223372036854775807 - (b - 48)) / 10 { n = n * 10 + b - 48 }
+        else { n = 9223372036854775807 }
         i += 1
     }
     if i == start { return invalid }
@@ -263,7 +263,7 @@ fn checksum_operand(c: Settings, name: str, explicit: bool) -> int {
     if c.raw {
         var i = if c.kind == 2 || c.kind == 3 then 2 else 0
         while i < a.bytes.len { bore.put_byte(mut out, a.bytes[i]) else |_| {}; i += 1 }
-        return if bore.finish(mut out, c.prog, 0) == 0 then 0 else 2
+        return if checksum_finish(mut out, c) == 0 then 0 else 2
     }
     let end = if c.zero then "\0" else "\n"
     if c.kind < 4 {
@@ -280,7 +280,7 @@ fn checksum_operand(c: Settings, name: str, explicit: bool) -> int {
         bore.put(mut out, head) else |_| {}
         if explicit { bore.put(mut out, " {name}") else |_| {} }
         bore.put(mut out, end) else |_| {}
-        return if bore.finish(mut out, c.prog, 0) == 0 then 0 else 2
+        return if checksum_finish(mut out, c) == 0 then 0 else 2
     }
     let encoded = if c.base64 then base64_bytes(a.bytes) else hex_bytes(a.bytes)
     let escape = !c.zero && (name.contains("\\") || name.contains("\n") || name.contains("\r"))
@@ -289,7 +289,7 @@ fn checksum_operand(c: Settings, name: str, explicit: bool) -> int {
     let line = if c.tag then "{digest_label(c.kind, c.bits)} ({shown}) = {encoded}{end}"
         else "{encoded} {if c.binary then "*" else " "}{shown}{end}"
     bore.put(mut out, line) else |_| {}
-    if bore.finish(mut out, c.prog, 0) == 0 then 0 else 2
+    if checksum_finish(mut out, c) == 0 then 0 else 2
 }
 
 fn pad_left(s: str, width: int, fill: str) -> str {
@@ -326,4 +326,24 @@ fn base64_bytes(xs: List[byte]) -> str {
         i += 3
     }
     str_from_utf8(out) else ""
+}
+
+fn exact_algorithm(s: str) -> int {
+    let names = algorithm_names()
+    let meanings = algorithm_meanings()
+    var i = 0
+    while i < names.len { if s == names[i] { return meanings[i] }; i += 1 }
+    -1
+}
+
+fn checksum_finish(mut out: bore.Out, c: Settings) -> int {
+    bore.flush(mut out) else |_| {
+        let code = bore.host_code()
+        // GNU 9.11's numeric checksums lose ENOSPC before close_stdout;
+        // its black-box result is the bare diagnostic, unlike digest modes.
+        if c.kind < 4 && code == 28 { bore.warn(c.prog, "write error") }
+        else { bore.write_error_code(out, c.prog, "write error", code) }
+        return 1
+    }
+    0
 }
