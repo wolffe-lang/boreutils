@@ -95,10 +95,14 @@ class Checksums(unittest.TestCase):
                             for checker in [BIN / tool, gnu(tool)]:
                                 p = run(checker, ["-c"], manifest.stdout, td)
                                 self.assertEqual(p.returncode, 0, (checker, p.stdout, p.stderr))
+                                self.assertEqual(p.stderr, b"", (checker, p.stdout, p.stderr))
+                                self.assertEqual(len(p.stdout.splitlines()), len(names), (checker, p.stdout))
                         if "--tag" in flags:
                             for checker in [BIN / "cksum", gnu("cksum")]:
                                 p = run(checker, ["-c"], produced[0].stdout, td)
                                 self.assertEqual(p.returncode, 0, (checker, p.stdout, p.stderr))
+                                self.assertEqual(p.stderr, b"", (checker, p.stdout, p.stderr))
+                                self.assertEqual(len(p.stdout.splitlines()), len(names), (checker, p.stdout))
 
     def test_malformed_bytes_and_manifest_state(self):
         with tempfile.TemporaryDirectory(prefix="bore-checksum.") as td:
