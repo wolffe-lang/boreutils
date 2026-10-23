@@ -1319,6 +1319,8 @@ def load(path, util=None):
                     f"({util} changes an owner: such a case belongs to "
                     f"tools/idtest, in a container)")
     for c in cases:
+        if c.get("tty_name") and not c.get("tty_stdin"):
+            die(f"{path}: tty_name requires tty_stdin")
         extra = set(c) - KEYS - {"_changer"}
         if "name" not in c or extra:
             die(f"{path}: case {c.get('name', '?')!r} is malformed "
@@ -1557,7 +1559,7 @@ def main(argv):
                 failed += 1
                 print(f"FAIL {label}  args={case.get('args', [])!r}")
                 if case.get("temp_shape"):
-                    print(f"    shape errors: bore={None if b is None else b.get("shape_error")!r}, gnu={None if g is None else g.get("shape_error")!r}")
+                    print(f"    shape errors: bore={None if b is None else b.get('shape_error')!r}, gnu={None if g is None else g.get('shape_error')!r}")
                 if case.get("tty_name"):
                     print(f"    tty errors: bore={None if b is None else b.get('tty_error')!r}, gnu={None if g is None else g.get('tty_error')!r}")
                 print(show("bore", b, fields))
