@@ -102,6 +102,9 @@ fn main() -> int {
     let fixed = template[0..start]
     var prefix = fixed
     if temporary { prefix = bore.join_name(dir, fixed) }
+    var shown = template
+    if explicit_suffix { shown = "{shown}{suffix}" }
+    if temporary { shown = bore.join_name(dir, shown) }
     var attempts = 0
     while attempts < 10000 {
         attempts += 1
@@ -128,7 +131,7 @@ fn main() -> int {
         if why.len > 0 {
             if !quiet {
                 let kind = if directory then "directory" else "file"
-                bore.warn("mktemp", "failed to create {kind} via template {bore.quote("{prefix}{"X".repeat(count)}{suffix}")}: {why}")
+                bore.warn("mktemp", "failed to create {kind} via template {bore.quote(shown)}: {why}")
             }
             return 1
         }

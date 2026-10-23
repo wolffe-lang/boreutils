@@ -636,6 +636,30 @@ def unsafe(arg):
 KILL_LISTS = ("-l", "-t", "-L", "--list", "--table", "--help", "--version")
 
 
+def changer_paths(util, args):
+    """Only truncate's explicitly sized option values are not paths.
+
+    A leading '/' is a rounding operator in SIZE, not an operand. After
+    '--', every word is an operand again. Reference paths remain guarded.
+    """
+    options = True
+    size = False
+    for arg in args:
+        if size:
+            size = False
+            continue
+        if options and arg == "--":
+            options = False
+            continue
+        if options and util == "truncate":
+            if arg in ("-s", "--size"):
+                size = True
+                continue
+            if arg.startswith("--size=") or arg.startswith("-s") and not arg.startswith("--"):
+                continue
+        yield arg
+
+
 def could_signal(args):
     """Why this `kill` case could signal a process, or None."""
     if args and args[0] in KILL_LISTS:
@@ -1256,7 +1280,12 @@ def load(path, util=None):
     for c in cases:
         if changer:
             c["_changer"] = True
-            for a in list(c.get("args", [])) + [c.get("cwd", "")]:
+            if util == "mktemp":
+                c.setdefault("env", {}).setdefault("TMPDIR", "{scratch}")
+                why = unsafe(c["env"]["TMPDIR"])
+                if why is not None:
+                    die(f"{path}: refusing case {c.get('name', '?')!r}: {why} (mktemp TMPDIR)")
+            for a in list(changer_paths(util, c.get("args", []))) + [c.get("cwd", "")]:
                 why = unsafe(str(a))
                 if why is not None:
                     die(f"{path}: refusing case {c.get('name', '?')!r}: {why} "

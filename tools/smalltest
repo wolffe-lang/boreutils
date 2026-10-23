@@ -41,6 +41,10 @@ class ShapeGate(unittest.TestCase):
             self.assertIn(util, H["CHANGERS"])
         for path in ("/", "/etc/nope", "../outside", "a/../b", "~/x"):
             self.assertIsNotNone(H["unsafe"](path), path)
+        self.assertEqual(list(H["changer_paths"]("truncate", ["-s", "/2", "f"])), ["f"])
+        self.assertEqual(list(H["changer_paths"]("truncate", ["--size=/2", "f"])), ["f"])
+        self.assertEqual(list(H["changer_paths"]("truncate", ["--", "-s", "/2"])), ["-s", "/2"])
+        self.assertEqual(list(H["changer_paths"]("truncate", ["-r", "/outside", "f"])), ["-r", "/outside", "f"])
 
 
 class SurfaceRefusals(unittest.TestCase):
