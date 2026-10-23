@@ -5,7 +5,6 @@ No GNU or other implementation source is used. hashlib is an independent
 executable oracle for message answers; CLI answers come from GNU 9.11.
 Run --measure for 256 MiB, three-run median speed and peak-RSS rows.
 """
-import argparse
 import hashlib
 import json
 import os
@@ -15,6 +14,7 @@ import statistics
 import subprocess
 import tempfile
 import time
+import threading
 import unittest
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -29,6 +29,25 @@ ENV = dict(os.environ, LC_ALL="C", _POSIX2_VERSION="200112")
 def run(path, args=(), data=b"", cwd=None):
     return subprocess.run([str(path), *args], input=data, cwd=cwd, env=ENV,
                           capture_output=True, timeout=120)
+
+
+def measured(command, timeout=600):
+    """wait4 supplies this child's RSS, not a cumulative process maximum."""
+    start = time.perf_counter()
+    p = subprocess.Popen([str(x) for x in command], env=ENV, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    timer = threading.Timer(timeout, p.kill)
+    timer.start()
+    try:
+        stdout = p.stdout.read()
+        stderr = p.stderr.read()
+        _, status, usage = os.wait4(p.pid, 0)
+        p.returncode = os.waitstatus_to_exitcode(status)
+        elapsed = time.perf_counter() - start
+        return p.returncode, stdout, stderr, elapsed, int(usage.ru_maxrss)
+    finally:
+        timer.cancel()
+        p.stdout.close()
+        p.stderr.close()
 
 
 def gnu(tool):
@@ -63,7 +82,7 @@ class Checksums(unittest.TestCase):
 
     def test_cross_tool_manifests(self):
         with tempfile.TemporaryDirectory(prefix="bore-checksum.") as td:
-            names = ["plain", "back\\slash", "new\nline", "car\rriage", "sp ace", "right) = paren", "é"]
+            names = ["plain", "back\\slash", "new\nline", "car\rriage", "sp ace", "right) = paren", "(paren)", "a(b)c", "é"]
             for n in names:
                 (Path(td) / n).write_bytes(b"abc\x00\xff" * 101)
             for tool in ALGORITHMS:
@@ -107,7 +126,7 @@ class Checksums(unittest.TestCase):
             self.assertIn(phrase, p.stderr)
             self.assertIn(b"not supported", p.stderr)
 
-    @unittest.skipUnless(os.uname().sysname == "Linux", "peak RSS gate uses Linux time -v")
+    @unittest.skipUnless(os.uname().sysname == "Linux", "peak RSS gate is normalized for Linux wait4")
     def test_memory_is_bounded(self):
         with tempfile.TemporaryDirectory(prefix="bore-checksum-rss.") as td:
             p = Path(td)
@@ -118,11 +137,8 @@ class Checksums(unittest.TestCase):
             for size in [8, 256]:
                 with large.open("r+b") as f:
                     f.truncate(size * 1024 * 1024)
-                report = p / "time.txt"
-                done = subprocess.run(["/usr/bin/time", "-v", "-o", str(report), str(BIN / "sha256sum"), str(large)],
-                                      capture_output=True, env=ENV, timeout=300)
-                self.assertEqual(done.returncode, 0, done.stderr)
-                peak = int(next(x.split(":", 1)[1] for x in report.read_text().splitlines() if "Maximum resident set size" in x))
+                rc, _, stderr, _, peak = measured([BIN / "sha256sum", large], timeout=300)
+                self.assertEqual(rc, 0, stderr)
                 rss.append(peak)
                 print(f"MEMORY {TIER} sha256sum {size}MiB peak_kib={peak}", flush=True)
             self.assertLess(rss[1], 65536)
@@ -143,16 +159,12 @@ def measure():
             peak = 0
             for trial in range(3):
                 for side, exe in [("bore", BIN / tool), ("gnu", gnu(tool))]:
-                    start = time.perf_counter()
-                    report = p / "rss"
-                    done = subprocess.run(["/usr/bin/time", "-v", "-o", str(report), str(exe), *flags, str(data)],
-                                          capture_output=True, env=ENV, timeout=600)
-                    elapsed = time.perf_counter() - start
-                    if done.returncode:
-                        raise RuntimeError((label, side, done.returncode, done.stderr))
+                    rc, stdout, stderr, elapsed, rss = measured([exe, *flags, data])
+                    if rc:
+                        raise RuntimeError((label, side, rc, stderr))
                     times[side].append(elapsed)
                     if side == "bore":
-                        peak = max(peak, int(next(x.split(":", 1)[1] for x in report.read_text().splitlines() if "Maximum resident set size" in x)))
+                        peak = max(peak, rss)
                     print(f"SPEED-PROGRESS {label} {side} {trial + 1} {elapsed:.6f}s", flush=True)
             row = dict(algorithm=label, tier=TIER, mib=256, runs=3,
                        bore_s=statistics.median(times["bore"]), gnu_s=statistics.median(times["gnu"]), peak_kib=peak)
@@ -167,5 +179,5 @@ if __name__ == "__main__":
         measure()
     else:
         if os.uname().sysname != "Linux":
-            print("SKIP checksumtest: Linux time -v peak-RSS gate (not Linux)", flush=True)
+            print("SKIP checksumtest: Linux wait4 peak-RSS gate (not Linux)", flush=True)
         unittest.main(verbosity=2)
