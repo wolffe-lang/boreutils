@@ -34,7 +34,7 @@ fn size_word(text: str) -> int ! {invalid} {
     var j = 0
     while j < marks.len {
         let a = marks.bytes()[j]
-        if tail.bytes()[0] == a || j == 0 && tail.bytes()[0] == 75 { power = j + 1 }
+        if tail.bytes()[0] == a || j == 0 && tail.bytes()[0] == 75 as byte { power = j + 1 }
         j += 1
     }
     if power == 0 { return invalid }
