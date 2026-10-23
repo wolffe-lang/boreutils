@@ -68,12 +68,13 @@ fn alphabet(width: int) -> str {
 }
 
 fn encoding(src: bore.In, out: bore.Out, prog: str, width: int, wrap: int) -> int {
+    let keep = region()
     let table = alphabet(width)
     let mask = if width == 6 then 63 else 31
     let quantum = if width == 6 then 4 else 8
     var bits = 0, acc = 0, chars = 0, col = 0, done = false, status = 0
     while !done {
-        region pass {
+        in keep {
             let bs = bore.read_chunk(src, 65536) else |e| match e {
                 eof => { done = true; List[byte]() },
                 io => {
@@ -144,13 +145,14 @@ fn valid_count(n: int, width: int) -> bool {
 }
 
 fn decoding(src: bore.In, out: bore.Out, prog: str, width: int, ignore: bool) -> int {
+    let keep = region()
     if width == 5 { return decoding32(src, out, prog, ignore) }
     let quantum = if width == 6 then 4 else 8
     var acc = 0, bits = 0, n = 0, pads = 0, done = false, bad = false, read_bad = false
     // A base32 padded quantum is committed only when its padding is complete.
     var pending = 0, pending_n = 0
     while !done && !bad {
-        region pass {
+        in keep {
             let bs = bore.read_chunk(src, 65536) else |e| match e {
                 eof => { done = true; List[byte]() },
                 io => {
@@ -229,10 +231,11 @@ fn flush_pending(mut bytes: List[byte], pending: int, n: int) {
 // unpadded quantum, but does not complete a short explicit padding suffix.
 // This distinguishes AA! (one prefix byte) from AA!= (none).
 fn decoding32(src: bore.In, out: bore.Out, prog: str, ignore: bool) -> int {
+    let keep = region()
     var block = [0, 0, 0, 0, 0, 0, 0, 0]
     var used = 0, done = false, bad = false, read_bad = false
     while !done && !bad {
-        region pass {
+        in keep {
             let bs = bore.read_chunk(src, 65536) else |e| match e {
                 eof => { done = true; List[byte]() },
                 io => {
