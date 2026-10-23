@@ -22,3 +22,24 @@ assertions are in tools/checksumtest.
 Census correction: baseline 85d3e69 has 55 standalone source commands, not 63.
 Nine new commands make 64 binaries. The GNU manual denominator counts the four
 SHA-2 commands as one utility, so coverage is 61 of 103 utility units (59%).
+
+R-bu32-2 (accepted by the orchestrator): a valid-looking checksum record
+whose filename needs non-UTF-8 bytes refuses explicitly, never a lossy path.
+Invalid escapes and wrong markers stay malformed under GNU's grammar;
+comments bypass UTF-8 decoding. The same parser reports the filename span,
+and only invalid bytes inside that span may be substituted for recognition.
+raw-boundaries-red.txt retains GNU's two malformed-line exit-0 answers and
+its successful verification of the real raw-byte filename (x)\xff. This is
+the fs_open(str) surface gap, in wolf-lang#406/#904's raw-argument family,
+listed for the orchestrator to file, not filed by this lane.
+The no-new-runtime-surface prediction failed for raw-byte paths only.
+
+Independent review: the original three parser findings and two test gaps
+are fixed. The delta review's too-broad and too-narrow raw-path boundaries
+were measured red, fixed by main-parser spans, and spot-checked by the
+orchestrator before the final gauntlet. GNU's 16/32-bit BLAKE2 cksum hex
+ambiguity is matched, not waived; b2sum accepts those hex records.
+The CI plant at 25811c2 was red in run 40001139591, job 120577303808:
+test_named_refusals deliberately expected 0 and got 1. The same run exposed
+a real BLAKE2-16 hex ambiguity; f862dc9 fixes that and 2cb6475 restores the
+expectation. The complete retained CI log is notes/bu32/ev/ci-plant.log.

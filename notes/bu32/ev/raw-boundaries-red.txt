@@ -1,0 +1,6 @@
+bad-escape /l/boreutils/.gnu-bin/bin 0 b'f: OK\nf: OK\n' b'md5sum: WARNING: 1 line is improperly formatted\n'
+bad-escape /l/boreutils/target/release 1 b'f: OK\n' b'md5sum: non-UTF-8 file names in checksum lists are not supported: wolf 0.2.35 fs_open requires a UTF-8 path\nmd5sum: standard input: Input/output error\n'
+bad-marker /l/boreutils/.gnu-bin/bin 0 b'f: OK\nf: OK\n' b'md5sum: WARNING: 1 line is improperly formatted\n'
+bad-marker /l/boreutils/target/release 1 b'f: OK\n' b'md5sum: non-UTF-8 file names in checksum lists are not supported: wolf 0.2.35 fs_open requires a UTF-8 path\nmd5sum: standard input: Input/output error\n'
+parenthesized-raw /l/boreutils/.gnu-bin/bin 0 b"f: OK\n'(x)'$'\\377': OK\n" b''
+parenthesized-raw /l/boreutils/target/release 1 b'f: OK\n' b'md5sum: WARNING: 1 line is improperly formatted\nmd5sum: standard input: Input/output error\n'
