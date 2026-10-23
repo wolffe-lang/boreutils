@@ -34,7 +34,7 @@ pub fn digest_new(kind: int, bits: int) -> Digest {
     }
     var i = 0
     while i < 128 {
-        (mut d.buf).push(0)
+        (mut d.buf).push(0 as byte)
         i += 1
     }
     i = 0
@@ -102,27 +102,27 @@ pub fn digest_end(mut d: Digest) -> List[byte] {
     let size = block_size(d)
     if d.kind == 10 {
         var j = d.used
-        while j < size { d.buf[j] = 0; j += 1 }
+        while j < size { d.buf[j] = 0 as byte; j += 1 }
         digest_block(mut d, true)
     } else {
         if d.used == size { digest_block(mut d, false); d.used = 0 }
-        d.buf[d.used] = 128
+        d.buf[d.used] = 128 as byte
         d.used += 1
         let lenbytes = if size == 128 then 16 else 8
         if d.used > size - lenbytes {
-            while d.used < size { d.buf[d.used] = 0; d.used += 1 }
+            while d.used < size { d.buf[d.used] = 0 as byte; d.used += 1 }
             digest_block(mut d, false)
             d.used = 0
         }
-        while d.used < size { d.buf[d.used] = 0; d.used += 1 }
+        while d.used < size { d.buf[d.used] = 0 as byte; d.used += 1 }
         let low = d.lo << 3
         let high = (d.hi << 3) | (d.lo >> 61)
         var j = 0
         while j < 8 {
             let at = if d.kind == 4 then size - 8 + j else size - 1 - j
-            d.buf[at] = ((low >> (j * 8) as wrapping[u64]) & 255) as byte
+            d.buf[at] = ((low >> (j * 8) as wrapping[u64]) & 255) as int as byte
             if size == 128 {
-                d.buf[size - 9 - j] = ((high >> (j * 8) as wrapping[u64]) & 255) as byte
+                d.buf[size - 9 - j] = ((high >> (j * 8) as wrapping[u64]) & 255) as int as byte
             }
             j += 1
         }
@@ -134,7 +134,7 @@ pub fn digest_end(mut d: Digest) -> List[byte] {
     var j = 0
     while j < d.bits / 8 {
         let shift = (if little then j % width else width - 1 - j % width) * 8
-        (mut result).push(((d.h[j / width] >> shift as wrapping[u64]) & 255) as byte)
+        (mut result).push(((d.h[j / width] >> shift as wrapping[u64]) & 255) as int as byte)
         j += 1
     }
     result
@@ -147,7 +147,7 @@ fn load_words(mut d: Digest, width: int, little: bool) {
         var j = 0
         while j < width {
             let shift = (if little then j else width - 1 - j) * 8
-            x = x | ((d.buf[i * width + j] as wrapping[u64]) << shift as wrapping[u64])
+            x = x | ((d.buf[i * width + j] as int as wrapping[u64]) << shift as wrapping[u64])
             j += 1
         }
         d.w[i] = x
