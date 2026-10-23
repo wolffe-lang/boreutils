@@ -1,0 +1,874 @@
+difftest: gnu = true (GNU coreutils) 9.11 (prefix '') on Linux x86_64
+difftest: bore = /l/boreutils/target/dev
+difftest: oracle environment, LC_ALL=C _POSIX2_VERSION=200112
+difftest: oracle of record, GNU coreutils 9.11
+difftest: oracle profile OK — `uniq +1 /dev/null` exits 1 (the obsolete +N operand form is off, so +1 is a file name (B73))
+difftest: scratch root /l/scratch
+ok   comm: --help
+ok   comm: --version
+ok   comm: []
+ok   comm: ['a']
+ok   comm: ['a', 'b', 'c']
+ok   comm: ['--bogus']
+ok   comm: ['--output-delimiter=x', '--output-delimiter=y', 'a', 'b']
+ok   comm: ['--output-delimiter=x', '--output-delimiter=x', 'a', 'b']
+ok   comm: 0[]
+ok   comm: 0['--check-order']
+ok   comm: 0['--nocheck-order']
+ok   comm: 0['--total']
+ok   comm: 0['-1']
+ok   comm: 0['-2']
+ok   comm: 0['-3']
+ok   comm: 0['-12']
+ok   comm: 0['-13']
+ok   comm: 0['-23']
+ok   comm: 0['-123']
+ok   comm: 1[]
+ok   comm: 1['--check-order']
+ok   comm: 1['--nocheck-order']
+ok   comm: 1['--total']
+ok   comm: 1['-1']
+ok   comm: 1['-2']
+ok   comm: 1['-3']
+ok   comm: 1['-12']
+ok   comm: 1['-13']
+ok   comm: 1['-23']
+ok   comm: 1['-123']
+ok   comm: 2[]
+ok   comm: 2['--check-order']
+ok   comm: 2['--nocheck-order']
+ok   comm: 2['--total']
+ok   comm: 2['-1']
+ok   comm: 2['-2']
+ok   comm: 2['-3']
+ok   comm: 2['-12']
+ok   comm: 2['-13']
+ok   comm: 2['-23']
+ok   comm: 2['-123']
+ok   comm: 3[]
+ok   comm: 3['--check-order']
+ok   comm: 3['--nocheck-order']
+ok   comm: 3['--total']
+ok   comm: 3['-1']
+ok   comm: 3['-2']
+ok   comm: 3['-3']
+ok   comm: 3['-12']
+ok   comm: 3['-13']
+ok   comm: 3['-23']
+ok   comm: 3['-123']
+ok   comm: 4[]
+ok   comm: 4['--check-order']
+ok   comm: 4['--nocheck-order']
+ok   comm: 4['--total']
+ok   comm: 4['-1']
+ok   comm: 4['-2']
+ok   comm: 4['-3']
+ok   comm: 4['-12']
+ok   comm: 4['-13']
+ok   comm: 4['-23']
+ok   comm: 4['-123']
+ok   comm: 5[]
+ok   comm: 5['--check-order']
+ok   comm: 5['--nocheck-order']
+ok   comm: 5['--total']
+ok   comm: 5['-1']
+ok   comm: 5['-2']
+ok   comm: 5['-3']
+ok   comm: 5['-12']
+ok   comm: 5['-13']
+ok   comm: 5['-23']
+ok   comm: 5['-123']
+ok   comm: 6[]
+ok   comm: 6['--check-order']
+ok   comm: 6['--nocheck-order']
+ok   comm: 6['--total']
+ok   comm: 6['-1']
+ok   comm: 6['-2']
+ok   comm: 6['-3']
+ok   comm: 6['-12']
+ok   comm: 6['-13']
+ok   comm: 6['-23']
+ok   comm: 6['-123']
+ok   comm: 7[]
+ok   comm: 7['--check-order']
+ok   comm: 7['--nocheck-order']
+ok   comm: 7['--total']
+ok   comm: 7['-1']
+ok   comm: 7['-2']
+ok   comm: 7['-3']
+ok   comm: 7['-12']
+ok   comm: 7['-13']
+ok   comm: 7['-23']
+ok   comm: 7['-123']
+ok   comm: 8[]
+ok   comm: 8['--check-order']
+ok   comm: 8['--nocheck-order']
+ok   comm: 8['--total']
+ok   comm: 8['-1']
+ok   comm: 8['-2']
+ok   comm: 8['-3']
+ok   comm: 8['-12']
+ok   comm: 8['-13']
+ok   comm: 8['-23']
+ok   comm: 8['-123']
+ok   comm: 9[]
+ok   comm: 9['--check-order']
+ok   comm: 9['--nocheck-order']
+ok   comm: 9['--total']
+ok   comm: 9['-1']
+ok   comm: 9['-2']
+ok   comm: 9['-3']
+ok   comm: 9['-12']
+ok   comm: 9['-13']
+ok   comm: 9['-23']
+ok   comm: 9['-123']
+ok   comm: delimiter ''False
+ok   comm: delimiter ''True
+ok   comm: delimiter '::'False
+ok   comm: delimiter '::'True
+ok   comm: delimiter '\t'False
+ok   comm: delimiter '\t'True
+ok   comm: bad file ['nope', 'b']
+ok   comm: bad file ['a', 'nope']
+ok   comm: bad file ['/', 'b']
+ok   comm: bad file ['a', '/']
+ok   comm: stdin
+ok   comm: closed
+ok   comm: short option is not a long option
+ok   comm: deferred disorder in both files preserves diagnostic order
+FAIL comm: review 3 both stdin False  args=['-', '-']
+    bore stdout: b'a\na\n'
+    bore stderr: b''
+    bore exit: 0
+    gnu  stdout: b'\t\ta\n'
+    gnu  stderr: b'PROG: -: Bad file descriptor\n'
+    gnu  exit: 1
+FAIL comm: review 3 both stdin True  args=['-z', '-', '-']
+    bore stdout: b'a\x00a\x00'
+    bore stderr: b''
+    bore exit: 0
+    gnu  stdout: b'\t\ta\x00'
+    gnu  stderr: b'PROG: -: Bad file descriptor\n'
+    gnu  exit: 1
+ok   join: --help
+ok   join: --version
+ok   join: []
+ok   join: ['a']
+ok   join: ['a', 'b', 'c']
+ok   join: ['--bogus']
+ok   join: ['-a', '3']
+ok   join: ['-v', '0']
+ok   join: ['-1', 'x']
+ok   join: ['-o', '']
+ok   join: ['-o', '1.0']
+ok   join: ['-o', 'x']
+ok   join: ['-o', '1.1,,2.1']
+ok   join: ['-t', ':', '-t', ';']
+ok   join: ['-e', 'x', '-e', 'y']
+ok   join: ['-t', 'xx']
+ok   join: ['-', '-']
+ok   join: 0[]
+ok   join: 0['--check-order']
+ok   join: 0['--nocheck-order']
+ok   join: 0['-a1']
+ok   join: 0['-a2']
+ok   join: 0['-a1', '-a2']
+ok   join: 0['-v1']
+ok   join: 0['-v2']
+ok   join: 0['-v1', '-v2']
+ok   join: 0['--header']
+ok   join: 0['--header', '--check-order']
+ok   join: 0['-o', 'auto', '-a1', '-a2']
+ok   join: 0['-o', '0,1.1,2.1,1.9', '-e', '?', '-a1', '-a2']
+ok   join: 0['-i']
+ok   join: 1[]
+ok   join: 1['--check-order']
+ok   join: 1['--nocheck-order']
+ok   join: 1['-a1']
+ok   join: 1['-a2']
+ok   join: 1['-a1', '-a2']
+ok   join: 1['-v1']
+ok   join: 1['-v2']
+ok   join: 1['-v1', '-v2']
+ok   join: 1['--header']
+ok   join: 1['--header', '--check-order']
+ok   join: 1['-o', 'auto', '-a1', '-a2']
+ok   join: 1['-o', '0,1.1,2.1,1.9', '-e', '?', '-a1', '-a2']
+ok   join: 1['-i']
+ok   join: 2[]
+ok   join: 2['--check-order']
+ok   join: 2['--nocheck-order']
+ok   join: 2['-a1']
+ok   join: 2['-a2']
+ok   join: 2['-a1', '-a2']
+ok   join: 2['-v1']
+ok   join: 2['-v2']
+ok   join: 2['-v1', '-v2']
+ok   join: 2['--header']
+ok   join: 2['--header', '--check-order']
+ok   join: 2['-o', 'auto', '-a1', '-a2']
+ok   join: 2['-o', '0,1.1,2.1,1.9', '-e', '?', '-a1', '-a2']
+ok   join: 2['-i']
+ok   join: 3[]
+ok   join: 3['--check-order']
+ok   join: 3['--nocheck-order']
+ok   join: 3['-a1']
+ok   join: 3['-a2']
+ok   join: 3['-a1', '-a2']
+ok   join: 3['-v1']
+ok   join: 3['-v2']
+ok   join: 3['-v1', '-v2']
+ok   join: 3['--header']
+ok   join: 3['--header', '--check-order']
+ok   join: 3['-o', 'auto', '-a1', '-a2']
+ok   join: 3['-o', '0,1.1,2.1,1.9', '-e', '?', '-a1', '-a2']
+ok   join: 3['-i']
+ok   join: 4[]
+ok   join: 4['--check-order']
+ok   join: 4['--nocheck-order']
+ok   join: 4['-a1']
+ok   join: 4['-a2']
+ok   join: 4['-a1', '-a2']
+ok   join: 4['-v1']
+ok   join: 4['-v2']
+ok   join: 4['-v1', '-v2']
+ok   join: 4['--header']
+ok   join: 4['--header', '--check-order']
+ok   join: 4['-o', 'auto', '-a1', '-a2']
+ok   join: 4['-o', '0,1.1,2.1,1.9', '-e', '?', '-a1', '-a2']
+ok   join: 4['-i']
+ok   join: 5[]
+ok   join: 5['--check-order']
+ok   join: 5['--nocheck-order']
+ok   join: 5['-a1']
+ok   join: 5['-a2']
+ok   join: 5['-a1', '-a2']
+ok   join: 5['-v1']
+ok   join: 5['-v2']
+ok   join: 5['-v1', '-v2']
+ok   join: 5['--header']
+ok   join: 5['--header', '--check-order']
+ok   join: 5['-o', 'auto', '-a1', '-a2']
+ok   join: 5['-o', '0,1.1,2.1,1.9', '-e', '?', '-a1', '-a2']
+ok   join: 5['-i']
+ok   join: 6[]
+ok   join: 6['--check-order']
+ok   join: 6['--nocheck-order']
+ok   join: 6['-a1']
+ok   join: 6['-a2']
+ok   join: 6['-a1', '-a2']
+ok   join: 6['-v1']
+ok   join: 6['-v2']
+ok   join: 6['-v1', '-v2']
+ok   join: 6['--header']
+ok   join: 6['--header', '--check-order']
+ok   join: 6['-o', 'auto', '-a1', '-a2']
+ok   join: 6['-o', '0,1.1,2.1,1.9', '-e', '?', '-a1', '-a2']
+ok   join: 6['-i']
+ok   join: 7[]
+ok   join: 7['--check-order']
+ok   join: 7['--nocheck-order']
+ok   join: 7['-a1']
+ok   join: 7['-a2']
+ok   join: 7['-a1', '-a2']
+ok   join: 7['-v1']
+ok   join: 7['-v2']
+ok   join: 7['-v1', '-v2']
+ok   join: 7['--header']
+ok   join: 7['--header', '--check-order']
+ok   join: 7['-o', 'auto', '-a1', '-a2']
+ok   join: 7['-o', '0,1.1,2.1,1.9', '-e', '?', '-a1', '-a2']
+ok   join: 7['-i']
+ok   join: 8[]
+ok   join: 8['--check-order']
+ok   join: 8['--nocheck-order']
+ok   join: 8['-a1']
+ok   join: 8['-a2']
+ok   join: 8['-a1', '-a2']
+ok   join: 8['-v1']
+ok   join: 8['-v2']
+ok   join: 8['-v1', '-v2']
+ok   join: 8['--header']
+ok   join: 8['--header', '--check-order']
+ok   join: 8['-o', 'auto', '-a1', '-a2']
+ok   join: 8['-o', '0,1.1,2.1,1.9', '-e', '?', '-a1', '-a2']
+ok   join: 8['-i']
+ok   join: 9[]
+ok   join: 9['--check-order']
+ok   join: 9['--nocheck-order']
+ok   join: 9['-a1']
+ok   join: 9['-a2']
+ok   join: 9['-a1', '-a2']
+ok   join: 9['-v1']
+ok   join: 9['-v2']
+ok   join: 9['-v1', '-v2']
+ok   join: 9['--header']
+ok   join: 9['--header', '--check-order']
+ok   join: 9['-o', 'auto', '-a1', '-a2']
+ok   join: 9['-o', '0,1.1,2.1,1.9', '-e', '?', '-a1', '-a2']
+ok   join: 9['-i']
+ok   join: 10[]
+ok   join: 10['--check-order']
+ok   join: 10['--nocheck-order']
+ok   join: 10['-a1']
+ok   join: 10['-a2']
+ok   join: 10['-a1', '-a2']
+ok   join: 10['-v1']
+ok   join: 10['-v2']
+ok   join: 10['-v1', '-v2']
+ok   join: 10['--header']
+ok   join: 10['--header', '--check-order']
+ok   join: 10['-o', 'auto', '-a1', '-a2']
+ok   join: 10['-o', '0,1.1,2.1,1.9', '-e', '?', '-a1', '-a2']
+ok   join: 10['-i']
+ok   join: 11[]
+ok   join: 11['--check-order']
+ok   join: 11['--nocheck-order']
+ok   join: 11['-a1']
+ok   join: 11['-a2']
+ok   join: 11['-a1', '-a2']
+ok   join: 11['-v1']
+ok   join: 11['-v2']
+ok   join: 11['-v1', '-v2']
+ok   join: 11['--header']
+ok   join: 11['--header', '--check-order']
+ok   join: 11['-o', 'auto', '-a1', '-a2']
+ok   join: 11['-o', '0,1.1,2.1,1.9', '-e', '?', '-a1', '-a2']
+ok   join: 11['-i']
+ok   join: fields ['-j2']
+ok   join: fields ['-1', '2', '-2', '3']
+ok   join: fields ['-t', ':']
+ok   join: fields ['-t', '']
+ok   join: fields ['-t', '\\0']
+ok   join: fields ['-z']
+ok   join: fields ['-o', '1.2 0 2.2']
+ok   join: bad file ['nope', 'b']
+ok   join: bad file ['a', 'nope']
+ok   join: bad file ['/', 'b']
+ok   join: bad file ['a', '/']
+ok   join: closed
+ok   join: numeric boundary ' 2'
+ok   join: numeric boundary '2 '
+ok   join: numeric boundary '-0'
+ok   join: numeric boundary '+0'
+ok   join: numeric boundary '18446744073709551615'
+ok   join: numeric boundary '18446744073709551616'
+ok   join: numeric boundary '9223372036854775808'
+ok   join: numeric boundary '0002'
+ok   join: numeric boundary '2x'
+ok   join: numeric boundary '+'
+ok   join: numeric boundary '\t2'
+ok   join: short option is not a long option
+ok   join: file-number spelling '+1'
+ok   join: file-number spelling '01'
+ok   join: file-number spelling ' 1'
+ok   join: file-number spelling '-0'
+ok   join: file-number spelling '3'
+FAIL join: carriage return belongs to the key  args=['-i', 'a', 'b']
+    bore stdout: b'a X X\na X y\na x X\na x y\n'
+    bore stderr: b''
+    bore exit: 0
+    bore files: [('a', 'file', b'a\rX\na x\n'), ('b', 'file', b'a\rX\na y\n')]
+    bore tree: [('.', 'dir', 493, None, None, None), ('a', 'file', 420, 1, 8, None), ('b', 'file', 420, 1, 8, None)]
+    gnu  stdout: b'a\rX\na x y\n'
+    gnu  stderr: b''
+    gnu  exit: 0
+    gnu  files: [('a', 'file', b'a\rX\na x\n'), ('b', 'file', b'a\rX\na y\n')]
+    gnu  tree: [('.', 'dir', 493, None, None, None), ('a', 'file', 420, 1, 8, None), ('b', 'file', 420, 1, 8, None)]
+FAIL join: review 1 upper folding ['-i']  args=['-i', 'a', 'b']
+    bore stdout: b''
+    bore stderr: b'PROG: a:2: is not sorted: [\nPROG: input is not in sorted order\n'
+    bore exit: 1
+    bore files: [('a', 'file', b'Z\n[\n'), ('b', 'file', b'[\n')]
+    bore tree: [('.', 'dir', 493, None, None, None), ('a', 'file', 420, 1, 4, None), ('b', 'file', 420, 1, 2, None)]
+    gnu  stdout: b'[\n'
+    gnu  stderr: b''
+    gnu  exit: 0
+    gnu  files: [('a', 'file', b'Z\n[\n'), ('b', 'file', b'[\n')]
+    gnu  tree: [('.', 'dir', 493, None, None, None), ('a', 'file', 420, 1, 4, None), ('b', 'file', 420, 1, 2, None)]
+FAIL join: review 1 upper folding ['-i', '--check-order']  args=['-i', '--check-order', 'a', 'b']
+    bore stdout: b''
+    bore stderr: b'PROG: a:2: is not sorted: [\n'
+    bore exit: 1
+    bore files: [('a', 'file', b'Z\n[\n'), ('b', 'file', b'[\n')]
+    bore tree: [('.', 'dir', 493, None, None, None), ('a', 'file', 420, 1, 4, None), ('b', 'file', 420, 1, 2, None)]
+    gnu  stdout: b'[\n'
+    gnu  stderr: b''
+    gnu  exit: 0
+    gnu  files: [('a', 'file', b'Z\n[\n'), ('b', 'file', b'[\n')]
+    gnu  tree: [('.', 'dir', 493, None, None, None), ('a', 'file', 420, 1, 4, None), ('b', 'file', 420, 1, 2, None)]
+FAIL join: review 2 nonblank '\r'  args=['a', 'b']
+    bore stdout: b'k L R\n'
+    bore stderr: b''
+    bore exit: 0
+    bore files: [('a', 'file', b'k\rL\n'), ('b', 'file', b'k R\n')]
+    bore tree: [('.', 'dir', 493, None, None, None), ('a', 'file', 420, 1, 4, None), ('b', 'file', 420, 1, 4, None)]
+    gnu  stdout: b''
+    gnu  stderr: b''
+    gnu  exit: 0
+    gnu  files: [('a', 'file', b'k\rL\n'), ('b', 'file', b'k R\n')]
+    gnu  tree: [('.', 'dir', 493, None, None, None), ('a', 'file', 420, 1, 4, None), ('b', 'file', 420, 1, 4, None)]
+FAIL join: review 2 nonblank '\x0b'  args=['a', 'b']
+    bore stdout: b'k L R\n'
+    bore stderr: b''
+    bore exit: 0
+    bore files: [('a', 'file', b'k\x0bL\n'), ('b', 'file', b'k R\n')]
+    bore tree: [('.', 'dir', 493, None, None, None), ('a', 'file', 420, 1, 4, None), ('b', 'file', 420, 1, 4, None)]
+    gnu  stdout: b''
+    gnu  stderr: b''
+    gnu  exit: 0
+    gnu  files: [('a', 'file', b'k\x0bL\n'), ('b', 'file', b'k R\n')]
+    gnu  tree: [('.', 'dir', 493, None, None, None), ('a', 'file', 420, 1, 4, None), ('b', 'file', 420, 1, 4, None)]
+FAIL join: review 2 nonblank '\x0c'  args=['a', 'b']
+    bore stdout: b'k L R\n'
+    bore stderr: b''
+    bore exit: 0
+    bore files: [('a', 'file', b'k\x0cL\n'), ('b', 'file', b'k R\n')]
+    bore tree: [('.', 'dir', 493, None, None, None), ('a', 'file', 420, 1, 4, None), ('b', 'file', 420, 1, 4, None)]
+    gnu  stdout: b''
+    gnu  stderr: b''
+    gnu  exit: 0
+    gnu  files: [('a', 'file', b'k\x0cL\n'), ('b', 'file', b'k R\n')]
+    gnu  tree: [('.', 'dir', 493, None, None, None), ('a', 'file', 420, 1, 4, None), ('b', 'file', 420, 1, 4, None)]
+ok   join: review 2 zero records newline field
+ok   join: review 6 real asymmetric fields
+ok   join: review 6 real j2 fields
+ok   join: review 6 NUL record pairs
+ok   join: review 6 auto missing later fields
+ok   base64: help
+ok   base64: version
+ok   base64: bad option
+ok   base64: encode 0 wrap 0
+ok   base64: encode 0 wrap 1
+ok   base64: encode 0 wrap 4
+ok   base64: encode 0 wrap 7
+ok   base64: encode 0 wrap 76
+ok   base64: encode 1 wrap 0
+ok   base64: encode 1 wrap 1
+ok   base64: encode 1 wrap 4
+ok   base64: encode 1 wrap 7
+ok   base64: encode 1 wrap 76
+ok   base64: encode 2 wrap 0
+ok   base64: encode 2 wrap 1
+ok   base64: encode 2 wrap 4
+ok   base64: encode 2 wrap 7
+ok   base64: encode 2 wrap 76
+ok   base64: encode 3 wrap 0
+ok   base64: encode 3 wrap 1
+ok   base64: encode 3 wrap 4
+ok   base64: encode 3 wrap 7
+ok   base64: encode 3 wrap 76
+ok   base64: encode 4 wrap 0
+ok   base64: encode 4 wrap 1
+ok   base64: encode 4 wrap 4
+ok   base64: encode 4 wrap 7
+ok   base64: encode 4 wrap 76
+ok   base64: encode 5 wrap 0
+ok   base64: encode 5 wrap 1
+ok   base64: encode 5 wrap 4
+ok   base64: encode 5 wrap 7
+ok   base64: encode 5 wrap 76
+ok   base64: encode 6 wrap 0
+ok   base64: encode 6 wrap 1
+ok   base64: encode 6 wrap 4
+ok   base64: encode 6 wrap 7
+ok   base64: encode 6 wrap 76
+ok   base64: encode 7 wrap 0
+ok   base64: encode 7 wrap 1
+ok   base64: encode 7 wrap 4
+ok   base64: encode 7 wrap 7
+ok   base64: encode 7 wrap 76
+ok   base64: encode 8 wrap 0
+ok   base64: encode 8 wrap 1
+ok   base64: encode 8 wrap 4
+ok   base64: encode 8 wrap 7
+ok   base64: encode 8 wrap 76
+ok   base64: encode 9 wrap 0
+ok   base64: encode 9 wrap 1
+ok   base64: encode 9 wrap 4
+ok   base64: encode 9 wrap 7
+ok   base64: encode 9 wrap 76
+ok   base64: encode 10 wrap 0
+ok   base64: encode 10 wrap 1
+ok   base64: encode 10 wrap 4
+ok   base64: encode 10 wrap 7
+ok   base64: encode 10 wrap 76
+ok   base64: encode 11 wrap 0
+ok   base64: encode 11 wrap 1
+ok   base64: encode 11 wrap 4
+ok   base64: encode 11 wrap 7
+ok   base64: encode 11 wrap 76
+ok   base64: encode 12 wrap 0
+ok   base64: encode 12 wrap 1
+ok   base64: encode 12 wrap 4
+ok   base64: encode 12 wrap 7
+ok   base64: encode 12 wrap 76
+ok   base64: encode 13 wrap 0
+ok   base64: encode 13 wrap 1
+ok   base64: encode 13 wrap 4
+ok   base64: encode 13 wrap 7
+ok   base64: encode 13 wrap 76
+ok   base64: encode 14 wrap 0
+ok   base64: encode 14 wrap 1
+ok   base64: encode 14 wrap 4
+ok   base64: encode 14 wrap 7
+ok   base64: encode 14 wrap 76
+ok   base64: encode 15 wrap 0
+ok   base64: encode 15 wrap 1
+ok   base64: encode 15 wrap 4
+ok   base64: encode 15 wrap 7
+ok   base64: encode 15 wrap 76
+ok   base64: encode 16 wrap 0
+ok   base64: encode 16 wrap 1
+ok   base64: encode 16 wrap 4
+ok   base64: encode 16 wrap 7
+ok   base64: encode 16 wrap 76
+ok   base64: encode 17 wrap 0
+ok   base64: encode 17 wrap 1
+ok   base64: encode 17 wrap 4
+ok   base64: encode 17 wrap 7
+ok   base64: encode 17 wrap 76
+ok   base64: encode 18 wrap 0
+ok   base64: encode 18 wrap 1
+ok   base64: encode 18 wrap 4
+ok   base64: encode 18 wrap 7
+ok   base64: encode 18 wrap 76
+ok   base64: encode 19 wrap 0
+ok   base64: encode 19 wrap 1
+ok   base64: encode 19 wrap 4
+ok   base64: encode 19 wrap 7
+ok   base64: encode 19 wrap 76
+ok   base64: -d ''
+ok   base64: -di ''
+ok   base64: -d 'Zg=='
+ok   base64: -di 'Zg=='
+ok   base64: -d 'Zg='
+ok   base64: -di 'Zg='
+ok   base64: -d 'Zg'
+ok   base64: -di 'Zg'
+ok   base64: -d 'Zg==Zg=='
+ok   base64: -di 'Zg==Zg=='
+ok   base64: -d 'Zg==A'
+ok   base64: -di 'Zg==A'
+ok   base64: -d 'Zg==!'
+ok   base64: -di 'Zg==!'
+ok   base64: -d 'Zg==\r\n'
+ok   base64: -di 'Zg==\r\n'
+ok   base64: -d '\nZg=='
+ok   base64: -di '\nZg=='
+ok   base64: -d 'zg=='
+ok   base64: -di 'zg=='
+ok   base64: -d '='
+ok   base64: -di '='
+ok   base64: -d '===='
+ok   base64: -di '===='
+ok   base64: -d 'AA!'
+ok   base64: -di 'AA!'
+ok   base64: -d 'AA='
+ok   base64: -di 'AA='
+ok   base64: -d 'AAA='
+ok   base64: -di 'AAA='
+ok   base64: -d 'AA=='
+ok   base64: -di 'AA=='
+ok   base64: -d 'AA==='
+ok   base64: -di 'AA==='
+ok   base64: -d 'AAAA===='
+ok   base64: -di 'AAAA===='
+ok   base64: -d 'AAAAA==='
+ok   base64: -di 'AAAAA==='
+ok   base64: -d 'AAAAAA=='
+ok   base64: -di 'AAAAAA=='
+ok   base64: -d 'AAAAAAA='
+ok   base64: -di 'AAAAAAA='
+ok   base64: -d 'AA==AA'
+ok   base64: -di 'AA==AA'
+ok   base64: -d 'AAB'
+ok   base64: -di 'AAB'
+ok   base64: -d 'AB'
+ok   base64: -di 'AB'
+ok   base64: -d 'A'
+ok   base64: -di 'A'
+ok   base64: -d 'AA'
+ok   base64: -di 'AA'
+ok   base64: -d 'AAA'
+ok   base64: -di 'AAA'
+ok   base64: -d 'AAAA'
+ok   base64: -di 'AAAA'
+ok   base64: -d 'AAAAA'
+ok   base64: -di 'AAAAA'
+ok   base64: -d 'AAAAAA'
+ok   base64: -di 'AAAAAA'
+ok   base64: -d 'AAAAAAA'
+ok   base64: -di 'AAAAAAA'
+ok   base64: -d 'AAAAAAAA'
+ok   base64: -di 'AAAAAAAA'
+ok   base64: -d 'AAAAAAAAA'
+ok   base64: -di 'AAAAAAAAA'
+ok   base64: -d 'AAAAAAAAAA'
+ok   base64: -di 'AAAAAAAAAA'
+ok   base64: -d 'AAAAAAAAAAA'
+ok   base64: -di 'AAAAAAAAAAA'
+ok   base64: -d 'AAAAAAAAAAAA'
+ok   base64: -di 'AAAAAAAAAAAA'
+ok   base64: -d 'AAAAAAAAAAAAA'
+ok   base64: -di 'AAAAAAAAAAAAA'
+ok   base64: -d 'AAAAAAAAAAAAAA'
+ok   base64: -di 'AAAAAAAAAAAAAA'
+ok   base64: -d 'AAAAAAAAAAAAAAA'
+ok   base64: -di 'AAAAAAAAAAAAAAA'
+ok   base64: -d 'AAAAAAAAAAAAAAAA'
+ok   base64: -di 'AAAAAAAAAAAAAAAA'
+ok   base64: -d 'AAAAAAAAAAAAAAAAA'
+ok   base64: -di 'AAAAAAAAAAAAAAAAA'
+ok   base64: invalid wrap '-1'
+ok   base64: invalid wrap 'x'
+ok   base64: invalid wrap ''
+ok   base64: invalid wrap '+4'
+ok   base64: invalid wrap '4x'
+ok   base64: extra
+ok   base64: missing
+ok   base64: directory
+ok   base64: stdin dash
+ok   base64: closed empty
+ok   base64: closed output
+ok   base64: full output
+ok   base64: stream chunk boundary
+ok   base64: numeric boundary ' 2'
+ok   base64: numeric boundary '2 '
+ok   base64: numeric boundary '-0'
+ok   base64: numeric boundary '+0'
+ok   base64: numeric boundary '18446744073709551615'
+ok   base64: numeric boundary '18446744073709551616'
+ok   base64: numeric boundary '9223372036854775808'
+ok   base64: numeric boundary '0002'
+ok   base64: numeric boundary '2x'
+ok   base64: numeric boundary '+'
+ok   base64: numeric boundary '\t2'
+ok   base64: quantum regression 'AA!='
+ok   base64: quantum regression 'AAA====='
+ok   base64: quantum regression 'AA!====='
+ok   base64: quantum regression 'AA==AA'
+ok   base64: quantum regression 'AA!A'
+ok   base64: quantum regression 'A=AA'
+ok   base64: quantum regression 'AB======'
+ok   base64: quantum regression 'AAB====='
+ok   base64: review decode quantum crosses read boundary
+ok   base32: help
+ok   base32: version
+ok   base32: bad option
+ok   base32: encode 0 wrap 0
+ok   base32: encode 0 wrap 1
+ok   base32: encode 0 wrap 4
+ok   base32: encode 0 wrap 7
+ok   base32: encode 0 wrap 76
+ok   base32: encode 1 wrap 0
+ok   base32: encode 1 wrap 1
+ok   base32: encode 1 wrap 4
+ok   base32: encode 1 wrap 7
+ok   base32: encode 1 wrap 76
+ok   base32: encode 2 wrap 0
+ok   base32: encode 2 wrap 1
+ok   base32: encode 2 wrap 4
+ok   base32: encode 2 wrap 7
+ok   base32: encode 2 wrap 76
+ok   base32: encode 3 wrap 0
+ok   base32: encode 3 wrap 1
+ok   base32: encode 3 wrap 4
+ok   base32: encode 3 wrap 7
+ok   base32: encode 3 wrap 76
+ok   base32: encode 4 wrap 0
+ok   base32: encode 4 wrap 1
+ok   base32: encode 4 wrap 4
+ok   base32: encode 4 wrap 7
+ok   base32: encode 4 wrap 76
+ok   base32: encode 5 wrap 0
+ok   base32: encode 5 wrap 1
+ok   base32: encode 5 wrap 4
+ok   base32: encode 5 wrap 7
+ok   base32: encode 5 wrap 76
+ok   base32: encode 6 wrap 0
+ok   base32: encode 6 wrap 1
+ok   base32: encode 6 wrap 4
+ok   base32: encode 6 wrap 7
+ok   base32: encode 6 wrap 76
+ok   base32: encode 7 wrap 0
+ok   base32: encode 7 wrap 1
+ok   base32: encode 7 wrap 4
+ok   base32: encode 7 wrap 7
+ok   base32: encode 7 wrap 76
+ok   base32: encode 8 wrap 0
+ok   base32: encode 8 wrap 1
+ok   base32: encode 8 wrap 4
+ok   base32: encode 8 wrap 7
+ok   base32: encode 8 wrap 76
+ok   base32: encode 9 wrap 0
+ok   base32: encode 9 wrap 1
+ok   base32: encode 9 wrap 4
+ok   base32: encode 9 wrap 7
+ok   base32: encode 9 wrap 76
+ok   base32: encode 10 wrap 0
+ok   base32: encode 10 wrap 1
+ok   base32: encode 10 wrap 4
+ok   base32: encode 10 wrap 7
+ok   base32: encode 10 wrap 76
+ok   base32: encode 11 wrap 0
+ok   base32: encode 11 wrap 1
+ok   base32: encode 11 wrap 4
+ok   base32: encode 11 wrap 7
+ok   base32: encode 11 wrap 76
+ok   base32: encode 12 wrap 0
+ok   base32: encode 12 wrap 1
+ok   base32: encode 12 wrap 4
+ok   base32: encode 12 wrap 7
+ok   base32: encode 12 wrap 76
+ok   base32: encode 13 wrap 0
+ok   base32: encode 13 wrap 1
+ok   base32: encode 13 wrap 4
+ok   base32: encode 13 wrap 7
+ok   base32: encode 13 wrap 76
+ok   base32: encode 14 wrap 0
+ok   base32: encode 14 wrap 1
+ok   base32: encode 14 wrap 4
+ok   base32: encode 14 wrap 7
+ok   base32: encode 14 wrap 76
+ok   base32: encode 15 wrap 0
+ok   base32: encode 15 wrap 1
+ok   base32: encode 15 wrap 4
+ok   base32: encode 15 wrap 7
+ok   base32: encode 15 wrap 76
+ok   base32: encode 16 wrap 0
+ok   base32: encode 16 wrap 1
+ok   base32: encode 16 wrap 4
+ok   base32: encode 16 wrap 7
+ok   base32: encode 16 wrap 76
+ok   base32: encode 17 wrap 0
+ok   base32: encode 17 wrap 1
+ok   base32: encode 17 wrap 4
+ok   base32: encode 17 wrap 7
+ok   base32: encode 17 wrap 76
+ok   base32: encode 18 wrap 0
+ok   base32: encode 18 wrap 1
+ok   base32: encode 18 wrap 4
+ok   base32: encode 18 wrap 7
+ok   base32: encode 18 wrap 76
+ok   base32: encode 19 wrap 0
+ok   base32: encode 19 wrap 1
+ok   base32: encode 19 wrap 4
+ok   base32: encode 19 wrap 7
+ok   base32: encode 19 wrap 76
+ok   base32: -d ''
+ok   base32: -di ''
+ok   base32: -d 'MY======'
+ok   base32: -di 'MY======'
+ok   base32: -d 'MY====='
+ok   base32: -di 'MY====='
+ok   base32: -d 'MY'
+ok   base32: -di 'MY'
+ok   base32: -d 'MY======MY======'
+ok   base32: -di 'MY======MY======'
+ok   base32: -d 'MY======A'
+ok   base32: -di 'MY======A'
+ok   base32: -d 'MY======!'
+ok   base32: -di 'MY======!'
+ok   base32: -d 'MY======\r\n'
+ok   base32: -di 'MY======\r\n'
+ok   base32: -d '\nMY======'
+ok   base32: -di '\nMY======'
+ok   base32: -d 'my======'
+ok   base32: -di 'my======'
+ok   base32: -d '='
+ok   base32: -di '='
+ok   base32: -d '===='
+ok   base32: -di '===='
+ok   base32: -d 'AA!'
+ok   base32: -di 'AA!'
+ok   base32: -d 'AA='
+ok   base32: -di 'AA='
+ok   base32: -d 'AAA='
+ok   base32: -di 'AAA='
+ok   base32: -d 'AA=='
+ok   base32: -di 'AA=='
+ok   base32: -d 'AA==='
+ok   base32: -di 'AA==='
+ok   base32: -d 'AAAA===='
+ok   base32: -di 'AAAA===='
+ok   base32: -d 'AAAAA==='
+ok   base32: -di 'AAAAA==='
+ok   base32: -d 'AAAAAA=='
+ok   base32: -di 'AAAAAA=='
+ok   base32: -d 'AAAAAAA='
+ok   base32: -di 'AAAAAAA='
+ok   base32: -d 'AA==AA'
+ok   base32: -di 'AA==AA'
+ok   base32: -d 'AAB'
+ok   base32: -di 'AAB'
+ok   base32: -d 'AB'
+ok   base32: -di 'AB'
+ok   base32: -d 'A'
+ok   base32: -di 'A'
+ok   base32: -d 'AA'
+ok   base32: -di 'AA'
+ok   base32: -d 'AAA'
+ok   base32: -di 'AAA'
+ok   base32: -d 'AAAA'
+ok   base32: -di 'AAAA'
+ok   base32: -d 'AAAAA'
+ok   base32: -di 'AAAAA'
+ok   base32: -d 'AAAAAA'
+ok   base32: -di 'AAAAAA'
+ok   base32: -d 'AAAAAAA'
+ok   base32: -di 'AAAAAAA'
+ok   base32: -d 'AAAAAAAA'
+ok   base32: -di 'AAAAAAAA'
+ok   base32: -d 'AAAAAAAAA'
+ok   base32: -di 'AAAAAAAAA'
+ok   base32: -d 'AAAAAAAAAA'
+ok   base32: -di 'AAAAAAAAAA'
+ok   base32: -d 'AAAAAAAAAAA'
+ok   base32: -di 'AAAAAAAAAAA'
+ok   base32: -d 'AAAAAAAAAAAA'
+ok   base32: -di 'AAAAAAAAAAAA'
+ok   base32: -d 'AAAAAAAAAAAAA'
+ok   base32: -di 'AAAAAAAAAAAAA'
+ok   base32: -d 'AAAAAAAAAAAAAA'
+ok   base32: -di 'AAAAAAAAAAAAAA'
+ok   base32: -d 'AAAAAAAAAAAAAAA'
+ok   base32: -di 'AAAAAAAAAAAAAAA'
+ok   base32: -d 'AAAAAAAAAAAAAAAA'
+ok   base32: -di 'AAAAAAAAAAAAAAAA'
+ok   base32: -d 'AAAAAAAAAAAAAAAAA'
+ok   base32: -di 'AAAAAAAAAAAAAAAAA'
+ok   base32: invalid wrap '-1'
+ok   base32: invalid wrap 'x'
+ok   base32: invalid wrap ''
+ok   base32: invalid wrap '+4'
+ok   base32: invalid wrap '4x'
+ok   base32: extra
+ok   base32: missing
+ok   base32: directory
+ok   base32: stdin dash
+ok   base32: closed empty
+ok   base32: closed output
+ok   base32: full output
+ok   base32: stream chunk boundary
+ok   base32: numeric boundary ' 2'
+ok   base32: numeric boundary '2 '
+ok   base32: numeric boundary '-0'
+ok   base32: numeric boundary '+0'
+ok   base32: numeric boundary '18446744073709551615'
+ok   base32: numeric boundary '18446744073709551616'
+ok   base32: numeric boundary '9223372036854775808'
+ok   base32: numeric boundary '0002'
+ok   base32: numeric boundary '2x'
+ok   base32: numeric boundary '+'
+ok   base32: numeric boundary '\t2'
+ok   base32: quantum regression 'AA!='
+ok   base32: quantum regression 'AAA====='
+ok   base32: quantum regression 'AA!====='
+ok   base32: quantum regression 'AA==AA'
+ok   base32: quantum regression 'AA!A'
+ok   base32: quantum regression 'A=AA'
+ok   base32: quantum regression 'AB======'
+ok   base32: quantum regression 'AAB====='
+ok   base32: review decode quantum crosses read boundary
+difftest: 787 passed, 8 failed, 0 skipped
