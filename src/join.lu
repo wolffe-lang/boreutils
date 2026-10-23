@@ -92,13 +92,11 @@ fn main() -> int {
     while i < a.len && j < b.len && !ck.stop {
         let cmp = textio.cmp(field(a[i], c.field1), field(b[j], c.field2), c.fold)
         if cmp < 0 {
-            ck.unpaired = true
             if c.unpaired1 { output(mut out, a[i], empty, c) else |_| { return bore.finish(mut out, "join", 1) } }
-            i += 1; check(mut ck, a, i, 1, p.operands[0], c)
+            i += 1; check(mut ck, a, i, 1, p.operands[0], c); ck.unpaired = true
         } else if cmp > 0 {
-            ck.unpaired = true
             if c.unpaired2 { output(mut out, empty, b[j], c) else |_| { return bore.finish(mut out, "join", 1) } }
-            j += 1; check(mut ck, b, j, 2, p.operands[1], c)
+            j += 1; check(mut ck, b, j, 2, p.operands[1], c); ck.unpaired = true
         } else {
             var ai = i + 1, bj = j + 1
             check(mut ck, a, ai, 1, p.operands[0], c)
@@ -187,7 +185,7 @@ fn lines(rows: List[textio.Rec], sep: int) -> List[Line] {
     }
     answer
 }
-fn blank(b: byte) -> bool { b as int == 32 || b as int == 9 }
+fn blank(b: byte) -> bool { b as int == 32 || (b as int >= 9 && b as int <= 13) }
 fn field(line: Line, k: int) -> List[byte] {
     if k >= line.fields.len { return List[byte]() }
     copy line.fields[k].data
