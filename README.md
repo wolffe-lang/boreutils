@@ -159,23 +159,32 @@ derives no boreutils code from GPL source.
 
 Every utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus, except where a case says otherwise and is
-skipped with its reason. The corpus holds **6,788 cases**; `kill` has
+skipped with its reason. The corpus holds **7,145 cases**; `kill` has
 365 more that SEND, each run in a container of its own (`tests/kill/`,
-`tools/killtest`: **365 passed, 0 failed** on kasumi at bu28, groups,
+`tools/killtest`: **365 passed, 0 failed** on hasu at bu30, groups,
 `kill 0` and `kill -1` among them), `timeout` 163 more that run a
 command (`tests/timeout/`, `tools/timeouttest`: **150 passed, 0
-failed** on kasumi at bu28, and 13 skipped there: twelve that need a
+failed** on hasu at bu30, and 13 skipped there: twelve that need a
 core written as a file, which run on CI's ubuntu runner, and one of
 macOS's), and the six identity tools 1,126 more that
 run as root and as users or change an owner (`tests/ids/`,
-`tools/idtest`: 28 of them only on CI's macOS runner). A run in a
-throwaway Ubuntu 24.04 container on kasumi (linux x86-64; the utilities
-that change files, owners or send signals are run nowhere else on a
-lane's host) at wolf 0.2.34 answers **6,668 passed, 0 failed, 120
-skipped**, the same list on the release and the dev tier, and
-`tools/idtest` **1,098 passed, 0 failed**: at 0.2.33 the same, case for
-case (bu29's figures are in `notes/bu29-the-pin-0234.md`, bu28's in
-`notes/bu28-the-retired-refusals.md`, each with its PR). The edition before
+`tools/idtest`: 28 of them only on CI's macOS runner). The bu30 measurement in an unprivileged Ubuntu 24.04 container on hasu
+(linux x86-64, CPUs 0–5), at wolf 0.2.35 / lupin 0.1.56 with bundled
+std `2386522e`, answers **7,015 passed, 0 failed, 130 skipped** on both
+release and dev. Eight new utilities add 354 cases (344 passed, ten
+named surface skips), and three `readlink` regressions cover recovered
+prefixes and a link target ending in a slash. Random
+`mktemp` names are checked by fixed prefix, suffix, replaced X count,
+alphabet, object kind and private mode, never compared byte for byte.
+`tty` has standard-input pty cases, separate from standard-output ptys.
+
+The pin alone preserved **6,668 / 0 / 120** on both tiers, as at
+0.2.34 (bu29, `notes/bu29-the-pin-0234.md`). The container-suite
+figures above were re-measured on hasu; inouttest is 104 / 0 / 0 and
+roottest 178 / 0. `timeout` now disables
+its own core with `os_core_off()` before re-raising; the three core rows
+compare directly with GNU, with `-s 33` still a named design difference.
+The edition before
 bu28 said 6,784 cases and 6,664 passed, 0 failed, 120 skipped at wolf
 0.2.32, and `tools/timeouttest` 124 passed, 0 failed (bu27's figures
 are in `notes/bu27-the-groups.md`). The edition before bu27 said
@@ -1164,6 +1173,15 @@ depth is start-up on both sides.
 | `logname` | done on linux: `/proc/self/loginuid`, then the utmp record of standard input's terminal; refused by name on macOS (no call for the kernel's login name) | not benched |
 | `chown` | done: OWNER[:[GROUP]] by name or number, `USER:`, the old `.`, `--from`, `--reference`, `-c`, `-f`, `-v`, `-h`, `--dereference`, `-R` with `-H`/`-L`/`-P`, `--preserve-root` | not benched |
 | `chgrp` | done: as `chown`, for the group | not benched |
+| `mkfifo` | done: named pipes and `-m`; `-Z`/`--context` refused (no SELinux surface) | not benched |
+| `link` | done: exactly two operands, hard-link semantics | not benched |
+| `unlink` | done: exactly one operand; directories never removed, links themselves removed | not benched |
+| `truncate` | `-s` with suffixes and `+ - < > / %`, `-r`, `-c`; `-o` refused (#684), FIFOs refused (no non-blocking writable open), and `-c` races an unlinked operand (no non-creating writable open) | not benched |
+| `sync` | readable operand files and directories, `-d` with the stronger full sync; bare `sync`, `-f`, and write-only operands refused by name (missing global/filesystem syncs and non-creating writable open) | not benched |
+| `mktemp` | done: templates, `-d`, `-u`, `-q`, `-p`/`--tmpdir`, `-t`, explicit and inferred suffixes; kernel randomness and exclusive creation | not benched |
+| `realpath` | done: `-E`, `-e`, `-m`, `-L`, `-P`, `-q`, `-s`, `-z`, `--relative-to`, `--relative-base` | not benched |
+| `tty` | done: terminal name and `-s`; Linux `/proc/self/fd/0`, Darwin's immediate `/dev` character devices matched by identity | not benched |
+| `uname` | blocked on the listed surface: raw kernel fields; `os_name` and `os_arch` are normalized lowercase words, and node/release/version have no call | — |
 
 ## Differences from GNU
 
@@ -1191,17 +1209,6 @@ utility's row in the tables above.)
   and boreutils' `ev/probe-p4-w1rel.log` (`2ec931a1…`), copied into
   `notes/bu28/ev/`, and boreutils' answered again at wolf 0.2.33
   (`notes/bu28/ev/probe-p4-head-release.log`).
-- **`timeout`'s own core** (bu28; wolf has no call for it). When
-  `timeout` ends by the signal its command died of, or by one it passed
-  on, GNU's own end never dumps core, on any host (measured: no core bit
-  in its status even where kasumi's `systemd-coredump` takes every
-  fault's). This one's is the host's default end by that signal
-  (`os_exit_signal`), so where the host writes cores it writes one of
-  `timeout` too: a second core file beside the command's under
-  `ulimit -c unlimited`, and a dump handed to `systemd-coredump` (which
-  stores nothing under `ulimit -c 0`). The status is GNU's. Three
-  `tests/timeout/` rows say so by name (`design`): no call makes a
-  process undumpable or sets its own core limit.
 - **One signal, not two** (bu28). GNU's `timeout` sends its command its
   own copy of a signal and then sends the group the command is in, so the
   command gets two; under load they now and then arrive apart, and a
@@ -1268,7 +1275,7 @@ table answers it per utility, from the evidence and from nothing else.
 | `nproc` | 4 / 4 | 78 / 0 | start-up 0.80x | drop-in outside a fractional cgroup cpu quota (wolf-lang#537) |
 | `ls` | 46 / 60 | 694 / 16 | 0.60x to 1.99x; the long format 1.22x beside a GNU that also asks for each name's ACL | drop-in for scripts that avoid `-v`, the quoting styles but `-N`, `--author`, `--block-size`, `--time-style=+FORMAT`, `-Z`, the colour and filtering options (each refused by name), do not list files with ACLs in the long format (no `+`, wolf-lang#685), and do not need `.` and `..` placed by `-f` on ext4 (#692); owners named from `/etc/passwd` and `/etc/group` only; on a terminal, one 80 wide or reporting no size (#643) |
 | `stat` | 7 / 8 | 152 / 8 | start-up 0.77x; 0.69x to 0.75x over many operands | drop-in for scripts that avoid `-f` (wolf-lang#686), `-` (#536), `%C`, and `%o` or the default format's `IO Block:` field, which prints `?` (#684) |
-| `readlink` | 10 / 10 | 97 / 0 | start-up 0.77x | drop-in |
+| `readlink` | 10 / 10 | 100 / 0 | start-up 0.77x | drop-in |
 | `env` | 8 / 14 | 90 / 13 | `env true` 0.78x | drop-in for scripts that avoid `-S`, `-v` and the signal options (each refused by name), and do not read the ORDER of the environment they did not start from `-i` (wolf-lang#535) |
 | `mkdir` | 7 / 7 | 262 / 0 | start-up 0.72x; a thousand deep 0.37x | drop-in |
 | `rmdir` | 5 / 5 | 70 / 0 | start-up 0.72x | drop-in |
@@ -1279,15 +1286,23 @@ table answers it per utility, from the evidence and from nothing else.
 | `touch` | 11 / 11 | 156 / 13 | not benched | drop-in for scripts whose `-d` dates are `@SECONDS`, ISO 8601, a time of day or now/today/yesterday/tomorrow (any other is refused by name), that do not `touch -` (#714) or combine `-r` with `-d` |
 | `ln` | 13 / 16 | 145 / 3 | not benched | drop-in for scripts that avoid `-b`/`--backup`/`-S` (refused by name) |
 | `kill` | 5 / 5 | 894 / 1, and 365 / 0 that send | not benched | drop-in for scripts that do not `kill 0` from process group 1 (a container's first process and what it starts without job control; refused by name) |
-| `timeout` | 7 / 7 | 116 / 0 (7 skipped on macOS), and 150 / 0 that run a command (13 skipped on kasumi, run on CI) | not benched | drop-in for scripts that do not send timeout itself a fault or host-only signal, nor `-s 33` its group (glibc's own: GNU's timeout dies of it, this one lives); where the host writes cores, timeout's own end by a core-dumping signal dumps one, where GNU's never does (see Differences from GNU) |
+| `timeout` | 7 / 7 | 116 / 0 (7 skipped on macOS), and 150 / 0 that run a command (13 skipped on kasumi, run on CI) | not benched | drop-in for scripts that do not send timeout itself a fault or host-only signal, nor `-s 33` its group (glibc's own: GNU's timeout dies of it, this one lives) |
 | `id` | 7 / 8 | 64 / 0, and 428 / 0 as root and as users | not benched | drop-in where the accounts are in `/etc/passwd` and `/etc/group` (not macOS's directory service, LDAP or NIS); `-Z` is refused as GNU without SELinux refuses it |
 | `whoami` | 0 / 0 | 10 / 0, and 19 / 0 | not benched | drop-in where the accounts are in `/etc/passwd` |
 | `groups` | 0 / 0 | 12 / 0, and 62 / 0 | not benched | drop-in where the accounts are in `/etc/passwd` and `/etc/group` |
 | `logname` | 0 / 0 | 11 / 0, and 46 / 0 | not benched | drop-in on linux; refused by name on macOS |
 | `chown` | 13 / 13 | 17 / 0, and 373 / 0 as root and as users | not benched | drop-in where the accounts are in `/etc/passwd` and `/etc/group`; `-v` on a link to nothing it follows says `failed to change ownership of 'F' to …` where GNU prints an uninitialized owner |
 | `chgrp` | 13 / 13 | 17 / 0, and 170 / 0 | not benched | as `chown` |
+| `mkfifo` | 3 / 5 | 32 / 2 | not benched (hasu cases) | drop-in for scripts that avoid SELinux contexts (`-Z`/`--context` refused by name) |
+| `link` | 2 / 2 | 16 / 0 | not benched (hasu cases) | drop-in |
+| `unlink` | 2 / 2 | 16 / 0 | not benched (hasu cases) | drop-in |
+| `truncate` | 5 / 6 | 92 / 4 | not benched (hasu cases) | drop-in for scripts that avoid `-o`/`--io-blocks` (#684), FIFOs, and `-c` where another process removes or replaces the operand during the stat/open window |
+| `sync` | 3 / 4 | 15 / 4 | not benched (hasu cases) | drop-in for scripts that name readable operands and avoid `-f`/`--file-system`; write-only operands are refused by name |
+| `mktemp` | 8 / 8 | 47 / 0 | not benched (hasu cases) | drop-in |
+| `realpath` | 12 / 12 | 114 / 0 | not benched (hasu cases) | drop-in |
+| `tty` | 3 / 3 | 12 / 0 | not benched (hasu cases) | drop-in |
 
-**19 drop-in, 28 drop-in for scripts that avoid a named thing, none not
+**24 drop-in, 31 drop-in for scripts that avoid a named thing, none shipped not
 yet** (bu28: `kill`'s two named things became one, and `timeout`'s four
 became three narrower ones; bu27: `timeout` arrived with named things, and `kill`'s three
 became two narrower ones; bu24: the six identity tools arrived with a named thing each —
@@ -1298,18 +1313,17 @@ arrived with a named thing each; `rmdir` arrived drop-in at bu21 and
 one "not yet", shipped; `wc` became drop-in at bu19, when the host's
 reason arrived). `cp`'s named things shrank at bu22: it copies a mode
 and both times now, and refuses only what it cannot keep, by name. The same evidence read across: no shipped utility fails a case,
-and every skip that is this program's own names the wolf issue behind
-it.
+and every skip that is this program's own names its missing surface and
+evidence, with an upstream issue where one is already filed.
 
 **How much of GNU coreutils this is.** GNU coreutils 9.11 documents
 **103 utilities** (its info manual's `invocation` nodes, the four SHA-2
 sums counted as one and `[` as `test`; Arch's build installs 102
 binaries and leaves out `arch`, `chcon`, `runcon`, `hostname`, `kill`
 and `uptime`; `kill` is built only when asked for, which the oracle of
-record now does). boreutils ships **47 of them, 46%**. Effort is not what
-blocks most of the other 64: wolf
-0.2.28 has no surface for them, and each gap boreutils has met is filed
-upstream with its witness. The OS surface lane's first cut, s199's
+record now does). boreutils ships **55 of them, 53%**. Effort is not what
+blocks many of the other 48: some need missing wolf surfaces. Existing
+issues carry witnesses; newly measured gaps below are listed for upstream. The OS surface lane's first cut, s199's
 wolf-lang#426 and #424 (seek, tell, the positional read, and the
 standard descriptors), shipped in 0.2.22, and `tail`, `head` and `wc`
 use it (bu15).
@@ -1381,7 +1395,7 @@ use it (bu15).
 - **#625** and **#626** (answered by wolf 0.2.27's s218): `fs_stat`,
   `fs_lstat`, `fs_read_link`, `fs_read_dir_entries`. `ls -l` and its
   family, `stat` and `readlink` are written on them (bu20), and `ls -R`
-  went from 0.27x to level with GNU. `realpath`, `du`, `test -h` and a
+  went from 0.27x to level with GNU. `realpath` now uses the walk too (bu30); `du`, `test -h` and a
   `find`-shaped walk can be.
 - **#684**, the record has no I/O block size: `stat`'s `%o` and
   `IO Block:`.
@@ -1406,13 +1420,14 @@ use it (bu15).
 - **#701**, no call changes an owner: `chown`, `chgrp`, `cp -p`'s
   owner (refused by name), `install -o`.
 - **#702** (closed, wolf 0.2.28): `fs_truncate` sets a handle's length;
-  `truncate` can be written on it.
+  `truncate` is written on it (bu30), with `-o` still blocked by #684.
 - **#703**, a hole can be written and not found, and a clone cannot be
   asked for: `cp --sparse` and `--reflink` beyond `auto`.
 - **#704** (closed, wolf 0.2.28): `os_umask` sets the mask and answers
   the old one; reading it is setting it back (`bore.current_umask`),
   which `chmod`'s symbolic modes, `mkdir -p`'s parents and `-m` use.
-- **#705**, no fifo and no device node: `mkfifo`, `mknod`, a special
+- **#705**, device nodes still missing; `fs_mkfifo` arrived in 0.2.35
+  and `mkfifo` is written on it. `mknod` and a special
   file under `cp -r`.
 - **#706**, a rename always replaces: `mv -n` is a look and then a
   rename; `mv --exchange` cannot be written.
@@ -1424,11 +1439,29 @@ use it (bu15).
 - **#709**, `fs_copy_chunk` costs eleven system calls around the one
   that copies a small file: `cp -r` at 0.72x to 0.75x.
 
-Beyond those, the host builtin table at 0.2.27 has no call that names a user or a group (`id`, `whoami`,
-`groups`, `logname`, `users`, `who`, `pinky`: `ls -l` and `stat` read
-`/etc/passwd` and `/etc/group` themselves, `src/bore/ids.lu`), formats
-calendar time (`date`: the zone arithmetic it needs is
-`src/bore/clock.lu` since bu20), or asks a terminal its name or
-settings (`tty`, `stty`;
-`os_isatty` exists since 0.2.26). Those are not filed yet; each will be, with
-its witness, by the lane whose utility meets it first (B6, the census).
+Newly measured surface gaps (bu30, `notes/bu30/probes/surface.lu`):
+
+- **Bare `sync` / `sync -f`** need global `sync(2)` and per-filesystem
+  `syncfs(2)`. `fs_sync(fd)` and `fs_sync_dir(path)` flush only one object;
+  both missing operations are refused by name, not approximated.
+- **`uname`** needs raw sysname, nodename, release, version and machine
+  fields. `os_name()` prints `linux` rather than `Linux` (or `macos`
+  rather than `Darwin`), and `os_arch()` normalizes the machine word.
+  There is no call for `-n`, `-r` or `-v`. No `uname` program is shipped.
+- **wolf-lang#684, a second consumer:** `truncate -o` needs `st_blksize`,
+  not allocated space (`st_blocks`, record word 8). Neither path nor
+  handle's 20-word stat record has it, so `-o` is refused by name.
+- **Writable opens without create** are absent from modes 0–5 and from
+  `fs_open_perm`. `truncate -c` can recreate a name removed after its
+  stat; `sync` cannot safely retry a read-denied, write-only operand.
+  The latter is refused by name, not opened with append/create. In
+  `notes/bu30/probes/open-gap.lu`, stat + unlink + mode 2 prints
+  `recreated=true`; mode 5 is read-only, and mode 6 is invalid.
+- **Non-blocking writable opens** are absent too. GNU refuses a FIFO
+  without a reader immediately; mode 2 would block. `truncate` refuses
+  an observed FIFO by name before opening it, but a concurrent replacement
+  after stat remains a race until the surface exists. The bounded
+  witnesses are `notes/bu30/probes/review-oracle.py` and the FIFO cases.
+- **`unlink` needs no further surface:** the empty-directory witness
+  gets `Is a directory` from `fs_remove`, and the entry remains. The
+  utility also checks `lstat`; its final removal is still file-only.
