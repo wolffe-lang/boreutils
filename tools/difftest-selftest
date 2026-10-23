@@ -110,3 +110,6 @@ for bad in / "$HOME"; do
     echo "$out" | grep 'refusing the scratch root'
 done
 echo "difftest-selftest: the harness refused every unsafe operand and root"
+
+# bu30: validate random-name shape, private modes, and explicit refusals.
+python3 tools/smalltest

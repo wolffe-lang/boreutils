@@ -377,7 +377,7 @@ FIXTURES = os.path.join(ROOT, "tests", "fixtures")
 ALL = ("stdout", "stderr", "exit")
 FIELDS = ALL + ("files", "offset", "tree", "times")
 # The utilities that change the file system (bu21): see the docstring.
-CHANGERS = ("mkdir", "rmdir", "rm", "mv", "cp", "touch", "ln", "chmod")
+CHANGERS = ("mkdir", "rmdir", "rm", "mv", "cp", "touch", "ln", "chmod", "mkfifo", "link", "unlink", "truncate", "sync", "mktemp")
 KEYS = {"name", "args", "stdin", "stdin_file", "stdin_offset", "requires",
         "stdin_repeat", "env",
         "compare", "stdout_bytes", "stdout_closed", "stdout_file", "skip",
@@ -386,7 +386,7 @@ KEYS = {"name", "args", "stdin", "stdin_file", "stdin_offset", "requires",
         "cwd", "tree", "tty", "scratch_fifos", "scratch_sockets",
         "scratch_hardlinks", "scratch_atimes", "scratch_time_all",
         "scratch_keep", "mask", "scratch_sizes", "accounts", "umask",
-        "times", "skip_on", "gnu_keep", "oracle_build_differs"}
+        "times", "skip_on", "gnu_keep", "oracle_build_differs", "temp_shape", "tty_stdin"}
 # Naming any of these gives a case a scratch directory and a `files` field.
 SCRATCH = ("scratch", "scratch_dirs", "scratch_links", "scratch_modes",
            "scratch_times", "cwd", "scratch_fifos", "scratch_sockets",
@@ -943,6 +943,8 @@ def run(exe, argv0, case, base_env, top=None, now=0, fresh=True):
     sink = case.get("stdout_file")
     timeout = case.get("timeout", 10)
     tty = case.get("tty")
+    if case.get("tty_stdin") and tty is None:
+        tty = 80
     if tty is not None:
         return run_tty(exe, argv0, case, env, cwd, stdin, data, timeout, int(tty), top, now)
     if sink is not None:
@@ -1011,6 +1013,51 @@ def run(exe, argv0, case, base_env, top=None, now=0, fresh=True):
         result["files"] = snapshot(top)
         result["tree"] = tree(top, now)
         result["times"] = stamps(top, started, time.time_ns() + 20_000_000)
+    return temp_result(result, case, top, cwd)
+
+
+def temp_result(result, case, top, cwd):
+    """Validate the entire generated name and its object before normalizing it.
+
+    Both sides must satisfy the stated shape and private mode independently;
+    two equally broken results must never compare equal. Names in snapshots
+    are replaced only after that check, not by an unbounded regex mask.
+    """
+    shape = case.get("temp_shape")
+    if shape is None:
+        return result
+    result["shape_error"] = ""
+    prefix = os.path.join(substitute(shape["directory"], top), shape["prefix"])
+    pattern = (re.escape(prefix.encode()) + rb"[a-zA-Z0-9]{" +
+               str(shape["xs"]).encode() + rb"}" +
+               re.escape(shape.get("suffix", "").encode()) + rb"\n")
+    if result["exit"] != 0 or re.fullmatch(pattern, result["stdout"]) is None:
+        result["shape_error"] = "name, alphabet, X count, suffix, or exit differs from the declared shape"
+        return result
+    name = result["stdout"][:-1].decode()
+    path = os.path.abspath(os.path.join(cwd, name))
+    if top is None or os.path.commonpath([path, top]) != top:
+        result["shape_error"] = "generated name escaped the scratch directory"
+        return result
+    expected = shape["kind"]
+    try:
+        info = os.lstat(path)
+    except FileNotFoundError:
+        info = None
+    if expected == "none":
+        good = info is None
+    else:
+        good = info is not None and (stat.S_ISREG(info.st_mode) if expected == "file" else stat.S_ISDIR(info.st_mode))
+        good = good and stat.S_IMODE(info.st_mode) == (shape["mode"] & ~case.get("umask", 0o022))
+    if not good:
+        result["shape_error"] = "created kind or private mode differs, or dry-run created an entry"
+        return result
+    relative = os.path.relpath(path, top)
+    result["stdout"] = prefix.encode() + b"<RANDOM>" + shape.get("suffix", "").encode() + b"\n"
+    for field in ("files", "tree", "times"):
+        if field in result:
+            result[field] = [("<TEMP>" if row[0] == relative else row[0],) + tuple(row[1:])
+                             for row in result[field]]
     return result
 
 
@@ -1046,7 +1093,7 @@ def run_tty(exe, argv0, case, env, cwd, stdin, data, timeout, cols, top, now=0):
     fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, cols, 0, 0))
     proc = subprocess.Popen(
         [argv0] + [substitute(a, top) for a in case.get("args", [])],
-        executable=exe, env=env, stdin=stdin, stdout=slave,
+        executable=exe, env=env, stdin=slave if case.get("tty_stdin") else stdin, stdout=slave,
         stderr=subprocess.PIPE, cwd=cwd, restore_signals=True)
     if data is not None:
         feed(proc, data)
@@ -1100,6 +1147,8 @@ def run_tty(exe, argv0, case, env, cwd, stdin, data, timeout, cols, top, now=0):
             stdin.close()
     out = bytes(out)
     err = bytes(err)
+    if case.get("tty_stdin"):
+        out = re.sub(rb"^/dev/(?:pts/[0-9]+|ttys[0-9]+)\r?\n$", b"<PTY>\n", out)
     result = {"stdout": masked(out, case), "stderr": masked(normalize(err, argv0, case.get("_util")), case),
               "exit": status(proc.returncode)}
     if top is not None:
@@ -1462,6 +1511,7 @@ def main(argv):
                     line for line in g["stdout"].splitlines(keepends=True)
                     if keep.search(line.rstrip(b"\n")))
             ok = (b is not None and g is not None
+                  and not b.get("shape_error") and not g.get("shape_error")
                   and all(b[f] == g[f] for f in fields))
             if ok:
                 passed += 1
@@ -1469,6 +1519,8 @@ def main(argv):
             else:
                 failed += 1
                 print(f"FAIL {label}  args={case.get('args', [])!r}")
+                if case.get("temp_shape"):
+                    print(f"    shape errors: bore={None if b is None else b.get("shape_error")!r}, gnu={None if g is None else g.get("shape_error")!r}")
                 print(show("bore", b, fields))
                 print(show("gnu ", g, fields))
     print(f"difftest: {passed} passed, {failed} failed, {skipped} skipped")

@@ -1,0 +1,65 @@
+#!/usr/bin/env python3
+"""bu30: shape-guard plants and named surface refusals (no GNU source)."""
+import copy
+import os
+from pathlib import Path
+import runpy
+import subprocess
+import sys
+import tempfile
+import unittest
+
+ROOT = Path(__file__).resolve().parent.parent
+H = runpy.run_path(str(ROOT / "tools/difftest"))
+
+
+class ShapeGate(unittest.TestCase):
+    def test_control_and_plants(self):
+        with tempfile.TemporaryDirectory(prefix="bore-small.") as top:
+            path = Path(top) / "fixed.aZ0"
+            path.write_bytes(b"")
+            path.chmod(0o600)
+            case = {"temp_shape": {"prefix": "fixed.", "xs": 3, "suffix": "", "directory": "", "kind": "file", "mode": 0o600}}
+            good = {"exit": 0, "stdout": b"fixed.aZ0\n", "files": [("fixed.aZ0", "file", b"")]}
+            answer = H["temp_result"](copy.deepcopy(good), case, top, top)
+            self.assertEqual(answer["shape_error"], "")
+            self.assertEqual(answer["files"][0][0], "<TEMP>")
+            for output in [b"other.aZ0\n", b"fixed.aZ\n", b"fixed.aZ0x\n", b"fixed.a_0\n", b"fixed.aZ0.bad\n", b"fixed.aZ0\nextra\n"]:
+                bad = dict(good, stdout=output)
+                self.assertTrue(H["temp_result"](bad, case, top, top)["shape_error"], output)
+            path.chmod(0o644)
+            self.assertTrue(H["temp_result"](dict(good), case, top, top)["shape_error"])
+            path.unlink()
+            self.assertTrue(H["temp_result"](dict(good), case, top, top)["shape_error"])
+            path.mkdir()
+            self.assertTrue(H["temp_result"](dict(good), case, top, top)["shape_error"])
+            case["temp_shape"]["kind"] = "none"
+            self.assertTrue(H["temp_result"](dict(good), case, top, top)["shape_error"])
+
+    def test_changer_guard(self):
+        for util in ("mkfifo", "link", "unlink", "truncate", "sync", "mktemp"):
+            self.assertIn(util, H["CHANGERS"])
+        for path in ("/", "/etc/nope", "../outside", "a/../b", "~/x"):
+            self.assertIsNotNone(H["unsafe"](path), path)
+
+
+class SurfaceRefusals(unittest.TestCase):
+    def test_named_refusals(self):
+        for tier in ("release", "dev"):
+            for utility, args, words in [
+                ("truncate", ["-o", "-s", "1", "f"], b"-o (--io-blocks) is not supported by this truncate"),
+                ("sync", [], b"sync(2)"),
+                ("sync", ["-f", "f"], b"syncfs(2)"),
+                ("mkfifo", ["-Z", "f"], b"-Z/--context"),
+                ("mkfifo", ["--context=foo", "f"], b"-Z/--context"),
+            ]:
+                with self.subTest(tier=tier, utility=utility, args=args), tempfile.TemporaryDirectory(prefix="bore-refusal.") as top:
+                    proc = subprocess.run([str(ROOT / "target" / tier / utility)] + args, cwd=top, capture_output=True, env={"LC_ALL": "C", "PATH": os.environ["PATH"]})
+                    self.assertEqual(proc.returncode, 1, proc.stderr)
+                    self.assertEqual(proc.stdout, b"")
+                    self.assertIn(words, proc.stderr)
+                    self.assertFalse(list(Path(top).iterdir()))
+
+
+if __name__ == "__main__":
+    unittest.main()
