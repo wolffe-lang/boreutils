@@ -507,3 +507,10 @@ name = "--version"
 args = ["--version"]
 compare = ["exit"]
 
+
+# bu30: recovering from a missing prefix must resume link resolution.
+[[case]]
+name = "missing component then parent recovers symlink"
+args = ["-m", "missing/../l"]
+scratch_dirs = ["d"]
+scratch_links = { l = "d" }
