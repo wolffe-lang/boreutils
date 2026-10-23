@@ -1,0 +1,64 @@
+//! member: false
+//! sync — flush named files.
+//! References consulted: GNU coreutils 9.11's documented invocation and
+//! black-box runs; POSIX sync. No implementation source.
+//! Bare sync and -f/--file-system are refused: sync(2) and syncfs(2)
+//! have no wolf surface. -d uses fs_sync (a stronger full fsync), not
+//! an invented claim to call fdatasync. Directory entries use fs_sync_dir.
+use bore
+
+fn main() -> int {
+    var opts = List[bore.Opt]()
+    (mut opts).push(bore.flag("d", "data"))
+    (mut opts).push(bore.flag("f", "file-system"))
+    (mut opts).push(bore.flag("", "help"))
+    (mut opts).push(bore.flag("", "version"))
+    let p = bore.parse(opts, env_args(), bore.permute())
+    var out = bore.stdout()
+    var data = false
+    var whole = false
+    for k in p.keys {
+        if k == "help" {
+            bore.put(mut out, "Usage: sync [OPTION]... FILE...\nFlush each FILE; -d flushes data.\nBare sync and -f/--file-system need unavailable sync/syncfs surfaces.\n") else |_| {}
+            return bore.finish(mut out, "sync", 0)
+        }
+        if k == "version" {
+            bore.put(mut out, bore.version_text("sync")) else |_| {}
+            return bore.finish(mut out, "sync", 0)
+        }
+        if k == "data" { data = true }
+        if k == "file-system" { whole = true }
+    }
+    if !bore.ok(p) { return bore.usage_error("sync", p.error) }
+    if whole || p.operands.len == 0 {
+        bore.warn("sync", "unsupported operation: bare sync (sync(2)) and -f/--file-system (syncfs(2))")
+        return 1
+    }
+    var status = 0
+    for name in p.operands {
+        let r = fs_stat(name) else |_| {
+            bore.warn("sync", "error opening {bore.quote(name)}: {bore.io_error()}")
+            status = 1
+            continue
+        }
+        var code = 0
+        if bore.rec_kind(r) == bore.kind_dir() && !data {
+            fs_sync_dir(name) else |_| { code = bore.host_code() }
+        } else {
+            let fd = fs_open_mode(name, 5) else |_| {
+                bore.warn("sync", "error opening {bore.quote(name)}: {bore.io_error()}")
+                status = 1
+                continue
+            }
+            if data && bore.rec_kind(r) == bore.kind_dir() && bore.built_for_linux() {
+                code = 22
+            } else { fs_sync(fd) else |_| { code = bore.host_code() } }
+            fs_close(fd) else |_| {}
+        }
+        if code != 0 {
+            bore.warn("sync", "error syncing {bore.quote(name)}: {bore.reason_of(code)}")
+            status = 1
+        }
+    }
+    bore.finish(mut out, "sync", status)
+}

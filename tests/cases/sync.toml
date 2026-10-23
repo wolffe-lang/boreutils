@@ -1,0 +1,87 @@
+# GNU coreutils 9.11 black-box cases; bu30. No implementation source.
+
+[[case]]
+name = "help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "version"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "bad option"
+args = ["--not-an-option"]
+
+[[case]]
+name = "closed help"
+args = ["--help"]
+stdout_closed = true
+
+[[case]]
+name = "one file"
+args = ["f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "two files"
+args = ["f", "g"]
+scratch = { "f" = "abc", "g" = "def" }
+
+[[case]]
+name = "data file"
+args = ["-d", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "data long"
+args = ["--data", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "directory"
+args = ["d"]
+scratch_dirs = ["d"]
+
+[[case]]
+name = "data directory"
+args = ["-d", "d"]
+scratch_dirs = ["d"]
+
+[[case]]
+name = "missing file"
+args = ["missing"]
+scratch = {  }
+
+[[case]]
+name = "continue after error"
+args = ["missing", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "dangling link"
+args = ["l"]
+scratch_links = { "l" = "absent" }
+
+[[case]]
+name = "link"
+args = ["l"]
+scratch = { "f" = "abc" }
+scratch_links = { "l" = "f" }
+
+[[case]]
+name = "fifo"
+args = ["f"]
+scratch_fifos = ["f"]
+
+[[case]]
+name = "bare sync refused"
+args = []
+skip = "No sync(2) surface; named refusal tested by smalltest"
+
+[[case]]
+name = "filesystem sync refused"
+args = ["-f", "f"]
+scratch = { "f" = "x" }
+skip = "No syncfs(2) surface; named refusal tested by smalltest"
