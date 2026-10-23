@@ -1,0 +1,2003 @@
+# GNU coreutils 9.11 black-box differential cases; no GNU source.
+# Standards and independent vectors are documented in src/checksum_test.lu.
+
+[[case]]
+name = "empty input"
+args = []
+
+[[case]]
+name = "abc"
+args = []
+stdin = "abc"
+
+[[case]]
+name = "all byte values"
+args = []
+stdin_file = "binary.bin"
+
+[[case]]
+name = "explicit stdin"
+args = ["-"]
+stdin = "abc"
+
+[[case]]
+name = "repeated stdin"
+args = ["-", "-"]
+stdin = "abc"
+
+[[case]]
+name = "padding and chunk boundary 1"
+args = []
+stdin = "a"
+stdin_repeat = 1
+
+[[case]]
+name = "padding and chunk boundary 55"
+args = []
+stdin = "a"
+stdin_repeat = 55
+
+[[case]]
+name = "padding and chunk boundary 56"
+args = []
+stdin = "a"
+stdin_repeat = 56
+
+[[case]]
+name = "padding and chunk boundary 57"
+args = []
+stdin = "a"
+stdin_repeat = 57
+
+[[case]]
+name = "padding and chunk boundary 63"
+args = []
+stdin = "a"
+stdin_repeat = 63
+
+[[case]]
+name = "padding and chunk boundary 64"
+args = []
+stdin = "a"
+stdin_repeat = 64
+
+[[case]]
+name = "padding and chunk boundary 65"
+args = []
+stdin = "a"
+stdin_repeat = 65
+
+[[case]]
+name = "padding and chunk boundary 111"
+args = []
+stdin = "a"
+stdin_repeat = 111
+
+[[case]]
+name = "padding and chunk boundary 112"
+args = []
+stdin = "a"
+stdin_repeat = 112
+
+[[case]]
+name = "padding and chunk boundary 113"
+args = []
+stdin = "a"
+stdin_repeat = 113
+
+[[case]]
+name = "padding and chunk boundary 127"
+args = []
+stdin = "a"
+stdin_repeat = 127
+
+[[case]]
+name = "padding and chunk boundary 128"
+args = []
+stdin = "a"
+stdin_repeat = 128
+
+[[case]]
+name = "padding and chunk boundary 129"
+args = []
+stdin = "a"
+stdin_repeat = 129
+
+[[case]]
+name = "padding and chunk boundary 255"
+args = []
+stdin = "a"
+stdin_repeat = 255
+
+[[case]]
+name = "padding and chunk boundary 256"
+args = []
+stdin = "a"
+stdin_repeat = 256
+
+[[case]]
+name = "padding and chunk boundary 511"
+args = []
+stdin = "a"
+stdin_repeat = 511
+
+[[case]]
+name = "padding and chunk boundary 512"
+args = []
+stdin = "a"
+stdin_repeat = 512
+
+[[case]]
+name = "padding and chunk boundary 513"
+args = []
+stdin = "a"
+stdin_repeat = 513
+
+[[case]]
+name = "padding and chunk boundary 1023"
+args = []
+stdin = "a"
+stdin_repeat = 1023
+
+[[case]]
+name = "padding and chunk boundary 1024"
+args = []
+stdin = "a"
+stdin_repeat = 1024
+
+[[case]]
+name = "padding and chunk boundary 1025"
+args = []
+stdin = "a"
+stdin_repeat = 1025
+
+[[case]]
+name = "padding and chunk boundary 65535"
+args = []
+stdin = "a"
+stdin_repeat = 65535
+
+[[case]]
+name = "padding and chunk boundary 65536"
+args = []
+stdin = "a"
+stdin_repeat = 65536
+
+[[case]]
+name = "padding and chunk boundary 65537"
+args = []
+stdin = "a"
+stdin_repeat = 65537
+
+[[case]]
+name = "padding and chunk boundary 131073"
+args = []
+stdin = "a"
+stdin_repeat = 131073
+
+[[case]]
+name = "file"
+args = ["f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "two files"
+args = ["f", "e"]
+scratch = { "f" = "abc", "e" = "" }
+
+[[case]]
+name = "same file twice"
+args = ["f", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "stdin mixed with files"
+args = ["f", "-", "e"]
+scratch = { "f" = "abc", "e" = "" }
+stdin = "xyz"
+
+[[case]]
+name = "missing then present"
+args = ["absent", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "directory"
+args = ["d"]
+scratch_dirs = ["d"]
+
+[[case]]
+name = "symlink"
+args = ["s"]
+scratch = { "f" = "abc" }
+scratch_links = { "s" = "f" }
+
+[[case]]
+name = "dangling symlink"
+args = ["s"]
+scratch_links = { "s" = "missing" }
+
+[[case]]
+name = "operand after double dash"
+args = ["--", "-f"]
+scratch = { "-f" = "abc" }
+
+[[case]]
+name = "help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "version"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "invalid option"
+args = ["--unknown"]
+
+[[case]]
+name = "invalid short"
+args = ["-!"]
+
+[[case]]
+name = "closed output"
+args = []
+stdin = "abc"
+stdout_closed = true
+
+[[case]]
+name = "full output"
+args = []
+stdin = "abc"
+stdout_file = "/dev/full"
+
+[[case]]
+name = "closed input"
+args = []
+stdin_closed = true
+
+[[case]]
+name = "algorithm format crc []"
+args = ["-a", "crc", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format crc ['--tag']"
+args = ["-a", "crc", "--tag", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format crc ['--untagged']"
+args = ["-a", "crc", "--untagged", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format crc ['--base64']"
+args = ["-a", "crc", "--base64", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format crc ['--raw']"
+args = ["-a", "crc", "--raw", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format crc ['-z']"
+args = ["-a", "crc", "-z", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format crc ['-b', '--untagged']"
+args = ["-a", "crc", "-b", "--untagged", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm boundary crc 55"
+args = ["-a", "crc"]
+stdin = "a"
+stdin_repeat = 55
+
+[[case]]
+name = "algorithm boundary crc 56"
+args = ["-a", "crc"]
+stdin = "a"
+stdin_repeat = 56
+
+[[case]]
+name = "algorithm boundary crc 64"
+args = ["-a", "crc"]
+stdin = "a"
+stdin_repeat = 64
+
+[[case]]
+name = "algorithm boundary crc 112"
+args = ["-a", "crc"]
+stdin = "a"
+stdin_repeat = 112
+
+[[case]]
+name = "algorithm boundary crc 128"
+args = ["-a", "crc"]
+stdin = "a"
+stdin_repeat = 128
+
+[[case]]
+name = "algorithm boundary crc 65537"
+args = ["-a", "crc"]
+stdin = "a"
+stdin_repeat = 65537
+
+[[case]]
+name = "algorithm format crc32b []"
+args = ["-a", "crc32b", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format crc32b ['--tag']"
+args = ["-a", "crc32b", "--tag", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format crc32b ['--untagged']"
+args = ["-a", "crc32b", "--untagged", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format crc32b ['--base64']"
+args = ["-a", "crc32b", "--base64", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format crc32b ['--raw']"
+args = ["-a", "crc32b", "--raw", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format crc32b ['-z']"
+args = ["-a", "crc32b", "-z", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format crc32b ['-b', '--untagged']"
+args = ["-a", "crc32b", "-b", "--untagged", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm boundary crc32b 55"
+args = ["-a", "crc32b"]
+stdin = "a"
+stdin_repeat = 55
+
+[[case]]
+name = "algorithm boundary crc32b 56"
+args = ["-a", "crc32b"]
+stdin = "a"
+stdin_repeat = 56
+
+[[case]]
+name = "algorithm boundary crc32b 64"
+args = ["-a", "crc32b"]
+stdin = "a"
+stdin_repeat = 64
+
+[[case]]
+name = "algorithm boundary crc32b 112"
+args = ["-a", "crc32b"]
+stdin = "a"
+stdin_repeat = 112
+
+[[case]]
+name = "algorithm boundary crc32b 128"
+args = ["-a", "crc32b"]
+stdin = "a"
+stdin_repeat = 128
+
+[[case]]
+name = "algorithm boundary crc32b 65537"
+args = ["-a", "crc32b"]
+stdin = "a"
+stdin_repeat = 65537
+
+[[case]]
+name = "algorithm format bsd []"
+args = ["-a", "bsd", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format bsd ['--tag']"
+args = ["-a", "bsd", "--tag", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format bsd ['--untagged']"
+args = ["-a", "bsd", "--untagged", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format bsd ['--base64']"
+args = ["-a", "bsd", "--base64", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format bsd ['--raw']"
+args = ["-a", "bsd", "--raw", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format bsd ['-z']"
+args = ["-a", "bsd", "-z", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format bsd ['-b', '--untagged']"
+args = ["-a", "bsd", "-b", "--untagged", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm boundary bsd 55"
+args = ["-a", "bsd"]
+stdin = "a"
+stdin_repeat = 55
+
+[[case]]
+name = "algorithm boundary bsd 56"
+args = ["-a", "bsd"]
+stdin = "a"
+stdin_repeat = 56
+
+[[case]]
+name = "algorithm boundary bsd 64"
+args = ["-a", "bsd"]
+stdin = "a"
+stdin_repeat = 64
+
+[[case]]
+name = "algorithm boundary bsd 112"
+args = ["-a", "bsd"]
+stdin = "a"
+stdin_repeat = 112
+
+[[case]]
+name = "algorithm boundary bsd 128"
+args = ["-a", "bsd"]
+stdin = "a"
+stdin_repeat = 128
+
+[[case]]
+name = "algorithm boundary bsd 65537"
+args = ["-a", "bsd"]
+stdin = "a"
+stdin_repeat = 65537
+
+[[case]]
+name = "algorithm format sysv []"
+args = ["-a", "sysv", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sysv ['--tag']"
+args = ["-a", "sysv", "--tag", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sysv ['--untagged']"
+args = ["-a", "sysv", "--untagged", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sysv ['--base64']"
+args = ["-a", "sysv", "--base64", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sysv ['--raw']"
+args = ["-a", "sysv", "--raw", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sysv ['-z']"
+args = ["-a", "sysv", "-z", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sysv ['-b', '--untagged']"
+args = ["-a", "sysv", "-b", "--untagged", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm boundary sysv 55"
+args = ["-a", "sysv"]
+stdin = "a"
+stdin_repeat = 55
+
+[[case]]
+name = "algorithm boundary sysv 56"
+args = ["-a", "sysv"]
+stdin = "a"
+stdin_repeat = 56
+
+[[case]]
+name = "algorithm boundary sysv 64"
+args = ["-a", "sysv"]
+stdin = "a"
+stdin_repeat = 64
+
+[[case]]
+name = "algorithm boundary sysv 112"
+args = ["-a", "sysv"]
+stdin = "a"
+stdin_repeat = 112
+
+[[case]]
+name = "algorithm boundary sysv 128"
+args = ["-a", "sysv"]
+stdin = "a"
+stdin_repeat = 128
+
+[[case]]
+name = "algorithm boundary sysv 65537"
+args = ["-a", "sysv"]
+stdin = "a"
+stdin_repeat = 65537
+
+[[case]]
+name = "algorithm format md5 []"
+args = ["-a", "md5", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format md5 ['--tag']"
+args = ["-a", "md5", "--tag", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format md5 ['--untagged']"
+args = ["-a", "md5", "--untagged", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format md5 ['--base64']"
+args = ["-a", "md5", "--base64", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format md5 ['--raw']"
+args = ["-a", "md5", "--raw", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format md5 ['-z']"
+args = ["-a", "md5", "-z", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format md5 ['-b', '--untagged']"
+args = ["-a", "md5", "-b", "--untagged", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm boundary md5 55"
+args = ["-a", "md5"]
+stdin = "a"
+stdin_repeat = 55
+
+[[case]]
+name = "algorithm boundary md5 56"
+args = ["-a", "md5"]
+stdin = "a"
+stdin_repeat = 56
+
+[[case]]
+name = "algorithm boundary md5 64"
+args = ["-a", "md5"]
+stdin = "a"
+stdin_repeat = 64
+
+[[case]]
+name = "algorithm boundary md5 112"
+args = ["-a", "md5"]
+stdin = "a"
+stdin_repeat = 112
+
+[[case]]
+name = "algorithm boundary md5 128"
+args = ["-a", "md5"]
+stdin = "a"
+stdin_repeat = 128
+
+[[case]]
+name = "algorithm boundary md5 65537"
+args = ["-a", "md5"]
+stdin = "a"
+stdin_repeat = 65537
+
+[[case]]
+name = "algorithm format sha1 []"
+args = ["-a", "sha1", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sha1 ['--tag']"
+args = ["-a", "sha1", "--tag", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sha1 ['--untagged']"
+args = ["-a", "sha1", "--untagged", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sha1 ['--base64']"
+args = ["-a", "sha1", "--base64", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sha1 ['--raw']"
+args = ["-a", "sha1", "--raw", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sha1 ['-z']"
+args = ["-a", "sha1", "-z", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sha1 ['-b', '--untagged']"
+args = ["-a", "sha1", "-b", "--untagged", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm boundary sha1 55"
+args = ["-a", "sha1"]
+stdin = "a"
+stdin_repeat = 55
+
+[[case]]
+name = "algorithm boundary sha1 56"
+args = ["-a", "sha1"]
+stdin = "a"
+stdin_repeat = 56
+
+[[case]]
+name = "algorithm boundary sha1 64"
+args = ["-a", "sha1"]
+stdin = "a"
+stdin_repeat = 64
+
+[[case]]
+name = "algorithm boundary sha1 112"
+args = ["-a", "sha1"]
+stdin = "a"
+stdin_repeat = 112
+
+[[case]]
+name = "algorithm boundary sha1 128"
+args = ["-a", "sha1"]
+stdin = "a"
+stdin_repeat = 128
+
+[[case]]
+name = "algorithm boundary sha1 65537"
+args = ["-a", "sha1"]
+stdin = "a"
+stdin_repeat = 65537
+
+[[case]]
+name = "algorithm format sha224 []"
+args = ["-a", "sha224", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sha224 ['--tag']"
+args = ["-a", "sha224", "--tag", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sha224 ['--untagged']"
+args = ["-a", "sha224", "--untagged", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sha224 ['--base64']"
+args = ["-a", "sha224", "--base64", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sha224 ['--raw']"
+args = ["-a", "sha224", "--raw", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sha224 ['-z']"
+args = ["-a", "sha224", "-z", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sha224 ['-b', '--untagged']"
+args = ["-a", "sha224", "-b", "--untagged", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm boundary sha224 55"
+args = ["-a", "sha224"]
+stdin = "a"
+stdin_repeat = 55
+
+[[case]]
+name = "algorithm boundary sha224 56"
+args = ["-a", "sha224"]
+stdin = "a"
+stdin_repeat = 56
+
+[[case]]
+name = "algorithm boundary sha224 64"
+args = ["-a", "sha224"]
+stdin = "a"
+stdin_repeat = 64
+
+[[case]]
+name = "algorithm boundary sha224 112"
+args = ["-a", "sha224"]
+stdin = "a"
+stdin_repeat = 112
+
+[[case]]
+name = "algorithm boundary sha224 128"
+args = ["-a", "sha224"]
+stdin = "a"
+stdin_repeat = 128
+
+[[case]]
+name = "algorithm boundary sha224 65537"
+args = ["-a", "sha224"]
+stdin = "a"
+stdin_repeat = 65537
+
+[[case]]
+name = "algorithm format sha256 []"
+args = ["-a", "sha256", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sha256 ['--tag']"
+args = ["-a", "sha256", "--tag", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sha256 ['--untagged']"
+args = ["-a", "sha256", "--untagged", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sha256 ['--base64']"
+args = ["-a", "sha256", "--base64", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sha256 ['--raw']"
+args = ["-a", "sha256", "--raw", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sha256 ['-z']"
+args = ["-a", "sha256", "-z", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sha256 ['-b', '--untagged']"
+args = ["-a", "sha256", "-b", "--untagged", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm boundary sha256 55"
+args = ["-a", "sha256"]
+stdin = "a"
+stdin_repeat = 55
+
+[[case]]
+name = "algorithm boundary sha256 56"
+args = ["-a", "sha256"]
+stdin = "a"
+stdin_repeat = 56
+
+[[case]]
+name = "algorithm boundary sha256 64"
+args = ["-a", "sha256"]
+stdin = "a"
+stdin_repeat = 64
+
+[[case]]
+name = "algorithm boundary sha256 112"
+args = ["-a", "sha256"]
+stdin = "a"
+stdin_repeat = 112
+
+[[case]]
+name = "algorithm boundary sha256 128"
+args = ["-a", "sha256"]
+stdin = "a"
+stdin_repeat = 128
+
+[[case]]
+name = "algorithm boundary sha256 65537"
+args = ["-a", "sha256"]
+stdin = "a"
+stdin_repeat = 65537
+
+[[case]]
+name = "algorithm format sha384 []"
+args = ["-a", "sha384", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sha384 ['--tag']"
+args = ["-a", "sha384", "--tag", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sha384 ['--untagged']"
+args = ["-a", "sha384", "--untagged", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sha384 ['--base64']"
+args = ["-a", "sha384", "--base64", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sha384 ['--raw']"
+args = ["-a", "sha384", "--raw", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sha384 ['-z']"
+args = ["-a", "sha384", "-z", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sha384 ['-b', '--untagged']"
+args = ["-a", "sha384", "-b", "--untagged", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm boundary sha384 55"
+args = ["-a", "sha384"]
+stdin = "a"
+stdin_repeat = 55
+
+[[case]]
+name = "algorithm boundary sha384 56"
+args = ["-a", "sha384"]
+stdin = "a"
+stdin_repeat = 56
+
+[[case]]
+name = "algorithm boundary sha384 64"
+args = ["-a", "sha384"]
+stdin = "a"
+stdin_repeat = 64
+
+[[case]]
+name = "algorithm boundary sha384 112"
+args = ["-a", "sha384"]
+stdin = "a"
+stdin_repeat = 112
+
+[[case]]
+name = "algorithm boundary sha384 128"
+args = ["-a", "sha384"]
+stdin = "a"
+stdin_repeat = 128
+
+[[case]]
+name = "algorithm boundary sha384 65537"
+args = ["-a", "sha384"]
+stdin = "a"
+stdin_repeat = 65537
+
+[[case]]
+name = "algorithm format sha512 []"
+args = ["-a", "sha512", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sha512 ['--tag']"
+args = ["-a", "sha512", "--tag", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sha512 ['--untagged']"
+args = ["-a", "sha512", "--untagged", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sha512 ['--base64']"
+args = ["-a", "sha512", "--base64", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sha512 ['--raw']"
+args = ["-a", "sha512", "--raw", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sha512 ['-z']"
+args = ["-a", "sha512", "-z", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format sha512 ['-b', '--untagged']"
+args = ["-a", "sha512", "-b", "--untagged", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm boundary sha512 55"
+args = ["-a", "sha512"]
+stdin = "a"
+stdin_repeat = 55
+
+[[case]]
+name = "algorithm boundary sha512 56"
+args = ["-a", "sha512"]
+stdin = "a"
+stdin_repeat = 56
+
+[[case]]
+name = "algorithm boundary sha512 64"
+args = ["-a", "sha512"]
+stdin = "a"
+stdin_repeat = 64
+
+[[case]]
+name = "algorithm boundary sha512 112"
+args = ["-a", "sha512"]
+stdin = "a"
+stdin_repeat = 112
+
+[[case]]
+name = "algorithm boundary sha512 128"
+args = ["-a", "sha512"]
+stdin = "a"
+stdin_repeat = 128
+
+[[case]]
+name = "algorithm boundary sha512 65537"
+args = ["-a", "sha512"]
+stdin = "a"
+stdin_repeat = 65537
+
+[[case]]
+name = "algorithm format blake2b []"
+args = ["-a", "blake2b", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format blake2b ['--tag']"
+args = ["-a", "blake2b", "--tag", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format blake2b ['--untagged']"
+args = ["-a", "blake2b", "--untagged", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format blake2b ['--base64']"
+args = ["-a", "blake2b", "--base64", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format blake2b ['--raw']"
+args = ["-a", "blake2b", "--raw", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format blake2b ['-z']"
+args = ["-a", "blake2b", "-z", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm format blake2b ['-b', '--untagged']"
+args = ["-a", "blake2b", "-b", "--untagged", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm boundary blake2b 55"
+args = ["-a", "blake2b"]
+stdin = "a"
+stdin_repeat = 55
+
+[[case]]
+name = "algorithm boundary blake2b 56"
+args = ["-a", "blake2b"]
+stdin = "a"
+stdin_repeat = 56
+
+[[case]]
+name = "algorithm boundary blake2b 64"
+args = ["-a", "blake2b"]
+stdin = "a"
+stdin_repeat = 64
+
+[[case]]
+name = "algorithm boundary blake2b 112"
+args = ["-a", "blake2b"]
+stdin = "a"
+stdin_repeat = 112
+
+[[case]]
+name = "algorithm boundary blake2b 128"
+args = ["-a", "blake2b"]
+stdin = "a"
+stdin_repeat = 128
+
+[[case]]
+name = "algorithm boundary blake2b 65537"
+args = ["-a", "blake2b"]
+stdin = "a"
+stdin_repeat = 65537
+
+[[case]]
+name = "algorithm length sha2 '0'"
+args = ["-a", "sha2", "-l", "0", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm length sha2 '8'"
+args = ["-a", "sha2", "-l", "8", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm length sha2 '224'"
+args = ["-a", "sha2", "-l", "224", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm length sha2 '256'"
+args = ["-a", "sha2", "-l", "256", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm length sha2 '384'"
+args = ["-a", "sha2", "-l", "384", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm length sha2 '512'"
+args = ["-a", "sha2", "-l", "512", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm length sha2 '513'"
+args = ["-a", "sha2", "-l", "513", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm length sha2 '1'"
+args = ["-a", "sha2", "-l", "1", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm length sha2 'bad'"
+args = ["-a", "sha2", "-l", "bad", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm length sha2 '-1'"
+args = ["-a", "sha2", "-l", "-1", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm length blake2b '0'"
+args = ["-a", "blake2b", "-l", "0", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm length blake2b '8'"
+args = ["-a", "blake2b", "-l", "8", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm length blake2b '224'"
+args = ["-a", "blake2b", "-l", "224", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm length blake2b '256'"
+args = ["-a", "blake2b", "-l", "256", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm length blake2b '384'"
+args = ["-a", "blake2b", "-l", "384", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm length blake2b '512'"
+args = ["-a", "blake2b", "-l", "512", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm length blake2b '513'"
+args = ["-a", "blake2b", "-l", "513", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm length blake2b '1'"
+args = ["-a", "blake2b", "-l", "1", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm length blake2b 'bad'"
+args = ["-a", "blake2b", "-l", "bad", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm length blake2b '-1'"
+args = ["-a", "blake2b", "-l", "-1", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "explicit check bsd"
+args = ["-a", "bsd", "-c"]
+stdin = "junk\n"
+
+[[case]]
+name = "explicit check sysv"
+args = ["-a", "sysv", "-c"]
+stdin = "junk\n"
+
+[[case]]
+name = "explicit check crc"
+args = ["-a", "crc", "-c"]
+stdin = "junk\n"
+
+[[case]]
+name = "explicit check crc32b"
+args = ["-a", "crc32b", "-c"]
+stdin = "junk\n"
+
+[[case]]
+name = "explicit check md5"
+args = ["-a", "md5", "-c"]
+stdin = "junk\n"
+
+[[case]]
+name = "explicit check sha1"
+args = ["-a", "sha1", "-c"]
+stdin = "junk\n"
+
+[[case]]
+name = "explicit check sha224"
+args = ["-a", "sha224", "-c"]
+stdin = "junk\n"
+
+[[case]]
+name = "explicit check sha256"
+args = ["-a", "sha256", "-c"]
+stdin = "junk\n"
+
+[[case]]
+name = "explicit check sha384"
+args = ["-a", "sha384", "-c"]
+stdin = "junk\n"
+
+[[case]]
+name = "explicit check sha512"
+args = ["-a", "sha512", "-c"]
+stdin = "junk\n"
+
+[[case]]
+name = "explicit check sha2"
+args = ["-a", "sha2", "-c"]
+stdin = "junk\n"
+
+[[case]]
+name = "explicit check blake2b"
+args = ["-a", "blake2b", "-c"]
+stdin = "junk\n"
+
+[[case]]
+name = "validation ['-a', 's']"
+args = ["-a", "s"]
+stdin = "abc"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "validation ['-a', 'sha']"
+args = ["-a", "sha"]
+stdin = "abc"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "validation ['-a', 'cr']"
+args = ["-a", "cr"]
+stdin = "abc"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "validation ['-a', 'bad']"
+args = ["-a", "bad"]
+stdin = "abc"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "validation ['-a', 'SHA1']"
+args = ["-a", "SHA1"]
+stdin = "abc"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "validation ['-a', 'sha2']"
+args = ["-a", "sha2"]
+stdin = "abc"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "validation ['-l', '0']"
+args = ["-l", "0"]
+stdin = "abc"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "validation ['-l', '8']"
+args = ["-l", "8"]
+stdin = "abc"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "validation ['--raw', 'f', 'f']"
+args = ["--raw", "f", "f"]
+stdin = "abc"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "validation ['--raw', '--base64']"
+args = ["--raw", "--base64"]
+stdin = "abc"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "validation ['--tag', '-t']"
+args = ["--tag", "-t"]
+stdin = "abc"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "validation ['--quiet']"
+args = ["--quiet"]
+stdin = "abc"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "validation ['--status']"
+args = ["--status"]
+stdin = "abc"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "validation ['--strict']"
+args = ["--strict"]
+stdin = "abc"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "validation ['-w']"
+args = ["-w"]
+stdin = "abc"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "validation ['--ignore-missing']"
+args = ["--ignore-missing"]
+stdin = "abc"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "validation ['-c', '-z']"
+args = ["-c", "-z"]
+stdin = "abc"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "validation ['-c', '--tag']"
+args = ["-c", "--tag"]
+stdin = "abc"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "check md5 tag []"
+args = ["-c"]
+stdin = "MD5 (f) = 900150983cd24fb0d6963f7d28e17f72\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "check md5 tag ['-a', 'md5']"
+args = ["-c", "-a", "md5"]
+stdin = "MD5 (f) = 900150983cd24fb0d6963f7d28e17f72\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "check md5 untagged []"
+args = ["-c"]
+stdin = "900150983cd24fb0d6963f7d28e17f72  f\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "check md5 untagged ['-a', 'md5']"
+args = ["-c", "-a", "md5"]
+stdin = "900150983cd24fb0d6963f7d28e17f72  f\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "check sha1 tag []"
+args = ["-c"]
+stdin = "SHA1 (f) = a9993e364706816aba3e25717850c26c9cd0d89d\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "check sha1 tag ['-a', 'sha1']"
+args = ["-c", "-a", "sha1"]
+stdin = "SHA1 (f) = a9993e364706816aba3e25717850c26c9cd0d89d\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "check sha1 untagged []"
+args = ["-c"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "check sha1 untagged ['-a', 'sha1']"
+args = ["-c", "-a", "sha1"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "check sha224 tag []"
+args = ["-c"]
+stdin = "SHA224 (f) = 23097d223405d8228642a477bda255b32aadbce4bda0b3f7e36c9da7\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "check sha224 tag ['-a', 'sha224']"
+args = ["-c", "-a", "sha224"]
+stdin = "SHA224 (f) = 23097d223405d8228642a477bda255b32aadbce4bda0b3f7e36c9da7\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "check sha224 untagged []"
+args = ["-c"]
+stdin = "23097d223405d8228642a477bda255b32aadbce4bda0b3f7e36c9da7  f\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "check sha224 untagged ['-a', 'sha224']"
+args = ["-c", "-a", "sha224"]
+stdin = "23097d223405d8228642a477bda255b32aadbce4bda0b3f7e36c9da7  f\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "check sha256 tag []"
+args = ["-c"]
+stdin = "SHA256 (f) = ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "check sha256 tag ['-a', 'sha256']"
+args = ["-c", "-a", "sha256"]
+stdin = "SHA256 (f) = ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "check sha256 untagged []"
+args = ["-c"]
+stdin = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad  f\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "check sha256 untagged ['-a', 'sha256']"
+args = ["-c", "-a", "sha256"]
+stdin = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad  f\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "check sha384 tag []"
+args = ["-c"]
+stdin = "SHA384 (f) = cb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "check sha384 tag ['-a', 'sha384']"
+args = ["-c", "-a", "sha384"]
+stdin = "SHA384 (f) = cb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "check sha384 untagged []"
+args = ["-c"]
+stdin = "cb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7  f\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "check sha384 untagged ['-a', 'sha384']"
+args = ["-c", "-a", "sha384"]
+stdin = "cb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7  f\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "check sha512 tag []"
+args = ["-c"]
+stdin = "SHA512 (f) = ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "check sha512 tag ['-a', 'sha512']"
+args = ["-c", "-a", "sha512"]
+stdin = "SHA512 (f) = ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "check sha512 untagged []"
+args = ["-c"]
+stdin = "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f  f\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "check sha512 untagged ['-a', 'sha512']"
+args = ["-c", "-a", "sha512"]
+stdin = "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f  f\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "check blake2b tag []"
+args = ["-c"]
+stdin = "BLAKE2b (f) = ba80a53f981c4d0d6a2797b69f12f6e94c212f14685ac4b74b12bb6fdbffa2d17d87c5392aab792dc252d5de4533cc9518d38aa8dbf1925ab92386edd4009923\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "check blake2b tag ['-a', 'blake2b']"
+args = ["-c", "-a", "blake2b"]
+stdin = "BLAKE2b (f) = ba80a53f981c4d0d6a2797b69f12f6e94c212f14685ac4b74b12bb6fdbffa2d17d87c5392aab792dc252d5de4533cc9518d38aa8dbf1925ab92386edd4009923\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "check blake2b untagged []"
+args = ["-c"]
+stdin = "ba80a53f981c4d0d6a2797b69f12f6e94c212f14685ac4b74b12bb6fdbffa2d17d87c5392aab792dc252d5de4533cc9518d38aa8dbf1925ab92386edd4009923  f\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "check blake2b untagged ['-a', 'blake2b']"
+args = ["-c", "-a", "blake2b"]
+stdin = "ba80a53f981c4d0d6a2797b69f12f6e94c212f14685ac4b74b12bb6fdbffa2d17d87c5392aab792dc252d5de4533cc9518d38aa8dbf1925ab92386edd4009923  f\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check empty []"
+args = ["-c"]
+stdin = ""
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check junk []"
+args = ["-c"]
+stdin = "junk\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check mixed []"
+args = ["-c"]
+stdin = "MD5 (f) = 900150983cd24fb0d6963f7d28e17f72\nSHA256 (f) = ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check base64 tag []"
+args = ["-c"]
+stdin = "MD5 (f) = kAFQmDzST7DWlj99KOF/cg==\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check base64 reverse []"
+args = ["-c"]
+stdin = "kAFQmDzST7DWlj99KOF/cg==  f\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check mismatch []"
+args = ["-c"]
+stdin = "MD5 (f) = 00000000000000000000000000000000\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check missing []"
+args = ["-c"]
+stdin = "MD5 (absent) = 900150983cd24fb0d6963f7d28e17f72\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check malformed []"
+args = ["-c"]
+stdin = "MD5 (f) = 900150983cd24fb0d6963f7d28e17f72\njunk\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check empty ['-w']"
+args = ["-c", "-w"]
+stdin = ""
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check junk ['-w']"
+args = ["-c", "-w"]
+stdin = "junk\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check mixed ['-w']"
+args = ["-c", "-w"]
+stdin = "MD5 (f) = 900150983cd24fb0d6963f7d28e17f72\nSHA256 (f) = ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check base64 tag ['-w']"
+args = ["-c", "-w"]
+stdin = "MD5 (f) = kAFQmDzST7DWlj99KOF/cg==\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check base64 reverse ['-w']"
+args = ["-c", "-w"]
+stdin = "kAFQmDzST7DWlj99KOF/cg==  f\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check mismatch ['-w']"
+args = ["-c", "-w"]
+stdin = "MD5 (f) = 00000000000000000000000000000000\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check missing ['-w']"
+args = ["-c", "-w"]
+stdin = "MD5 (absent) = 900150983cd24fb0d6963f7d28e17f72\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check malformed ['-w']"
+args = ["-c", "-w"]
+stdin = "MD5 (f) = 900150983cd24fb0d6963f7d28e17f72\njunk\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check empty ['--quiet']"
+args = ["-c", "--quiet"]
+stdin = ""
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check junk ['--quiet']"
+args = ["-c", "--quiet"]
+stdin = "junk\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check mixed ['--quiet']"
+args = ["-c", "--quiet"]
+stdin = "MD5 (f) = 900150983cd24fb0d6963f7d28e17f72\nSHA256 (f) = ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check base64 tag ['--quiet']"
+args = ["-c", "--quiet"]
+stdin = "MD5 (f) = kAFQmDzST7DWlj99KOF/cg==\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check base64 reverse ['--quiet']"
+args = ["-c", "--quiet"]
+stdin = "kAFQmDzST7DWlj99KOF/cg==  f\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check mismatch ['--quiet']"
+args = ["-c", "--quiet"]
+stdin = "MD5 (f) = 00000000000000000000000000000000\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check missing ['--quiet']"
+args = ["-c", "--quiet"]
+stdin = "MD5 (absent) = 900150983cd24fb0d6963f7d28e17f72\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check malformed ['--quiet']"
+args = ["-c", "--quiet"]
+stdin = "MD5 (f) = 900150983cd24fb0d6963f7d28e17f72\njunk\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check empty ['--status']"
+args = ["-c", "--status"]
+stdin = ""
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check junk ['--status']"
+args = ["-c", "--status"]
+stdin = "junk\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check mixed ['--status']"
+args = ["-c", "--status"]
+stdin = "MD5 (f) = 900150983cd24fb0d6963f7d28e17f72\nSHA256 (f) = ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check base64 tag ['--status']"
+args = ["-c", "--status"]
+stdin = "MD5 (f) = kAFQmDzST7DWlj99KOF/cg==\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check base64 reverse ['--status']"
+args = ["-c", "--status"]
+stdin = "kAFQmDzST7DWlj99KOF/cg==  f\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check mismatch ['--status']"
+args = ["-c", "--status"]
+stdin = "MD5 (f) = 00000000000000000000000000000000\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check missing ['--status']"
+args = ["-c", "--status"]
+stdin = "MD5 (absent) = 900150983cd24fb0d6963f7d28e17f72\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check malformed ['--status']"
+args = ["-c", "--status"]
+stdin = "MD5 (f) = 900150983cd24fb0d6963f7d28e17f72\njunk\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check empty ['--strict']"
+args = ["-c", "--strict"]
+stdin = ""
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check junk ['--strict']"
+args = ["-c", "--strict"]
+stdin = "junk\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check mixed ['--strict']"
+args = ["-c", "--strict"]
+stdin = "MD5 (f) = 900150983cd24fb0d6963f7d28e17f72\nSHA256 (f) = ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check base64 tag ['--strict']"
+args = ["-c", "--strict"]
+stdin = "MD5 (f) = kAFQmDzST7DWlj99KOF/cg==\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check base64 reverse ['--strict']"
+args = ["-c", "--strict"]
+stdin = "kAFQmDzST7DWlj99KOF/cg==  f\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check mismatch ['--strict']"
+args = ["-c", "--strict"]
+stdin = "MD5 (f) = 00000000000000000000000000000000\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check missing ['--strict']"
+args = ["-c", "--strict"]
+stdin = "MD5 (absent) = 900150983cd24fb0d6963f7d28e17f72\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check malformed ['--strict']"
+args = ["-c", "--strict"]
+stdin = "MD5 (f) = 900150983cd24fb0d6963f7d28e17f72\njunk\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check empty ['--ignore-missing']"
+args = ["-c", "--ignore-missing"]
+stdin = ""
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check junk ['--ignore-missing']"
+args = ["-c", "--ignore-missing"]
+stdin = "junk\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check mixed ['--ignore-missing']"
+args = ["-c", "--ignore-missing"]
+stdin = "MD5 (f) = 900150983cd24fb0d6963f7d28e17f72\nSHA256 (f) = ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check base64 tag ['--ignore-missing']"
+args = ["-c", "--ignore-missing"]
+stdin = "MD5 (f) = kAFQmDzST7DWlj99KOF/cg==\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check base64 reverse ['--ignore-missing']"
+args = ["-c", "--ignore-missing"]
+stdin = "kAFQmDzST7DWlj99KOF/cg==  f\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check mismatch ['--ignore-missing']"
+args = ["-c", "--ignore-missing"]
+stdin = "MD5 (f) = 00000000000000000000000000000000\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check missing ['--ignore-missing']"
+args = ["-c", "--ignore-missing"]
+stdin = "MD5 (absent) = 900150983cd24fb0d6963f7d28e17f72\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "auto check malformed ['--ignore-missing']"
+args = ["-c", "--ignore-missing"]
+stdin = "MD5 (f) = 900150983cd24fb0d6963f7d28e17f72\njunk\n"
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "algorithm filename md5 [] 'new\\nline'"
+args = ["-a", "md5", "new\nline"]
+scratch = { "new\nline" = "abc" }
+
+[[case]]
+name = "algorithm filename md5 [] 'car\\rriage'"
+args = ["-a", "md5", "car\rriage"]
+scratch = { "car\rriage" = "abc" }
+
+[[case]]
+name = "algorithm filename md5 [] 'back\\\\slash'"
+args = ["-a", "md5", "back\\slash"]
+scratch = { "back\\slash" = "abc" }
+
+[[case]]
+name = "algorithm filename md5 ['--tag'] 'new\\nline'"
+args = ["-a", "md5", "--tag", "new\nline"]
+scratch = { "new\nline" = "abc" }
+
+[[case]]
+name = "algorithm filename md5 ['--tag'] 'car\\rriage'"
+args = ["-a", "md5", "--tag", "car\rriage"]
+scratch = { "car\rriage" = "abc" }
+
+[[case]]
+name = "algorithm filename md5 ['--tag'] 'back\\\\slash'"
+args = ["-a", "md5", "--tag", "back\\slash"]
+scratch = { "back\\slash" = "abc" }
+
+[[case]]
+name = "algorithm filename md5 ['--untagged'] 'new\\nline'"
+args = ["-a", "md5", "--untagged", "new\nline"]
+scratch = { "new\nline" = "abc" }
+
+[[case]]
+name = "algorithm filename md5 ['--untagged'] 'car\\rriage'"
+args = ["-a", "md5", "--untagged", "car\rriage"]
+scratch = { "car\rriage" = "abc" }
+
+[[case]]
+name = "algorithm filename md5 ['--untagged'] 'back\\\\slash'"
+args = ["-a", "md5", "--untagged", "back\\slash"]
+scratch = { "back\\slash" = "abc" }
+
+[[case]]
+name = "algorithm filename md5 ['-z'] 'new\\nline'"
+args = ["-a", "md5", "-z", "new\nline"]
+scratch = { "new\nline" = "abc" }
+
+[[case]]
+name = "algorithm filename md5 ['-z'] 'car\\rriage'"
+args = ["-a", "md5", "-z", "car\rriage"]
+scratch = { "car\rriage" = "abc" }
+
+[[case]]
+name = "algorithm filename md5 ['-z'] 'back\\\\slash'"
+args = ["-a", "md5", "-z", "back\\slash"]
+scratch = { "back\\slash" = "abc" }
+
+[[case]]
+name = "algorithm filename sha1 [] 'new\\nline'"
+args = ["-a", "sha1", "new\nline"]
+scratch = { "new\nline" = "abc" }
+
+[[case]]
+name = "algorithm filename sha1 [] 'car\\rriage'"
+args = ["-a", "sha1", "car\rriage"]
+scratch = { "car\rriage" = "abc" }
+
+[[case]]
+name = "algorithm filename sha1 [] 'back\\\\slash'"
+args = ["-a", "sha1", "back\\slash"]
+scratch = { "back\\slash" = "abc" }
+
+[[case]]
+name = "algorithm filename sha1 ['--tag'] 'new\\nline'"
+args = ["-a", "sha1", "--tag", "new\nline"]
+scratch = { "new\nline" = "abc" }
+
+[[case]]
+name = "algorithm filename sha1 ['--tag'] 'car\\rriage'"
+args = ["-a", "sha1", "--tag", "car\rriage"]
+scratch = { "car\rriage" = "abc" }
+
+[[case]]
+name = "algorithm filename sha1 ['--tag'] 'back\\\\slash'"
+args = ["-a", "sha1", "--tag", "back\\slash"]
+scratch = { "back\\slash" = "abc" }
+
+[[case]]
+name = "algorithm filename sha1 ['--untagged'] 'new\\nline'"
+args = ["-a", "sha1", "--untagged", "new\nline"]
+scratch = { "new\nline" = "abc" }
+
+[[case]]
+name = "algorithm filename sha1 ['--untagged'] 'car\\rriage'"
+args = ["-a", "sha1", "--untagged", "car\rriage"]
+scratch = { "car\rriage" = "abc" }
+
+[[case]]
+name = "algorithm filename sha1 ['--untagged'] 'back\\\\slash'"
+args = ["-a", "sha1", "--untagged", "back\\slash"]
+scratch = { "back\\slash" = "abc" }
+
+[[case]]
+name = "algorithm filename sha1 ['-z'] 'new\\nline'"
+args = ["-a", "sha1", "-z", "new\nline"]
+scratch = { "new\nline" = "abc" }
+
+[[case]]
+name = "algorithm filename sha1 ['-z'] 'car\\rriage'"
+args = ["-a", "sha1", "-z", "car\rriage"]
+scratch = { "car\rriage" = "abc" }
+
+[[case]]
+name = "algorithm filename sha1 ['-z'] 'back\\\\slash'"
+args = ["-a", "sha1", "-z", "back\\slash"]
+scratch = { "back\\slash" = "abc" }
+
+[[case]]
+name = "algorithm filename sha2 [] 'new\\nline'"
+args = ["-a", "sha2", "-l", "256", "new\nline"]
+scratch = { "new\nline" = "abc" }
+
+[[case]]
+name = "algorithm filename sha2 [] 'car\\rriage'"
+args = ["-a", "sha2", "-l", "256", "car\rriage"]
+scratch = { "car\rriage" = "abc" }
+
+[[case]]
+name = "algorithm filename sha2 [] 'back\\\\slash'"
+args = ["-a", "sha2", "-l", "256", "back\\slash"]
+scratch = { "back\\slash" = "abc" }
+
+[[case]]
+name = "algorithm filename sha2 ['--tag'] 'new\\nline'"
+args = ["-a", "sha2", "-l", "256", "--tag", "new\nline"]
+scratch = { "new\nline" = "abc" }
+
+[[case]]
+name = "algorithm filename sha2 ['--tag'] 'car\\rriage'"
+args = ["-a", "sha2", "-l", "256", "--tag", "car\rriage"]
+scratch = { "car\rriage" = "abc" }
+
+[[case]]
+name = "algorithm filename sha2 ['--tag'] 'back\\\\slash'"
+args = ["-a", "sha2", "-l", "256", "--tag", "back\\slash"]
+scratch = { "back\\slash" = "abc" }
+
+[[case]]
+name = "algorithm filename sha2 ['--untagged'] 'new\\nline'"
+args = ["-a", "sha2", "-l", "256", "--untagged", "new\nline"]
+scratch = { "new\nline" = "abc" }
+
+[[case]]
+name = "algorithm filename sha2 ['--untagged'] 'car\\rriage'"
+args = ["-a", "sha2", "-l", "256", "--untagged", "car\rriage"]
+scratch = { "car\rriage" = "abc" }
+
+[[case]]
+name = "algorithm filename sha2 ['--untagged'] 'back\\\\slash'"
+args = ["-a", "sha2", "-l", "256", "--untagged", "back\\slash"]
+scratch = { "back\\slash" = "abc" }
+
+[[case]]
+name = "algorithm filename sha2 ['-z'] 'new\\nline'"
+args = ["-a", "sha2", "-l", "256", "-z", "new\nline"]
+scratch = { "new\nline" = "abc" }
+
+[[case]]
+name = "algorithm filename sha2 ['-z'] 'car\\rriage'"
+args = ["-a", "sha2", "-l", "256", "-z", "car\rriage"]
+scratch = { "car\rriage" = "abc" }
+
+[[case]]
+name = "algorithm filename sha2 ['-z'] 'back\\\\slash'"
+args = ["-a", "sha2", "-l", "256", "-z", "back\\slash"]
+scratch = { "back\\slash" = "abc" }
+
+[[case]]
+name = "algorithm filename blake2b [] 'new\\nline'"
+args = ["-a", "blake2b", "new\nline"]
+scratch = { "new\nline" = "abc" }
+
+[[case]]
+name = "algorithm filename blake2b [] 'car\\rriage'"
+args = ["-a", "blake2b", "car\rriage"]
+scratch = { "car\rriage" = "abc" }
+
+[[case]]
+name = "algorithm filename blake2b [] 'back\\\\slash'"
+args = ["-a", "blake2b", "back\\slash"]
+scratch = { "back\\slash" = "abc" }
+
+[[case]]
+name = "algorithm filename blake2b ['--tag'] 'new\\nline'"
+args = ["-a", "blake2b", "--tag", "new\nline"]
+scratch = { "new\nline" = "abc" }
+
+[[case]]
+name = "algorithm filename blake2b ['--tag'] 'car\\rriage'"
+args = ["-a", "blake2b", "--tag", "car\rriage"]
+scratch = { "car\rriage" = "abc" }
+
+[[case]]
+name = "algorithm filename blake2b ['--tag'] 'back\\\\slash'"
+args = ["-a", "blake2b", "--tag", "back\\slash"]
+scratch = { "back\\slash" = "abc" }
+
+[[case]]
+name = "algorithm filename blake2b ['--untagged'] 'new\\nline'"
+args = ["-a", "blake2b", "--untagged", "new\nline"]
+scratch = { "new\nline" = "abc" }
+
+[[case]]
+name = "algorithm filename blake2b ['--untagged'] 'car\\rriage'"
+args = ["-a", "blake2b", "--untagged", "car\rriage"]
+scratch = { "car\rriage" = "abc" }
+
+[[case]]
+name = "algorithm filename blake2b ['--untagged'] 'back\\\\slash'"
+args = ["-a", "blake2b", "--untagged", "back\\slash"]
+scratch = { "back\\slash" = "abc" }
+
+[[case]]
+name = "algorithm filename blake2b ['-z'] 'new\\nline'"
+args = ["-a", "blake2b", "-z", "new\nline"]
+scratch = { "new\nline" = "abc" }
+
+[[case]]
+name = "algorithm filename blake2b ['-z'] 'car\\rriage'"
+args = ["-a", "blake2b", "-z", "car\rriage"]
+scratch = { "car\rriage" = "abc" }
+
+[[case]]
+name = "algorithm filename blake2b ['-z'] 'back\\\\slash'"
+args = ["-a", "blake2b", "-z", "back\\slash"]
+scratch = { "back\\slash" = "abc" }
