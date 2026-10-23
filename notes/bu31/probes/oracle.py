@@ -31,3 +31,5 @@ for args in [[],['a','b'],['-e'],['-i','3-1'],['-i','1-0'],['-i','0-0','-n','0']
 for args in [['-a','3'],['-v','0'],['-1','x'],['-j','+2'],['-o',''],['-o','1.0'],['-o','x'],['-o','1.1,,2.1'],['-t',':','-t',';'],['-e','x','-e','y'],['--check-order'],['-t','\\0']]:run('join',args+['/dev/null','/dev/null'])
 for data in [b'b\vc',b'b\fc',b'b\rc',b'b\tc',b'b\nc',b'b c',b'b\x00x c',b'b\x00x c c d']:
  run('tsort',data=data)
+for x in [' 2','2 ','-0','+0','18446744073709551615','18446744073709551616','9223372036854775808','0002','2x','+','\t2']:
+ for u,args in [('base64',['-w',x]),('shuf',['-n',x,'-e','a']),('join',['-1',x,'/dev/null','/dev/null'])]:run(u,args,b'a')
