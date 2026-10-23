@@ -61,24 +61,20 @@ fn main() -> int {
         return bore.usage_error("comm", "extra operand {bore.quote(p.operands[2])}")
     }
     let shared_stdin = p.operands[0] == "-" && p.operands[1] == "-"
-    var a = textio.load("comm", p.operands[0], delim)
-    if a.failed { return 1 }
+    var a = textio.Rows { items: List[textio.Rec](), failed: false }
     var b = textio.Rows { items: List[textio.Rec](), failed: false }
+    var reader = SharedInput { chunk: List[byte](), pos: 0, exhausted: false, eof_given: false, why: "" }
     if shared_stdin {
-        var left = List[textio.Rec](), right = List[textio.Rec]()
-        for k in 0..a.items.len {
-            if k % 2 == 0 {
-                (mut left).push(copy a.items[k])
-            } else {
-                (mut right).push(copy a.items[k])
-            }
+        if !push_shared(mut reader, mut a.items, delim) || !push_shared(mut reader, mut b.items, delim) {
+            bore.input_error("comm", "-", reader.why)
+            return 1
         }
-        a.items = left
-        b.items = right
     } else {
+        a = textio.load("comm", p.operands[0], delim)
+        if a.failed { return 1 }
         b = textio.load("comm", p.operands[1], delim)
+        if b.failed { return 1 }
     }
-    if b.failed { return 1 }
     var i = 0, j = 0, unpaired = false, bad1 = false, bad2 = false
     var counts = [0, 0, 0]
     while i < a.items.len || j < b.items.len {
@@ -112,8 +108,20 @@ fn main() -> int {
                 }
             }
         }
-        if c != 1 { i += 1 }
-        if c != 0 { j += 1 }
+        if c != 1 {
+            i += 1
+            if shared_stdin && !push_shared(mut reader, mut a.items, delim) {
+                bore.input_error("comm", "-", reader.why)
+                return bore.finish(mut out, "comm", 1)
+            }
+        }
+        if c != 0 {
+            j += 1
+            if shared_stdin && !push_shared(mut reader, mut b.items, delim) {
+                bore.input_error("comm", "-", reader.why)
+                return bore.finish(mut out, "comm", 1)
+            }
+        }
         if c != 2 { unpaired = true }
         // At EOF GNU rechecks the last retained record; otherwise check
         // only the file advanced by this merge step. A previously paired
@@ -140,12 +148,6 @@ fn main() -> int {
             }
         }
     }
-    if shared_stdin {
-        // GNU alternates one FILE stream, then closes it at the first EOF.
-        // Its other reader's next access reports EBADF, not a second EOF.
-        bore.input_error("comm", "-", bore.bad_descriptor())
-        return bore.finish(mut out, "comm", 1)
-    }
     if total {
         let s = if sep.len == 0 then "\0" else sep
         bore.put(mut out, "{counts[0]}{s}{counts[1]}{s}{counts[2]}{s}total") else |_| {
@@ -156,4 +158,50 @@ fn main() -> int {
     var status = 0
     if bad1 || bad2 { bore.warn("comm", "input is not in sorted order"); status = 1 }
     bore.finish(mut out, "comm", status)
+}
+
+// A single cursor, shared by both merge sides. Only the consumed side
+// receives the next record; an unpaired record therefore shifts ownership.
+struct SharedInput { chunk: List[byte], pos: int, exhausted: bool, eof_given: bool, why: str }
+fn push_shared(mut reader: SharedInput, mut rows: List[textio.Rec], delim: int) -> bool {
+    let row = next_shared(mut reader, delim) else |e| match e {
+        eof => { return true },
+        io => { return false },
+    }
+    (mut rows).push(row)
+    true
+}
+fn next_shared(mut reader: SharedInput, delim: int) -> textio.Rec ! {eof, io} {
+    if reader.exhausted {
+        if !reader.eof_given { reader.eof_given = true; return eof }
+        // Measured GNU 9.11 closes its shared FILE at the first EOF;
+        // the other side's next request reports EBADF rather than EOF.
+        reader.why = bore.bad_descriptor()
+        return io
+    }
+    var bytes = List[byte]()
+    loop {
+        if reader.pos >= reader.chunk.len {
+            reader.chunk = fs_read_chunk(0, 65536) else |e| match e {
+                eof => {
+                    reader.exhausted = true
+                    if bytes.len > 0 { return textio.Rec { data: bytes } }
+                    reader.eof_given = true
+                    return eof
+                },
+                io => { reader.why = bore.reason_of(bore.host_code()); return io },
+            }
+            reader.pos = 0
+            if reader.chunk.len == 0 {
+                reader.exhausted = true
+                if bytes.len > 0 { return textio.Rec { data: bytes } }
+                reader.eof_given = true
+                return eof
+            }
+        }
+        let b = reader.chunk[reader.pos]
+        reader.pos += 1
+        if b as int == delim { return textio.Rec { data: bytes } }
+        (mut bytes).push(b)
+    }
 }
