@@ -234,15 +234,9 @@ pub fn command(prog: str, default_kind: int, default_bits: int) -> int {
             }
         }
     }
-    if seen.stdin {
-        // The runtime protects standard descriptors from fs_close. GNU's
-        // final fclose diagnostic is observable when fd 0 was already shut.
-        let _ = fs_fstat(0) else |_| {
-            if bore.host_code() == 9 {
-                bore.warn(prog, "standard input: Bad file descriptor")
-                status = 1
-            }
-        }
+    if seen.stdin && stdin_closed() {
+        bore.warn(prog, "standard input: Bad file descriptor")
+        status = 1
     }
     bore.finish(mut out, prog, if status == 2 then 1 else status)
 }
@@ -497,4 +491,11 @@ fn checksum_finish(mut out: bore.Out, c: Settings) -> int {
         return 1
     }
     0
+}
+
+// Standard descriptors are protected from fs_close. Only an already-closed
+// fd 0 produces GNU's observable final fclose failure on this read-only path.
+fn stdin_closed() -> bool {
+    let _ = fs_fstat(0) else |_| { return bore.host_code() == 9 }
+    false
 }
