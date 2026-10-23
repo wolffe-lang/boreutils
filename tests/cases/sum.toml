@@ -1,0 +1,323 @@
+# GNU coreutils 9.11 black-box differential cases; no GNU source.
+# Standards and independent vectors are documented in src/checksum_test.lu.
+
+[[case]]
+name = "empty input"
+args = []
+
+[[case]]
+name = "abc"
+args = []
+stdin = "abc"
+
+[[case]]
+name = "all byte values"
+args = []
+stdin_file = "binary.bin"
+
+[[case]]
+name = "explicit stdin"
+args = ["-"]
+stdin = "abc"
+
+[[case]]
+name = "repeated stdin"
+args = ["-", "-"]
+stdin = "abc"
+
+[[case]]
+name = "padding and chunk boundary 1"
+args = []
+stdin = "a"
+stdin_repeat = 1
+
+[[case]]
+name = "padding and chunk boundary 55"
+args = []
+stdin = "a"
+stdin_repeat = 55
+
+[[case]]
+name = "padding and chunk boundary 56"
+args = []
+stdin = "a"
+stdin_repeat = 56
+
+[[case]]
+name = "padding and chunk boundary 57"
+args = []
+stdin = "a"
+stdin_repeat = 57
+
+[[case]]
+name = "padding and chunk boundary 63"
+args = []
+stdin = "a"
+stdin_repeat = 63
+
+[[case]]
+name = "padding and chunk boundary 64"
+args = []
+stdin = "a"
+stdin_repeat = 64
+
+[[case]]
+name = "padding and chunk boundary 65"
+args = []
+stdin = "a"
+stdin_repeat = 65
+
+[[case]]
+name = "padding and chunk boundary 111"
+args = []
+stdin = "a"
+stdin_repeat = 111
+
+[[case]]
+name = "padding and chunk boundary 112"
+args = []
+stdin = "a"
+stdin_repeat = 112
+
+[[case]]
+name = "padding and chunk boundary 113"
+args = []
+stdin = "a"
+stdin_repeat = 113
+
+[[case]]
+name = "padding and chunk boundary 127"
+args = []
+stdin = "a"
+stdin_repeat = 127
+
+[[case]]
+name = "padding and chunk boundary 128"
+args = []
+stdin = "a"
+stdin_repeat = 128
+
+[[case]]
+name = "padding and chunk boundary 129"
+args = []
+stdin = "a"
+stdin_repeat = 129
+
+[[case]]
+name = "padding and chunk boundary 255"
+args = []
+stdin = "a"
+stdin_repeat = 255
+
+[[case]]
+name = "padding and chunk boundary 256"
+args = []
+stdin = "a"
+stdin_repeat = 256
+
+[[case]]
+name = "padding and chunk boundary 511"
+args = []
+stdin = "a"
+stdin_repeat = 511
+
+[[case]]
+name = "padding and chunk boundary 512"
+args = []
+stdin = "a"
+stdin_repeat = 512
+
+[[case]]
+name = "padding and chunk boundary 513"
+args = []
+stdin = "a"
+stdin_repeat = 513
+
+[[case]]
+name = "padding and chunk boundary 1023"
+args = []
+stdin = "a"
+stdin_repeat = 1023
+
+[[case]]
+name = "padding and chunk boundary 1024"
+args = []
+stdin = "a"
+stdin_repeat = 1024
+
+[[case]]
+name = "padding and chunk boundary 1025"
+args = []
+stdin = "a"
+stdin_repeat = 1025
+
+[[case]]
+name = "padding and chunk boundary 65535"
+args = []
+stdin = "a"
+stdin_repeat = 65535
+
+[[case]]
+name = "padding and chunk boundary 65536"
+args = []
+stdin = "a"
+stdin_repeat = 65536
+
+[[case]]
+name = "padding and chunk boundary 65537"
+args = []
+stdin = "a"
+stdin_repeat = 65537
+
+[[case]]
+name = "padding and chunk boundary 131073"
+args = []
+stdin = "a"
+stdin_repeat = 131073
+
+[[case]]
+name = "file"
+args = ["f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "two files"
+args = ["f", "e"]
+scratch = { "f" = "abc", "e" = "" }
+
+[[case]]
+name = "same file twice"
+args = ["f", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "stdin mixed with files"
+args = ["f", "-", "e"]
+scratch = { "f" = "abc", "e" = "" }
+stdin = "xyz"
+
+[[case]]
+name = "missing then present"
+args = ["absent", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "directory"
+args = ["d"]
+scratch_dirs = ["d"]
+
+[[case]]
+name = "symlink"
+args = ["s"]
+scratch = { "f" = "abc" }
+scratch_links = { "s" = "f" }
+
+[[case]]
+name = "dangling symlink"
+args = ["s"]
+scratch_links = { "s" = "missing" }
+
+[[case]]
+name = "operand after double dash"
+args = ["--", "-f"]
+scratch = { "-f" = "abc" }
+
+[[case]]
+name = "help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "version"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "invalid option"
+args = ["--unknown"]
+
+[[case]]
+name = "invalid short"
+args = ["-!"]
+
+[[case]]
+name = "closed output"
+args = []
+stdin = "abc"
+stdout_closed = true
+
+[[case]]
+name = "full output"
+args = []
+stdin = "abc"
+stdout_file = "/dev/full"
+
+[[case]]
+name = "closed input"
+args = []
+stdin_closed = true
+
+[[case]]
+name = "sum mode ['-r']"
+args = ["-r"]
+stdin = "abc"
+
+[[case]]
+name = "sum mode ['-s']"
+args = ["-s"]
+stdin = "abc"
+
+[[case]]
+name = "sum mode ['--sysv']"
+args = ["--sysv"]
+stdin = "abc"
+
+[[case]]
+name = "sum mode ['-rs']"
+args = ["-rs"]
+stdin = "abc"
+
+[[case]]
+name = "sum mode ['-sr']"
+args = ["-sr"]
+stdin = "abc"
+
+[[case]]
+name = "sum mode ['--sys']"
+args = ["--sys"]
+stdin = "abc"
+
+[[case]]
+name = "sum mode ['-z']"
+args = ["-z"]
+stdin = "abc"
+
+[[case]]
+name = "sum mode ['-c']"
+args = ["-c"]
+stdin = "abc"
+
+[[case]]
+name = "sum filename 'back\\\\slash'"
+args = ["back\\slash"]
+scratch = { "back\\slash" = "abc" }
+
+[[case]]
+name = "sum filename 'new\\nline'"
+args = ["new\nline"]
+scratch = { "new\nline" = "abc" }
+
+[[case]]
+name = "sum filename 'car\\rriage'"
+args = ["car\rriage"]
+scratch = { "car\rriage" = "abc" }
+
+[[case]]
+name = "sum filename 'sp ace'"
+args = ["sp ace"]
+scratch = { "sp ace" = "abc" }
+
+[[case]]
+name = "sum filename '\u00e9'"
+args = ["\u00e9"]
+scratch = { "\u00e9" = "abc" }
