@@ -120,6 +120,25 @@ class Checksums(unittest.TestCase):
                                      (b.returncode, b.stdout, b.stderr.replace(b"md5sum", b"PROG")),
                                      (content[:80], flags))
 
+    def test_cksum_encoded_round_trips(self):
+        with tempfile.TemporaryDirectory(prefix="bore-cksum-encoded.") as td:
+            (Path(td) / "f").write_bytes(b"abc")
+            algorithms = [(a, []) for a in ["md5", "sha1", "sha224", "sha256", "sha384", "sha512"]]
+            algorithms += [("sha2", ["-l", str(n)]) for n in [224, 256, 384, 512]]
+            algorithms += [("blake2b", ["-l", str(n)]) for n in [8, 16, 24, 128, 224, 256, 384, 504, 512]]
+            for algorithm, length in algorithms:
+                for flags in [[], ["--base64"], ["--untagged"], ["--base64", "--untagged"]]:
+                    args = ["-a", algorithm, *length, *flags, "f"]
+                    a = run(BIN / "cksum", args, cwd=td)
+                    b = run(gnu("cksum"), args, cwd=td)
+                    self.assertEqual((a.returncode, a.stdout, a.stderr), (b.returncode, b.stdout, b.stderr), args)
+                    for check in [["-c"], ["-c", "-a", algorithm], ["-c", "-a", algorithm, *length]]:
+                        a = run(BIN / "cksum", check, b.stdout, td)
+                        expected = run(gnu("cksum"), check, b.stdout, td)
+                        self.assertEqual((a.returncode, a.stdout, a.stderr.replace(b"cksum", b"PROG")),
+                                         (expected.returncode, expected.stdout, expected.stderr.replace(b"cksum", b"PROG")),
+                                         (args, check))
+
     def test_named_refusals(self):
         for flags, phrase in [(["-a", "sha3", "-l", "256"], b"--algorithm=sha3"),
                               (["-a", "sm3"], b"--algorithm=sm3"),
