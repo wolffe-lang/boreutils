@@ -1,0 +1,78 @@
+# GNU coreutils 9.11 black-box cases; bu30. No implementation source.
+
+[[case]]
+name = "help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "version"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "bad option"
+args = ["--not-an-option"]
+
+[[case]]
+name = "closed help"
+args = ["--help"]
+stdout_closed = true
+
+[[case]]
+name = "no operands"
+args = []
+
+[[case]]
+name = "remove file"
+args = ["f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "missing file"
+args = ["missing"]
+
+[[case]]
+name = "directory never removed"
+args = ["d"]
+scratch_dirs = ["d"]
+
+[[case]]
+name = "nonempty directory"
+args = ["d"]
+scratch_dirs = ["d"]
+scratch = { "d/f" = "x" }
+
+[[case]]
+name = "symlink to directory"
+args = ["l"]
+scratch_dirs = ["d"]
+scratch_links = { "l" = "d" }
+
+[[case]]
+name = "dangling link"
+args = ["l"]
+scratch_links = { "l" = "absent" }
+
+[[case]]
+name = "two operands"
+args = ["a", "b"]
+
+[[case]]
+name = "empty operand"
+args = [""]
+
+[[case]]
+name = "trailing slash on directory"
+args = ["d/"]
+scratch_dirs = ["d"]
+
+[[case]]
+name = "trailing slash on file"
+args = ["f/"]
+scratch = { "f" = "a" }
+
+[[case]]
+name = "fifo"
+args = ["f"]
+scratch_fifos = ["f"]

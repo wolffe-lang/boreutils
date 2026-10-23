@@ -1,0 +1,45 @@
+//! member: false
+//! unlink — remove one non-directory directory entry.
+//! References consulted: POSIX.1-2024 unlink; GNU coreutils 9.11's
+//! documented invocation and black-box binary runs. No implementation source.
+//! Before using fs_remove, bu30 measured an empty directory: it refuses
+//! with EISDIR, leaving the directory (notes/bu30/probes/surface.lu).
+//! lstat additionally refuses directories, never their symlinks. The
+//! actual removal is fs_remove, whose file-only operation cannot remove
+//! a directory swapped into place after the lstat. No remove_dir call.
+use bore
+
+fn main() -> int {
+    var opts = List[bore.Opt]()
+    (mut opts).push(bore.flag("", "help"))
+    (mut opts).push(bore.flag("", "version"))
+    let p = bore.parse(opts, env_args(), bore.permute())
+    var out = bore.stdout()
+    for k in p.keys {
+        if k == "help" {
+            bore.put(mut out, "Usage: unlink FILE\nRemove one non-directory name.\n") else |_| {}
+            return bore.finish(mut out, "unlink", 0)
+        }
+        if k == "version" {
+            bore.put(mut out, bore.version_text("unlink")) else |_| {}
+            return bore.finish(mut out, "unlink", 0)
+        }
+    }
+    if !bore.ok(p) { return bore.usage_error("unlink", p.error) }
+    if p.operands.len == 0 { return bore.usage_error("unlink", "missing operand") }
+    if p.operands.len > 1 { return bore.usage_error("unlink", "extra operand {bore.quote(p.operands[1])}") }
+    let name = p.operands[0]
+    let r = fs_lstat(name) else |_| {
+        bore.warn("unlink", "cannot unlink {bore.quote(name)}: {bore.io_error()}")
+        return 1
+    }
+    if bore.rec_kind(r) == bore.kind_dir() {
+        bore.warn("unlink", "cannot unlink {bore.quote(name)}: Is a directory")
+        return 1
+    }
+    fs_remove(name) else |_| {
+        bore.warn("unlink", "cannot unlink {bore.quote(name)}: {bore.io_error()}")
+        return 1
+    }
+    bore.finish(mut out, "unlink", 0)
+}
