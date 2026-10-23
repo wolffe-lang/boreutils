@@ -167,12 +167,13 @@ class Checksums(unittest.TestCase):
 
         for tool, algorithm in ALGORITHMS.items():
             digest = hashlib.new(algorithm, b"abc").hexdigest().encode()
-            manifest = digest + b"  bad\xff\n"
-            p = run(BIN / tool, ["-c"], manifest)
-            self.assertEqual(p.returncode, 1)
-            self.assertEqual(p.stdout, b"")
-            self.assertIn(b"non-UTF-8 file names", p.stderr)
-            self.assertIn(b"fs_open requires a UTF-8 path", p.stderr)
+            for name in [b"bad\xff", b"bad\xff(paren)", b"(paren)bad\xff"]:
+                manifest = digest + b"  " + name + b"\n"
+                p = run(BIN / tool, ["-c"], manifest)
+                self.assertEqual(p.returncode, 1)
+                self.assertEqual(p.stdout, b"")
+                self.assertIn(b"non-UTF-8 file names", p.stderr)
+                self.assertIn(b"fs_open requires a UTF-8 path", p.stderr)
         p = run(BIN / "cksum", ["-c"], b"MD5 (bad\xff) = 900150983cd24fb0d6963f7d28e17f72\n")
         self.assertEqual(p.returncode, 1)
         self.assertIn(b"non-UTF-8 file names", p.stderr)
