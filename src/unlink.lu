@@ -3,7 +3,8 @@
 //! References consulted: POSIX.1-2024 unlink; GNU coreutils 9.11's
 //! documented invocation and black-box binary runs. No implementation source.
 //! Before using fs_remove, bu30 measured an empty directory: it refuses
-//! with EISDIR, leaving the directory (notes/bu30/probes/surface.lu).
+//! with the host errno, leaving the directory (EISDIR on Linux, EPERM
+//! on macOS; the pinned runtime tests this invariant).
 //! lstat additionally refuses directories, never their symlinks. The
 //! actual removal is fs_remove, whose file-only operation cannot remove
 //! a directory swapped into place after the lstat. No remove_dir call.
@@ -37,8 +38,15 @@ fn main() -> int {
         return 1
     }
     if bore.rec_kind(r) == bore.kind_dir() {
-        bore.warn("unlink", "cannot unlink {bore.quote_always(name)}: Is a directory")
-        return 1
+        // fs_remove is file-only on both hosts. Ask that call for the
+        // diagnostic, not a guessed errno; a directory cannot be removed.
+        fs_remove(name) else |_| {
+            bore.warn("unlink", "cannot unlink {bore.quote_always(name)}: {bore.io_error()}")
+            return 1
+        }
+        // If the name changed to a non-directory after lstat, that file
+        // was successfully unlinked, exactly as the atomic host call says.
+        return bore.finish(mut out, "unlink", 0)
     }
     fs_remove(name) else |_| {
         bore.warn("unlink", "cannot unlink {bore.quote_always(name)}: {bore.io_error()}")
