@@ -1,0 +1,12 @@
+//! member: false
+//! sha512sum — bounded streaming checksums and GNU 9.11 command semantics.
+//! References: FIPS 180-4 sections 4-6; NIST SHS example vectors.
+//! Published vectors are unit tests in checksum_test.lu. CLI measured from
+//! GNU 9.11 --help, manual and black-box runs only, LC_ALL=C.
+//! uutils/coreutils (MIT), toybox (0BSD): design references only;
+//! never GNU coreutils, gnulib or another hash implementation's source.
+use checksum
+
+fn main() -> int {
+    checksum.command("sha512sum", 9, 512)
+}
