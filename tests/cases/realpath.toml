@@ -1,0 +1,710 @@
+# GNU coreutils 9.11 black-box cases; bu30. No implementation source.
+
+[[case]]
+name = "help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "version"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "bad option"
+args = ["--not-an-option"]
+
+[[case]]
+name = "closed help"
+args = ["--help"]
+stdout_closed = true
+
+[[case]]
+name = "missing operand"
+args = []
+
+[[case]]
+name = "f"
+args = ["f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-e f"
+args = ["-e", "f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-m f"
+args = ["-m", "f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-L f"
+args = ["-L", "f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-P f"
+args = ["-P", "f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-s f"
+args = ["-s", "f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-m -s f"
+args = ["-m", "-s", "f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "missing"
+args = ["missing"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-e missing"
+args = ["-e", "missing"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-m missing"
+args = ["-m", "missing"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-L missing"
+args = ["-L", "missing"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-P missing"
+args = ["-P", "missing"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-s missing"
+args = ["-s", "missing"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-m -s missing"
+args = ["-m", "-s", "missing"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "no/parent"
+args = ["no/parent"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-e no/parent"
+args = ["-e", "no/parent"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-m no/parent"
+args = ["-m", "no/parent"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-L no/parent"
+args = ["-L", "no/parent"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-P no/parent"
+args = ["-P", "no/parent"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-s no/parent"
+args = ["-s", "no/parent"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-m -s no/parent"
+args = ["-m", "-s", "no/parent"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "d/../f"
+args = ["d/../f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-e d/../f"
+args = ["-e", "d/../f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-m d/../f"
+args = ["-m", "d/../f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-L d/../f"
+args = ["-L", "d/../f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-P d/../f"
+args = ["-P", "d/../f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-s d/../f"
+args = ["-s", "d/../f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-m -s d/../f"
+args = ["-m", "-s", "d/../f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "l/../f"
+args = ["l/../f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-e l/../f"
+args = ["-e", "l/../f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-m l/../f"
+args = ["-m", "l/../f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-L l/../f"
+args = ["-L", "l/../f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-P l/../f"
+args = ["-P", "l/../f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-s l/../f"
+args = ["-s", "l/../f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-m -s l/../f"
+args = ["-m", "-s", "l/../f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "dangling"
+args = ["dangling"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-e dangling"
+args = ["-e", "dangling"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-m dangling"
+args = ["-m", "dangling"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-L dangling"
+args = ["-L", "dangling"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-P dangling"
+args = ["-P", "dangling"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-s dangling"
+args = ["-s", "dangling"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-m -s dangling"
+args = ["-m", "-s", "dangling"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "cycle"
+args = ["cycle"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-e cycle"
+args = ["-e", "cycle"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-m cycle"
+args = ["-m", "cycle"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-L cycle"
+args = ["-L", "cycle"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-P cycle"
+args = ["-P", "cycle"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-s cycle"
+args = ["-s", "cycle"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-m -s cycle"
+args = ["-m", "-s", "cycle"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "f/"
+args = ["f/"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-e f/"
+args = ["-e", "f/"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-m f/"
+args = ["-m", "f/"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-L f/"
+args = ["-L", "f/"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-P f/"
+args = ["-P", "f/"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-s f/"
+args = ["-s", "f/"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-m -s f/"
+args = ["-m", "-s", "f/"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "f/child"
+args = ["f/child"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-e f/child"
+args = ["-e", "f/child"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-m f/child"
+args = ["-m", "f/child"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-L f/child"
+args = ["-L", "f/child"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-P f/child"
+args = ["-P", "f/child"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-s f/child"
+args = ["-s", "f/child"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-m -s f/child"
+args = ["-m", "-s", "f/child"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = ""
+args = [""]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-e "
+args = ["-e", ""]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-m "
+args = ["-m", ""]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-L "
+args = ["-L", ""]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-P "
+args = ["-P", ""]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-s "
+args = ["-s", ""]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-m -s "
+args = ["-m", "-s", ""]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "."
+args = ["."]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-e ."
+args = ["-e", "."]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-m ."
+args = ["-m", "."]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-L ."
+args = ["-L", "."]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-P ."
+args = ["-P", "."]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-s ."
+args = ["-s", "."]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-m -s ."
+args = ["-m", "-s", "."]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "d//sub/./f"
+args = ["d//sub/./f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-e d//sub/./f"
+args = ["-e", "d//sub/./f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-m d//sub/./f"
+args = ["-m", "d//sub/./f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-L d//sub/./f"
+args = ["-L", "d//sub/./f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-P d//sub/./f"
+args = ["-P", "d//sub/./f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-s d//sub/./f"
+args = ["-s", "d//sub/./f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-m -s d//sub/./f"
+args = ["-m", "-s", "d//sub/./f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "d/sub/../../f"
+args = ["d/sub/../../f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-e d/sub/../../f"
+args = ["-e", "d/sub/../../f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-m d/sub/../../f"
+args = ["-m", "d/sub/../../f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-L d/sub/../../f"
+args = ["-L", "d/sub/../../f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-P d/sub/../../f"
+args = ["-P", "d/sub/../../f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-s d/sub/../../f"
+args = ["-s", "d/sub/../../f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "-m -s d/sub/../../f"
+args = ["-m", "-s", "d/sub/../../f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "quiet missing"
+args = ["-q", "no/parent"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "NUL output"
+args = ["-z", "f", "d"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "relative same"
+args = ["--relative-to=d/sub", "d/sub"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "relative parent"
+args = ["--relative-to=d/sub", "f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "relative base inside"
+args = ["--relative-base=d", "d/sub/f", "f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "relative base and to"
+args = ["--relative-base=d", "--relative-to=d/sub", "d", "f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "relative missing"
+args = ["-m", "--relative-to=absent/child", "f"]
+scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
+scratch_dirs = ["d", "d/sub"]
+scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }

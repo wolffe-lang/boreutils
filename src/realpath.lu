@@ -1,0 +1,148 @@
+//! member: false
+//! realpath — absolute paths, with physical or logical link resolution.
+//! References consulted: POSIX pathname resolution and realpath; GNU
+//! coreutils 9.11's documented invocation and black-box binary runs.
+//! No implementation source. The missing-component walk is our own
+//! bore/paths.lu (also used by readlink), not another implementation.
+//! -E tries fs_realpath first and permits a missing final component.
+//! -L removes dot components before following links; -P does so after.
+//! -s removes them without following any symbolic link.
+use bore
+
+fn lexical(path: str) -> str {
+    var absolute = path
+    if !path.starts_with("/") {
+        let cwd = os_cwd() else "/"
+        absolute = "{cwd}/{path}"
+    }
+    var stack = List[str]()
+    for c in absolute.split("/") {
+        if c == ".." { let _ = (mut stack).pop() else "" }
+        else if c.len > 0 && c != "." { (mut stack).push(c) }
+    }
+    var answer = ""
+    for c in stack { answer = "{answer}/{c}" }
+    if answer.len == 0 { return "/" }
+    answer
+}
+
+fn resolved(path: str, mode: int, logical: bool, strip: bool) -> bore.Resolved {
+    if path.len == 0 { return bore.Resolved { ok: false, path: "", why: "No such file or directory" } }
+    let input = if logical || strip then lexical(path) else path
+    if strip {
+        if mode == bore.missing() { return bore.Resolved { ok: true, path: input, why: "" } }
+        var check = input
+        if mode == bore.all_but_last() { check = bore.parent_of(input) }
+        let _ = fs_stat(check) else |_| {
+            return bore.Resolved { ok: false, path: "", why: bore.io_error() }
+        }
+        return bore.Resolved { ok: true, path: input, why: "" }
+    }
+    if mode == bore.all_but_last() {
+        let canonical = fs_realpath(input) else |_| ""
+        if canonical.len > 0 { return bore.Resolved { ok: true, path: canonical, why: "" } }
+    }
+    bore.canonical(input, mode)
+}
+
+fn within(path: str, base: str) -> bool {
+    path == base || base == "/" || path.starts_with("{base}/")
+}
+
+fn relative(path: str, base: str) -> str {
+    let a = path.split("/")
+    let b = base.split("/")
+    var i = 0
+    while i < a.len && i < b.len && a[i] == b[i] { i += 1 }
+    var answer = ""
+    var j = i
+    while j < b.len {
+        if b[j].len > 0 { answer = if answer.len == 0 then ".." else "{answer}/.." }
+        j += 1
+    }
+    j = i
+    while j < a.len {
+        if a[j].len > 0 { answer = if answer.len == 0 then a[j] else "{answer}/{a[j]}" }
+        j += 1
+    }
+    if answer.len == 0 { return "." }
+    answer
+}
+
+fn main() -> int {
+    var opts = List[bore.Opt]()
+    (mut opts).push(bore.flag("E", "canonicalize"))
+    (mut opts).push(bore.flag("e", "canonicalize-existing"))
+    (mut opts).push(bore.flag("m", "canonicalize-missing"))
+    (mut opts).push(bore.flag("L", "logical"))
+    (mut opts).push(bore.flag("P", "physical"))
+    (mut opts).push(bore.flag("q", "quiet"))
+    (mut opts).push(bore.flag("s", "strip"))
+    (mut opts).push(bore.flag("", "no-symlinks"))
+    (mut opts).push(bore.flag("z", "zero"))
+    (mut opts).push(bore.takes("", "relative-to"))
+    (mut opts).push(bore.takes("", "relative-base"))
+    (mut opts).push(bore.flag("", "help"))
+    (mut opts).push(bore.flag("", "version"))
+    let p = bore.parse(opts, env_args(), bore.permute())
+    var out = bore.stdout()
+    var mode = bore.all_but_last()
+    var logical = false
+    var strip = false
+    var quiet = false
+    var zero = false
+    var to = ""
+    var base = ""
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i]
+        if k == "help" {
+            bore.put(mut out, "Usage: realpath [OPTION]... FILE...\nPrint absolute paths. -E permits a missing last component; -e requires all; -m permits missing components.\n-L logical, -P physical, -s/--no-symlinks lexical, -q quiet, -z NUL.\n--relative-to=DIR and --relative-base=DIR select relative output.\n") else |_| {}
+            return bore.finish(mut out, "realpath", 0)
+        }
+        if k == "version" {
+            bore.put(mut out, bore.version_text("realpath")) else |_| {}
+            return bore.finish(mut out, "realpath", 0)
+        }
+        if k == "canonicalize" { mode = bore.all_but_last() }
+        if k == "canonicalize-existing" { mode = bore.existing() }
+        if k == "canonicalize-missing" { mode = bore.missing() }
+        if k == "logical" { logical = true }
+        if k == "physical" { logical = false }
+        if k == "strip" || k == "no-symlinks" { strip = true }
+        if k == "quiet" { quiet = true }
+        if k == "zero" { zero = true }
+        if k == "relative-to" { to = p.values[i] }
+        if k == "relative-base" { base = p.values[i] }
+        i += 1
+    }
+    if !bore.ok(p) { return bore.usage_error("realpath", p.error) }
+    if p.operands.len == 0 { return bore.usage_error("realpath", "missing operand") }
+    if base.len > 0 && to.len == 0 { to = base }
+    var from = ""
+    var under = ""
+    if to.len > 0 {
+        let r = resolved(to, mode, logical, strip)
+        if !r.ok { bore.input_error("realpath", to, r.why); return 1 }
+        from = r.path
+    }
+    if base.len > 0 {
+        let r = resolved(base, mode, logical, strip)
+        if !r.ok { bore.input_error("realpath", base, r.why); return 1 }
+        under = r.path
+    }
+    var status = 0
+    for name in p.operands {
+        let r = resolved(name, mode, logical, strip)
+        if !r.ok {
+            if !quiet { bore.input_error("realpath", name, r.why) }
+            status = 1
+            continue
+        }
+        var answer = r.path
+        if from.len > 0 && (under.len == 0 || within(r.path, under) && within(from, under)) { answer = relative(r.path, from) }
+        bore.put(mut out, answer) else |_| {}
+        bore.put_byte(mut out, if zero then 0 as byte else 10 as byte) else |_| {}
+    }
+    bore.finish(mut out, "realpath", status)
+}
