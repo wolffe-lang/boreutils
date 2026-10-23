@@ -59,10 +59,7 @@ fn main() -> int {
                 }
             }
             if overflowed {
-                bore.warn(
-                    "shuf",
-                    "invalid input range: {bore.quote(v)}: {overflow_reason()}",
-                )
+                bore.warn("shuf", "invalid input range: {bore.quote(v)}: {overflow_reason()}")
                 return 1
             }
             if invalid ||
