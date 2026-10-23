@@ -4,7 +4,9 @@
 //! coreutils 9.11's documented invocation and black-box binary runs.
 //! No implementation source. The missing-component walk is our own
 //! bore/paths.lu (also used by readlink), not another implementation.
-//! -E tries fs_realpath first and permits a missing final component.
+//! -E validates the component walk before fs_realpath, and permits a
+//! missing final component. macOS realpath(3) alone accepts file/; our
+//! walk must enforce the directory requirement before any fast return.
 //! -L removes dot components before following links; -P does so after.
 //! -s removes them without following any symbolic link.
 
@@ -55,11 +57,13 @@ fn resolved(path: str, mode: int, logical: bool, strip: bool) -> bore.Resolved {
         }
         return bore.Resolved { ok: true, path: lexical(input), why: "" }
     }
+    let walked = bore.canonical(input, mode)
+    if !walked.ok { return walked }
     if mode == bore.all_but_last() {
-        let canonical = fs_realpath(input) else |_| ""
-        if canonical.len > 0 { return bore.Resolved { ok: true, path: canonical, why: "" } }
+        let canonical = fs_realpath(input) else |_| walked.path
+        return bore.Resolved { ok: true, path: canonical, why: "" }
     }
-    bore.canonical(input, mode)
+    walked
 }
 
 fn within(path: str, base: str) -> bool {

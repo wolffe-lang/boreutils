@@ -84,7 +84,9 @@ fn more_after(rest: List[str], from: int) -> bool {
 }
 
 /// `path` made canonical under `mode` (`existing`, `all_but_last` or
-/// `missing`).
+/// `missing`). A trailing slash on the operand or a link target requires
+/// a directory in strict modes, even on a host whose realpath(3) strips it.
+/// Validate with this walk before accepting a host-realpath answer.
 pub fn canonical(path: str, mode: int) -> Resolved {
     if path.len == 0 {
         return stopped("No such file or directory")

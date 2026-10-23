@@ -769,3 +769,14 @@ scratch = { f = "abcdef" }
 name = "review 6 empty relative-base"
 args = ["--relative-base=", "f"]
 scratch = { f = "abcdef" }
+
+[[case]]
+name = "explicit E rejects trailing slash on regular file"
+args = ["-E", "f/"]
+scratch = { f = "abcdef" }
+
+[[case]]
+name = "E accepts link target trailing slash on directory"
+args = ["-E", "l"]
+scratch_dirs = ["d"]
+scratch_links = { l = "d/" }
