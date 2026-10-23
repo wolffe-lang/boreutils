@@ -63,6 +63,30 @@ class ShapeGate(unittest.TestCase):
 
 
 class SurfaceRefusals(unittest.TestCase):
+    def test_fifo_and_write_only_refusals(self):
+        self.assertNotEqual(os.geteuid(), 0, "run the permission witness on the unprivileged leg")
+        tier = os.environ.get("BORE_SMALL_TIER", "release")
+        with tempfile.TemporaryDirectory(prefix="bore-special.") as top:
+            file = Path(top) / "f"
+            file.write_bytes(b"abcdef")
+            file.chmod(0o200)
+            os.mkfifo(Path(top) / "fifo")
+            (Path(top) / "link").symlink_to("fifo")
+            cases = [("sync", ["f"], b"non-creating writable open"),
+                     ("sync", ["-d", "f"], b"non-creating writable open"),
+                     ("truncate", ["-s", "0", "fifo"], b"non-blocking writable open"),
+                     ("truncate", ["-c", "-s", "0", "fifo"], b"non-blocking writable open"),
+                     ("truncate", ["-s", "0", "link"], b"non-blocking writable open")]
+            for utility, args, reason in cases:
+                with self.subTest(utility=utility, args=args):
+                    done = subprocess.run([str(ROOT / "target" / tier / utility)] + args,
+                                          cwd=top, capture_output=True, timeout=2)
+                    self.assertEqual(done.returncode, 1, done.stderr)
+                    self.assertEqual(done.stdout, b"")
+                    self.assertIn(reason, done.stderr)
+            file.chmod(0o600)
+            self.assertEqual(file.read_bytes(), b"abcdef")
+
     def test_named_refusals(self):
         for tier in (os.environ.get("BORE_SMALL_TIER", "release"),):
             for utility, args, words in [

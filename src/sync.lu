@@ -5,6 +5,10 @@
 //! Bare sync and -f/--file-system are refused: sync(2) and syncfs(2)
 //! have no wolf surface. -d uses fs_sync (a stronger full fsync), not
 //! an invented claim to call fdatasync. Directory entries use fs_sync_dir.
+//! A file this process can write but cannot read is refused by name:
+//! wolf has no writable open without O_CREAT; an append/create fallback
+//! would create a file if its name were removed concurrently (R-bu30-3).
+//! notes/bu30/probes/open-gap.lu witnesses the missing mode.
 
 use bore
 
@@ -50,8 +54,22 @@ fn main() -> int {
         if bore.rec_kind(r) == bore.kind_dir() {
             fs_sync_dir(name) else |_| { code = bore.host_code() }
         } else {
-            let fd = fs_open_mode(name, 5) else |_| {
-                bore.warn("sync", "error opening {bore.quote_always(name)}: {bore.io_error()}")
+            let fd = fs_open_mode(name, 5) else |e| {
+                let why = bore.io_error()
+                var writable = false
+                match e {
+                    denied => { writable = true },
+                    not_found => {},
+                    exists => {},
+                    invalid => {},
+                    io => {},
+                }
+                if writable { fs_access(name, 2) else |_| { writable = false } }
+                if writable {
+                    bore.warn("sync", "a non-creating writable open is not supported by this sync: {bore.quote_always(name)}")
+                } else {
+                    bore.warn("sync", "error opening {bore.quote_always(name)}: {why}")
+                }
                 status = 1
                 continue
             }
