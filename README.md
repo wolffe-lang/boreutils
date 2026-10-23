@@ -1256,8 +1256,8 @@ new security-sensitive designs.
 | `join` | done: selected fields, unpaired rows, output lists/auto, separators, ignore-case, headers and order checks | not benched |
 | `tsort` | done for DAGs and residual unions of simple cycles; complex cyclic components and cycles with outgoing tails refused | not benched |
 | `shuf` | done: echo, full-u64 ranges, count, repeat, output and NUL records; random-source refused by name | not benched |
-| `cksum` | POSIX CRC, crc32b, BSD/SysV, MD5, SHA-1/SHA-2 and BLAKE2b; `--base64`, `--raw`, tags, reverse form and verification modes; not SHA-3, SM3 or hardware `--debug`; UTF-8 names only | 0.05x to 0.88x (hasu) |
-| `sum` | BSD and SysV, `-r` and `-s` | 0.12x to 0.88x (hasu) |
+| `cksum` | POSIX CRC, crc32b, BSD/SysV, MD5, SHA-1/SHA-2 and BLAKE2b; `--base64`, `--raw`, tags, reverse form and verification modes; not SHA-3, SM3 or hardware `--debug`; UTF-8 names only | 0.05x to 0.94x (hasu) |
+| `sum` | BSD and SysV, `-r` and `-s` | 0.14x to 0.94x (hasu) |
 | `md5sum` | RFC 1321; binary/text markers, tags, NUL output, verification modes and escaped UTF-8 names | 0.32x (hasu) |
 | `sha1sum` | FIPS 180-4 SHA-1; the checksum command modes, UTF-8 names | 0.29x (hasu) |
 | `sha224sum` | FIPS 180-4 SHA-224; the checksum command modes, UTF-8 names | 0.34x (hasu) |
@@ -1392,8 +1392,8 @@ table answers it per utility, from the evidence and from nothing else.
 | `tsort` | 2 / 2 | 69 / 26 | not benched (hasu) | drop-in for DAGs and residual unions of simple cycles; complex cyclic components and cycles with outgoing tails refused by name |
 | `shuf` | 8 / 9 | 97 / 1 | not benched (hasu) | drop-in for scripts that avoid --random-source, refused by name |
 
-| `cksum` | 15 / 16 | 383 / 3 | 0.05x to 0.88x (hasu) | drop-in for UTF-8 file names and scripts that avoid `-a sha3`, `-a sm3` and hardware `--debug`, each refused by name |
-| `sum` | 4 / 4 | 58 / 0 | 0.12x to 0.88x (hasu) | drop-in for UTF-8 file names |
+| `cksum` | 15 / 16 | 383 / 3 | 0.05x to 0.94x (hasu) | drop-in for UTF-8 file names and scripts that avoid `-a sha3`, `-a sm3` and hardware `--debug`, each refused by name |
+| `sum` | 4 / 4 | 58 / 0 | 0.14x to 0.94x (hasu) | drop-in for UTF-8 file names |
 | `md5sum` | 12 / 12 | 253 / 2 | 0.32x (hasu) | drop-in for UTF-8 file names; valid raw-byte name records refuse by name |
 | `sha1sum` | 12 / 12 | 248 / 0 | 0.29x (hasu) | drop-in for UTF-8 file names |
 | `sha224sum` | 12 / 12 | 248 / 0 | 0.34x (hasu) | drop-in for UTF-8 file names |
