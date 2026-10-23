@@ -168,6 +168,32 @@ class Checksums(unittest.TestCase):
             self.assertLess(rss[1] - rss[0], 16384)
 
 
+def large_answers():
+    """A sparse input over 4 GiB; independently hash every byte, bounded RAM."""
+    size = (1 << 32) + 65537
+    with tempfile.TemporaryDirectory(prefix="bore-checksum-large.") as td:
+        p = Path(td) / "over4GiB"
+        with p.open("wb") as f:
+            f.truncate(size)
+        answers = {tool: hashlib.new(algorithm) for tool, algorithm in ALGORITHMS.items()}
+        total = 0
+        with p.open("rb") as f:
+            while chunk := f.read(1 << 20):
+                for state in answers.values():
+                    state.update(chunk)
+                total += len(chunk)
+                if total % (512 << 20) == 0:
+                    print(f"LARGE independent hashed_bytes={total}", flush=True)
+        assert total == size
+        for tool, state in answers.items():
+            want = state.hexdigest().encode() + b"  " + os.fsencode(p) + b"\n"
+            for tier in ["release", "dev"]:
+                rc, stdout, stderr, elapsed, peak = measured([ROOT / "target" / tier / tool, p], timeout=600)
+                if (rc, stdout, stderr) != (0, want, b""):
+                    raise AssertionError((tool, tier, rc, stdout, stderr, want))
+                print(f"LARGE {tool} {tier} bytes={size} seconds={elapsed:.6f} peak_kib={peak} digest={state.hexdigest()} PASS", flush=True)
+
+
 def measure():
     rows = []
     with tempfile.TemporaryDirectory(prefix="bore-checksum-bench.") as td:
@@ -198,7 +224,9 @@ def measure():
 
 
 if __name__ == "__main__":
-    if "--measure" in __import__("sys").argv:
+    if "--large" in __import__("sys").argv:
+        large_answers()
+    elif "--measure" in __import__("sys").argv:
         measure()
     else:
         if os.uname().sysname != "Linux":

@@ -1583,3 +1583,21 @@ name = "reverse format marked then old"
 args = ["-cw"]
 stdin = "900150983cd24fb0d6963f7d28e17f72  f\n900150983cd24fb0d6963f7d28e17f72 f\n"
 scratch = {"f" = "abc"}
+
+[[case]]
+name = "strict parenthesized filename alone"
+args = ["-c", "--strict"]
+stdin = "900150983cd24fb0d6963f7d28e17f72  (paren)\n"
+scratch = { "(paren)" = "abc" }
+
+[[case]]
+name = "strict parenthesized filename among good records"
+args = ["-c", "--strict"]
+stdin = "900150983cd24fb0d6963f7d28e17f72  f\n900150983cd24fb0d6963f7d28e17f72  (paren)\n900150983cd24fb0d6963f7d28e17f72  f\n"
+scratch = { "f" = "abc", "(paren)" = "abc" }
+
+[[case]]
+name = "strict raw non UTF8 hash comment"
+args = ["-c", "--strict"]
+stdin_file = "checksum-comment.bin"
+scratch = { "f" = "abc" }
