@@ -19,6 +19,7 @@ struct Search { path: List[int], cycle: List[int], visited: List[bool] }
 fn main() -> int {
     var out = bore.stdout()
     var spec = List[bore.Opt]()
+    (mut spec).push(bore.flag("w", ""))
     (mut spec).push(bore.flag("", "help"))
     (mut spec).push(bore.flag("", "version"))
     let p = bore.parse(spec, env_args(), bore.permute())
