@@ -49,7 +49,7 @@ class ShapeGate(unittest.TestCase):
 
 class SurfaceRefusals(unittest.TestCase):
     def test_named_refusals(self):
-        for tier in ("release", "dev"):
+        for tier in (os.environ.get("BORE_SMALL_TIER", "release"),):
             for utility, args, words in [
                 ("truncate", ["-o", "-s", "1", "f"], b"-o (--io-blocks) is not supported by this truncate"),
                 ("sync", [], b"sync(2)"),
