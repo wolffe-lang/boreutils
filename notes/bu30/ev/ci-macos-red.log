@@ -1,0 +1,90 @@
+CI run 39987951234, job 120532019884, head 4e3b2258fdfc8dbe5e6b8e7942201309581aa989; macOS GNU coreutils 9.11.
+2026-10-23T16:41:19.7443350Z FAIL link: symbolic link itself  args=['l', 'h']
+2026-10-23T16:41:19.7443900Z     bore stdout: b''
+2026-10-23T16:41:19.7444270Z     bore stderr: b''
+2026-10-23T16:41:19.7444720Z     bore exit: 0
+2026-10-23T16:41:19.7445080Z     bore files: [('h', 'link', b'absent'), ('l', 'link', b'absent')]
+2026-10-23T16:41:19.7445660Z     bore tree: [('.', 'dir', 493, None, None, None), ('h', 'link', None, 2, None, None), ('l', 'link', None, 2, None, None)]
+2026-10-23T16:41:19.7446100Z     gnu  stdout: b''
+2026-10-23T16:41:19.7446410Z     gnu  stderr: b"PROG: cannot create PROG 'h' to 'l': No such file or directory\n"
+2026-10-23T16:41:19.7446720Z     gnu  exit: 1
+2026-10-23T16:41:19.7446880Z     gnu  files: [('l', 'link', b'absent')]
+2026-10-23T16:41:19.7447200Z     gnu  tree: [('.', 'dir', 493, None, None, None), ('l', 'link', None, 1, None, None)]
+2026-10-23T16:42:08.1220620Z FAIL realpath: f/  args=['f/']
+2026-10-23T16:42:08.1221100Z     bore stdout: b'/private/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/bore-scratch.vm74acp_/s/f\n'
+2026-10-23T16:42:08.1221530Z     bore stderr: b''
+2026-10-23T16:42:08.1221690Z     bore exit: 0
+2026-10-23T16:42:08.1222190Z     bore files: [('cycle', 'link', b'cycle'), ('d', 'dir', b''), ('d/sub', 'dir', b''), ('d/sub/f', 'file', b'xyz'), ('dangling', 'link', b'absent'), ('f', 'file', b'abcdef'), ('l', 'link', b'd/sub')]
+2026-10-23T16:42:08.1224140Z     bore tree: [('.', 'dir', 493, None, None, None), ('cycle', 'link', None, 1, None, None), ('d', 'dir', 493, None, None, None), ('d/sub', 'dir', 493, None, None, None), ('d/sub/f', 'file', 420, 1, 3, None), ('dangling', 'link', None, 1, None, None), ('f', 'file', 420, 1, 6, None), ('l', 'link', None, 1, None, None)]
+2026-10-23T16:42:08.1225360Z     gnu  stdout: b''
+2026-10-23T16:42:08.1225600Z     gnu  stderr: b'PROG: f/: Not a directory\n'
+2026-10-23T16:42:08.1225850Z     gnu  exit: 1
+2026-10-23T16:42:08.1226330Z     gnu  files: [('cycle', 'link', b'cycle'), ('d', 'dir', b''), ('d/sub', 'dir', b''), ('d/sub/f', 'file', b'xyz'), ('dangling', 'link', b'absent'), ('f', 'file', b'abcdef'), ('l', 'link', b'd/sub')]
+2026-10-23T16:42:08.1227400Z     gnu  tree: [('.', 'dir', 493, None, None, None), ('cycle', 'link', None, 1, None, None), ('d', 'dir', 493, None, None, None), ('d/sub', 'dir', 493, None, None, None), ('d/sub/f', 'file', 420, 1, 3, None), ('dangling', 'link', None, 1, None, None), ('f', 'file', 420, 1, 6, None), ('l', 'link', None, 1, None, None)]
+2026-10-23T16:42:08.1663910Z FAIL realpath: -L f/  args=['-L', 'f/']
+2026-10-23T16:42:08.1664400Z     bore stdout: b'/private/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/bore-scratch.f2st8zqx/s/f\n'
+2026-10-23T16:42:08.1664790Z     bore stderr: b''
+2026-10-23T16:42:08.1664950Z     bore exit: 0
+2026-10-23T16:42:08.1665420Z     bore files: [('cycle', 'link', b'cycle'), ('d', 'dir', b''), ('d/sub', 'dir', b''), ('d/sub/f', 'file', b'xyz'), ('dangling', 'link', b'absent'), ('f', 'file', b'abcdef'), ('l', 'link', b'd/sub')]
+2026-10-23T16:42:08.1666870Z     bore tree: [('.', 'dir', 493, None, None, None), ('cycle', 'link', None, 1, None, None), ('d', 'dir', 493, None, None, None), ('d/sub', 'dir', 493, None, None, None), ('d/sub/f', 'file', 420, 1, 3, None), ('dangling', 'link', None, 1, None, None), ('f', 'file', 420, 1, 6, None), ('l', 'link', None, 1, None, None)]
+2026-10-23T16:42:08.1667910Z     gnu  stdout: b''
+2026-10-23T16:42:08.1668120Z     gnu  stderr: b'PROG: f/: Not a directory\n'
+2026-10-23T16:42:08.1668340Z     gnu  exit: 1
+2026-10-23T16:42:08.1669090Z     gnu  files: [('cycle', 'link', b'cycle'), ('d', 'dir', b''), ('d/sub', 'dir', b''), ('d/sub/f', 'file', b'xyz'), ('dangling', 'link', b'absent'), ('f', 'file', b'abcdef'), ('l', 'link', b'd/sub')]
+2026-10-23T16:42:08.1670170Z     gnu  tree: [('.', 'dir', 493, None, None, None), ('cycle', 'link', None, 1, None, None), ('d', 'dir', 493, None, None, None), ('d/sub', 'dir', 493, None, None, None), ('d/sub/f', 'file', 420, 1, 3, None), ('dangling', 'link', None, 1, None, None), ('f', 'file', 420, 1, 6, None), ('l', 'link', None, 1, None, None)]
+2026-10-23T16:42:08.1793220Z FAIL realpath: -P f/  args=['-P', 'f/']
+2026-10-23T16:42:08.1793680Z     bore stdout: b'/private/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/bore-scratch.tovfr364/s/f\n'
+2026-10-23T16:42:08.1794060Z     bore stderr: b''
+2026-10-23T16:42:08.1794230Z     bore exit: 0
+2026-10-23T16:42:08.1794690Z     bore files: [('cycle', 'link', b'cycle'), ('d', 'dir', b''), ('d/sub', 'dir', b''), ('d/sub/f', 'file', b'xyz'), ('dangling', 'link', b'absent'), ('f', 'file', b'abcdef'), ('l', 'link', b'd/sub')]
+2026-10-23T16:42:08.1796370Z     bore tree: [('.', 'dir', 493, None, None, None), ('cycle', 'link', None, 1, None, None), ('d', 'dir', 493, None, None, None), ('d/sub', 'dir', 493, None, None, None), ('d/sub/f', 'file', 420, 1, 3, None), ('dangling', 'link', None, 1, None, None), ('f', 'file', 420, 1, 6, None), ('l', 'link', None, 1, None, None)]
+2026-10-23T16:42:08.1797230Z     gnu  stdout: b''
+2026-10-23T16:42:08.1797430Z     gnu  stderr: b'PROG: f/: Not a directory\n'
+2026-10-23T16:42:08.1797640Z     gnu  exit: 1
+2026-10-23T16:42:08.1798210Z     gnu  files: [('cycle', 'link', b'cycle'), ('d', 'dir', b''), ('d/sub', 'dir', b''), ('d/sub/f', 'file', b'xyz'), ('dangling', 'link', b'absent'), ('f', 'file', b'abcdef'), ('l', 'link', b'd/sub')]
+2026-10-23T16:42:08.1799600Z     gnu  tree: [('.', 'dir', 493, None, None, None), ('cycle', 'link', None, 1, None, None), ('d', 'dir', 493, None, None, None), ('d/sub', 'dir', 493, None, None, None), ('d/sub/f', 'file', 420, 1, 3, None), ('dangling', 'link', None, 1, None, None), ('f', 'file', 420, 1, 6, None), ('l', 'link', None, 1, None, None)]
+2026-10-23T16:42:08.9629360Z FAIL realpath: review 4 link target slash requires directory E  args=['-E', 'l']
+2026-10-23T16:42:08.9630050Z     bore stdout: b'/private/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/bore-scratch.alja6fhc/s/f\n'
+2026-10-23T16:42:08.9630440Z     bore stderr: b''
+2026-10-23T16:42:08.9630610Z     bore exit: 0
+2026-10-23T16:42:08.9630810Z     bore files: [('f', 'file', b'abcdef'), ('l', 'link', b'f/')]
+2026-10-23T16:42:08.9631230Z     bore tree: [('.', 'dir', 493, None, None, None), ('f', 'file', 420, 1, 6, None), ('l', 'link', None, 1, None, None)]
+2026-10-23T16:42:08.9631590Z     gnu  stdout: b''
+2026-10-23T16:42:08.9631770Z     gnu  stderr: b'PROG: l: Not a directory\n'
+2026-10-23T16:42:08.9631980Z     gnu  exit: 1
+2026-10-23T16:42:08.9632430Z     gnu  files: [('f', 'file', b'abcdef'), ('l', 'link', b'f/')]
+2026-10-23T16:42:08.9632830Z     gnu  tree: [('.', 'dir', 493, None, None, None), ('f', 'file', 420, 1, 6, None), ('l', 'link', None, 1, None, None)]
+2026-10-23T16:42:45.3628510Z FAIL unlink: directory never removed  args=['d']
+2026-10-23T16:42:45.3629250Z     bore stdout: b''
+2026-10-23T16:42:45.3629810Z     bore stderr: b"PROG: cannot PROG 'd': Is a directory\n"
+2026-10-23T16:42:45.3630470Z     bore exit: 1
+2026-10-23T16:42:45.3630890Z     bore files: [('d', 'dir', b'')]
+2026-10-23T16:42:45.3631630Z     bore tree: [('.', 'dir', 493, None, None, None), ('d', 'dir', 493, None, None, None)]
+2026-10-23T16:42:45.3632420Z     gnu  stdout: b''
+2026-10-23T16:42:45.3633030Z     gnu  stderr: b"PROG: cannot PROG 'd': Operation not permitted\n"
+2026-10-23T16:42:45.3633730Z     gnu  exit: 1
+2026-10-23T16:42:45.3634150Z     gnu  files: [('d', 'dir', b'')]
+2026-10-23T16:42:45.3634880Z     gnu  tree: [('.', 'dir', 493, None, None, None), ('d', 'dir', 493, None, None, None)]
+2026-10-23T16:42:45.3751480Z FAIL unlink: nonempty directory  args=['d']
+2026-10-23T16:42:45.3751750Z     bore stdout: b''
+2026-10-23T16:42:45.3751980Z     bore stderr: b"PROG: cannot PROG 'd': Is a directory\n"
+2026-10-23T16:42:45.3752220Z     bore exit: 1
+2026-10-23T16:42:45.3752650Z     bore files: [('d', 'dir', b''), ('d/f', 'file', b'x')]
+2026-10-23T16:42:45.3753070Z     bore tree: [('.', 'dir', 493, None, None, None), ('d', 'dir', 493, None, None, None), ('d/f', 'file', 420, 1, 1, None)]
+2026-10-23T16:42:45.3753420Z     gnu  stdout: b''
+2026-10-23T16:42:45.3753660Z     gnu  stderr: b"PROG: cannot PROG 'd': Operation not permitted\n"
+2026-10-23T16:42:45.3753930Z     gnu  exit: 1
+2026-10-23T16:42:45.3754120Z     gnu  files: [('d', 'dir', b''), ('d/f', 'file', b'x')]
+2026-10-23T16:42:45.3754520Z     gnu  tree: [('.', 'dir', 493, None, None, None), ('d', 'dir', 493, None, None, None), ('d/f', 'file', 420, 1, 1, None)]
+2026-10-23T16:42:45.4486380Z FAIL unlink: trailing slash on directory  args=['d/']
+2026-10-23T16:42:45.4486660Z     bore stdout: b''
+2026-10-23T16:42:45.4486920Z     bore stderr: b"PROG: cannot PROG 'd/': Is a directory\n"
+2026-10-23T16:42:45.4487170Z     bore exit: 1
+2026-10-23T16:42:45.4487320Z     bore files: [('d', 'dir', b'')]
+2026-10-23T16:42:45.4487610Z     bore tree: [('.', 'dir', 493, None, None, None), ('d', 'dir', 493, None, None, None)]
+2026-10-23T16:42:45.4487910Z     gnu  stdout: b''
+2026-10-23T16:42:45.4488140Z     gnu  stderr: b"PROG: cannot PROG 'd/': Operation not permitted\n"
+2026-10-23T16:42:45.4488400Z     gnu  exit: 1
+2026-10-23T16:42:45.4488560Z     gnu  files: [('d', 'dir', b'')]
+2026-10-23T16:42:45.4488840Z     gnu  tree: [('.', 'dir', 493, None, None, None), ('d', 'dir', 493, None, None, None)]
+2026-10-23T16:42:49.0127300Z difftest: 6822 passed, 8 failed, 317 skipped
