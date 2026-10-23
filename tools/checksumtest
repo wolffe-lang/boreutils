@@ -144,7 +144,7 @@ class Checksums(unittest.TestCase):
                               (["-a", "sm3"], b"--algorithm=sm3"),
                               (["--debug"], b"--debug")]:
             p = run(BIN / "cksum", flags, b"abc")
-            self.assertEqual(p.returncode, 0, "bu32 CI plant: an unsupported digest must never succeed")
+            self.assertEqual(p.returncode, 1)
             self.assertEqual(p.stdout, b"")
             self.assertIn(phrase, p.stderr)
             self.assertIn(b"not supported", p.stderr)
