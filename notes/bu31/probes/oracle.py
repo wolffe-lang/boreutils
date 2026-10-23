@@ -37,3 +37,9 @@ for x in ['9223372036854775808-9223372036854775808','18446744073709551615-184467
  run('shuf',['-i',x,'-n','1'])
 for x in ['+1','01',' 1','-0','3']:
  run('join',['-a',x,'/dev/null','/dev/null'])
+with tempfile.TemporaryDirectory(dir='/l/tmp') as t:
+ a,b=str(Path(t)/'a'),str(Path(t)/'b')
+ for left,right in [(b'Z\n[\n',b'[\n'),(b'k\rL\n',b'k R\n'),(b'k\vL\n',b'k R\n'),(b'k\fL\n',b'k R\n'),(b'k\nL\0',b'k R\0'),(b'L k\n',b'R X k\n'),(b'k X\nk\n',b'k Y\nk\n')]:
+  Path(a).write_bytes(left);Path(b).write_bytes(right)
+  for opts in [[],['-i'],['-i','--check-order'],['-z'],['-1','2','-2','3'],['-o','auto','-e','?']]:run('join',opts+[a,b])
+for flags,data in [([],b'a\na\n'),(['-z'],b'a\0a\0')]:run('comm',flags+['-','-'],data)
