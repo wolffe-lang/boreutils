@@ -1,0 +1,379 @@
+From https://github.com/wolffe-lang/boreutils
+   a16af68..ed05105  bu30       -> origin/bu30
+Updating a16af68..ed05105
+Fast-forward
+ README.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+suite killtest 2026-10-23T15:40:31Z head ed051050925fb4693e3f64fe06daf4253e4ff136
+killtest: release/kill is static
+killtest: dev/kill is static
+killtest: podman, image localhost/bu30-ubuntu, one fresh container a case, no mount, no network
+killtest: gnu = kill (GNU coreutils) 9.11 (/home/mfwolffe/lanes/bu30/boreutils/.gnu-bin/bin/kill)
+killtest: every case under taskset -c 0-3 (Cpus_allowed_list 0-3, read inside)
+ok   the default signal
+ok   the default signal, caught
+ok   -s HUP
+ok   -HUP
+ok   -s the number of HUP
+ok   -s INT
+ok   -INT
+ok   -s the number of INT
+ok   -s QUIT
+ok   -QUIT
+ok   -s the number of QUIT
+ok   -s ILL
+ok   -ILL
+ok   -s the number of ILL
+ok   -s TRAP
+ok   -TRAP
+ok   -s the number of TRAP
+ok   -s ABRT
+ok   -ABRT
+ok   -s the number of ABRT
+ok   -s BUS
+ok   -BUS
+ok   -s the number of BUS
+ok   -s FPE
+ok   -FPE
+ok   -s the number of FPE
+ok   -s KILL
+ok   -KILL
+ok   -s the number of KILL
+ok   -s USR1
+ok   -USR1
+ok   -s the number of USR1
+ok   -s SEGV
+ok   -SEGV
+ok   -s the number of SEGV
+ok   -s USR2
+ok   -USR2
+ok   -s the number of USR2
+ok   -s PIPE
+ok   -PIPE
+ok   -s the number of PIPE
+ok   -s ALRM
+ok   -ALRM
+ok   -s the number of ALRM
+ok   -s TERM
+ok   -TERM
+ok   -s the number of TERM
+ok   -s CHLD
+ok   -CHLD
+ok   -s the number of CHLD
+ok   -s CONT
+ok   -CONT
+ok   -s the number of CONT
+ok   -s STOP
+ok   -STOP
+ok   -s the number of STOP
+ok   -s TSTP
+ok   -TSTP
+ok   -s the number of TSTP
+ok   -s TTIN
+ok   -TTIN
+ok   -s the number of TTIN
+ok   -s TTOU
+ok   -TTOU
+ok   -s the number of TTOU
+ok   -s URG
+ok   -URG
+ok   -s the number of URG
+ok   -s XCPU
+ok   -XCPU
+ok   -s the number of XCPU
+ok   -s XFSZ
+ok   -XFSZ
+ok   -s the number of XFSZ
+ok   -s VTALRM
+ok   -VTALRM
+ok   -s the number of VTALRM
+ok   -s PROF
+ok   -PROF
+ok   -s the number of PROF
+ok   -s WINCH
+ok   -WINCH
+ok   -s the number of WINCH
+ok   -s SYS
+ok   -SYS
+ok   -s the number of SYS
+ok   -s SIGTERM
+ok   -s term
+ok   -s sigterm
+ok   -SIGTERM
+ok   -Term
+ok   -sTERM
+ok   --signal=TERM
+ok   --signal TERM
+ok   --sig TERM
+ok   -n TERM
+ok   -N, the number of TERM
+ok   -n the number of TERM
+ok   -s the exit status of TERM
+ok   -N, the exit status of TERM
+ok   -s SIGKILL
+ok   -s kill
+ok   -s sigkill
+ok   -SIGKILL
+ok   -Kill
+ok   -sKILL
+ok   --signal=KILL
+ok   --signal KILL
+ok   --sig KILL
+ok   -n KILL
+ok   -N, the number of KILL
+ok   -n the number of KILL
+ok   -s the exit status of KILL
+ok   -N, the exit status of KILL
+ok   -s SIGUSR1
+ok   -s usr1
+ok   -s sigusr1
+ok   -SIGUSR1
+ok   -Usr1
+ok   -sUSR1
+ok   --signal=USR1
+ok   --signal USR1
+ok   --sig USR1
+ok   -n USR1
+ok   -N, the number of USR1
+ok   -n the number of USR1
+ok   -s the exit status of USR1
+ok   -N, the exit status of USR1
+ok   -s SIGINT
+ok   -s int
+ok   -s sigint
+ok   -SIGINT
+ok   -Int
+ok   -sINT
+ok   --signal=INT
+ok   --signal INT
+ok   --sig INT
+ok   -n INT
+ok   -N, the number of INT
+ok   -n the number of INT
+ok   -s the exit status of INT
+ok   -N, the exit status of INT
+ok   -s SIGHUP
+ok   -s hup
+ok   -s sighup
+ok   -SIGHUP
+ok   -Hup
+ok   -sHUP
+ok   --signal=HUP
+ok   --signal HUP
+ok   --sig HUP
+ok   -n HUP
+ok   -N, the number of HUP
+ok   -n the number of HUP
+ok   -s the exit status of HUP
+ok   -N, the exit status of HUP
+ok   -s SIGCONT
+ok   -s cont
+ok   -s sigcont
+ok   -SIGCONT
+ok   -Cont
+ok   -sCONT
+ok   --signal=CONT
+ok   --signal CONT
+ok   --sig CONT
+ok   -n CONT
+ok   -N, the number of CONT
+ok   -n the number of CONT
+ok   -s the exit status of CONT
+ok   -N, the exit status of CONT
+ok   -s SIGWINCH
+ok   -s winch
+ok   -s sigwinch
+ok   -SIGWINCH
+ok   -Winch
+ok   -sWINCH
+ok   --signal=WINCH
+ok   --signal WINCH
+ok   --sig WINCH
+ok   -n WINCH
+ok   -N, the number of WINCH
+ok   -n the number of WINCH
+ok   -s the exit status of WINCH
+ok   -N, the exit status of WINCH
+ok   -IOT is ABRT
+ok   -s cld is CHLD
+ok   -s 09: leading zeros
+ok   a lower-case -kill is a cluster
+ok   -s STOP leaves the target stopped
+ok   -s CONT to a stopped target
+ok   -CONT to a stopped target that catches it
+ok   -s KILL to a stopped target
+ok   signal 0: -0 {pid0}
+ok   signal 0: -s 0 {pid0}
+ok   signal 0: -s EXIT {pid0}
+ok   signal 0: -EXIT {pid0}
+ok   signal 0: -s exit {pid0}
+ok   signal 0: -s 128 {pid0}
+ok   signal 0: -s 256 {pid0}
+ok   signal 0: -n 0 {pid0}
+ok   signal 0: -00 {pid0}
+ok   signal 0: a process that has ended
+ok   two targets
+ok   three targets, -KILL
+ok   one target twice
+ok   a word, an id past every process, and two targets
+ok   a process that has ended
+ok   a process that has ended, twice, -KILL
+ok   a process that has ended, then one that has not
+ok   an id that names nothing: 2147483647
+ok   an id that names nothing: 2147483648
+ok   an id that names nothing: 4294967296
+ok   an id that names nothing: 99999999999999999999
+ok   an id that names nothing: 9223372036854775807
+ok   an id that would wrap to the target's: 2^32 more
+ok   id: a leading space
+ok   id: a leading +
+ok   id: a leading 0
+ok   id: a leading tab
+ok   id: twenty leading zeros
+ok   id: a space, a + and a 0
+ok   id: a trailing space
+ok   id: a trailing letter
+ok   id: a fraction
+ok   id: two signs
+ok   id: a comma
+ok   id: a hex prefix
+ok   placing: {pid0} -s KILL
+ok   placing: {pid0} -KILL
+ok   placing: -- {pid0}
+ok   placing: -s INT -- {pid0}
+ok   placing: -INT -- {pid0}
+ok   placing: -{n:KILL} -- {pid0}
+ok   placing: {pid0} --signal=HUP
+ok   placing: 2147483647 -l
+ok   placing: 4294967305 -l
+ok   placing: 9 -l
+ok   placing: 265 -l
+ok   placing: {pid0} --help
+ok   placing: {pid0} --version
+ok   placing: POSIXLY_CORRECT, {pid0} -s KILL
+ok   placing: POSIXLY_CORRECT, {pid0} -KILL
+ok   placing: POSIXLY_CORRECT, {pid0} -l
+ok   placing: POSIXLY_CORRECT, -s INT {pid0}
+ok   placing: POSIXLY_CORRECT, {pid0} --help
+ok   refused: -s KILL -s KILL {pid0}
+ok   refused: -KILL -s KILL {pid0}
+ok   refused: -KILL -KILL {pid0}
+ok   refused: -s TERM -s TERM {pid0}
+ok   refused: -n KILL -s KILL {pid0}
+ok   refused: -s FOO {pid0}
+ok   refused: -FOO {pid0}
+ok   refused: -s KILL -l {pid0}
+ok   refused: -x {pid0}
+ok   refused: -s "" {pid0}
+ok   number: -9
+ok   number: -s 9
+ok   number: -0
+ok   number: -s 0
+ok   number: -09
+ok   number: -00
+ok   number: -000
+ok   number: -137
+ok   number: -s 137
+ok   number: -s 128
+ok   number: -s 129
+ok   number: -99
+ok   number: -s 99
+ok   number: -65
+ok   number: -s 65
+ok   number: -s -1
+ok   number: -s " 9"
+ok   number: -s 9x
+ok   number: -n 9
+ok   number: -n9
+ok   number: -n 9 -n 9
+ok   number: -s9 -l
+ok   number: -9 -l
+ok   number: --signal=9 --signal=9
+ok   number: -s 9 -s 9
+ok   number: "-9 "
+ok   number: -4000000 is signal 0
+ok   number: -4000000 is signal 0, to a target
+ok   no meaning: -s RTMIN
+ok   no meaning: -s RTMIN+1
+ok   no meaning: -s RTMAX-1
+ok   no meaning: -s RTMAX
+ok   no meaning: -s STKFLT
+ok   no meaning: -s POLL
+ok   no meaning: -s IO
+ok   no meaning: -s PWR
+ok   no meaning: -s 32
+ok   no meaning: -s 33
+ok   no meaning: -s 34
+ok   no meaning: -s 64
+ok   no meaning: -s 16
+ok   no meaning: -s 162
+ok   no meaning: -RTMIN
+ok   no meaning: -34
+ok   no meaning: -s 64 and no process
+ok   group: -- -{pgid}
+ok   group: -TERM -{pgid}
+ok   group: -s TERM -{pgid}
+ok   group: -{n:KILL} -{pgid}
+ok   group: -s KILL -- -{pgid}
+ok   group: -0 -{pgid}
+ok   group: -s KILL -{pgid} -{pgid}
+ok   group: the leader's own id is one process
+ok   group: -PGID alone is read as a signal, not a group
+ok   group: -TERM -- -PGID and a group that is not there
+ok   group: one that is not there, -s TERM -4000000
+ok   group: one that is not there, -TERM -4000000
+ok   group: one that is not there, -9 -4000000
+ok   group: one that is not there, -- -4000000
+ok   group: one that is not there, -0 -4000000
+ok   group: one that is not there, -s 0 -- -4000000
+ok   group: beside a target, {pid0} -4000000
+ok   group: beside a target, -9 {pid0} -4000001
+ok   group: beside a target, -s KILL {pid0} -4000001
+ok   group: beside a target, -- {pid0} -4000001
+ok   group: beside a target, -- -4000001 {pid0}
+ok   group: beside a target, -s KILL -4000001 {pid0}
+ok   group: beside a target, -KILL -4000001 {pid0}
+ok   group: 0
+ok   group: -0 0
+ok   group: -s TERM 0
+ok   group: -- -0
+ok   group: +0
+ok   group: 00
+ok   group: -- -1
+ok   group: -s KILL -- -1
+ok   group: -KILL -1
+ok   group: -0 -- -1
+ok   group: " -1"
+ok   group: 0 {pid0}
+ok   not permitted
+ok   not permitted: signal 0
+ok   not permitted: -KILL, a word between two
+ok   own group: 0
+ok   own group: -0 0
+ok   own group: -s TERM 0
+ok   own group: -KILL 0
+ok   own group: -s HUP 0
+ok   own group: -{n:USR1} 0
+ok   own group: -s CONT 0 (nothing ends)
+ok   own group: -- 0
+ok   own group: +0
+ok   own group: 00
+ok   own group: -s 0 -- -0
+ok   own group: -s KILL 0 0 (the first send ends it)
+ok   own group: 0 and a group nobody is in
+ok   own group: a real-time signal, -s RTMIN 0
+ok   every process: -- -1, and no other process
+ok   every process: -s 0 -- -1, and no other process
+ok   every process: -s 0 -- -1, two targets
+ok   every process: -s USR1 -- -1, two targets
+ok   every process: -1 as a user, root's targets
+ok   group: another user's, -- -{pgid}
+ok   group: another user's, -0 -{pgid}
+ok   group: the C int's edge, -- -2147483648
+ok   group: the C int's edge, -s 0 -- -2147483647
+ok   group: a real-time signal, -s RTMIN -- -{pgid}
+ok   group: a host signal by number, -s 16 -- -{pgid}
+ok   group: -s STOP -{pgid}, then the members are stopped
+ok   group: two groups, -s KILL -- -{pgid} -4000000
+killtest: 365 passed, 0 failed, 0 skipped
+SUITE-DONE killtest

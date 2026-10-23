@@ -1,0 +1,26 @@
+START timeouttest 2026-10-23T15:29:10Z
+END timeouttest exit=0 2026-10-23T15:40:31Z
+ok   run: a command named -s
+timeouttest: 150 passed, 0 failed, 13 skipped
+SUITE-DONE timeouttest
+START killtest 2026-10-23T15:40:31Z
+END killtest exit=0 2026-10-23T15:48:17Z
+ok   group: two groups, -s KILL -- -{pgid} -4000000
+killtest: 365 passed, 0 failed, 0 skipped
+SUITE-DONE killtest
+START idtest 2026-10-23T15:48:17Z
+END idtest exit=0 2026-10-23T15:53:31Z
+SKIP chown: -v : f as this runner (a case for a CI runner's own user (--engine none))
+idtest: 1098 passed, 0 failed, 28 skipped
+SUITE-DONE idtest
+START inouttest 2026-10-23T15:53:31Z
+END inouttest exit=0 2026-10-23T15:54:04Z
+ok   a copy of f >> f (as alice)
+inouttest: 104 passed, 0 failed, 0 skipped
+SUITE-DONE inouttest
+START roottest 2026-10-23T15:54:04Z
+END roottest exit=0 2026-10-23T15:55:16Z
+ok   cp -r a tree into / [root, dev]
+roottest: 178 passed, 0 failed
+SUITE-DONE roottest
+ALL-SUITES-DONE exit=0

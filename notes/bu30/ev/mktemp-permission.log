@@ -1,0 +1,6 @@
+uid 1000
+['-u', '-p', 'd', 'fXXX']
+CompletedProcess(args=['mktemp', '-u', '-p', 'd', 'fXXX'], returncode=1, stdout=b'', stderr=b"mktemp: failed to create file via template 'd/fXXX': Permission denied\n")
+['-uq', '-p', 'd', 'fXXX']
+CompletedProcess(args=['mktemp', '-uq', '-p', 'd', 'fXXX'], returncode=1, stdout=b'', stderr=b'')
+MKTEMP-PROBE-DONE

@@ -1,0 +1,84 @@
+waiting for block A: 2026-10-23T15:53:28Z
+From https://github.com/wolffe-lang/boreutils
+   d82ed44..fcea320  bu30       -> origin/bu30
+Updating d82ed44..fcea320
+Fast-forward
+ tests/cases/mktemp.toml | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+difftest: gnu = true (GNU coreutils) 9.11 (prefix '') on Linux x86_64
+difftest: bore = /l/boreutils/target/release
+difftest: oracle environment, LC_ALL=C _POSIX2_VERSION=200112
+difftest: oracle of record, GNU coreutils 9.11
+difftest: oracle profile OK — `uniq +1 /dev/null` exits 1 (the obsolete +N operand form is off, so +1 is a file name (B73))
+difftest: scratch root /l/scratch
+ok   mktemp: help
+ok   mktemp: version
+ok   mktemp: bad option
+ok   mktemp: closed help
+ok   mktemp: too few Xs
+ok   mktemp: empty template
+ok   mktemp: two templates
+ok   mktemp: invalid suffix
+ok   mktemp: missing directory
+ok   mktemp: quiet missing directory
+ok   mktemp: template with slash under t
+ok   mktemp: file 3 Xs suffix ''
+ok   mktemp: file 3 Xs suffix '.txt'
+ok   mktemp: dir 3 Xs suffix ''
+ok   mktemp: dir 3 Xs suffix '.txt'
+ok   mktemp: none 3 Xs suffix ''
+ok   mktemp: none 3 Xs suffix '.txt'
+ok   mktemp: file 6 Xs suffix ''
+ok   mktemp: file 6 Xs suffix '.txt'
+ok   mktemp: dir 6 Xs suffix ''
+ok   mktemp: dir 6 Xs suffix '.txt'
+ok   mktemp: none 6 Xs suffix ''
+ok   mktemp: none 6 Xs suffix '.txt'
+ok   mktemp: file 10 Xs suffix ''
+ok   mktemp: file 10 Xs suffix '.txt'
+ok   mktemp: dir 10 Xs suffix ''
+ok   mktemp: dir 10 Xs suffix '.txt'
+ok   mktemp: none 10 Xs suffix ''
+ok   mktemp: none 10 Xs suffix '.txt'
+ok   mktemp: file 24 Xs suffix ''
+ok   mktemp: file 24 Xs suffix '.txt'
+ok   mktemp: dir 24 Xs suffix ''
+ok   mktemp: dir 24 Xs suffix '.txt'
+ok   mktemp: none 24 Xs suffix ''
+ok   mktemp: none 24 Xs suffix '.txt'
+ok   mktemp: default []
+ok   mktemp: default ['-d']
+ok   mktemp: default ['-u']
+ok   mktemp: default ['-q']
+ok   mktemp: directory option -p
+ok   mktemp: directory option --tmpdir
+ok   mktemp: directory option -t
+ok   mktemp: inferred suffix
+ok   mktemp: private mode reduced by umask
+ok   mktemp: directory private mode reduced by umask
+ok   mktemp: temporary subdirectory
+ok   mktemp: explicit suffix requires X at template end
+FAIL mktemp: dry-run denied parent is an error  args=['-u', '-p', 'd', 'fXXX']
+    bore stdout: b'd/f0hd\n'
+    bore stderr: b''
+    bore exit: 0
+    bore files: [('d', 'dir', b'')]
+    bore tree: [('.', 'dir', 493, None, None, None), ('d', 'dir', 0, None, None, None)]
+    gnu  stdout: b''
+    gnu  stderr: b"PROG: failed to create file via template 'd/fXXX': Permission denied\n"
+    gnu  exit: 1
+    gnu  files: [('d', 'dir', b'')]
+    gnu  tree: [('.', 'dir', 493, None, None, None), ('d', 'dir', 0, None, None, None)]
+FAIL mktemp: quiet dry-run denied parent is still an error  args=['-uq', '-p', 'd', 'fXXX']
+    bore stdout: b'd/fXTd\n'
+    bore stderr: b''
+    bore exit: 0
+    bore files: [('d', 'dir', b'')]
+    bore tree: [('.', 'dir', 493, None, None, None), ('d', 'dir', 0, None, None, None)]
+    gnu  stdout: b''
+    gnu  stderr: b''
+    gnu  exit: 1
+    gnu  files: [('d', 'dir', b'')]
+    gnu  tree: [('.', 'dir', 493, None, None, None), ('d', 'dir', 0, None, None, None)]
+difftest: 47 passed, 2 failed, 0 skipped
+MKTEMP-RED exit=1
