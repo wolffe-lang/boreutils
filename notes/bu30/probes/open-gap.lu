@@ -1,0 +1,25 @@
+//! member: false
+//! Run only inside the oracle container, in a fresh scratch directory.
+//! v0.2.35 [os.fs.open]: 0 read; 1 create/truncate; 2 create/append;
+//! 3 create/read-write; 4 exclusive create; 5 read/non-blocking.
+//! fs_open_perm takes the same modes with creation permissions.
+fn main() -> int {
+    let first = fs_open_perm("f", 4, 384) else |_| { return 9 }
+    fs_close(first) else |_| { return 9 }
+    let _ = fs_stat("f") else |_| { return 9 }
+    // A deterministic stand-in for a concurrent unlink after -c's stat.
+    fs_remove("f") else |_| { return 9 }
+    let recreated = fs_open_mode("f", 2) else |_| { return 9 }
+    fs_close(recreated) else |_| { return 9 }
+    print("stat, unlink, mode 2: recreated={fs_exists("f")}")
+    let nonblock = fs_open_mode("f", 5) else |_| { return 9 }
+    fs_truncate(nonblock, 1) else |_| {
+        print("mode 5 is not writable: {os_error_text(os_error())}")
+    }
+    fs_close(nonblock) else |_| { return 9 }
+    fs_open_mode("absent", 6) else |_| {
+        print("mode 6 is invalid; no non-creating or non-blocking writable mode")
+        return 0
+    }
+    9
+}
