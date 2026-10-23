@@ -5,7 +5,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 
-root = Path(__file__).resolve().parents[4]
+root = Path(__file__).resolve().parents[3]
 gnu = root / '.gnu-bin/bin'
 cases = [
     ('2 empty reference relative', 'truncate', ['-r', '', '-s', '+1', 'f']),
@@ -20,7 +20,15 @@ cases = [
     ('5 readlink cyclic prefix recovers', 'readlink', ['-m', 'cycle/../l']),
     ('6 empty relative-to', 'realpath', ['--relative-to=', 'f']),
     ('6 empty relative-base', 'realpath', ['--relative-base=', 'f']),
-    ('U write-only sync', 'sync', ['f']),
+    ('B minimum signed reduction', 'truncate', ['-s', '-9223372036854775808', 'f']),
+    ('B below minimum signed reduction', 'truncate', ['-s', '-9223372036854775809', 'f']),
+    ('B minimum through K', 'truncate', ['-s', '-9007199254740992K', 'f']),
+    ('B below minimum through K', 'truncate', ['-s', '-9007199254740993K', 'f']),
+    ('B MAX no-create absent', 'truncate', ['-c', '-s', '9223372036854775807', 'absent']),
+    ('B MAX+1 no-create absent', 'truncate', ['-c', '-s', '9223372036854775808', 'absent']),
+    ('B plus Unicode', 'truncate', ['-s', '+é', 'f']),
+    ('B minus Unicode', 'truncate', ['-s', '-é', 'f']),
+    ('U write-only sync' , 'sync', ['f']),
     ('U write-only data sync', 'sync', ['-d', 'f']),
 ]
 for label, utility, args in cases:
