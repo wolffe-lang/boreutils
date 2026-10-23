@@ -1,0 +1,6 @@
+//! member: false
+//! base64 — RFC 4648 stream codec. References: RFC 4648, GNU coreutils
+//! 9.11 --help/manual and black-box probes; uutils (MIT), toybox (0BSD)
+//! as design references only. No GNU or gnulib source consulted.
+use codec
+fn main() -> int { codec.run("base64", 6) }
