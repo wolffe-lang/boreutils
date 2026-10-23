@@ -35,10 +35,10 @@ pub fn run(prog: str, width: int) -> int {
     if p.operands.len > 1 { return bore.usage_error(prog, "extra operand {bore.quote(p.operands[1])}") }
     let path = if p.operands.len == 0 then "-" else p.operands[0]
     let src = bore.open_input(path) else |e| match e {
-        not_found => { bore.warn(prog, "{bore.quote(path)}: {bore.no_such_file()}"); return 1 },
-        denied => { bore.warn(prog, "{bore.quote(path)}: {bore.permission_denied()}"); return 1 },
+        not_found => { bore.warn(prog, "{bore.quote_name(path)}: {bore.no_such_file()}"); return 1 },
+        denied => { bore.warn(prog, "{bore.quote_name(path)}: {bore.permission_denied()}"); return 1 },
         is_dir => { bore.warn(prog, "read error: {bore.directory_reason()}"); return 1 },
-        io => { bore.warn(prog, "{bore.quote(path)}: {bore.io_error()}"); return 1 },
+        io => { bore.warn(prog, "{bore.quote_name(path)}: {bore.io_error()}"); return 1 },
     }
     defer bore.close_input(src)
     if decode { return decoding(src, out, prog, width, ignore) }
@@ -136,7 +136,7 @@ fn decoding(src: bore.In, out: bore.Out, prog: str, width: int, ignore: bool) ->
                 let v = value(c, width)
                 if c == 10 || (ignore && v < 0 && c != 61) { continue }
                 if c == 61 {
-                    if n == 0 || !valid_count(n, width) { bad = true; break }
+                    if n == 0 { bad = true; break }
                     pads += 1
                     if n + pads > quantum { bad = true; break }
                 } else if v >= 0 && pads == 0 {
@@ -156,7 +156,7 @@ fn decoding(src: bore.In, out: bore.Out, prog: str, width: int, ignore: bool) ->
                         flush_pending(mut bytes, pending, pending_n)
                         pending = 0; pending_n = 0
                     }
-                    if acc != 0 { bad = true; break }
+                    if acc != 0 || !valid_count(n, width) { bad = true; break }
                     n = 0; pads = 0; bits = 0; acc = 0
                 }
             }
