@@ -26,3 +26,23 @@ pub fn count(word: str, negative_zero: bool) -> Count ! {parse} {
     }
     Count { value: n, large: large }
 }
+
+/// Parse an exact unsigned 64-bit decimal value with leading C whitespace
+/// and optional plus. `parse` is malformed input, `overflow` exceeds u64.
+pub fn unsigned(word: str) -> wrapping[u64] ! {parse, overflow} {
+    var k = 0
+    while k < word.len && (word.bytes()[k] as int == 32 || (word.bytes()[k] as int >= 9 && word.bytes()[k] as int <= 13)) { k += 1 }
+    if k < word.len && word.bytes()[k] as int == 43 { k += 1 }
+    if k >= word.len { return parse }
+    var n: wrapping[u64] = 0
+    var over = false
+    while k < word.len {
+        let d = word.bytes()[k] as int - 48
+        if d < 0 || d > 9 { return parse }
+        if n > 1844674407370955161 || (n == 1844674407370955161 && d > 5) { over = true }
+        if !over { n = n * 10 + d as wrapping[u64] }
+        k += 1
+    }
+    if over { return overflow }
+    n
+}

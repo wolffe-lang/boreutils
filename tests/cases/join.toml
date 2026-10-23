@@ -1043,3 +1043,28 @@ scratch = { a = "a\n", b = "a\n" }
 name = "short option is not a long option"
 args = ["--a", "1", "a", "b"]
 scratch = { a="", b="" }
+[[case]]
+name = "file-number spelling '+1'"
+args = ["-a", "+1", "a", "b"]
+scratch = { a = "a\n", b = "b\n" }
+
+[[case]]
+name = "file-number spelling '01'"
+args = ["-a", "01", "a", "b"]
+scratch = { a = "a\n", b = "b\n" }
+
+[[case]]
+name = "file-number spelling ' 1'"
+args = ["-a", " 1", "a", "b"]
+scratch = { a = "a\n", b = "b\n" }
+
+[[case]]
+name = "file-number spelling '-0'"
+args = ["-a", "-0", "a", "b"]
+scratch = { a = "a\n", b = "b\n" }
+
+[[case]]
+name = "file-number spelling '3'"
+args = ["-a", "3", "a", "b"]
+scratch = { a = "a\n", b = "b\n" }
+

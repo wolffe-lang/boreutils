@@ -80,11 +80,12 @@ fn main() -> int {
             if key != "1" { c.field2 = n }
         }
         if key == "a" || key == "v" {
-            if v != "1" && v != "2" {
+            let parsed = numcli.count(v, false) else numcli.Count { value: 0, large: false }
+            if parsed.value != 1 && parsed.value != 2 {
                 bore.warn("join", "invalid file number: {bore.quote(v)}")
                 return 1
             }
-            if v == "1" { c.unpaired1 = true } else { c.unpaired2 = true }
+            if parsed.value == 1 { c.unpaired1 = true } else { c.unpaired2 = true }
             if key == "v" { c.paired = false }
         }
         if key == "e" {
