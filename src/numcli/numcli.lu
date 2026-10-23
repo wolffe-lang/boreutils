@@ -27,9 +27,12 @@ pub fn count(word: str, negative_zero: bool) -> Count ! {parse} {
     Count { value: n, large: large }
 }
 
+/// An exact decimal quantity is malformed, or exceeds its 64-bit range.
+pub error UnsignedFailed = {parse, overflow}
+
 /// Parse an exact unsigned 64-bit decimal value with leading C whitespace
 /// and optional plus. `parse` is malformed input, `overflow` exceeds u64.
-pub fn unsigned(word: str) -> wrapping[u64] ! {parse, overflow} {
+pub fn unsigned(word: str) -> wrapping[u64] ! UnsignedFailed {
     var k = 0
     while k < word.len && (word.bytes()[k] as int == 32 || (word.bytes()[k] as int >= 9 && word.bytes()[k] as int <= 13)) { k += 1 }
     if k < word.len && word.bytes()[k] as int == 43 { k += 1 }
