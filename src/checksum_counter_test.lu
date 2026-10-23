@@ -1,6 +1,7 @@
 //! Synthetic length/counter boundaries; no enormous allocation.
 //! FIPS 180-4 section 5.1.2 appends the 128-bit BIT count, big endian.
 //! RFC 7693 section 3.2 injects the 128-bit BYTE counter, low then high.
+
 use checksum
 
 fn sha_length(kind: int, lo: wrapping[u64], hi: wrapping[u64], want: str) {
@@ -47,7 +48,13 @@ fn main() {
     var i = 0
     while i < 128 { (mut block).push(0 as byte); i += 1 }
     checksum.digest_feed(mut edge, block)
-    assert(edge.lo == 0 && edge.hi == 1 && edge.used == 128, "BLAKE2 retains a full block across counter carry")
+    assert(
+        edge.lo == 0 && edge.hi == 1 && edge.used == 128,
+        "BLAKE2 retains a full block across counter carry",
+    )
     checksum.digest_feed(mut edge, "x".bytes())
-    assert(edge.lo == 1 && edge.hi == 1 && edge.used == 1, "BLAKE2 compresses retained block before next byte")
+    assert(
+        edge.lo == 1 && edge.hi == 1 && edge.used == 1,
+        "BLAKE2 compresses retained block before next byte",
+    )
 }
