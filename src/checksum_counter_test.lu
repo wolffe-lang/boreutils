@@ -1,0 +1,53 @@
+//! Synthetic length/counter boundaries; no enormous allocation.
+//! FIPS 180-4 section 5.1.2 appends the 128-bit BIT count, big endian.
+//! RFC 7693 section 3.2 injects the 128-bit BYTE counter, low then high.
+use checksum
+
+fn sha_length(kind: int, lo: wrapping[u64], hi: wrapping[u64], want: str) {
+    var d = checksum.digest_new(kind, if kind == 8 then 384 else 512)
+    d.lo = lo
+    d.hi = hi
+    let _ = checksum.digest_end(mut d)
+    var suffix = List[byte]()
+    var i = 112
+    while i < 128 { (mut suffix).push(d.buf[i]); i += 1 }
+    let got = checksum.hex_bytes(suffix)
+    assert(got == want, "SHA 128-bit length: {got}, want {want}")
+}
+
+fn main() {
+    for kind in [8, 9] {
+        sha_length(kind, 0x1fffffffffffffff, 0, "0000000000000000fffffffffffffff8")
+        sha_length(kind, 0x2000000000000000, 0, "00000000000000010000000000000000")
+        sha_length(kind, 0xffffffffffffffff, 0, "0000000000000007fffffffffffffff8")
+        sha_length(kind, 0, 1, "00000000000000080000000000000000")
+        var d = checksum.digest_new(kind, if kind == 8 then 384 else 512)
+        d.lo = 0xffffffffffffffff
+        checksum.digest_feed(mut d, "x".bytes())
+        assert(d.lo == 0 && d.hi == 1, "SHA byte counter must carry into high word")
+    }
+    var b = checksum.digest_new(10, 512)
+    b.lo = 0xffffffffffffffff
+    b.hi = 7
+    checksum.digest_feed(mut b, "x".bytes())
+    assert(b.lo == 0 && b.hi == 8, "BLAKE2 byte counter must carry at 2^64")
+    let high_answer = checksum.hex_bytes(checksum.digest_end(mut b))
+    var low = checksum.digest_new(10, 512)
+    low.lo = 0
+    low.hi = 0
+    // Same one-byte final block and low counter, but a different high word.
+    low.buf[0] = 120 as byte
+    low.used = 1
+    let low_answer = checksum.hex_bytes(checksum.digest_end(mut low))
+    assert(high_answer != low_answer, "BLAKE2 compression must use the high counter word")
+    var edge = checksum.digest_new(10, 512)
+    edge.lo = 0xffffffffffffff80
+    edge.hi = 0
+    var block = List[byte]()
+    var i = 0
+    while i < 128 { (mut block).push(0 as byte); i += 1 }
+    checksum.digest_feed(mut edge, block)
+    assert(edge.lo == 0 && edge.hi == 1 && edge.used == 128, "BLAKE2 retains a full block across counter carry")
+    checksum.digest_feed(mut edge, "x".bytes())
+    assert(edge.lo == 1 && edge.hi == 1 && edge.used == 1, "BLAKE2 compresses retained block before next byte")
+}
