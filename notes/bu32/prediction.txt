@@ -1,0 +1,12 @@
+bu32 prediction, before implementation (2026-10-23)
+Base 85d3e69. The pin remains wolf 0.2.35 / lupin 0.1.56.
+Predict baseline differential 7027 passed, zero failed, 123 named skips on
+Linux, both native codegen tiers. No checksum commands exist at baseline.
+Implement streaming blocks with bounded input and state, entirely from
+POSIX CRC, RFC 1321, FIPS 180-4 and RFC 7693. Compare all output and checking
+modes against the pinned GNU 9.11 binary, not host GNU and never source.
+Predict no new runtime surface is required. sm3 is explicitly refused.
+Checks must reject malformed lines, count failures and preserve GNU escaping.
+Algorithms get standard vectors, padding boundaries and multi-chunk cases.
+Memory and exact output are gated; speed against GNU is recorded, not gated.
+Any failed prediction or needed policy choice is reported as R-bu32-N.
