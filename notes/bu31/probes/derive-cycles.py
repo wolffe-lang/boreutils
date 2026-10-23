@@ -14,7 +14,14 @@ for mask in range(64):
 for orient,mode,rot,rootorder in itertools.product(['in','out'],['asc','desc','first','last'],['first','last','min'],['asc','desc','first']):
  hits=0
  for edges,want in graphs:
+  edges=edges.copy()
   nodes=sorted(set(sum((list(p) for p in edges),[])))
+  while True:
+   roots0=[x for x in nodes if not any(b==x for a,b in edges)]
+   if not roots0:break
+   nodes=[x for x in nodes if x not in roots0]
+   edges=[(a,b) for a,b in edges if a not in roots0]
+  if not nodes:continue
   roots=nodes if rootorder=='asc' else nodes[::-1] if rootorder=='desc' else list(dict.fromkeys(sum((list(p) for p in edges),[])))
   seen=set();path=[];got=[]
   def walk(x):
