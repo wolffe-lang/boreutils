@@ -1,0 +1,1560 @@
+# GNU coreutils 9.11 black-box differential cases; no GNU source.
+# Standards and independent vectors are documented in src/checksum_test.lu.
+
+[[case]]
+name = "empty input"
+args = []
+
+[[case]]
+name = "abc"
+args = []
+stdin = "abc"
+
+[[case]]
+name = "all byte values"
+args = []
+stdin_file = "binary.bin"
+
+[[case]]
+name = "explicit stdin"
+args = ["-"]
+stdin = "abc"
+
+[[case]]
+name = "repeated stdin"
+args = ["-", "-"]
+stdin = "abc"
+
+[[case]]
+name = "padding and chunk boundary 1"
+args = []
+stdin = "a"
+stdin_repeat = 1
+
+[[case]]
+name = "padding and chunk boundary 55"
+args = []
+stdin = "a"
+stdin_repeat = 55
+
+[[case]]
+name = "padding and chunk boundary 56"
+args = []
+stdin = "a"
+stdin_repeat = 56
+
+[[case]]
+name = "padding and chunk boundary 57"
+args = []
+stdin = "a"
+stdin_repeat = 57
+
+[[case]]
+name = "padding and chunk boundary 63"
+args = []
+stdin = "a"
+stdin_repeat = 63
+
+[[case]]
+name = "padding and chunk boundary 64"
+args = []
+stdin = "a"
+stdin_repeat = 64
+
+[[case]]
+name = "padding and chunk boundary 65"
+args = []
+stdin = "a"
+stdin_repeat = 65
+
+[[case]]
+name = "padding and chunk boundary 111"
+args = []
+stdin = "a"
+stdin_repeat = 111
+
+[[case]]
+name = "padding and chunk boundary 112"
+args = []
+stdin = "a"
+stdin_repeat = 112
+
+[[case]]
+name = "padding and chunk boundary 113"
+args = []
+stdin = "a"
+stdin_repeat = 113
+
+[[case]]
+name = "padding and chunk boundary 127"
+args = []
+stdin = "a"
+stdin_repeat = 127
+
+[[case]]
+name = "padding and chunk boundary 128"
+args = []
+stdin = "a"
+stdin_repeat = 128
+
+[[case]]
+name = "padding and chunk boundary 129"
+args = []
+stdin = "a"
+stdin_repeat = 129
+
+[[case]]
+name = "padding and chunk boundary 255"
+args = []
+stdin = "a"
+stdin_repeat = 255
+
+[[case]]
+name = "padding and chunk boundary 256"
+args = []
+stdin = "a"
+stdin_repeat = 256
+
+[[case]]
+name = "padding and chunk boundary 511"
+args = []
+stdin = "a"
+stdin_repeat = 511
+
+[[case]]
+name = "padding and chunk boundary 512"
+args = []
+stdin = "a"
+stdin_repeat = 512
+
+[[case]]
+name = "padding and chunk boundary 513"
+args = []
+stdin = "a"
+stdin_repeat = 513
+
+[[case]]
+name = "padding and chunk boundary 1023"
+args = []
+stdin = "a"
+stdin_repeat = 1023
+
+[[case]]
+name = "padding and chunk boundary 1024"
+args = []
+stdin = "a"
+stdin_repeat = 1024
+
+[[case]]
+name = "padding and chunk boundary 1025"
+args = []
+stdin = "a"
+stdin_repeat = 1025
+
+[[case]]
+name = "padding and chunk boundary 65535"
+args = []
+stdin = "a"
+stdin_repeat = 65535
+
+[[case]]
+name = "padding and chunk boundary 65536"
+args = []
+stdin = "a"
+stdin_repeat = 65536
+
+[[case]]
+name = "padding and chunk boundary 65537"
+args = []
+stdin = "a"
+stdin_repeat = 65537
+
+[[case]]
+name = "padding and chunk boundary 131073"
+args = []
+stdin = "a"
+stdin_repeat = 131073
+
+[[case]]
+name = "file"
+args = ["f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "two files"
+args = ["f", "e"]
+scratch = { "f" = "abc", "e" = "" }
+
+[[case]]
+name = "same file twice"
+args = ["f", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "stdin mixed with files"
+args = ["f", "-", "e"]
+scratch = { "f" = "abc", "e" = "" }
+stdin = "xyz"
+
+[[case]]
+name = "missing then present"
+args = ["absent", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "directory"
+args = ["d"]
+scratch_dirs = ["d"]
+
+[[case]]
+name = "symlink"
+args = ["s"]
+scratch = { "f" = "abc" }
+scratch_links = { "s" = "f" }
+
+[[case]]
+name = "dangling symlink"
+args = ["s"]
+scratch_links = { "s" = "missing" }
+
+[[case]]
+name = "operand after double dash"
+args = ["--", "-f"]
+scratch = { "-f" = "abc" }
+
+[[case]]
+name = "help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "version"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "invalid option"
+args = ["--unknown"]
+
+[[case]]
+name = "invalid short"
+args = ["-!"]
+
+[[case]]
+name = "closed output"
+args = []
+stdin = "abc"
+stdout_closed = true
+
+[[case]]
+name = "full output"
+args = []
+stdin = "abc"
+stdout_file = "/dev/full"
+
+[[case]]
+name = "closed input"
+args = []
+stdin_closed = true
+
+[[case]]
+name = "format -b"
+args = ["-b", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "format -t"
+args = ["-t", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "format --binary"
+args = ["--binary", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "format --text"
+args = ["--text", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "format --tag"
+args = ["--tag", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "format -z"
+args = ["-z", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "format --zero"
+args = ["--zero", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "format --bin"
+args = ["--bin", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "format -bt"
+args = ["-bt", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "format -tb"
+args = ["-tb", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "filename 'back\\\\slash' []"
+args = ["--", "back\\slash"]
+scratch = { "back\\slash" = "abc" }
+stdin = "abc"
+
+[[case]]
+name = "filename 'back\\\\slash' ['--tag']"
+args = ["--tag", "--", "back\\slash"]
+scratch = { "back\\slash" = "abc" }
+stdin = "abc"
+
+[[case]]
+name = "filename 'back\\\\slash' ['-z']"
+args = ["-z", "--", "back\\slash"]
+scratch = { "back\\slash" = "abc" }
+stdin = "abc"
+
+[[case]]
+name = "filename 'new\\nline' []"
+args = ["--", "new\nline"]
+scratch = { "new\nline" = "abc" }
+stdin = "abc"
+
+[[case]]
+name = "filename 'new\\nline' ['--tag']"
+args = ["--tag", "--", "new\nline"]
+scratch = { "new\nline" = "abc" }
+stdin = "abc"
+
+[[case]]
+name = "filename 'new\\nline' ['-z']"
+args = ["-z", "--", "new\nline"]
+scratch = { "new\nline" = "abc" }
+stdin = "abc"
+
+[[case]]
+name = "filename 'car\\rriage' []"
+args = ["--", "car\rriage"]
+scratch = { "car\rriage" = "abc" }
+stdin = "abc"
+
+[[case]]
+name = "filename 'car\\rriage' ['--tag']"
+args = ["--tag", "--", "car\rriage"]
+scratch = { "car\rriage" = "abc" }
+stdin = "abc"
+
+[[case]]
+name = "filename 'car\\rriage' ['-z']"
+args = ["-z", "--", "car\rriage"]
+scratch = { "car\rriage" = "abc" }
+stdin = "abc"
+
+[[case]]
+name = "filename 'sp ace' []"
+args = ["--", "sp ace"]
+scratch = { "sp ace" = "abc" }
+stdin = "abc"
+
+[[case]]
+name = "filename 'sp ace' ['--tag']"
+args = ["--tag", "--", "sp ace"]
+scratch = { "sp ace" = "abc" }
+stdin = "abc"
+
+[[case]]
+name = "filename 'sp ace' ['-z']"
+args = ["-z", "--", "sp ace"]
+scratch = { "sp ace" = "abc" }
+stdin = "abc"
+
+[[case]]
+name = "filename '(paren)' []"
+args = ["--", "(paren)"]
+scratch = { "(paren)" = "abc" }
+stdin = "abc"
+
+[[case]]
+name = "filename '(paren)' ['--tag']"
+args = ["--tag", "--", "(paren)"]
+scratch = { "(paren)" = "abc" }
+stdin = "abc"
+
+[[case]]
+name = "filename '(paren)' ['-z']"
+args = ["-z", "--", "(paren)"]
+scratch = { "(paren)" = "abc" }
+stdin = "abc"
+
+[[case]]
+name = "filename '\u00e9' []"
+args = ["--", "\u00e9"]
+scratch = { "\u00e9" = "abc" }
+stdin = "abc"
+
+[[case]]
+name = "filename '\u00e9' ['--tag']"
+args = ["--tag", "--", "\u00e9"]
+scratch = { "\u00e9" = "abc" }
+stdin = "abc"
+
+[[case]]
+name = "filename '\u00e9' ['-z']"
+args = ["-z", "--", "\u00e9"]
+scratch = { "\u00e9" = "abc" }
+stdin = "abc"
+
+[[case]]
+name = "filename '-' []"
+args = ["-"]
+scratch = { "-" = "abc" }
+stdin = "abc"
+
+[[case]]
+name = "filename '-' ['--tag']"
+args = ["--tag", "-"]
+scratch = { "-" = "abc" }
+stdin = "abc"
+
+[[case]]
+name = "filename '-' ['-z']"
+args = ["-z", "-"]
+scratch = { "-" = "abc" }
+stdin = "abc"
+
+[[case]]
+name = "verify-only --quiet"
+args = ["--quiet"]
+stdin = "abc"
+
+[[case]]
+name = "verify-only --status"
+args = ["--status"]
+stdin = "abc"
+
+[[case]]
+name = "verify-only --strict"
+args = ["--strict"]
+stdin = "abc"
+
+[[case]]
+name = "verify-only --warn"
+args = ["--warn"]
+stdin = "abc"
+
+[[case]]
+name = "verify-only --ignore-missing"
+args = ["--ignore-missing"]
+stdin = "abc"
+
+[[case]]
+name = "option conflict ['-c', '-z']"
+args = ["-c", "-z"]
+stdin = "abc"
+
+[[case]]
+name = "option conflict ['-c', '--tag']"
+args = ["-c", "--tag"]
+stdin = "abc"
+
+[[case]]
+name = "option conflict ['-c', '-b']"
+args = ["-c", "-b"]
+stdin = "abc"
+
+[[case]]
+name = "option conflict ['-c', '-t']"
+args = ["-c", "-t"]
+stdin = "abc"
+
+[[case]]
+name = "option conflict ['--tag', '-t']"
+args = ["--tag", "-t"]
+stdin = "abc"
+
+[[case]]
+name = "option conflict ['-t', '--tag']"
+args = ["-t", "--tag"]
+stdin = "abc"
+
+[[case]]
+name = "option conflict ['-a', 'md5']"
+args = ["-a", "md5"]
+stdin = "abc"
+
+[[case]]
+name = "option conflict ['-l', '8']"
+args = ["-l", "8"]
+stdin = "abc"
+
+[[case]]
+name = "check good []"
+args = ["-c"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check good ['-w']"
+args = ["-c", "-w"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check good ['--quiet']"
+args = ["-c", "--quiet"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check good ['--status']"
+args = ["-c", "--status"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check good ['--strict']"
+args = ["-c", "--strict"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check good ['--ignore-missing']"
+args = ["-c", "--ignore-missing"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check tagged []"
+args = ["-c"]
+stdin = "SHA1 (f) = a9993e364706816aba3e25717850c26c9cd0d89d\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check tagged ['-w']"
+args = ["-c", "-w"]
+stdin = "SHA1 (f) = a9993e364706816aba3e25717850c26c9cd0d89d\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check tagged ['--quiet']"
+args = ["-c", "--quiet"]
+stdin = "SHA1 (f) = a9993e364706816aba3e25717850c26c9cd0d89d\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check tagged ['--status']"
+args = ["-c", "--status"]
+stdin = "SHA1 (f) = a9993e364706816aba3e25717850c26c9cd0d89d\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check tagged ['--strict']"
+args = ["-c", "--strict"]
+stdin = "SHA1 (f) = a9993e364706816aba3e25717850c26c9cd0d89d\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check tagged ['--ignore-missing']"
+args = ["-c", "--ignore-missing"]
+stdin = "SHA1 (f) = a9993e364706816aba3e25717850c26c9cd0d89d\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check tag without spaces []"
+args = ["-c"]
+stdin = "SHA1(f)=a9993e364706816aba3e25717850c26c9cd0d89d\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check tag without spaces ['-w']"
+args = ["-c", "-w"]
+stdin = "SHA1(f)=a9993e364706816aba3e25717850c26c9cd0d89d\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check tag without spaces ['--quiet']"
+args = ["-c", "--quiet"]
+stdin = "SHA1(f)=a9993e364706816aba3e25717850c26c9cd0d89d\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check tag without spaces ['--status']"
+args = ["-c", "--status"]
+stdin = "SHA1(f)=a9993e364706816aba3e25717850c26c9cd0d89d\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check tag without spaces ['--strict']"
+args = ["-c", "--strict"]
+stdin = "SHA1(f)=a9993e364706816aba3e25717850c26c9cd0d89d\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check tag without spaces ['--ignore-missing']"
+args = ["-c", "--ignore-missing"]
+stdin = "SHA1(f)=a9993e364706816aba3e25717850c26c9cd0d89d\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check uppercase hash []"
+args = ["-c"]
+stdin = "A9993E364706816ABA3E25717850C26C9CD0D89D  f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check uppercase hash ['-w']"
+args = ["-c", "-w"]
+stdin = "A9993E364706816ABA3E25717850C26C9CD0D89D  f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check uppercase hash ['--quiet']"
+args = ["-c", "--quiet"]
+stdin = "A9993E364706816ABA3E25717850C26C9CD0D89D  f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check uppercase hash ['--status']"
+args = ["-c", "--status"]
+stdin = "A9993E364706816ABA3E25717850C26C9CD0D89D  f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check uppercase hash ['--strict']"
+args = ["-c", "--strict"]
+stdin = "A9993E364706816ABA3E25717850C26C9CD0D89D  f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check uppercase hash ['--ignore-missing']"
+args = ["-c", "--ignore-missing"]
+stdin = "A9993E364706816ABA3E25717850C26C9CD0D89D  f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check one separator []"
+args = ["-c"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check one separator ['-w']"
+args = ["-c", "-w"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check one separator ['--quiet']"
+args = ["-c", "--quiet"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check one separator ['--status']"
+args = ["-c", "--status"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check one separator ['--strict']"
+args = ["-c", "--strict"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check one separator ['--ignore-missing']"
+args = ["-c", "--ignore-missing"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check tab separator []"
+args = ["-c"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d\tf\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check tab separator ['-w']"
+args = ["-c", "-w"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d\tf\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check tab separator ['--quiet']"
+args = ["-c", "--quiet"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d\tf\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check tab separator ['--status']"
+args = ["-c", "--status"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d\tf\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check tab separator ['--strict']"
+args = ["-c", "--strict"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d\tf\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check tab separator ['--ignore-missing']"
+args = ["-c", "--ignore-missing"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d\tf\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check binary marker []"
+args = ["-c"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d *f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check binary marker ['-w']"
+args = ["-c", "-w"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d *f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check binary marker ['--quiet']"
+args = ["-c", "--quiet"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d *f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check binary marker ['--status']"
+args = ["-c", "--status"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d *f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check binary marker ['--strict']"
+args = ["-c", "--strict"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d *f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check binary marker ['--ignore-missing']"
+args = ["-c", "--ignore-missing"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d *f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check no final newline []"
+args = ["-c"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check no final newline ['-w']"
+args = ["-c", "-w"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check no final newline ['--quiet']"
+args = ["-c", "--quiet"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check no final newline ['--status']"
+args = ["-c", "--status"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check no final newline ['--strict']"
+args = ["-c", "--strict"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check no final newline ['--ignore-missing']"
+args = ["-c", "--ignore-missing"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check CRLF []"
+args = ["-c"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f\r\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check CRLF ['-w']"
+args = ["-c", "-w"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f\r\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check CRLF ['--quiet']"
+args = ["-c", "--quiet"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f\r\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check CRLF ['--status']"
+args = ["-c", "--status"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f\r\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check CRLF ['--strict']"
+args = ["-c", "--strict"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f\r\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check CRLF ['--ignore-missing']"
+args = ["-c", "--ignore-missing"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f\r\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check blank and comments []"
+args = ["-c"]
+stdin = "# hi\n\na9993e364706816aba3e25717850c26c9cd0d89d  f\n\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check blank and comments ['-w']"
+args = ["-c", "-w"]
+stdin = "# hi\n\na9993e364706816aba3e25717850c26c9cd0d89d  f\n\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check blank and comments ['--quiet']"
+args = ["-c", "--quiet"]
+stdin = "# hi\n\na9993e364706816aba3e25717850c26c9cd0d89d  f\n\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check blank and comments ['--status']"
+args = ["-c", "--status"]
+stdin = "# hi\n\na9993e364706816aba3e25717850c26c9cd0d89d  f\n\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check blank and comments ['--strict']"
+args = ["-c", "--strict"]
+stdin = "# hi\n\na9993e364706816aba3e25717850c26c9cd0d89d  f\n\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check blank and comments ['--ignore-missing']"
+args = ["-c", "--ignore-missing"]
+stdin = "# hi\n\na9993e364706816aba3e25717850c26c9cd0d89d  f\n\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check leading tab []"
+args = ["-c"]
+stdin = "\ta9993e364706816aba3e25717850c26c9cd0d89d  f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check leading tab ['-w']"
+args = ["-c", "-w"]
+stdin = "\ta9993e364706816aba3e25717850c26c9cd0d89d  f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check leading tab ['--quiet']"
+args = ["-c", "--quiet"]
+stdin = "\ta9993e364706816aba3e25717850c26c9cd0d89d  f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check leading tab ['--status']"
+args = ["-c", "--status"]
+stdin = "\ta9993e364706816aba3e25717850c26c9cd0d89d  f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check leading tab ['--strict']"
+args = ["-c", "--strict"]
+stdin = "\ta9993e364706816aba3e25717850c26c9cd0d89d  f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check leading tab ['--ignore-missing']"
+args = ["-c", "--ignore-missing"]
+stdin = "\ta9993e364706816aba3e25717850c26c9cd0d89d  f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check malformed []"
+args = ["-c"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f\ngarbage\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check malformed ['-w']"
+args = ["-c", "-w"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f\ngarbage\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check malformed ['--quiet']"
+args = ["-c", "--quiet"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f\ngarbage\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check malformed ['--status']"
+args = ["-c", "--status"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f\ngarbage\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check malformed ['--strict']"
+args = ["-c", "--strict"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f\ngarbage\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check malformed ['--ignore-missing']"
+args = ["-c", "--ignore-missing"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f\ngarbage\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check mismatch []"
+args = ["-c"]
+stdin = "09993e364706816aba3e25717850c26c9cd0d89d  f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check mismatch ['-w']"
+args = ["-c", "-w"]
+stdin = "09993e364706816aba3e25717850c26c9cd0d89d  f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check mismatch ['--quiet']"
+args = ["-c", "--quiet"]
+stdin = "09993e364706816aba3e25717850c26c9cd0d89d  f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check mismatch ['--status']"
+args = ["-c", "--status"]
+stdin = "09993e364706816aba3e25717850c26c9cd0d89d  f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check mismatch ['--strict']"
+args = ["-c", "--strict"]
+stdin = "09993e364706816aba3e25717850c26c9cd0d89d  f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check mismatch ['--ignore-missing']"
+args = ["-c", "--ignore-missing"]
+stdin = "09993e364706816aba3e25717850c26c9cd0d89d  f\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check missing []"
+args = ["-c"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  absent\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check missing ['-w']"
+args = ["-c", "-w"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  absent\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check missing ['--quiet']"
+args = ["-c", "--quiet"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  absent\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check missing ['--status']"
+args = ["-c", "--status"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  absent\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check missing ['--strict']"
+args = ["-c", "--strict"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  absent\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check missing ['--ignore-missing']"
+args = ["-c", "--ignore-missing"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  absent\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check directory []"
+args = ["-c"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  d\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check directory ['-w']"
+args = ["-c", "-w"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  d\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check directory ['--quiet']"
+args = ["-c", "--quiet"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  d\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check directory ['--status']"
+args = ["-c", "--status"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  d\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check directory ['--strict']"
+args = ["-c", "--strict"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  d\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check directory ['--ignore-missing']"
+args = ["-c", "--ignore-missing"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  d\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check empty manifest []"
+args = ["-c"]
+stdin = ""
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check empty manifest ['-w']"
+args = ["-c", "-w"]
+stdin = ""
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check empty manifest ['--quiet']"
+args = ["-c", "--quiet"]
+stdin = ""
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check empty manifest ['--status']"
+args = ["-c", "--status"]
+stdin = ""
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check empty manifest ['--strict']"
+args = ["-c", "--strict"]
+stdin = ""
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check empty manifest ['--ignore-missing']"
+args = ["-c", "--ignore-missing"]
+stdin = ""
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check only junk []"
+args = ["-c"]
+stdin = "garbage\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check only junk ['-w']"
+args = ["-c", "-w"]
+stdin = "garbage\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check only junk ['--quiet']"
+args = ["-c", "--quiet"]
+stdin = "garbage\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check only junk ['--status']"
+args = ["-c", "--status"]
+stdin = "garbage\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check only junk ['--strict']"
+args = ["-c", "--strict"]
+stdin = "garbage\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check only junk ['--ignore-missing']"
+args = ["-c", "--ignore-missing"]
+stdin = "garbage\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check two bad lines []"
+args = ["-c"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f\nbad\nwrong\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check two bad lines ['-w']"
+args = ["-c", "-w"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f\nbad\nwrong\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check two bad lines ['--quiet']"
+args = ["-c", "--quiet"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f\nbad\nwrong\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check two bad lines ['--status']"
+args = ["-c", "--status"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f\nbad\nwrong\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check two bad lines ['--strict']"
+args = ["-c", "--strict"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f\nbad\nwrong\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check two bad lines ['--ignore-missing']"
+args = ["-c", "--ignore-missing"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f\nbad\nwrong\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check empty filename []"
+args = ["-c"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  \n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check empty filename ['-w']"
+args = ["-c", "-w"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  \n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check empty filename ['--quiet']"
+args = ["-c", "--quiet"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  \n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check empty filename ['--status']"
+args = ["-c", "--status"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  \n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check empty filename ['--strict']"
+args = ["-c", "--strict"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  \n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check empty filename ['--ignore-missing']"
+args = ["-c", "--ignore-missing"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  \n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check stdin from stdin []"
+args = ["-c"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  -\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check stdin from stdin ['-w']"
+args = ["-c", "-w"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  -\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check stdin from stdin ['--quiet']"
+args = ["-c", "--quiet"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  -\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check stdin from stdin ['--status']"
+args = ["-c", "--status"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  -\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check stdin from stdin ['--strict']"
+args = ["-c", "--strict"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  -\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check stdin from stdin ['--ignore-missing']"
+args = ["-c", "--ignore-missing"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  -\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check invalid escape []"
+args = ["-c"]
+stdin = "\\a9993e364706816aba3e25717850c26c9cd0d89d  back\\qslash\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check invalid escape ['-w']"
+args = ["-c", "-w"]
+stdin = "\\a9993e364706816aba3e25717850c26c9cd0d89d  back\\qslash\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check invalid escape ['--quiet']"
+args = ["-c", "--quiet"]
+stdin = "\\a9993e364706816aba3e25717850c26c9cd0d89d  back\\qslash\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check invalid escape ['--status']"
+args = ["-c", "--status"]
+stdin = "\\a9993e364706816aba3e25717850c26c9cd0d89d  back\\qslash\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check invalid escape ['--strict']"
+args = ["-c", "--strict"]
+stdin = "\\a9993e364706816aba3e25717850c26c9cd0d89d  back\\qslash\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check invalid escape ['--ignore-missing']"
+args = ["-c", "--ignore-missing"]
+stdin = "\\a9993e364706816aba3e25717850c26c9cd0d89d  back\\qslash\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check escaped slash []"
+args = ["-c"]
+stdin = "\\a9993e364706816aba3e25717850c26c9cd0d89d  back\\\\slash\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check escaped slash ['-w']"
+args = ["-c", "-w"]
+stdin = "\\a9993e364706816aba3e25717850c26c9cd0d89d  back\\\\slash\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check escaped slash ['--quiet']"
+args = ["-c", "--quiet"]
+stdin = "\\a9993e364706816aba3e25717850c26c9cd0d89d  back\\\\slash\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check escaped slash ['--status']"
+args = ["-c", "--status"]
+stdin = "\\a9993e364706816aba3e25717850c26c9cd0d89d  back\\\\slash\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check escaped slash ['--strict']"
+args = ["-c", "--strict"]
+stdin = "\\a9993e364706816aba3e25717850c26c9cd0d89d  back\\\\slash\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check escaped slash ['--ignore-missing']"
+args = ["-c", "--ignore-missing"]
+stdin = "\\a9993e364706816aba3e25717850c26c9cd0d89d  back\\\\slash\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check escaped newline []"
+args = ["-c"]
+stdin = "\\a9993e364706816aba3e25717850c26c9cd0d89d  new\\nline\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check escaped newline ['-w']"
+args = ["-c", "-w"]
+stdin = "\\a9993e364706816aba3e25717850c26c9cd0d89d  new\\nline\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check escaped newline ['--quiet']"
+args = ["-c", "--quiet"]
+stdin = "\\a9993e364706816aba3e25717850c26c9cd0d89d  new\\nline\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check escaped newline ['--status']"
+args = ["-c", "--status"]
+stdin = "\\a9993e364706816aba3e25717850c26c9cd0d89d  new\\nline\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check escaped newline ['--strict']"
+args = ["-c", "--strict"]
+stdin = "\\a9993e364706816aba3e25717850c26c9cd0d89d  new\\nline\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check escaped newline ['--ignore-missing']"
+args = ["-c", "--ignore-missing"]
+stdin = "\\a9993e364706816aba3e25717850c26c9cd0d89d  new\\nline\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check escaped carriage return []"
+args = ["-c"]
+stdin = "\\a9993e364706816aba3e25717850c26c9cd0d89d  car\\rriage\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check escaped carriage return ['-w']"
+args = ["-c", "-w"]
+stdin = "\\a9993e364706816aba3e25717850c26c9cd0d89d  car\\rriage\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check escaped carriage return ['--quiet']"
+args = ["-c", "--quiet"]
+stdin = "\\a9993e364706816aba3e25717850c26c9cd0d89d  car\\rriage\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check escaped carriage return ['--status']"
+args = ["-c", "--status"]
+stdin = "\\a9993e364706816aba3e25717850c26c9cd0d89d  car\\rriage\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check escaped carriage return ['--strict']"
+args = ["-c", "--strict"]
+stdin = "\\a9993e364706816aba3e25717850c26c9cd0d89d  car\\rriage\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "check escaped carriage return ['--ignore-missing']"
+args = ["-c", "--ignore-missing"]
+stdin = "\\a9993e364706816aba3e25717850c26c9cd0d89d  car\\rriage\n"
+scratch = { "f" = "abc", "back\\slash" = "abc", "new\nline" = "abc", "car\rriage" = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "manifest file"
+args = ["-c", "list"]
+scratch = { "f" = "abc", "list" = "a9993e364706816aba3e25717850c26c9cd0d89d  f\n" }
+
+[[case]]
+name = "multiple manifests"
+args = ["-c", "bad", "good"]
+scratch = { "f" = "abc", "bad" = "bad\n", "good" = "a9993e364706816aba3e25717850c26c9cd0d89d  f\n" }
+
+[[case]]
+name = "stdin digest from manifest file"
+args = ["-c", "list"]
+stdin = "abc"
+scratch = { "list" = "a9993e364706816aba3e25717850c26c9cd0d89d  -\n" }
+
+[[case]]
+name = "check quiet writes nothing closed"
+args = ["-c", "--quiet"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f\n"
+scratch = { "f" = "abc" }
+stdout_closed = true
+
+[[case]]
+name = "check status writes nothing closed"
+args = ["-c", "--status"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f\n"
+scratch = { "f" = "abc" }
+stdout_closed = true
+
+[[case]]
+name = "check write failure"
+args = ["-c"]
+stdin = "a9993e364706816aba3e25717850c26c9cd0d89d  f\n"
+scratch = { "f" = "abc" }
+stdout_closed = true
+
+[[case]]
+name = "check missing manifest"
+args = ["-c", "absent"]
+scratch = {  }
+
+[[case]]
+name = "option permutation"
+args = ["f", "--tag"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "POSIX option ordering"
+args = ["f", "--tag"]
+scratch = { "f" = "abc" }
+env = { "POSIXLY_CORRECT" = "1" }
