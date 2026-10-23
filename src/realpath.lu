@@ -28,11 +28,22 @@ fn lexical(path: str) -> str {
 
 fn resolved(path: str, mode: int, logical: bool, strip: bool) -> bore.Resolved {
     if path.len == 0 { return bore.Resolved { ok: false, path: "", why: "No such file or directory" } }
-    let input = if logical || strip then lexical(path) else path
+    var input = if logical || strip then lexical(path) else path
+    if (logical || strip) && path.ends_with("/") && !input.ends_with("/") { input = "{input}/" }
     if strip {
         if mode == bore.missing() { return bore.Resolved { ok: true, path: input, why: "" } }
-        var check = input
-        if mode == bore.all_but_last() { check = bore.parent_of(input) }
+        let _ = fs_stat(input) else |e| {
+            let why = bore.io_error()
+            match e {
+                not_found => { if mode == bore.existing() { return bore.Resolved { ok: false, path: "", why: why } } },
+                denied => { return bore.Resolved { ok: false, path: "", why: why } },
+                io => { return bore.Resolved { ok: false, path: "", why: why } },
+            }
+            List[int]()
+        }
+        return bore.Resolved { ok: true, path: lexical(input), why: "" }
+    }
+    if mode == bore.all_but_last() { check = bore.parent_of(input) }
         let _ = fs_stat(check) else |_| {
             return bore.Resolved { ok: false, path: "", why: bore.io_error() }
         }

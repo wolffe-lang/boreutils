@@ -35,27 +35,36 @@ fn main() -> int {
     for k in p.keys {
         if k == "help" {
             bore.put(mut out, "Usage: tty [OPTION]...\nName standard input's terminal; -s/--silent/--quiet only tests it.\n") else |_| {}
-            return bore.finish(mut out, "tty", 0)
+            return finished(mut out, 0)
         }
         if k == "version" {
             bore.put(mut out, bore.version_text("tty")) else |_| {}
-            return bore.finish(mut out, "tty", 0)
+            return finished(mut out, 0)
         }
         if k == "silent" || k == "quiet" { silent = true }
     }
     if !bore.ok(p) { bore.usage_error("tty", p.error); return 2 }
-    if p.operands.len > 0 { bore.usage_error("tty", "extra operand {bore.quote(p.operands[0])}"); return 2 }
+    if p.operands.len > 0 { bore.usage_error("tty", "extra operand {bore.quote_always(p.operands[0])}"); return 2 }
     let terminal = os_isatty(0) else false
     if silent { return if terminal then 0 else 1 }
     if !terminal {
         bore.put(mut out, "not a tty\n") else |_| {}
-        return bore.finish(mut out, "tty", 1)
+        return finished(mut out, 1)
     }
     let name = terminal_name()
     if name.len == 0 {
         bore.put(mut out, "not a tty\n") else |_| {}
-        return bore.finish(mut out, "tty", 1)
+        return finished(mut out, 1)
     }
     bore.put(mut out, "{name}\n") else |_| {}
-    bore.finish(mut out, "tty", 0)
+    finished(mut out, 0)
+}
+
+// GNU tty reserves status 3 for a write failure, not the usual 1.
+fn finished(mut out: bore.Out, status: int) -> int {
+    bore.flush(mut out) else |_| {
+        bore.write_error(out, "tty", "write error")
+        return 3
+    }
+    status
 }

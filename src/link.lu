@@ -22,12 +22,12 @@ fn main() -> int {
     }
     if !bore.ok(p) { return bore.usage_error("link", p.error) }
     if p.operands.len == 0 { return bore.usage_error("link", "missing operand") }
-    if p.operands.len == 1 { return bore.usage_error("link", "missing operand after {bore.quote(p.operands[0])}") }
-    if p.operands.len > 2 { return bore.usage_error("link", "extra operand {bore.quote(p.operands[2])}") }
+    if p.operands.len == 1 { return bore.usage_error("link", "missing operand after {bore.quote_always(p.operands[0])}") }
+    if p.operands.len > 2 { return bore.usage_error("link", "extra operand {bore.quote_always(p.operands[2])}") }
     let a = p.operands[0]
     let b = p.operands[1]
     fs_link(a, b) else |_| {
-        bore.warn("link", "cannot create link {bore.quote(b)} to {bore.quote(a)}: {bore.io_error()}")
+        bore.warn("link", "cannot create link {bore.quote_always(b)} to {bore.quote_always(a)}: {bore.io_error()}")
         return 1
     }
     bore.finish(mut out, "link", 0)

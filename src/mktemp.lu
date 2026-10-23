@@ -73,7 +73,7 @@ fn main() -> int {
     var template = "tmp.XXXXXXXXXX"
     if p.operands.len > 0 { template = p.operands[0] } else { temporary = true }
     if suffix.contains("/") {
-        bore.warn("mktemp", "invalid suffix {bore.quote(suffix)}, contains directory separator")
+        bore.warn("mktemp", "invalid suffix {bore.quote_always(suffix)}, contains directory separator")
         return 1
     }
     var end = template.len
@@ -85,15 +85,15 @@ fn main() -> int {
     while start > 0 && template.bytes()[start - 1] == 88 as byte { start -= 1 }
     let count = end - start
     if count < 3 {
-        bore.warn("mktemp", "too few X's in template {bore.quote(template)}")
+        bore.warn("mktemp", "too few X's in template {bore.quote_always(template)}")
         return 1
     }
     if old && template.contains("/") {
-        bore.warn("mktemp", "invalid template, {bore.quote(template)}, contains directory separator")
+        bore.warn("mktemp", "invalid template, {bore.quote_always(template)}, contains directory separator")
         return 1
     }
     if temporary && template.starts_with("/") {
-        bore.warn("mktemp", "invalid template, {bore.quote(template)}; with --tmpdir, it may not be absolute")
+        bore.warn("mktemp", "invalid template, {bore.quote_always(template)}; with --tmpdir, it may not be absolute")
         return 1
     }
     let envdir = env_get("TMPDIR") else ""
@@ -131,7 +131,7 @@ fn main() -> int {
         if why.len > 0 {
             if !quiet {
                 let kind = if directory then "directory" else "file"
-                bore.warn("mktemp", "failed to create {kind} via template {bore.quote(shown)}: {why}")
+                bore.warn("mktemp", "failed to create {kind} via template {bore.quote_always(shown)}: {why}")
             }
             return 1
         }

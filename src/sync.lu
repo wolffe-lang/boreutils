@@ -37,7 +37,7 @@ fn main() -> int {
     var status = 0
     for name in p.operands {
         let r = fs_stat(name) else |_| {
-            bore.warn("sync", "error opening {bore.quote(name)}: {bore.io_error()}")
+            bore.warn("sync", "error opening {bore.quote_always(name)}: {bore.io_error()}")
             status = 1
             continue
         }
@@ -46,17 +46,15 @@ fn main() -> int {
             fs_sync_dir(name) else |_| { code = bore.host_code() }
         } else {
             let fd = fs_open_mode(name, 5) else |_| {
-                bore.warn("sync", "error opening {bore.quote(name)}: {bore.io_error()}")
+                bore.warn("sync", "error opening {bore.quote_always(name)}: {bore.io_error()}")
                 status = 1
                 continue
             }
-            if data && bore.rec_kind(r) == bore.kind_dir() && bore.built_for_linux() {
-                code = 22
-            } else { fs_sync(fd) else |_| { code = bore.host_code() } }
+            fs_sync(fd) else |_| { code = bore.host_code() }
             fs_close(fd) else |_| {}
         }
         if code != 0 {
-            bore.warn("sync", "error syncing {bore.quote(name)}: {bore.reason_of(code)}")
+            bore.warn("sync", "error syncing {bore.quote_always(name)}: {bore.reason_of(code)}")
             status = 1
         }
     }
