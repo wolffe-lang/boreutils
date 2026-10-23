@@ -164,7 +164,7 @@ fn valid_base64(s: str, bytes: int) -> bool {
 
 struct CheckCounts { proper: int, malformed: int, unread: int, mismatch: int, matched: int, line: int }
 
-fn check_file(mut out: bore.Out, c: Settings, path: str) -> int {
+fn check_file(c: Settings, path: str) -> int {
     let src = bore.open_input(path) else |e| {
         let why = match e { not_found => bore.no_such_file(), denied => bore.permission_denied(), is_dir => bore.directory_reason(), io => bore.io_error() }
         bore.input_error(c.prog, path, why)
@@ -173,6 +173,7 @@ fn check_file(mut out: bore.Out, c: Settings, path: str) -> int {
     var r = manifest_reader(src)
     var n = CheckCounts { proper: 0, malformed: 0, unread: 0, mismatch: 0, matched: 0, line: 0 }
     var bad_read = false
+    var bad_write = false
     loop {
         region row {
             let bytes = manifest_line(mut r) else |e| match e {
@@ -188,21 +189,22 @@ fn check_file(mut out: bore.Out, c: Settings, path: str) -> int {
                 let unread = match e { failed => true, missing => false }
                 if unread {
                     n.unread += 1
-                    check_result(mut out, c, rec.name, "FAILED open or read")
+                    if !check_result(c, rec.name, "FAILED open or read") { bad_write = true; break }
                 }
                 continue
             }
             let actual = if rec.base64 then base64_bytes(a.bytes) else hex_bytes(a.bytes)
             if rec.expected == actual {
                 n.matched += 1
-                if !c.quiet { check_result(mut out, c, rec.name, "OK") }
+                if !c.quiet && !check_result(c, rec.name, "OK") { bad_write = true; break }
             } else {
                 n.mismatch += 1
-                check_result(mut out, c, rec.name, "FAILED")
+                if !check_result(c, rec.name, "FAILED") { bad_write = true; break }
             }
         }
     }
     bore.close_input(src)
+    if bad_write { return 2 }
     if n.proper == 0 {
         bore.warn(c.prog, "{manifest_name(path)}: no properly formatted checksum lines found")
         return 1
@@ -236,9 +238,11 @@ fn malformed_line(c: Settings, path: str, mut n: CheckCounts) {
         bore.warn(c.prog, "{manifest_name(path)}: {n.line}: improperly formatted {label} checksum line")
     }
 }
-fn check_result(mut out: bore.Out, c: Settings, name: str, status: str) {
-    if c.status { return }
+fn check_result(c: Settings, name: str, status: str) -> bool {
+    if c.status { return true }
+    var out = bore.stdout()
     let escape = name.contains("\\") || name.contains("\n") || name.contains("\r")
     let shown = if escape then "\\{escape_filename(name)}" else name
     bore.put(mut out, "{shown}: {status}\n") else |_| {}
+    bore.finish(mut out, c.prog, 0) == 0
 }

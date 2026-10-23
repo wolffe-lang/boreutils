@@ -144,16 +144,17 @@ pub fn command(prog: str, default_kind: int, default_bits: int) -> int {
     if c.raw && p.operands.len > 1 { bore.warn(prog, "the --raw option is not supported with multiple files"); return 1 }
     var status = 0
     if p.operands.len == 0 {
-        status = checksum_operand(mut out, c, "-", false)
+        status = checksum_operand(c, "-", false)
     } else {
         for name in p.operands {
             region operand {
-                let code = checksum_operand(mut out, c, name, true)
+                let code = checksum_operand(c, name, true)
+                if code == 2 { return 1 }
                 if code != 0 { status = code }
             }
         }
     }
-    bore.finish(mut out, prog, status)
+    bore.finish(mut out, prog, if status == 2 then 1 else status)
 }
 
 fn checksum_options(prog: str) -> List[bore.Opt] {
@@ -224,7 +225,7 @@ struct Answer { bytes: List[byte], size: wrapping[u64], number: int }
 
 fn compute(c: Settings, name: str, kind: int, bits: int) -> Answer ! {missing, failed} {
     let src = bore.open_input(name) else |e| {
-        let absent = match e { not_found => true, denied => false, is_dir => false, io => false }
+        let absent = match copy e { not_found => true, denied => false, is_dir => false, io => false }
         if absent && c.ignore { return missing }
         let why = match e {
             not_found => bore.no_such_file(), denied => bore.permission_denied(),
@@ -255,13 +256,14 @@ fn compute(c: Settings, name: str, kind: int, bits: int) -> Answer ! {missing, f
     Answer { bytes: bytes, size: d.lo, number: d.crc }
 }
 
-fn checksum_operand(mut out: bore.Out, c: Settings, name: str, explicit: bool) -> int {
-    if c.check { return check_file(mut out, c, name) }
+fn checksum_operand(c: Settings, name: str, explicit: bool) -> int {
+    if c.check { return check_file(c, name) }
+    var out = bore.stdout()
     let a = compute(c, name, c.kind, c.bits) else |_| { return 1 }
     if c.raw {
         var i = if c.kind == 2 || c.kind == 3 then 2 else 0
         while i < a.bytes.len { bore.put_byte(mut out, a.bytes[i]) else |_| {}; i += 1 }
-        return 0
+        return if bore.finish(mut out, c.prog, 0) == 0 then 0 else 2
     }
     let end = if c.zero then "\0" else "\n"
     if c.kind < 4 {
@@ -278,7 +280,7 @@ fn checksum_operand(mut out: bore.Out, c: Settings, name: str, explicit: bool) -
         bore.put(mut out, head) else |_| {}
         if explicit { bore.put(mut out, " {name}") else |_| {} }
         bore.put(mut out, end) else |_| {}
-        return 0
+        return if bore.finish(mut out, c.prog, 0) == 0 then 0 else 2
     }
     let encoded = if c.base64 then base64_bytes(a.bytes) else hex_bytes(a.bytes)
     let escape = !c.zero && (name.contains("\\") || name.contains("\n") || name.contains("\r"))
@@ -287,7 +289,7 @@ fn checksum_operand(mut out: bore.Out, c: Settings, name: str, explicit: bool) -
     let line = if c.tag then "{digest_label(c.kind, c.bits)} ({shown}) = {encoded}{end}"
         else "{encoded} {if c.binary then "*" else " "}{shown}{end}"
     bore.put(mut out, line) else |_| {}
-    0
+    if bore.finish(mut out, c.prog, 0) == 0 then 0 else 2
 }
 
 fn pad_left(s: str, width: int, fill: str) -> str {
