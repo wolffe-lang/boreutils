@@ -7,6 +7,8 @@
 //! such as /dev/stdin), and matches fd 0's dev
 //! and ino (fs_fstat_record words 9 and 10), never just its filename.
 //! This covers Darwin's /dev/ttysNNN ptys without probing other trees.
+//! GNU's measured write-failure status is 3 (R-bu30-2), not the generic
+//! convention's 1; finished() preserves buffering and the named error.
 
 use bore
 
