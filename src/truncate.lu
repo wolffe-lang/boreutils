@@ -4,6 +4,11 @@
 //! black-box runs. No implementation source. All size arithmetic is checked
 //! before it reaches wolf's trapping arithmetic. -o is refused by name:
 //! st_blocks is allocated space, not the unavailable st_blksize (R-bu30-1).
+//! Listed open-surface gaps (notes/bu30/probes/open-gap.lu): no writable
+//! mode without O_CREAT, so -c's stat/open check races a concurrent unlink;
+//! no non-blocking writable open, so FIFO operands are refused by name.
+//! A path changed into a FIFO after its stat can still block: the same
+//! missing open flags prevent closing that race, not another path check.
 
 use bore
 
@@ -182,6 +187,12 @@ fn main() -> int {
                 status = 1
                 continue
             }
+        }
+        let kind = fs_stat(name) else |_| List[int]()
+        if kind.len == 20 && bore.rec_kind(kind) == bore.kind_fifo() {
+            bore.warn("truncate", "a non-blocking writable open is not supported by this truncate: {bore.quote_always(name)}")
+            status = 1
+            continue
         }
         let fd = fs_open_mode(name, 2) else |_| {
             bore.warn(
