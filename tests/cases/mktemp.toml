@@ -1,0 +1,248 @@
+# GNU coreutils 9.11 black-box cases; bu30. No implementation source.
+
+[[case]]
+name = "help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "version"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "bad option"
+args = ["--not-an-option"]
+
+[[case]]
+name = "closed help"
+args = ["--help"]
+stdout_closed = true
+
+[[case]]
+name = "too few Xs"
+args = ["xXX"]
+scratch = {  }
+
+[[case]]
+name = "empty template"
+args = [""]
+scratch = {  }
+
+[[case]]
+name = "two templates"
+args = ["aXXX", "bXXX"]
+scratch = {  }
+
+[[case]]
+name = "invalid suffix"
+args = ["--suffix=a/b", "fXXX"]
+scratch = {  }
+
+[[case]]
+name = "missing directory"
+args = ["-p", "missing", "fXXX"]
+scratch = {  }
+
+[[case]]
+name = "quiet missing directory"
+args = ["-q", "-p", "missing", "fXXX"]
+scratch = {  }
+
+[[case]]
+name = "template with slash under t"
+args = ["-t", "d/fXXX"]
+scratch = {  }
+
+[[case]]
+name = "file 3 Xs suffix ''"
+args = ["name.XXX"]
+scratch = {  }
+temp_shape = { "prefix" = "name.", "xs" = 3, "suffix" = "", "directory" = "", "kind" = "file", "mode" = 384 }
+
+[[case]]
+name = "file 3 Xs suffix '.txt'"
+args = ["--suffix=.txt", "name.XXX"]
+scratch = {  }
+temp_shape = { "prefix" = "name.", "xs" = 3, "suffix" = ".txt", "directory" = "", "kind" = "file", "mode" = 384 }
+
+[[case]]
+name = "dir 3 Xs suffix ''"
+args = ["-d", "name.XXX"]
+scratch = {  }
+temp_shape = { "prefix" = "name.", "xs" = 3, "suffix" = "", "directory" = "", "kind" = "dir", "mode" = 448 }
+
+[[case]]
+name = "dir 3 Xs suffix '.txt'"
+args = ["-d", "--suffix=.txt", "name.XXX"]
+scratch = {  }
+temp_shape = { "prefix" = "name.", "xs" = 3, "suffix" = ".txt", "directory" = "", "kind" = "dir", "mode" = 448 }
+
+[[case]]
+name = "none 3 Xs suffix ''"
+args = ["-u", "name.XXX"]
+scratch = {  }
+temp_shape = { "prefix" = "name.", "xs" = 3, "suffix" = "", "directory" = "", "kind" = "none", "mode" = 384 }
+
+[[case]]
+name = "none 3 Xs suffix '.txt'"
+args = ["-u", "--suffix=.txt", "name.XXX"]
+scratch = {  }
+temp_shape = { "prefix" = "name.", "xs" = 3, "suffix" = ".txt", "directory" = "", "kind" = "none", "mode" = 384 }
+
+[[case]]
+name = "file 6 Xs suffix ''"
+args = ["name.XXXXXX"]
+scratch = {  }
+temp_shape = { "prefix" = "name.", "xs" = 6, "suffix" = "", "directory" = "", "kind" = "file", "mode" = 384 }
+
+[[case]]
+name = "file 6 Xs suffix '.txt'"
+args = ["--suffix=.txt", "name.XXXXXX"]
+scratch = {  }
+temp_shape = { "prefix" = "name.", "xs" = 6, "suffix" = ".txt", "directory" = "", "kind" = "file", "mode" = 384 }
+
+[[case]]
+name = "dir 6 Xs suffix ''"
+args = ["-d", "name.XXXXXX"]
+scratch = {  }
+temp_shape = { "prefix" = "name.", "xs" = 6, "suffix" = "", "directory" = "", "kind" = "dir", "mode" = 448 }
+
+[[case]]
+name = "dir 6 Xs suffix '.txt'"
+args = ["-d", "--suffix=.txt", "name.XXXXXX"]
+scratch = {  }
+temp_shape = { "prefix" = "name.", "xs" = 6, "suffix" = ".txt", "directory" = "", "kind" = "dir", "mode" = 448 }
+
+[[case]]
+name = "none 6 Xs suffix ''"
+args = ["-u", "name.XXXXXX"]
+scratch = {  }
+temp_shape = { "prefix" = "name.", "xs" = 6, "suffix" = "", "directory" = "", "kind" = "none", "mode" = 384 }
+
+[[case]]
+name = "none 6 Xs suffix '.txt'"
+args = ["-u", "--suffix=.txt", "name.XXXXXX"]
+scratch = {  }
+temp_shape = { "prefix" = "name.", "xs" = 6, "suffix" = ".txt", "directory" = "", "kind" = "none", "mode" = 384 }
+
+[[case]]
+name = "file 10 Xs suffix ''"
+args = ["name.XXXXXXXXXX"]
+scratch = {  }
+temp_shape = { "prefix" = "name.", "xs" = 10, "suffix" = "", "directory" = "", "kind" = "file", "mode" = 384 }
+
+[[case]]
+name = "file 10 Xs suffix '.txt'"
+args = ["--suffix=.txt", "name.XXXXXXXXXX"]
+scratch = {  }
+temp_shape = { "prefix" = "name.", "xs" = 10, "suffix" = ".txt", "directory" = "", "kind" = "file", "mode" = 384 }
+
+[[case]]
+name = "dir 10 Xs suffix ''"
+args = ["-d", "name.XXXXXXXXXX"]
+scratch = {  }
+temp_shape = { "prefix" = "name.", "xs" = 10, "suffix" = "", "directory" = "", "kind" = "dir", "mode" = 448 }
+
+[[case]]
+name = "dir 10 Xs suffix '.txt'"
+args = ["-d", "--suffix=.txt", "name.XXXXXXXXXX"]
+scratch = {  }
+temp_shape = { "prefix" = "name.", "xs" = 10, "suffix" = ".txt", "directory" = "", "kind" = "dir", "mode" = 448 }
+
+[[case]]
+name = "none 10 Xs suffix ''"
+args = ["-u", "name.XXXXXXXXXX"]
+scratch = {  }
+temp_shape = { "prefix" = "name.", "xs" = 10, "suffix" = "", "directory" = "", "kind" = "none", "mode" = 384 }
+
+[[case]]
+name = "none 10 Xs suffix '.txt'"
+args = ["-u", "--suffix=.txt", "name.XXXXXXXXXX"]
+scratch = {  }
+temp_shape = { "prefix" = "name.", "xs" = 10, "suffix" = ".txt", "directory" = "", "kind" = "none", "mode" = 384 }
+
+[[case]]
+name = "file 24 Xs suffix ''"
+args = ["name.XXXXXXXXXXXXXXXXXXXXXXXX"]
+scratch = {  }
+temp_shape = { "prefix" = "name.", "xs" = 24, "suffix" = "", "directory" = "", "kind" = "file", "mode" = 384 }
+
+[[case]]
+name = "file 24 Xs suffix '.txt'"
+args = ["--suffix=.txt", "name.XXXXXXXXXXXXXXXXXXXXXXXX"]
+scratch = {  }
+temp_shape = { "prefix" = "name.", "xs" = 24, "suffix" = ".txt", "directory" = "", "kind" = "file", "mode" = 384 }
+
+[[case]]
+name = "dir 24 Xs suffix ''"
+args = ["-d", "name.XXXXXXXXXXXXXXXXXXXXXXXX"]
+scratch = {  }
+temp_shape = { "prefix" = "name.", "xs" = 24, "suffix" = "", "directory" = "", "kind" = "dir", "mode" = 448 }
+
+[[case]]
+name = "dir 24 Xs suffix '.txt'"
+args = ["-d", "--suffix=.txt", "name.XXXXXXXXXXXXXXXXXXXXXXXX"]
+scratch = {  }
+temp_shape = { "prefix" = "name.", "xs" = 24, "suffix" = ".txt", "directory" = "", "kind" = "dir", "mode" = 448 }
+
+[[case]]
+name = "none 24 Xs suffix ''"
+args = ["-u", "name.XXXXXXXXXXXXXXXXXXXXXXXX"]
+scratch = {  }
+temp_shape = { "prefix" = "name.", "xs" = 24, "suffix" = "", "directory" = "", "kind" = "none", "mode" = 384 }
+
+[[case]]
+name = "none 24 Xs suffix '.txt'"
+args = ["-u", "--suffix=.txt", "name.XXXXXXXXXXXXXXXXXXXXXXXX"]
+scratch = {  }
+temp_shape = { "prefix" = "name.", "xs" = 24, "suffix" = ".txt", "directory" = "", "kind" = "none", "mode" = 384 }
+
+[[case]]
+name = "default []"
+args = []
+scratch = {  }
+env = { "TMPDIR" = "{scratch}" }
+temp_shape = { "prefix" = "tmp.", "xs" = 10, "suffix" = "", "directory" = "{scratch}", "kind" = "file", "mode" = 384 }
+
+[[case]]
+name = "default ['-d']"
+args = ["-d"]
+scratch = {  }
+env = { "TMPDIR" = "{scratch}" }
+temp_shape = { "prefix" = "tmp.", "xs" = 10, "suffix" = "", "directory" = "{scratch}", "kind" = "dir", "mode" = 448 }
+
+[[case]]
+name = "default ['-u']"
+args = ["-u"]
+scratch = {  }
+env = { "TMPDIR" = "{scratch}" }
+temp_shape = { "prefix" = "tmp.", "xs" = 10, "suffix" = "", "directory" = "{scratch}", "kind" = "none", "mode" = 384 }
+
+[[case]]
+name = "default ['-q']"
+args = ["-q"]
+scratch = {  }
+env = { "TMPDIR" = "{scratch}" }
+temp_shape = { "prefix" = "tmp.", "xs" = 10, "suffix" = "", "directory" = "{scratch}", "kind" = "file", "mode" = 384 }
+
+[[case]]
+name = "directory option -p"
+args = ["-p", "{scratch}", "aXXX"]
+scratch = {  }
+env = { "TMPDIR" = "{scratch}" }
+temp_shape = { "prefix" = "a", "xs" = 3, "suffix" = "", "directory" = "{scratch}", "kind" = "file", "mode" = 384 }
+
+[[case]]
+name = "directory option --tmpdir"
+args = ["--tmpdir={scratch}", "aXXX"]
+scratch = {  }
+env = { "TMPDIR" = "{scratch}" }
+temp_shape = { "prefix" = "a", "xs" = 3, "suffix" = "", "directory" = "{scratch}", "kind" = "file", "mode" = 384 }
+
+[[case]]
+name = "directory option -t"
+args = ["-t", "aXXX"]
+scratch = {  }
+env = { "TMPDIR" = "{scratch}" }
+temp_shape = { "prefix" = "a", "xs" = 3, "suffix" = "", "directory" = "{scratch}", "kind" = "file", "mode" = 384 }

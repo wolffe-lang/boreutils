@@ -1,0 +1,140 @@
+//! member: false
+//! mktemp — reserve a private, unpredictable file or directory.
+//! References consulted: GNU coreutils 9.11's documented invocation and
+//! black-box runs. No implementation source.
+//! os_random supplies kernel random bytes. Rejection sampling (bytes
+//! below 248 only) gives an unbiased alphabet a-zA-Z0-9 (62 symbols).
+//! A collision retries because randomness is not uniqueness; exclusive
+//! creation is the authority, not a preceding existence check. -u is
+//! deliberately unsafe, as documented by GNU, and reserves nothing.
+//! File and directory modes are 0600 / 0700, reduced by the caller's mask.
+use bore
+
+fn random_name(prefix: str, count: int, suffix: str) -> str {
+    let alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    var bytes = List[byte]()
+    for b in prefix.bytes() { (mut bytes).push(b) }
+    var filled = 0
+    while filled < count {
+        let random = os_random(count - filled)
+        for n in random {
+            if n < 248 {
+                (mut bytes).push(alphabet.bytes()[n % 62])
+                filled += 1
+            }
+        }
+    }
+    for b in suffix.bytes() { (mut bytes).push(b) }
+    str_from_utf8(bytes) else ""
+}
+
+fn main() -> int {
+    var opts = List[bore.Opt]()
+    (mut opts).push(bore.flag("d", "directory"))
+    (mut opts).push(bore.flag("u", "dry-run"))
+    (mut opts).push(bore.flag("q", "quiet"))
+    (mut opts).push(bore.takes("p", ""))
+    (mut opts).push(bore.optional("", "tmpdir"))
+    (mut opts).push(bore.flag("t", ""))
+    (mut opts).push(bore.takes("", "suffix"))
+    (mut opts).push(bore.flag("", "help"))
+    (mut opts).push(bore.flag("", "version"))
+    let p = bore.parse(opts, env_args(), bore.permute())
+    var out = bore.stdout()
+    var directory = false
+    var dry = false
+    var quiet = false
+    var temporary = false
+    var old = false
+    var dir = ""
+    var suffix = ""
+    var explicit_suffix = false
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i]
+        if k == "help" {
+            bore.put(mut out, "Usage: mktemp [OPTION]... [TEMPLATE]\nCreate a private file; -d creates a directory, -u only prints a name.\n-q quiet; -p DIR/--tmpdir[=DIR] places it in DIR; -t uses TMPDIR.\n--suffix=SUFFIX appends a suffix. TEMPLATE ends in at least three Xs.\n") else |_| {}
+            return bore.finish(mut out, "mktemp", 0)
+        }
+        if k == "version" {
+            bore.put(mut out, bore.version_text("mktemp")) else |_| {}
+            return bore.finish(mut out, "mktemp", 0)
+        }
+        if k == "directory" { directory = true }
+        if k == "dry-run" { dry = true }
+        if k == "quiet" { quiet = true }
+        if k == "t" { temporary = true; old = true }
+        if k == "p" || k == "tmpdir" { temporary = true; dir = p.values[i] }
+        if k == "suffix" { suffix = p.values[i]; explicit_suffix = true }
+        i += 1
+    }
+    if !bore.ok(p) { return bore.usage_error("mktemp", p.error) }
+    if p.operands.len > 1 { return bore.usage_error("mktemp", "too many templates") }
+    var template = "tmp.XXXXXXXXXX"
+    if p.operands.len > 0 { template = p.operands[0] } else { temporary = true }
+    if suffix.contains("/") {
+        bore.warn("mktemp", "invalid suffix {bore.quote(suffix)}, contains directory separator")
+        return 1
+    }
+    var end = template.len
+    if !explicit_suffix {
+        while end > 0 && template.bytes()[end - 1] != 88 as byte && template.bytes()[end - 1] != 47 as byte { end -= 1 }
+        suffix = template[end..template.len]
+    }
+    var start = end
+    while start > 0 && template.bytes()[start - 1] == 88 as byte { start -= 1 }
+    let count = end - start
+    if count < 3 {
+        bore.warn("mktemp", "too few X's in template {bore.quote(template)}")
+        return 1
+    }
+    if old && template.contains("/") {
+        bore.warn("mktemp", "invalid template, {bore.quote(template)}, contains directory separator")
+        return 1
+    }
+    if temporary && template.starts_with("/") {
+        bore.warn("mktemp", "invalid template, {bore.quote(template)}; with --tmpdir, it may not be absolute")
+        return 1
+    }
+    let envdir = env_get("TMPDIR") else ""
+    if old && envdir.len > 0 { dir = envdir }
+    if temporary && dir.len == 0 { dir = if envdir.len > 0 then envdir else "/tmp" }
+    let fixed = template[0..start]
+    var prefix = fixed
+    if temporary { prefix = bore.join_name(dir, fixed) }
+    var attempts = 0
+    while attempts < 10000 {
+        attempts += 1
+        let name = random_name(prefix, count, suffix)
+        var collision = false
+        var why = ""
+        if dry {
+            let exists = fs_lstat(name) else |_| List[int]()
+            collision = exists.len > 0
+        } else if directory {
+            fs_create_dir_mode(name, 448) else |e| {
+                why = bore.io_error()
+                match e { exists => { collision = true }, not_found => {}, denied => {}, invalid => {}, unsupported => {}, io => {} }
+            }
+        } else {
+            let fd = fs_open_perm(name, 4, 384) else |e| {
+                why = bore.io_error()
+                match e { exists => { collision = true }, not_found => {}, denied => {}, invalid => {}, unsupported => {}, io => {} }
+                -1
+            }
+            if fd >= 0 { fs_close(fd) else |_| {} }
+        }
+        if collision { continue }
+        if why.len > 0 {
+            if !quiet {
+                let kind = if directory then "directory" else "file"
+                bore.warn("mktemp", "failed to create {kind} via template {bore.quote("{prefix}{"X".repeat(count)}{suffix}")}: {why}")
+            }
+            return 1
+        }
+        bore.put(mut out, "{name}\n") else |_| {}
+        return bore.finish(mut out, "mktemp", 0)
+    }
+    if !quiet { bore.warn("mktemp", "failed to create a unique name: File exists") }
+    1
+}
