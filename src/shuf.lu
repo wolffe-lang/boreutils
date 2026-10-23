@@ -53,16 +53,21 @@ fn main() -> int {
                     parse => { invalid = true; 0 as wrapping[u64] },
                     overflow => { overflowed = true; 0 as wrapping[u64] },
                 }
-                high = numcli.unsigned(v[dash+1..]) else |e| match e {
+                high = numcli.unsigned(v[dash + 1..]) else |e| match e {
                     parse => { invalid = true; 0 as wrapping[u64] },
                     overflow => { overflowed = true; 0 as wrapping[u64] },
                 }
             }
             if overflowed {
-                bore.warn("shuf", "invalid input range: {bore.quote(v)}: Value too large for defined data type")
+                bore.warn(
+                    "shuf",
+                    "invalid input range: {bore.quote(v)}: Value too large for defined data type",
+                )
                 return 1
             }
-            if invalid || (low > high && low - high != 1) || (low == 0 && high == 18446744073709551615) {
+            if invalid ||
+                low > high && low - high != 1 ||
+                low == 0 && high == 18446744073709551615 {
                 bore.warn("shuf", "invalid input range: {bore.quote(v)}")
                 return 1
             }
@@ -182,17 +187,18 @@ fn main() -> int {
 fn draw(n: wrapping[u64]) -> wrapping[u64] {
     if n <= 1 { return 0 }
     let max: wrapping[u64] = 18446744073709551615
-    let cutoff = max - (max % n)
+    let cutoff = max - max % n
     loop {
         let bytes = os_random(8)
         var value: wrapping[u64] = 0
-        for b in bytes { value = (value << 8) | b as wrapping[u64] }
+        for b in bytes { value = value << 8 | b as wrapping[u64] }
         if value < cutoff { return value % n }
     }
 }
+
 // A bijection into Map's signed integer key space, with no narrowing trap.
 fn signed_key(v: wrapping[u64]) -> int {
     if v <= 9223372036854775807 { return v as int }
     let max: wrapping[u64] = 18446744073709551615
-    -1 - ((max - v) as int)
+    -1 - (max - v) as int
 }

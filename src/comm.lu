@@ -67,11 +67,17 @@ fn main() -> int {
     if shared_stdin {
         var left = List[textio.Rec](), right = List[textio.Rec]()
         for k in 0..a.items.len {
-            if k % 2 == 0 { (mut left).push(copy a.items[k]) }
-            else { (mut right).push(copy a.items[k]) }
+            if k % 2 == 0 {
+                (mut left).push(copy a.items[k])
+            } else {
+                (mut right).push(copy a.items[k])
+            }
         }
-        a.items = left; b.items = right
-    } else { b = textio.load("comm", p.operands[1], delim) }
+        a.items = left
+        b.items = right
+    } else {
+        b = textio.load("comm", p.operands[1], delim)
+    }
     if b.failed { return 1 }
     var i = 0, j = 0, unpaired = false, bad1 = false, bad2 = false
     var counts = [0, 0, 0]
@@ -116,12 +122,20 @@ fn main() -> int {
             var ai = i, bj = j
             if ai == a.items.len { ai -= 1 }
             if bj == b.items.len { bj -= 1 }
-            if c != 1 && ai > 0 && !bad1 && textio.cmp(a.items[ai-1].data, a.items[ai].data, false) > 0 {
-                bore.warn("comm", "file 1 is not in sorted order"); bad1 = true
+            if c != 1 &&
+                ai > 0 &&
+                !bad1 &&
+                textio.cmp(a.items[ai - 1].data, a.items[ai].data, false) > 0 {
+                bore.warn("comm", "file 1 is not in sorted order")
+                bad1 = true
                 if order == 1 { return bore.finish(mut out, "comm", 1) }
             }
-            if c != 0 && bj > 0 && !bad2 && textio.cmp(b.items[bj-1].data, b.items[bj].data, false) > 0 {
-                bore.warn("comm", "file 2 is not in sorted order"); bad2 = true
+            if c != 0 &&
+                bj > 0 &&
+                !bad2 &&
+                textio.cmp(b.items[bj - 1].data, b.items[bj].data, false) > 0 {
+                bore.warn("comm", "file 2 is not in sorted order")
+                bad2 = true
                 if order == 1 { return bore.finish(mut out, "comm", 1) }
             }
         }
