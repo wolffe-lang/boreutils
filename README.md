@@ -54,6 +54,8 @@ tools/fetch-oracle        # GNU coreutils 9.11, sha256-checked, if needed
 tools/build               # every utility into target/release/
 tools/difftest            # the differential suite against the oracle
 tools/texttest            # shuffle shape plants and bounded codec round-trips
+tools/checksumtest        # independent digest answers, manifests and bounded memory
+tools/checksumtest --large # >4 GiB answers on release and dev (build both tiers first)
 tools/killtest --gnu DIR  # kill where it sends: a throwaway container a case
 tools/killprobe --gnu K P # kill -l and -t of every number 0..140000 and a sample above, against GNU
 tools/timeouttest --gnu DIR # timeout where it runs a command: a throwaway container a case
@@ -196,6 +198,20 @@ been emitted, a cyclic residual must have exactly one live incoming and
 one live outgoing edge per node; complex cyclic components and cycles
 with outgoing tails are refused by name. The measured GNU answers and
 those refusals are retained in `notes/bu31/refusals.jsonl`.
+The checksum pass adds nine command binaries and **2,207 cases**: 2,203
+passed and four named skips on both native tiers. The whole differential
+corpus is **9,223 passed, 0 failed, 134 skipped** in the hasu B Ubuntu
+24.04 container. The new commands are `cksum`, `sum`, `md5sum`, `sha1sum`,
+`sha224sum`, `sha256sum`, `sha384sum`, `sha512sum` and `b2sum`. Their
+algorithms are written from POSIX's CRC definition, RFC 1321, FIPS 180-4
+and RFC 7693. Twelve wolf test programs include published short/long
+vectors and synthetic 128-bit counter carries; the million-`a` program
+runs through the toolchain's explicit native fallback when its checked
+step budget is exhausted. Seven independent executable tests per tier
+cover encoded manifests, escaped names, malformed bytes and bounded RSS.
+A separate `--large` test independently hashes a sparse input of
+4,295,032,833 bytes and compares all seven digest commands on both tiers;
+the two CRCs and BSD/SysV sums compare with GNU on that input too.
 
 The pin alone preserved **6,668 / 0 / 120** on both tiers, as at
 0.2.34 (bu29, `notes/bu29-the-pin-0234.md`). The container-suite
@@ -1143,6 +1159,38 @@ ended (wolf-lang#709). **`mkdir -p` a thousand deep is 0.37x:** one
 components, where GNU changes directory as it goes; a path of ordinary
 depth is start-up on both sides.
 
+## Checksums on a 256 MiB input
+
+Hasu, Linux x86-64, CPUs 6–11 inside Ubuntu 24.04, 12 GiB cap; wolf
+0.2.35 release tier against GNU 9.11. These are three-run medians on a
+warm, sparse zero-filled file. Speed is recorded, not gated. The digest
+engine retains one 64 KiB input chunk and at most 128 pending bytes;
+peak RSS is gated separately on 8 MiB and 256 MiB inputs.
+
+| algorithm / command | boreutils | GNU | GNU / boreutils |
+|---|---:|---:|---:|
+| POSIX CRC / `cksum` | 565.2 ms | 26.7 ms | 0.05x |
+| BSD / `sum` | 367.3 ms | 322.7 ms | 0.88x |
+| SysV / `sum -s` | 294.0 ms | 36.6 ms | 0.12x |
+| CRC32B / `cksum -a crc32b` | 511.3 ms | 30.3 ms | 0.06x |
+| `md5sum` | 958.6 ms | 310.4 ms | 0.32x |
+| `sha1sum` | 1005.7 ms | 288.1 ms | 0.29x |
+| `sha224sum` | 1789.5 ms | 610.0 ms | 0.34x |
+| `sha256sum` | 1761.5 ms | 609.7 ms | 0.35x |
+| `sha384sum` | 1090.6 ms | 435.4 ms | 0.40x |
+| `sha512sum` | 1089.5 ms | 434.2 ms | 0.40x |
+| `b2sum` | 986.4 ms | 239.4 ms | 0.24x |
+
+These are scalar standards implementations, not hardware-dispatched
+ones. `cksum -a sha3`, `-a sm3` and hardware `--debug` refuse by name.
+All checksum file names must be UTF-8; a valid checksum-list record
+whose name needs a raw-byte path refuses explicitly because wolf's
+`fs_open` takes a `str` path. A non-UTF-8 byte in a `#` comment is still
+ignored. MD5 and SHA-1 remain compatibility checksums, not choices for
+new security-sensitive designs.
+
+## Command status
+
 | utility | status | vs GNU |
 |---|---|---|
 | `true` | done | start-up only |
@@ -1206,6 +1254,15 @@ depth is start-up on both sides.
 | `join` | done: selected fields, unpaired rows, output lists/auto, separators, ignore-case, headers and order checks | not benched |
 | `tsort` | done for DAGs and residual unions of simple cycles; complex cyclic components and cycles with outgoing tails refused | not benched |
 | `shuf` | done: echo, full-u64 ranges, count, repeat, output and NUL records; random-source refused by name | not benched |
+| `cksum` | POSIX CRC, crc32b, BSD/SysV, MD5, SHA-1/SHA-2 and BLAKE2b; `--base64`, `--raw`, tags, reverse form and verification modes; not SHA-3, SM3 or hardware `--debug`; UTF-8 names only | 0.05x to 0.88x (hasu) |
+| `sum` | BSD and SysV, `-r` and `-s` | 0.12x to 0.88x (hasu) |
+| `md5sum` | RFC 1321; binary/text markers, tags, NUL output, verification modes and escaped UTF-8 names | 0.32x (hasu) |
+| `sha1sum` | FIPS 180-4 SHA-1; the checksum command modes, UTF-8 names | 0.29x (hasu) |
+| `sha224sum` | FIPS 180-4 SHA-224; the checksum command modes, UTF-8 names | 0.34x (hasu) |
+| `sha256sum` | FIPS 180-4 SHA-256; the checksum command modes, UTF-8 names | 0.35x (hasu) |
+| `sha384sum` | FIPS 180-4 SHA-384; the checksum command modes, UTF-8 names | 0.40x (hasu) |
+| `sha512sum` | FIPS 180-4 SHA-512; the checksum command modes, UTF-8 names | 0.40x (hasu) |
+| `b2sum` | RFC 7693 BLAKE2b, variable digest lengths and the checksum command modes, UTF-8 names | 0.24x (hasu) |
 | `uname` | blocked on the listed surface: raw kernel fields; `os_name` and `os_arch` are normalized lowercase words, and node/release/version have no call | — |
 
 ## Differences from GNU
@@ -1257,7 +1314,7 @@ table answers it per utility, from the evidence and from nothing else.
   when a passing differential case exercises the option and this
   program does not refuse it. An option that appears only in a case
   where GNU refuses it too — `sort -ng` — is not counted as covered.
-- **Cases** are kasumi's, at this commit: passed / skipped, none failed.
+- **Cases** are Linux measurements: existing rows from kasumi, the small-file and checksum rows from hasu; passed / skipped, none failed.
   CI's macOS leg runs the same cases and skips the `/dev/full` ones as
   well, and the `/proc` and `/sys` ones (`requires`, bu15).
 - **vs GNU** is the band of the rows in the tables above, kasumi only,
@@ -1269,7 +1326,7 @@ table answers it per utility, from the evidence and from nothing else.
   yet* when the utility's central job does not hold. Slowness never
   lowers a verdict; it is the third column.
 
-| utility | GNU options | cases | vs GNU (kasumi) | verdict |
+| utility | GNU options | cases | vs GNU (kasumi unless stated) | verdict |
 |---|---:|---:|---|---|
 | `true` | 2 / 2 | 13 / 0 | start-up 0.71x | drop-in |
 | `false` | 2 / 2 | 11 / 0 | start-up 0.72x | drop-in |
@@ -1333,8 +1390,19 @@ table answers it per utility, from the evidence and from nothing else.
 | `tsort` | 2 / 2 | 69 / 26 | not benched (hasu) | drop-in for DAGs and residual unions of simple cycles; complex cyclic components and cycles with outgoing tails refused by name |
 | `shuf` | 8 / 9 | 97 / 1 | not benched (hasu) | drop-in for scripts that avoid --random-source, refused by name |
 
-**27 drop-in, 34 drop-in for scripts that avoid a named thing, none shipped not
-yet** (bu28: `kill`'s two named things became one, and `timeout`'s four
+| `cksum` | 15 / 16 | 382 / 3 | 0.05x to 0.88x (hasu) | drop-in for UTF-8 file names and scripts that avoid `-a sha3`, `-a sm3` and hardware `--debug`, each refused by name |
+| `sum` | 4 / 4 | 58 / 0 | 0.12x to 0.88x (hasu) | drop-in for UTF-8 file names |
+| `md5sum` | 12 / 12 | 250 / 1 | 0.32x (hasu) | drop-in for UTF-8 file names; valid raw-byte name records refuse by name |
+| `sha1sum` | 12 / 12 | 247 / 0 | 0.29x (hasu) | drop-in for UTF-8 file names |
+| `sha224sum` | 12 / 12 | 247 / 0 | 0.34x (hasu) | drop-in for UTF-8 file names |
+| `sha256sum` | 12 / 12 | 247 / 0 | 0.35x (hasu) | drop-in for UTF-8 file names |
+| `sha384sum` | 12 / 12 | 247 / 0 | 0.40x (hasu) | drop-in for UTF-8 file names |
+| `sha512sum` | 12 / 12 | 247 / 0 | 0.40x (hasu) | drop-in for UTF-8 file names |
+| `b2sum` | 13 / 13 | 278 / 0 | 0.24x (hasu) | drop-in for UTF-8 file names |
+
+**24 drop-in, 40 drop-in for scripts that avoid a named thing, none shipped not
+yet** (command rows, not the manual's grouped utility units; new checksum
+rows explicitly require UTF-8 names). (bu28: `kill`'s two named things became one, and `timeout`'s four
 became three narrower ones; bu27: `timeout` arrived with named things, and `kill`'s three
 became two narrower ones; bu24: the six identity tools arrived with a named thing each —
 accounts only in the two files, and `logname` on macOS; bu23: `kill` arrived with three named things, each a thing wolf
@@ -1352,7 +1420,9 @@ evidence, with an upstream issue where one is already filed.
 sums counted as one and `[` as `test`; Arch's build installs 102
 binaries and leaves out `arch`, `chcon`, `runcon`, `hostname`, `kill`
 and `uptime`; `kill` is built only when asked for, which the oracle of
-record now does). boreutils ships **61 of them, 59%**. Effort is not what
+record now does). boreutils ships **64 command binaries**, representing
+**61 of those 103 utility units (59%)**: the four SHA-2 binaries occupy
+one unit in that denominator. Effort is not what
 blocks many of the other 42: some need missing wolf surfaces. Existing
 issues carry witnesses; newly measured gaps below are listed for upstream. The OS surface lane's first cut, s199's
 wolf-lang#426 and #424 (seek, tell, the positional read, and the
