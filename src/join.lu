@@ -3,53 +3,101 @@
 //! References: POSIX join; GNU 9.11 help/manual and black-box probes;
 //! uutils (MIT), toybox (0BSD) design references only. No GNU source.
 //! Comparisons are unsigned bytes / ASCII folding under LC_ALL=C.
+
 use bore
 use textio
 
 struct Line { raw: List[byte], fields: List[textio.Rec] }
+
 struct Conf {
-    field1: int, field2: int, sep: int, delim: int, fold: bool,
-    order: int, header: bool, auto: bool, replace: str,
-    unpaired1: bool, unpaired2: bool, paired: bool,
-    output: List[Pick], auto1: int, auto2: int,
+    field1: int,
+    field2: int,
+    sep: int,
+    delim: int,
+    fold: bool,
+    order: int,
+    header: bool,
+    auto: bool,
+    replace: str,
+    unpaired1: bool,
+    unpaired2: bool,
+    paired: bool,
+    output: List[Pick],
+    auto1: int,
+    auto2: int,
 }
+
 struct Pick { file: int, field: int }
+
 struct Check { unpaired: bool, bad1: bool, bad2: bool, stop: bool }
 
 fn main() -> int {
     var out = bore.stdout()
-    var c = Conf { field1: 0, field2: 0, sep: -1, delim: 10, fold: false,
-        order: 0, header: false, auto: false, replace: "", unpaired1: false,
-        unpaired2: false, paired: true, output: List[Pick](), auto1: 0, auto2: 0 }
+    var c = Conf {
+        field1: 0,
+        field2: 0,
+        sep: -1,
+        delim: 10,
+        fold: false,
+        order: 0,
+        header: false,
+        auto: false,
+        replace: "",
+        unpaired1: false,
+        unpaired2: false,
+        paired: true,
+        output: List[Pick](),
+        auto1: 0,
+        auto2: 0,
+    }
     var spec = List[bore.Opt]()
     for s in ["a", "v", "e", "o", "t", "1", "2", "j"] { (mut spec).push(bore.takes(s, s)) }
-    (mut spec).push(bore.flag("i", "ignore-case")); (mut spec).push(bore.flag("z", "zero-terminated"))
-    for s in ["check-order", "nocheck-order", "header", "help", "version"] { (mut spec).push(bore.flag("", s)) }
+    (mut spec).push(bore.flag("i", "ignore-case"))
+    (mut spec).push(bore.flag("z", "zero-terminated"))
+    for s in ["check-order", "nocheck-order", "header", "help", "version"] {
+        (mut spec).push(bore.flag("", s))
+    }
     let p = bore.parse(spec, env_args(), bore.permute())
     var given_sep = false, given_empty = false
     for k in 0..p.keys.len {
         let key = p.keys[k], v = p.values[k]
         if key == "help" || key == "version" {
-            bore.put(mut out, if key == "version" then bore.version_text("join") else "Usage: join [OPTION]... FILE1 FILE2\nJoin records on matching fields.\n") else |_| {}
+            bore.put(
+                mut out,
+                if key == "version" {
+                    bore.version_text("join")
+                } else {
+                    "Usage: join [OPTION]... FILE1 FILE2\nJoin records on matching fields.\n"
+                },
+            ) else |_| {}
             return bore.finish(mut out, "join", 0)
         }
         if key == "1" || key == "2" || key == "j" {
             let n = field_number(v)
             if n < 0 { return 1 }
-            if key != "2" { c.field1 = n }; if key != "1" { c.field2 = n }
+            if key != "2" { c.field1 = n }
+            if key != "1" { c.field2 = n }
         }
         if key == "a" || key == "v" {
-            if v != "1" && v != "2" { bore.warn("join", "invalid file number: {bore.quote(v)}"); return 1 }
+            if v != "1" && v != "2" {
+                bore.warn("join", "invalid file number: {bore.quote(v)}")
+                return 1
+            }
             if v == "1" { c.unpaired1 = true } else { c.unpaired2 = true }
             if key == "v" { c.paired = false }
         }
         if key == "e" {
-            if given_empty && c.replace != v { bore.warn("join", "conflicting empty-field replacement strings"); return 1 }
-            c.replace = v; given_empty = true
+            if given_empty && c.replace != v {
+                bore.warn("join", "conflicting empty-field replacement strings")
+                return 1
+            }
+            c.replace = v
+            given_empty = true
         }
         if key == "o" {
-            if v == "auto" { c.auto = true }
-            else {
+            if v == "auto" {
+                c.auto = true
+            } else {
                 let parsed = output_fields(v)
                 if parsed.len == 0 { return 1 }
                 for pick in parsed { (mut c.output).push(pick) }
@@ -57,14 +105,22 @@ fn main() -> int {
         }
         if key == "t" {
             var sep = -2
-            if v == "\\0" { sep = 0 }
-            else if v.len == 1 { sep = v.bytes()[0] as int }
-            else if v.len != 0 { bore.warn("join", "multi-character tab {bore.quote(v)}"); return 1 }
+            if v == "\\0" {
+                sep = 0
+            } else if v.len == 1 {
+                sep = v.bytes()[0] as int
+            } else if v.len != 0 {
+                bore.warn("join", "multi-character tab {bore.quote(v)}")
+                return 1
+            }
             if given_sep && c.sep != sep { bore.warn("join", "incompatible tabs"); return 1 }
-            c.sep = sep; given_sep = true
+            c.sep = sep
+            given_sep = true
         }
-        if key == "ignore-case" { c.fold = true }; if key == "zero-terminated" { c.delim = 0 }
-        if key == "check-order" { c.order = 1 }; if key == "nocheck-order" { c.order = -1 }
+        if key == "ignore-case" { c.fold = true }
+        if key == "zero-terminated" { c.delim = 0 }
+        if key == "check-order" { c.order = 1 }
+        if key == "nocheck-order" { c.order = -1 }
         if key == "header" { c.header = true }
     }
     if !bore.ok(p) { return bore.usage_error("join", p.error) }
@@ -72,14 +128,20 @@ fn main() -> int {
         if p.operands.len == 0 { return bore.usage_error("join", "missing operand") }
         return bore.usage_error("join", "missing operand after {bore.quote(p.operands[0])}")
     }
-    if p.operands.len > 2 { return bore.usage_error("join", "extra operand {bore.quote(p.operands[2])}") }
-    if p.operands[0] == "-" && p.operands[1] == "-" { bore.warn("join", "both files cannot be standard input"); return 1 }
+    if p.operands.len > 2 {
+        return bore.usage_error("join", "extra operand {bore.quote(p.operands[2])}")
+    }
+    if p.operands[0] == "-" && p.operands[1] == "-" {
+        bore.warn("join", "both files cannot be standard input")
+        return 1
+    }
     let ra = textio.load("join", p.operands[0], c.delim)
     if ra.failed { return 1 }
     let rb = textio.load("join", p.operands[1], c.delim)
     if rb.failed { return 1 }
     let a = lines(ra.items, c.sep), b = lines(rb.items, c.sep)
-    if a.len > 0 { c.auto1 = a[0].fields.len }; if b.len > 0 { c.auto2 = b[0].fields.len }
+    if a.len > 0 { c.auto1 = a[0].fields.len }
+    if b.len > 0 { c.auto2 = b[0].fields.len }
     var ck = Check { unpaired: false, bad1: false, bad2: false, stop: false }
     var i = 0, j = 0
     let empty = Line { raw: List[byte](), fields: List[textio.Rec]() }
@@ -87,45 +149,71 @@ fn main() -> int {
         let left = if a.len > 0 then copy a[0] else copy empty
         let right = if b.len > 0 then copy b[0] else copy empty
         output(mut out, left, right, c) else |_| { return bore.finish(mut out, "join", 1) }
-        if a.len > 0 { i += 1 }; if b.len > 0 { j += 1 }
+        if a.len > 0 { i += 1 }
+        if b.len > 0 { j += 1 }
     }
     while i < a.len && j < b.len && !ck.stop {
         let cmp = textio.cmp(field(a[i], c.field1), field(b[j], c.field2), c.fold)
         if cmp < 0 {
-            if c.unpaired1 { output(mut out, a[i], empty, c) else |_| { return bore.finish(mut out, "join", 1) } }
-            i += 1; check(mut ck, a, i, 1, p.operands[0], c); ck.unpaired = true
+            if c.unpaired1 {
+                output(mut out, a[i], empty, c) else |_| { return bore.finish(mut out, "join", 1) }
+            }
+            i += 1
+            check(mut ck, a, i, 1, p.operands[0], c)
+            ck.unpaired = true
         } else if cmp > 0 {
-            if c.unpaired2 { output(mut out, empty, b[j], c) else |_| { return bore.finish(mut out, "join", 1) } }
-            j += 1; check(mut ck, b, j, 2, p.operands[1], c); ck.unpaired = true
+            if c.unpaired2 {
+                output(mut out, empty, b[j], c) else |_| { return bore.finish(mut out, "join", 1) }
+            }
+            j += 1
+            check(mut ck, b, j, 2, p.operands[1], c)
+            ck.unpaired = true
         } else {
             var ai = i + 1, bj = j + 1
             check(mut ck, a, ai, 1, p.operands[0], c)
-            while ai < a.len && !ck.stop && textio.cmp(field(a[i], c.field1), field(a[ai], c.field1), c.fold) == 0 {
-                ai += 1; check(mut ck, a, ai, 1, p.operands[0], c)
+            while ai < a.len &&
+                !ck.stop &&
+                textio.cmp(field(a[i], c.field1), field(a[ai], c.field1), c.fold) == 0 {
+                ai += 1
+                check(mut ck, a, ai, 1, p.operands[0], c)
             }
             if ck.stop { break }
             check(mut ck, b, bj, 2, p.operands[1], c)
-            while bj < b.len && !ck.stop && textio.cmp(field(b[j], c.field2), field(b[bj], c.field2), c.fold) == 0 {
-                bj += 1; check(mut ck, b, bj, 2, p.operands[1], c)
+            while bj < b.len &&
+                !ck.stop &&
+                textio.cmp(field(b[j], c.field2), field(b[bj], c.field2), c.fold) == 0 {
+                bj += 1
+                check(mut ck, b, bj, 2, p.operands[1], c)
             }
             if ck.stop { break }
             if c.paired {
-                for x in i..ai { for y in j..bj {
-                    output(mut out, a[x], b[y], c) else |_| { return bore.finish(mut out, "join", 1) }
-                } }
+                for x in i..ai {
+                    for y in j..bj {
+                        output(mut out, a[x], b[y], c) else |_| {
+                            return bore.finish(mut out, "join", 1)
+                        }
+                    }
+                }
             }
-            i = ai; j = bj
+            i = ai
+            j = bj
         }
     }
     // With neither unpaired output nor strict checking, GNU need not drain
     // the remaining input. Default disorder checks only follow unpaired keys.
     while !ck.stop && i < a.len {
-        if c.unpaired1 { output(mut out, a[i], empty, c) else |_| { return bore.finish(mut out, "join", 1) } }
-        i += 1; check(mut ck, a, i, 1, p.operands[0], c)
+        if c.unpaired1 {
+            output(mut out, a[i], empty, c) else |_| { return bore.finish(mut out, "join", 1) }
+        }
+        i += 1
+        check(mut ck, a, i, 1, p.operands[0], c)
     }
     while !ck.stop && j < b.len {
-        if c.unpaired2 { output(mut out, empty, b[j], c) else |_| { return bore.finish(mut out, "join", 1) } }
-        j += 1; check(mut ck, b, j, 2, p.operands[1], c)
+        if c.unpaired2 {
+            output(mut out, empty, b[j], c) else |_| { return bore.finish(mut out, "join", 1) }
+        }
+        j += 1
+        check(mut ck, b, j, 2, p.operands[1], c)
     }
     var status = 0
     if ck.bad1 || ck.bad2 {
@@ -140,17 +228,20 @@ fn field_number(v: str) -> int {
     if n <= 0 { bore.warn("join", "invalid field number: {bore.quote(v)}"); return -1 }
     n - 1
 }
+
 fn output_fields(v: str) -> List[Pick] {
     var result = List[Pick]()
     // Both commas and blanks separate output field specifications.
     let norm = v.replace("\t", " ").replace(",", " ")
     if v.len == 0 || v.starts_with(",") || v.ends_with(",") || v.contains(",,") {
-        bore.warn("join", "invalid file number in field spec: ''"); return result
+        bore.warn("join", "invalid file number in field spec: ''")
+        return result
     }
     for word in norm.words() {
         if word == "0" { (mut result).push(Pick { file: 0, field: 0 }); continue }
         if !(word.starts_with("1.") || word.starts_with("2.")) {
-            bore.warn("join", "invalid file number in field spec: {bore.quote(word)}"); return List[Pick]()
+            bore.warn("join", "invalid file number in field spec: {bore.quote(word)}")
+            return List[Pick]()
         }
         let n = field_number(word[2..])
         if n < 0 { return List[Pick]() }
@@ -159,17 +250,20 @@ fn output_fields(v: str) -> List[Pick] {
     if result.len == 0 { bore.warn("join", "invalid file number in field spec: {bore.quote(v)}") }
     result
 }
+
 fn lines(rows: List[textio.Rec], sep: int) -> List[Line] {
     var answer = List[Line]()
     for r in rows {
         var fields = List[textio.Rec]()
         var i = 0
-        if sep == -2 { (mut fields).push(textio.Rec { data: copy r.data }) }
-        else if sep >= 0 {
+        if sep == -2 {
+            (mut fields).push(textio.Rec { data: copy r.data })
+        } else if sep >= 0 {
             var start = 0
             while i <= r.data.len {
                 if i == r.data.len || r.data[i] as int == sep {
-                    (mut fields).push(textio.Rec { data: r.data[start..i] }); start = i + 1
+                    (mut fields).push(textio.Rec { data: r.data[start..i] })
+                    start = i + 1
                 }
                 i += 1
             }
@@ -185,17 +279,20 @@ fn lines(rows: List[textio.Rec], sep: int) -> List[Line] {
     }
     answer
 }
-fn blank(b: byte) -> bool { b as int == 32 || (b as int >= 9 && b as int <= 13) }
+
+fn blank(b: byte) -> bool { b as int == 32 || b as int >= 9 && b as int <= 13 }
+
 fn field(line: Line, k: int) -> List[byte] {
     if k >= line.fields.len { return List[byte]() }
     copy line.fields[k].data
 }
+
 fn check(mut ck: Check, rows: List[Line], i: int, file: int, path: str, c: Conf) {
-    if c.order < 0 || (c.order == 0 && !ck.unpaired) || i >= rows.len || i == 0 { return }
+    if c.order < 0 || c.order == 0 && !ck.unpaired || i >= rows.len || i == 0 { return }
     if c.header && i == 1 { return }
-    if (file == 1 && ck.bad1) || (file == 2 && ck.bad2) { return }
+    if file == 1 && ck.bad1 || file == 2 && ck.bad2 { return }
     let f = if file == 1 then c.field1 else c.field2
-    if textio.cmp(field(rows[i-1], f), field(rows[i], f), c.fold) <= 0 { return }
+    if textio.cmp(field(rows[i - 1], f), field(rows[i], f), c.fold) <= 0 { return }
     // GNU's diagnostic embeds the original bytes, not a quoted record.
     eprint_raw("join: {path}:{i+1}: is not sorted: ")
     fs_write_chunk(2, rows[i].raw) else |_| {}
@@ -203,11 +300,13 @@ fn check(mut ck: Check, rows: List[Line], i: int, file: int, path: str, c: Conf)
     if file == 1 { ck.bad1 = true } else { ck.bad2 = true }
     if c.order == 1 { ck.stop = true }
 }
+
 fn output(mut out: bore.Out, a: Line, b: Line, c: Conf) -> () ! {io} {
     let sep = if c.sep < 0 then 32 else c.sep
     var picks = List[Pick]()
-    if c.output.len > 0 { picks = copy c.output }
-    else {
+    if c.output.len > 0 {
+        picks = copy c.output
+    } else {
         (mut picks).push(Pick { file: 0, field: 0 })
         let na = if c.auto then c.auto1 else a.fields.len
         let nb = if c.auto then c.auto2 else b.fields.len
@@ -220,10 +319,16 @@ fn output(mut out: bore.Out, a: Line, b: Line, c: Conf) -> () ! {io} {
         var data = List[byte]()
         if pick.file == 0 {
             if a.fields.len > 0 { data = field(a, c.field1) } else { data = field(b, c.field2) }
-        } else if pick.file == 1 { data = field(a, pick.field) }
-        else { data = field(b, pick.field) }
-        if data.len == 0 { bore.put(mut out, c.replace)? }
-        else { for x in data { bore.put_byte(mut out, x)? } }
+        } else if pick.file == 1 {
+            data = field(a, pick.field)
+        } else {
+            data = field(b, pick.field)
+        }
+        if data.len == 0 {
+            bore.put(mut out, c.replace)?
+        } else {
+            for x in data { bore.put_byte(mut out, x)? }
+        }
     }
     bore.put_byte(mut out, c.delim as byte)?
 }

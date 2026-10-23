@@ -2,32 +2,54 @@
 //! comm — three-column merge under LC_ALL=C. References consulted:
 //! POSIX comm, GNU coreutils 9.11 help/manual and binary probes;
 //! uutils (MIT), toybox (0BSD) design references only. No GNU source.
+
 use bore
 use textio
 
 fn main() -> int {
     var out = bore.stdout()
     var spec = List[bore.Opt]()
-    (mut spec).push(bore.flag("1", "1")); (mut spec).push(bore.flag("2", "2")); (mut spec).push(bore.flag("3", "3"))
-    (mut spec).push(bore.flag("", "check-order")); (mut spec).push(bore.flag("", "nocheck-order"))
-    (mut spec).push(bore.takes("", "output-delimiter")); (mut spec).push(bore.flag("z", "zero-terminated"))
-    (mut spec).push(bore.flag("", "total")); (mut spec).push(bore.flag("", "help")); (mut spec).push(bore.flag("", "version"))
+    (mut spec).push(bore.flag("1", "1"))
+    (mut spec).push(bore.flag("2", "2"))
+    (mut spec).push(bore.flag("3", "3"))
+    (mut spec).push(bore.flag("", "check-order"))
+    (mut spec).push(bore.flag("", "nocheck-order"))
+    (mut spec).push(bore.takes("", "output-delimiter"))
+    (mut spec).push(bore.flag("z", "zero-terminated"))
+    (mut spec).push(bore.flag("", "total"))
+    (mut spec).push(bore.flag("", "help"))
+    (mut spec).push(bore.flag("", "version"))
     let p = bore.parse(spec, env_args(), bore.permute())
     var show = [true, true, true]
     var order = 0, delim = 10, total = false, sep = "\t", sep_given = false
     for k in 0..p.keys.len {
         let key = p.keys[k]
         if key == "help" || key == "version" {
-            bore.put(mut out, if key == "version" then bore.version_text("comm") else "Usage: comm [OPTION]... FILE1 FILE2\nCompare sorted byte records in three columns.\n") else |_| {}
+            bore.put(
+                mut out,
+                if key == "version" {
+                    bore.version_text("comm")
+                } else {
+                    "Usage: comm [OPTION]... FILE1 FILE2\nCompare sorted byte records in three columns.\n"
+                },
+            ) else |_| {}
             return bore.finish(mut out, "comm", 0)
         }
-        if key == "1" { show[0] = false }; if key == "2" { show[1] = false }; if key == "3" { show[2] = false }
-        if key == "check-order" { order = 1 }; if key == "nocheck-order" { order = -1 }
-        if key == "zero-terminated" { delim = 0 }; if key == "total" { total = true }
+        if key == "1" { show[0] = false }
+        if key == "2" { show[1] = false }
+        if key == "3" { show[2] = false }
+        if key == "check-order" { order = 1 }
+        if key == "nocheck-order" { order = -1 }
+        if key == "zero-terminated" { delim = 0 }
+        if key == "total" { total = true }
         if key == "output-delimiter" {
             let v = p.values[k]
-            if sep_given && sep != v { bore.warn("comm", "multiple output delimiters specified"); return 1 }
-            sep = v; sep_given = true
+            if sep_given && sep != v {
+                bore.warn("comm", "multiple output delimiters specified")
+                return 1
+            }
+            sep = v
+            sep_given = true
         }
     }
     if !bore.ok(p) { return bore.usage_error("comm", p.error) }
@@ -35,7 +57,9 @@ fn main() -> int {
         if p.operands.len == 0 { return bore.usage_error("comm", "missing operand") }
         return bore.usage_error("comm", "missing operand after {bore.quote(p.operands[0])}")
     }
-    if p.operands.len > 2 { return bore.usage_error("comm", "extra operand {bore.quote(p.operands[2])}") }
+    if p.operands.len > 2 {
+        return bore.usage_error("comm", "extra operand {bore.quote(p.operands[2])}")
+    }
     let a = textio.load("comm", p.operands[0], delim)
     if a.failed { return 1 }
     let b = textio.load("comm", p.operands[1], delim)
@@ -44,20 +68,29 @@ fn main() -> int {
     var counts = [0, 0, 0]
     while i < a.items.len || j < b.items.len {
         var c = 0
-        if i >= a.items.len { c = 1 }
-        else if j < b.items.len {
+        if i >= a.items.len {
+            c = 1
+        } else if j < b.items.len {
             let cmp = textio.cmp(a.items[i].data, b.items[j].data, false)
             if cmp == 0 { c = 2 } else if cmp > 0 { c = 1 }
         }
         if c != 2 { unpaired = true }
         // Checks happen when a record is read, before it can be output.
         if order >= 0 && (order == 1 || unpaired) {
-            if i > 0 && i < a.items.len && !bad1 && textio.cmp(a.items[i-1].data, a.items[i].data, false) > 0 {
-                bore.warn("comm", "file 1 is not in sorted order"); bad1 = true
+            if i > 0 &&
+                i < a.items.len &&
+                !bad1 &&
+                textio.cmp(a.items[i - 1].data, a.items[i].data, false) > 0 {
+                bore.warn("comm", "file 1 is not in sorted order")
+                bad1 = true
                 if order == 1 { return bore.finish(mut out, "comm", 1) }
             }
-            if j > 0 && j < b.items.len && !bad2 && textio.cmp(b.items[j-1].data, b.items[j].data, false) > 0 {
-                bore.warn("comm", "file 2 is not in sorted order"); bad2 = true
+            if j > 0 &&
+                j < b.items.len &&
+                !bad2 &&
+                textio.cmp(b.items[j - 1].data, b.items[j].data, false) > 0 {
+                bore.warn("comm", "file 2 is not in sorted order")
+                bad2 = true
                 if order == 1 { return bore.finish(mut out, "comm", 1) }
             }
         }
@@ -65,18 +98,33 @@ fn main() -> int {
         if show[c] {
             for col in 0..c {
                 if show[col] {
-                    if sep.len == 0 { bore.put_byte(mut out, 0 as byte) else |_| { return bore.finish(mut out, "comm", 1) } }
-                    else { bore.put(mut out, sep) else |_| { return bore.finish(mut out, "comm", 1) } }
+                    if sep.len == 0 {
+                        bore.put_byte(mut out, 0 as byte) else |_| {
+                            return bore.finish(mut out, "comm", 1)
+                        }
+                    } else {
+                        bore.put(mut out, sep) else |_| { return bore.finish(mut out, "comm", 1) }
+                    }
                 }
             }
-            if c == 1 { textio.put(mut out, b.items[j].data, delim) else |_| { return bore.finish(mut out, "comm", 1) } }
-            else { textio.put(mut out, a.items[i].data, delim) else |_| { return bore.finish(mut out, "comm", 1) } }
+            if c == 1 {
+                textio.put(mut out, b.items[j].data, delim) else |_| {
+                    return bore.finish(mut out, "comm", 1)
+                }
+            } else {
+                textio.put(mut out, a.items[i].data, delim) else |_| {
+                    return bore.finish(mut out, "comm", 1)
+                }
+            }
         }
-        if c != 1 { i += 1 }; if c != 0 { j += 1 }
+        if c != 1 { i += 1 }
+        if c != 0 { j += 1 }
     }
     if total {
         let s = if sep.len == 0 then "\0" else sep
-        bore.put(mut out, "{counts[0]}{s}{counts[1]}{s}{counts[2]}{s}total") else |_| { return bore.finish(mut out, "comm", 1) }
+        bore.put(mut out, "{counts[0]}{s}{counts[1]}{s}{counts[2]}{s}total") else |_| {
+            return bore.finish(mut out, "comm", 1)
+        }
         bore.put_byte(mut out, delim as byte) else |_| { return bore.finish(mut out, "comm", 1) }
     }
     var status = 0

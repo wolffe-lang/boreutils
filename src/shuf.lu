@@ -6,16 +6,22 @@
 //! tested by multiset / membership rather than byte order.
 //! R-bu31-1: refuse --random-source by name: GNU's byte consumption rule
 //! has not been derived generally by the retained black-box probes.
+
 use bore
 use textio
 
 fn main() -> int {
     var out = bore.stdout()
     var spec = List[bore.Opt]()
-    (mut spec).push(bore.flag("e", "echo")); (mut spec).push(bore.takes("i", "input-range"))
-    (mut spec).push(bore.takes("n", "head-count")); (mut spec).push(bore.takes("o", "output"))
-    (mut spec).push(bore.takes("", "random-source")); (mut spec).push(bore.flag("r", "repeat"))
-    (mut spec).push(bore.flag("z", "zero-terminated")); (mut spec).push(bore.flag("", "help")); (mut spec).push(bore.flag("", "version"))
+    (mut spec).push(bore.flag("e", "echo"))
+    (mut spec).push(bore.takes("i", "input-range"))
+    (mut spec).push(bore.takes("n", "head-count"))
+    (mut spec).push(bore.takes("o", "output"))
+    (mut spec).push(bore.takes("", "random-source"))
+    (mut spec).push(bore.flag("r", "repeat"))
+    (mut spec).push(bore.flag("z", "zero-terminated"))
+    (mut spec).push(bore.flag("", "help"))
+    (mut spec).push(bore.flag("", "version"))
     let p = bore.parse(spec, env_args(), bore.permute())
     var echo = false, range_given = false, repeat = false
     var limit: int = 9223372036854775807
@@ -23,7 +29,14 @@ fn main() -> int {
     for k in 0..p.keys.len {
         let key = p.keys[k], v = p.values[k]
         if key == "help" || key == "version" {
-            bore.put(mut out, if key == "version" then bore.version_text("shuf") else "Usage: shuf [OPTION]... [FILE]\nRandomize records, echo arguments, or sample an integer range.\n") else |_| {}
+            bore.put(
+                mut out,
+                if key == "version" {
+                    bore.version_text("shuf")
+                } else {
+                    "Usage: shuf [OPTION]... [FILE]\nRandomize records, echo arguments, or sample an integer range.\n"
+                },
+            ) else |_| {}
             return bore.finish(mut out, "shuf", 0)
         }
         if key == "echo" { echo = true }
@@ -33,10 +46,14 @@ fn main() -> int {
             let dash = v.find("-") else -1
             if dash >= 0 {
                 low = v[0..dash].to_int() else -1
-                high = v[dash+1..].to_int() else -1
-            } else { low = -1; high = -1 }
-            if low < 0 || high < 0 || (low > high && low - high != 1) {
-                bore.warn("shuf", "invalid input range: {bore.quote(v)}"); return 1
+                high = v[dash + 1..].to_int() else -1
+            } else {
+                low = -1
+                high = -1
+            }
+            if low < 0 || high < 0 || low > high && low - high != 1 {
+                bore.warn("shuf", "invalid input range: {bore.quote(v)}")
+                return 1
             }
         }
         if key == "head-count" {
@@ -45,23 +62,37 @@ fn main() -> int {
             if n < limit { limit = n }
         }
         if key == "output" {
-            if output_given && output_path != v { bore.warn("shuf", "multiple output files specified"); return 1 }
-            output_path = v; output_given = true
+            if output_given && output_path != v {
+                bore.warn("shuf", "multiple output files specified")
+                return 1
+            }
+            output_path = v
+            output_given = true
         }
         if key == "random-source" { random_given = true }
-        if key == "repeat" { repeat = true }; if key == "zero-terminated" { delim = 0 }
+        if key == "repeat" { repeat = true }
+        if key == "zero-terminated" { delim = 0 }
     }
     if !bore.ok(p) { return bore.usage_error("shuf", p.error) }
     if echo && range_given { return bore.usage_error("shuf", "cannot combine -e and -i options") }
     let operands = p.operands
     if !echo {
         let allowed = if range_given then 0 else 1
-        if operands.len > allowed { return bore.usage_error("shuf", "extra operand {bore.quote(operands[allowed])}") }
+        if operands.len > allowed {
+            return bore.usage_error("shuf", "extra operand {bore.quote(operands[allowed])}")
+        }
     }
-    if random_given { bore.warn("shuf", "--random-source is not supported: GNU byte-draw compatibility is not derived"); return 1 }
+    if random_given {
+        bore.warn(
+            "shuf",
+            "--random-source is not supported: GNU byte-draw compatibility is not derived",
+        )
+        return 1
+    }
     var rows = List[textio.Rec]()
-    if echo { for arg in operands { (mut rows).push(textio.Rec { data: arg.bytes() }) } }
-    else if !range_given && limit > 0 {
+    if echo {
+        for arg in operands { (mut rows).push(textio.Rec { data: arg.bytes() }) }
+    } else if !range_given && limit > 0 {
         let path = if operands.len == 0 then "-" else operands[0]
         let got = textio.load("shuf", path, delim)
         if got.failed { return 1 }
@@ -69,10 +100,14 @@ fn main() -> int {
     }
     var n = rows.len
     if range_given {
-        if low > high { n = 0 }
-        else if high - low == 9223372036854775807 {
-            bore.warn("shuf", "input range exceeds the supported signed index space"); return 1
-        } else { n = high - low + 1 }
+        if low > high {
+            n = 0
+        } else if high - low == 9223372036854775807 {
+            bore.warn("shuf", "input range exceeds the supported signed index space")
+            return 1
+        } else {
+            n = high - low + 1
+        }
     }
     // Input is consumed before truncating -o, including input=output.
     var fd = -1
@@ -82,12 +117,16 @@ fn main() -> int {
             denied => { bore.input_error("shuf", output_path, bore.permission_denied()); return 1 },
             exists => { bore.input_error("shuf", output_path, "File exists"); return 1 },
             invalid => { bore.input_error("shuf", output_path, "Invalid argument"); return 1 },
-            io => { bore.input_error("shuf", output_path, bore.reason_of(bore.host_code())); return 1 },
+            io => {
+                bore.input_error("shuf", output_path, bore.reason_of(bore.host_code()))
+                return 1
+            },
         }
     }
     if repeat && n == 0 && limit > 0 {
         if fd >= 0 { fs_close(fd) else |_| {} }
-        bore.warn("shuf", "no lines to repeat"); return 1
+        bore.warn("shuf", "no lines to repeat")
+        return 1
     }
     var count = limit
     if !repeat && n < count { count = n }
@@ -96,27 +135,42 @@ fn main() -> int {
     while k < count {
         region pass {
             var index = 0
-            if repeat { index = draw(n) }
-            else {
+            if repeat {
+                index = draw(n)
+            } else {
                 let chosen = k + draw(n - k)
                 index = swaps[chosen] else chosen
                 let current = swaps[k] else k
                 swaps[chosen] = current
             }
             var bytes = List[byte]()
-            if range_given { for b in "{low + index}".bytes() { (mut bytes).push(b) } }
-            else { for b in rows[index].data { (mut bytes).push(b) } }
+            if range_given {
+                for b in "{low + index}".bytes() { (mut bytes).push(b) }
+            } else {
+                for b in rows[index].data { (mut bytes).push(b) }
+            }
             (mut bytes).push(delim as byte)
             if fd >= 0 {
-                fs_write_chunk(fd, bytes) else |_| { bore.warn("shuf", "write error: {bore.reason_of(bore.host_code())}"); status = 1 }
+                fs_write_chunk(fd, bytes) else |_| {
+                    bore.warn("shuf", "write error: {bore.reason_of(bore.host_code())}")
+                    status = 1
+                }
             } else {
-                bore.write_direct(out, bytes) else |_| { bore.write_error(out, "shuf", "write error"); status = 1 }
+                bore.write_direct(out, bytes) else |_| {
+                    bore.write_error(out, "shuf", "write error")
+                    status = 1
+                }
             }
         }
         if status != 0 { break }
         k += 1
     }
-    if fd >= 0 { fs_close(fd) else |_| { bore.warn("shuf", "close failed: {bore.reason_of(bore.host_code())}"); status = 1 } }
+    if fd >= 0 {
+        fs_close(fd) else |_| {
+            bore.warn("shuf", "close failed: {bore.reason_of(bore.host_code())}")
+            status = 1
+        }
+    }
     status
 }
 
@@ -124,11 +178,11 @@ fn main() -> int {
 // Seven bytes plus seven bits span the nonnegative signed integer space.
 fn draw(n: int) -> int {
     if n <= 1 { return 0 }
-    let cutoff = 9223372036854775807 - (9223372036854775807 % n)
+    let cutoff = 9223372036854775807 - 9223372036854775807 % n
     loop {
         let bytes = os_random(8)
         var value = bytes[0] & 127
-        for k in 1..8 { value = (value << 8) | bytes[k] }
+        for k in 1..8 { value = value << 8 | bytes[k] }
         if value < cutoff { return value % n }
     }
 }

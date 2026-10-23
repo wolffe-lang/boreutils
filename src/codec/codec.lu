@@ -1,6 +1,7 @@
 //! RFC 4648 bit packing, derived from that specification and GNU 9.11
 //! binary probes only. uutils (MIT) / toybox (0BSD): design references
 //! named, no implementation source consulted (including GNU/gnulib).
+
 use bore
 
 /// Execute the RFC 4648 CLI with five- or six-bit alphabet symbols.
@@ -17,7 +18,14 @@ pub fn run(prog: str, width: int) -> int {
     for k in 0..p.keys.len {
         let key = p.keys[k]
         if key == "help" || key == "version" {
-            bore.put(mut out, if key == "version" then bore.version_text(prog) else "Usage: {prog} [OPTION]... [FILE]\nEncode bytes or decode an encoded stream.\n") else |_| {}
+            bore.put(
+                mut out,
+                if key == "version" {
+                    bore.version_text(prog)
+                } else {
+                    "Usage: {prog} [OPTION]... [FILE]\nEncode bytes or decode an encoded stream.\n"
+                },
+            ) else |_| {}
             return bore.finish(mut out, prog, 0)
         }
         if key == "decode" { decode = true }
@@ -32,11 +40,19 @@ pub fn run(prog: str, width: int) -> int {
         }
     }
     if !bore.ok(p) { return bore.usage_error(prog, p.error) }
-    if p.operands.len > 1 { return bore.usage_error(prog, "extra operand {bore.quote(p.operands[1])}") }
+    if p.operands.len > 1 {
+        return bore.usage_error(prog, "extra operand {bore.quote(p.operands[1])}")
+    }
     let path = if p.operands.len == 0 then "-" else p.operands[0]
     let src = bore.open_input(path) else |e| match e {
-        not_found => { bore.warn(prog, "{bore.quote_name(path)}: {bore.no_such_file()}"); return 1 },
-        denied => { bore.warn(prog, "{bore.quote_name(path)}: {bore.permission_denied()}"); return 1 },
+        not_found => {
+            bore.warn(prog, "{bore.quote_name(path)}: {bore.no_such_file()}")
+            return 1
+        },
+        denied => {
+            bore.warn(prog, "{bore.quote_name(path)}: {bore.permission_denied()}")
+            return 1
+        },
         is_dir => { bore.warn(prog, "read error: {bore.directory_reason()}"); return 1 },
         io => { bore.warn(prog, "{bore.quote_name(path)}: {bore.io_error()}"); return 1 },
     }
@@ -59,23 +75,28 @@ fn encoding(src: bore.In, out: bore.Out, prog: str, width: int, wrap: int) -> in
         region pass {
             let bs = bore.read_chunk(src, 65536) else |e| match e {
                 eof => { done = true; List[byte]() },
-                io => { bore.warn(prog, "read error: {bore.io_error()}"); status = 1; done = true; List[byte]() },
+                io => {
+                    bore.warn(prog, "read error: {bore.io_error()}")
+                    status = 1
+                    done = true
+                    List[byte]()
+                },
             }
             if bs.len == 0 { done = true }
             var bytes = List[byte]()
             for b in bs {
-                acc = (acc << 8) | (b as int)
+                acc = acc << 8 | b as int
                 bits += 8
                 while bits >= width {
                     bits -= width
-                    emit(mut bytes, table.bytes()[(acc >> bits) & mask], wrap, mut col)
+                    emit(mut bytes, table.bytes()[acc >> bits & mask], wrap, mut col)
                     chars = (chars + 1) % quantum
                 }
                 acc &= (1 << bits) - 1
             }
             if done {
                 if bits > 0 {
-                    emit(mut bytes, table.bytes()[(acc << (width - bits)) & mask], wrap, mut col)
+                    emit(mut bytes, table.bytes()[acc << width - bits & mask], wrap, mut col)
                     chars = (chars + 1) % quantum
                 }
                 while chars != 0 {
@@ -85,7 +106,10 @@ fn encoding(src: bore.In, out: bore.Out, prog: str, width: int, wrap: int) -> in
                 if wrap > 0 && col > 0 { (mut bytes).push(10 as byte) }
             }
             if bytes.len > 0 {
-                bore.write_direct(out, bytes) else |_| { bore.write_error(out, prog, "write error"); return 1 }
+                bore.write_direct(out, bytes) else |_| {
+                    bore.write_error(out, prog, "write error")
+                    return 1
+                }
             }
         }
     }
@@ -128,46 +152,65 @@ fn decoding(src: bore.In, out: bore.Out, prog: str, width: int, ignore: bool) ->
         region pass {
             let bs = bore.read_chunk(src, 65536) else |e| match e {
                 eof => { done = true; List[byte]() },
-                io => { read_bad = true; done = true; List[byte]() },
+                io => {
+                    read_bad = true
+                    done = true
+                    List[byte]()
+                },
             }
             if bs.len == 0 { done = true }
             var bytes = List[byte]()
             for b in bs {
                 let c = b as int
                 let v = value(c, width)
-                if c == 10 || (ignore && v < 0 && c != 61) { continue }
+                if c == 10 || ignore && v < 0 && c != 61 { continue }
                 if c == 61 {
                     if n == 0 { bad = true; break }
                     pads += 1
                     if n + pads > quantum { bad = true; break }
                 } else if v >= 0 && pads == 0 {
-                    acc = (acc << width) | v
+                    acc = acc << width | v
                     bits += width
                     n += 1
                     if bits >= 8 {
                         bits -= 8
-                        let byte_value = (acc >> bits) & 255
-                        if width == 6 { (mut bytes).push(byte_value as byte) }
-                        else { pending = (pending << 8) | byte_value; pending_n += 1 }
+                        let byte_value = acc >> bits & 255
+                        if width == 6 {
+                            (mut bytes).push(byte_value as byte)
+                        } else {
+                            pending = pending << 8 | byte_value
+                            pending_n += 1
+                        }
                     }
                     acc &= (1 << bits) - 1
-                } else { bad = true; break }
+                } else {
+                    bad = true
+                    break
+                }
                 if n + pads == quantum {
                     if width == 5 {
                         flush_pending(mut bytes, pending, pending_n)
-                        pending = 0; pending_n = 0
+                        pending = 0
+                        pending_n = 0
                     }
                     if acc != 0 || !valid_count(n, width) { bad = true; break }
-                    n = 0; pads = 0; bits = 0; acc = 0
+                    n = 0
+                    pads = 0
+                    bits = 0
+                    acc = 0
                 }
             }
-            if width == 5 && (bad || (done && pads == 0)) {
+            if width == 5 && (bad || done && pads == 0) {
                 flush_pending(mut bytes, pending, pending_n)
-                pending = 0; pending_n = 0
+                pending = 0
+                pending_n = 0
             }
             if done && (pads > 0 || !valid_count(n, width) || acc != 0) { bad = true }
             if bytes.len > 0 {
-                bore.write_direct(out, bytes) else |_| { bore.write_error(out, prog, "write error"); return 1 }
+                bore.write_direct(out, bytes) else |_| {
+                    bore.write_error(out, prog, "write error")
+                    return 1
+                }
             }
         }
     }
@@ -178,7 +221,7 @@ fn decoding(src: bore.In, out: bore.Out, prog: str, width: int, ignore: bool) ->
 
 fn flush_pending(mut bytes: List[byte], pending: int, n: int) {
     var k = n
-    while k > 0 { k -= 1; (mut bytes).push(((pending >> (k * 8)) & 255) as byte) }
+    while k > 0 { k -= 1; (mut bytes).push((pending >> k * 8 & 255) as byte) }
 }
 
 // The binary buffers each base32 quantum. At EOF it virtually pads an
@@ -191,28 +234,37 @@ fn decoding32(src: bore.In, out: bore.Out, prog: str, ignore: bool) -> int {
         region pass {
             let bs = bore.read_chunk(src, 65536) else |e| match e {
                 eof => { done = true; List[byte]() },
-                io => { read_bad = true; done = true; List[byte]() },
+                io => {
+                    read_bad = true
+                    done = true
+                    List[byte]()
+                },
             }
             if bs.len == 0 { done = true }
             var bytes = List[byte]()
             for b in bs {
                 let c = b as int
-                if c == 10 || (ignore && c != 61 && value(c, 5) < 0) { continue }
-                block[used] = c; used += 1
+                if c == 10 || ignore && c != 61 && value(c, 5) < 0 { continue }
+                block[used] = c
+                used += 1
                 if used == 8 {
                     if !group32(block, mut bytes) { bad = true; break }
                     used = 0
                 }
             }
             if done && used > 0 {
-                if block[used-1] == 61 { bad = true }
-                else {
+                if block[used - 1] == 61 {
+                    bad = true
+                } else {
                     while used < 8 { block[used] = 61; used += 1 }
                     if !group32(block, mut bytes) { bad = true }
                 }
             }
             if bytes.len > 0 {
-                bore.write_direct(out, bytes) else |_| { bore.write_error(out, prog, "write error"); return 1 }
+                bore.write_direct(out, bytes) else |_| {
+                    bore.write_error(out, prog, "write error")
+                    return 1
+                }
             }
         }
     }
@@ -220,6 +272,7 @@ fn decoding32(src: bore.In, out: bore.Out, prog: str, ignore: bool) -> int {
     if bad { bore.warn(prog, "invalid input"); return 1 }
     0
 }
+
 fn group32(block: List[int], mut bytes: List[byte]) -> bool {
     var acc = 0, bits = 0, count = 0, padding = false
     for c in block {
@@ -227,8 +280,9 @@ fn group32(block: List[int], mut bytes: List[byte]) -> bool {
         let v = value(c, 5)
         if v < 0 || padding { return false }
         count += 1
-        acc = (acc << 5) | v; bits += 5
-        if bits >= 8 { bits -= 8; (mut bytes).push(((acc >> bits) & 255) as byte) }
+        acc = acc << 5 | v
+        bits += 5
+        if bits >= 8 { bits -= 8; (mut bytes).push((acc >> bits & 255) as byte) }
         acc &= (1 << bits) - 1
     }
     count > 0 && valid_count(count, 5) && acc == 0

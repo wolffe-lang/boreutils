@@ -8,24 +8,37 @@
 //! incoming and one live outgoing edge per node). Otherwise refuse by
 //! name: complex cyclic components and cycles with outgoing tails need
 //! GNU-specific cycle selection not established by our black-box probes.
+
 use bore
 use textio
 
 struct Edge { from: int, to: int, live: bool }
+
 struct Search { path: List[int], cycle: List[int], visited: List[bool] }
+
 fn main() -> int {
     var out = bore.stdout()
     var spec = List[bore.Opt]()
-    (mut spec).push(bore.flag("", "help")); (mut spec).push(bore.flag("", "version"))
+    (mut spec).push(bore.flag("", "help"))
+    (mut spec).push(bore.flag("", "version"))
     let p = bore.parse(spec, env_args(), bore.permute())
     for key in p.keys {
         if key == "help" || key == "version" {
-            bore.put(mut out, if key == "version" then bore.version_text("tsort") else "Usage: tsort [FILE]\nPrint a topological ordering of token pairs.\n") else |_| {}
+            bore.put(
+                mut out,
+                if key == "version" {
+                    bore.version_text("tsort")
+                } else {
+                    "Usage: tsort [FILE]\nPrint a topological ordering of token pairs.\n"
+                },
+            ) else |_| {}
             return bore.finish(mut out, "tsort", 0)
         }
     }
     if !bore.ok(p) { return bore.usage_error("tsort", p.error) }
-    if p.operands.len > 1 { return bore.usage_error("tsort", "extra operand {bore.quote(p.operands[1])}") }
+    if p.operands.len > 1 {
+        return bore.usage_error("tsort", "extra operand {bore.quote(p.operands[1])}")
+    }
     let path = if p.operands.len == 0 then "-" else p.operands[0]
     let rows = textio.load("tsort", path, 10)
     if rows.failed { return 1 }
@@ -39,14 +52,17 @@ fn main() -> int {
                     var end = raw.len
                     for j in 0..raw.len { if raw[j] as int == 0 { end = j; break } }
                     var word = ""
-                    for b in raw[0..end] { word += (b as int) as char }
+                    for b in raw[0..end] { word += b as int as char }
                     (mut tokens).push(word)
                 }
                 start = k + 1
             }
         }
     }
-    if tokens.len % 2 != 0 { bore.warn("tsort", "{bore.quote_name(path)}: input contains an odd number of tokens"); return 1 }
+    if tokens.len % 2 != 0 {
+        bore.warn("tsort", "{bore.quote_name(path)}: input contains an odd number of tokens")
+        return 1
+    }
     var names = List[str]()
     var ids = Map[str, int]()
     for word in tokens {
@@ -60,8 +76,11 @@ fn main() -> int {
     for i in 0..names.len {
         (mut order).push(i)
         var j = order.len - 1
-        while j > 0 && names[order[j]] < names[order[j-1]] {
-            let t = order[j]; order[j] = order[j-1]; order[j-1] = t; j -= 1
+        while j > 0 && names[order[j]] < names[order[j - 1]] {
+            let t = order[j]
+            order[j] = order[j - 1]
+            order[j - 1] = t
+            j -= 1
         }
     }
     var edges = List[Edge](), indegree = List[int](), done = List[bool]()
@@ -69,10 +88,12 @@ fn main() -> int {
     var seen = Map[str, bool]()
     var k = 0
     while k < tokens.len {
-        let a = ids.get(tokens[k]) else 0, b = ids.get(tokens[k+1]) else 0
+        let a = ids.get(tokens[k]) else 0, b = ids.get(tokens[k + 1]) else 0
         let key = "{a}:{b}"
         if a != b && !(seen[key] else false) {
-            seen[key] = true; (mut edges).push(Edge { from: a, to: b, live: true }); indegree[b] += 1
+            seen[key] = true
+            (mut edges).push(Edge { from: a, to: b, live: true })
+            indegree[b] += 1
         }
         k += 2
     }
@@ -81,17 +102,24 @@ fn main() -> int {
     var head = 0, remaining = names.len, status = 0
     while remaining > 0 {
         while head < queue.len {
-            let node = queue[head]; head += 1
+            let node = queue[head]
+            head += 1
             if done[node] { continue }
-            for ch in names[node].chars() { bore.put_byte(mut out, (ch as int) as byte) else |_| { return bore.finish(mut out, "tsort", 1) } }
+            for ch in names[node].chars() {
+                bore.put_byte(mut out, ch as int as byte) else |_| {
+                    return bore.finish(mut out, "tsort", 1)
+                }
+            }
             bore.put_byte(mut out, 10 as byte) else |_| { return bore.finish(mut out, "tsort", 1) }
-            done[node] = true; remaining -= 1
+            done[node] = true
+            remaining -= 1
             var e = edges.len
             while e > 0 {
                 e -= 1
                 if edges[e].live && edges[e].from == node {
                     let to = edges[e].to
-                    edges[e].live = false; indegree[to] -= 1
+                    edges[e].live = false
+                    indegree[to] -= 1
                     if indegree[to] == 0 { (mut queue).push(to) }
                 }
             }
@@ -102,7 +130,10 @@ fn main() -> int {
             var outgoing = 0
             for e in edges { if e.live && e.from == node { outgoing += 1 } }
             if indegree[node] != 1 || outgoing != 1 {
-                bore.warn("tsort", "complex cyclic components or cycles with outgoing tails are not supported: GNU cycle selection is not derived")
+                bore.warn(
+                    "tsort",
+                    "complex cyclic components or cycles with outgoing tails are not supported: GNU cycle selection is not derived",
+                )
                 return bore.finish(mut out, "tsort", 1)
             }
         }
@@ -124,7 +155,8 @@ fn main() -> int {
         let predecessor = search.cycle[1]
         for e in 0..edges.len {
             if edges[e].live && edges[e].from == predecessor && edges[e].to == root {
-                edges[e].live = false; indegree[root] -= 1
+                edges[e].live = false
+                indegree[root] -= 1
                 if indegree[root] == 0 { (mut queue).push(root) }
                 break
             }
@@ -156,7 +188,7 @@ fn find_cycle(mut s: Search, node: int, edges: List[Edge], order: List[int], don
 fn node_warning(word: str) {
     var bytes = List[byte]()
     for b in "tsort: ".bytes() { (mut bytes).push(b) }
-    for ch in word.chars() { (mut bytes).push((ch as int) as byte) }
+    for ch in word.chars() { (mut bytes).push(ch as int as byte) }
     (mut bytes).push(10 as byte)
     fs_write_chunk(2, bytes) else |_| {}
 }
