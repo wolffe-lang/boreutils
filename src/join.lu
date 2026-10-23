@@ -218,7 +218,7 @@ fn output(mut out: bore.Out, a: Line, b: Line, c: Conf) -> () ! {io} {
     }
     for k in 0..picks.len {
         if k > 0 { bore.put_byte(mut out, sep as byte)? }
-        let pick = picks[k]
+        let pick = copy picks[k]
         var data = List[byte]()
         if pick.file == 0 {
             if a.fields.len > 0 { data = field(a, c.field1) } else { data = field(b, c.field2) }

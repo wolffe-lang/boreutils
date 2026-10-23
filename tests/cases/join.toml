@@ -1,0 +1,986 @@
+[[case]]
+name = "--help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "--version"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "[]"
+args = []
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "['a']"
+args = ["a"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "['a', 'b', 'c']"
+args = ["a", "b", "c"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "['--bogus']"
+args = ["--bogus"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "['-a', '3']"
+args = ["-a", "3"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "['-v', '0']"
+args = ["-v", "0"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "['-1', 'x']"
+args = ["-1", "x"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "['-o', '']"
+args = ["-o", ""]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "['-o', '1.0']"
+args = ["-o", "1.0"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "['-o', 'x']"
+args = ["-o", "x"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "['-o', '1.1,,2.1']"
+args = ["-o", "1.1,,2.1"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "['-t', ':', '-t', ';']"
+args = ["-t", ":", "-t", ";"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "['-e', 'x', '-e', 'y']"
+args = ["-e", "x", "-e", "y"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "['-t', 'xx']"
+args = ["-t", "xx"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "['-', '-']"
+args = ["-", "-"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "0[]"
+args = ["a", "b"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "0['--check-order']"
+args = ["--check-order", "a", "b"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "0['--nocheck-order']"
+args = ["--nocheck-order", "a", "b"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "0['-a1']"
+args = ["-a1", "a", "b"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "0['-a2']"
+args = ["-a2", "a", "b"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "0['-a1', '-a2']"
+args = ["-a1", "-a2", "a", "b"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "0['-v1']"
+args = ["-v1", "a", "b"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "0['-v2']"
+args = ["-v2", "a", "b"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "0['-v1', '-v2']"
+args = ["-v1", "-v2", "a", "b"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "0['--header']"
+args = ["--header", "a", "b"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "0['--header', '--check-order']"
+args = ["--header", "--check-order", "a", "b"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "0['-o', 'auto', '-a1', '-a2']"
+args = ["-o", "auto", "-a1", "-a2", "a", "b"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "0['-o', '0,1.1,2.1,1.9', '-e', '?', '-a1', '-a2']"
+args = ["-o", "0,1.1,2.1,1.9", "-e", "?", "-a1", "-a2", "a", "b"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "0['-i']"
+args = ["-i", "a", "b"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "1[]"
+args = ["a", "b"]
+scratch = { "a" = "a A\nb B\n", "b" = "a X\nc Y\n" }
+
+[[case]]
+name = "1['--check-order']"
+args = ["--check-order", "a", "b"]
+scratch = { "a" = "a A\nb B\n", "b" = "a X\nc Y\n" }
+
+[[case]]
+name = "1['--nocheck-order']"
+args = ["--nocheck-order", "a", "b"]
+scratch = { "a" = "a A\nb B\n", "b" = "a X\nc Y\n" }
+
+[[case]]
+name = "1['-a1']"
+args = ["-a1", "a", "b"]
+scratch = { "a" = "a A\nb B\n", "b" = "a X\nc Y\n" }
+
+[[case]]
+name = "1['-a2']"
+args = ["-a2", "a", "b"]
+scratch = { "a" = "a A\nb B\n", "b" = "a X\nc Y\n" }
+
+[[case]]
+name = "1['-a1', '-a2']"
+args = ["-a1", "-a2", "a", "b"]
+scratch = { "a" = "a A\nb B\n", "b" = "a X\nc Y\n" }
+
+[[case]]
+name = "1['-v1']"
+args = ["-v1", "a", "b"]
+scratch = { "a" = "a A\nb B\n", "b" = "a X\nc Y\n" }
+
+[[case]]
+name = "1['-v2']"
+args = ["-v2", "a", "b"]
+scratch = { "a" = "a A\nb B\n", "b" = "a X\nc Y\n" }
+
+[[case]]
+name = "1['-v1', '-v2']"
+args = ["-v1", "-v2", "a", "b"]
+scratch = { "a" = "a A\nb B\n", "b" = "a X\nc Y\n" }
+
+[[case]]
+name = "1['--header']"
+args = ["--header", "a", "b"]
+scratch = { "a" = "a A\nb B\n", "b" = "a X\nc Y\n" }
+
+[[case]]
+name = "1['--header', '--check-order']"
+args = ["--header", "--check-order", "a", "b"]
+scratch = { "a" = "a A\nb B\n", "b" = "a X\nc Y\n" }
+
+[[case]]
+name = "1['-o', 'auto', '-a1', '-a2']"
+args = ["-o", "auto", "-a1", "-a2", "a", "b"]
+scratch = { "a" = "a A\nb B\n", "b" = "a X\nc Y\n" }
+
+[[case]]
+name = "1['-o', '0,1.1,2.1,1.9', '-e', '?', '-a1', '-a2']"
+args = ["-o", "0,1.1,2.1,1.9", "-e", "?", "-a1", "-a2", "a", "b"]
+scratch = { "a" = "a A\nb B\n", "b" = "a X\nc Y\n" }
+
+[[case]]
+name = "1['-i']"
+args = ["-i", "a", "b"]
+scratch = { "a" = "a A\nb B\n", "b" = "a X\nc Y\n" }
+
+[[case]]
+name = "2[]"
+args = ["a", "b"]
+scratch = { "a" = "b B\na A\n", "b" = "" }
+
+[[case]]
+name = "2['--check-order']"
+args = ["--check-order", "a", "b"]
+scratch = { "a" = "b B\na A\n", "b" = "" }
+
+[[case]]
+name = "2['--nocheck-order']"
+args = ["--nocheck-order", "a", "b"]
+scratch = { "a" = "b B\na A\n", "b" = "" }
+
+[[case]]
+name = "2['-a1']"
+args = ["-a1", "a", "b"]
+scratch = { "a" = "b B\na A\n", "b" = "" }
+
+[[case]]
+name = "2['-a2']"
+args = ["-a2", "a", "b"]
+scratch = { "a" = "b B\na A\n", "b" = "" }
+
+[[case]]
+name = "2['-a1', '-a2']"
+args = ["-a1", "-a2", "a", "b"]
+scratch = { "a" = "b B\na A\n", "b" = "" }
+
+[[case]]
+name = "2['-v1']"
+args = ["-v1", "a", "b"]
+scratch = { "a" = "b B\na A\n", "b" = "" }
+
+[[case]]
+name = "2['-v2']"
+args = ["-v2", "a", "b"]
+scratch = { "a" = "b B\na A\n", "b" = "" }
+
+[[case]]
+name = "2['-v1', '-v2']"
+args = ["-v1", "-v2", "a", "b"]
+scratch = { "a" = "b B\na A\n", "b" = "" }
+
+[[case]]
+name = "2['--header']"
+args = ["--header", "a", "b"]
+scratch = { "a" = "b B\na A\n", "b" = "" }
+
+[[case]]
+name = "2['--header', '--check-order']"
+args = ["--header", "--check-order", "a", "b"]
+scratch = { "a" = "b B\na A\n", "b" = "" }
+
+[[case]]
+name = "2['-o', 'auto', '-a1', '-a2']"
+args = ["-o", "auto", "-a1", "-a2", "a", "b"]
+scratch = { "a" = "b B\na A\n", "b" = "" }
+
+[[case]]
+name = "2['-o', '0,1.1,2.1,1.9', '-e', '?', '-a1', '-a2']"
+args = ["-o", "0,1.1,2.1,1.9", "-e", "?", "-a1", "-a2", "a", "b"]
+scratch = { "a" = "b B\na A\n", "b" = "" }
+
+[[case]]
+name = "2['-i']"
+args = ["-i", "a", "b"]
+scratch = { "a" = "b B\na A\n", "b" = "" }
+
+[[case]]
+name = "3[]"
+args = ["a", "b"]
+scratch = { "a" = "", "b" = "b B\na A\n" }
+
+[[case]]
+name = "3['--check-order']"
+args = ["--check-order", "a", "b"]
+scratch = { "a" = "", "b" = "b B\na A\n" }
+
+[[case]]
+name = "3['--nocheck-order']"
+args = ["--nocheck-order", "a", "b"]
+scratch = { "a" = "", "b" = "b B\na A\n" }
+
+[[case]]
+name = "3['-a1']"
+args = ["-a1", "a", "b"]
+scratch = { "a" = "", "b" = "b B\na A\n" }
+
+[[case]]
+name = "3['-a2']"
+args = ["-a2", "a", "b"]
+scratch = { "a" = "", "b" = "b B\na A\n" }
+
+[[case]]
+name = "3['-a1', '-a2']"
+args = ["-a1", "-a2", "a", "b"]
+scratch = { "a" = "", "b" = "b B\na A\n" }
+
+[[case]]
+name = "3['-v1']"
+args = ["-v1", "a", "b"]
+scratch = { "a" = "", "b" = "b B\na A\n" }
+
+[[case]]
+name = "3['-v2']"
+args = ["-v2", "a", "b"]
+scratch = { "a" = "", "b" = "b B\na A\n" }
+
+[[case]]
+name = "3['-v1', '-v2']"
+args = ["-v1", "-v2", "a", "b"]
+scratch = { "a" = "", "b" = "b B\na A\n" }
+
+[[case]]
+name = "3['--header']"
+args = ["--header", "a", "b"]
+scratch = { "a" = "", "b" = "b B\na A\n" }
+
+[[case]]
+name = "3['--header', '--check-order']"
+args = ["--header", "--check-order", "a", "b"]
+scratch = { "a" = "", "b" = "b B\na A\n" }
+
+[[case]]
+name = "3['-o', 'auto', '-a1', '-a2']"
+args = ["-o", "auto", "-a1", "-a2", "a", "b"]
+scratch = { "a" = "", "b" = "b B\na A\n" }
+
+[[case]]
+name = "3['-o', '0,1.1,2.1,1.9', '-e', '?', '-a1', '-a2']"
+args = ["-o", "0,1.1,2.1,1.9", "-e", "?", "-a1", "-a2", "a", "b"]
+scratch = { "a" = "", "b" = "b B\na A\n" }
+
+[[case]]
+name = "3['-i']"
+args = ["-i", "a", "b"]
+scratch = { "a" = "", "b" = "b B\na A\n" }
+
+[[case]]
+name = "4[]"
+args = ["a", "b"]
+scratch = { "a" = "b B\na A\n", "b" = "b X\na Y\n" }
+
+[[case]]
+name = "4['--check-order']"
+args = ["--check-order", "a", "b"]
+scratch = { "a" = "b B\na A\n", "b" = "b X\na Y\n" }
+
+[[case]]
+name = "4['--nocheck-order']"
+args = ["--nocheck-order", "a", "b"]
+scratch = { "a" = "b B\na A\n", "b" = "b X\na Y\n" }
+
+[[case]]
+name = "4['-a1']"
+args = ["-a1", "a", "b"]
+scratch = { "a" = "b B\na A\n", "b" = "b X\na Y\n" }
+
+[[case]]
+name = "4['-a2']"
+args = ["-a2", "a", "b"]
+scratch = { "a" = "b B\na A\n", "b" = "b X\na Y\n" }
+
+[[case]]
+name = "4['-a1', '-a2']"
+args = ["-a1", "-a2", "a", "b"]
+scratch = { "a" = "b B\na A\n", "b" = "b X\na Y\n" }
+
+[[case]]
+name = "4['-v1']"
+args = ["-v1", "a", "b"]
+scratch = { "a" = "b B\na A\n", "b" = "b X\na Y\n" }
+
+[[case]]
+name = "4['-v2']"
+args = ["-v2", "a", "b"]
+scratch = { "a" = "b B\na A\n", "b" = "b X\na Y\n" }
+
+[[case]]
+name = "4['-v1', '-v2']"
+args = ["-v1", "-v2", "a", "b"]
+scratch = { "a" = "b B\na A\n", "b" = "b X\na Y\n" }
+
+[[case]]
+name = "4['--header']"
+args = ["--header", "a", "b"]
+scratch = { "a" = "b B\na A\n", "b" = "b X\na Y\n" }
+
+[[case]]
+name = "4['--header', '--check-order']"
+args = ["--header", "--check-order", "a", "b"]
+scratch = { "a" = "b B\na A\n", "b" = "b X\na Y\n" }
+
+[[case]]
+name = "4['-o', 'auto', '-a1', '-a2']"
+args = ["-o", "auto", "-a1", "-a2", "a", "b"]
+scratch = { "a" = "b B\na A\n", "b" = "b X\na Y\n" }
+
+[[case]]
+name = "4['-o', '0,1.1,2.1,1.9', '-e', '?', '-a1', '-a2']"
+args = ["-o", "0,1.1,2.1,1.9", "-e", "?", "-a1", "-a2", "a", "b"]
+scratch = { "a" = "b B\na A\n", "b" = "b X\na Y\n" }
+
+[[case]]
+name = "4['-i']"
+args = ["-i", "a", "b"]
+scratch = { "a" = "b B\na A\n", "b" = "b X\na Y\n" }
+
+[[case]]
+name = "5[]"
+args = ["a", "b"]
+scratch = { "a" = "a A\nc C\nb B\n", "b" = "a X\nc X\nb X\n" }
+
+[[case]]
+name = "5['--check-order']"
+args = ["--check-order", "a", "b"]
+scratch = { "a" = "a A\nc C\nb B\n", "b" = "a X\nc X\nb X\n" }
+
+[[case]]
+name = "5['--nocheck-order']"
+args = ["--nocheck-order", "a", "b"]
+scratch = { "a" = "a A\nc C\nb B\n", "b" = "a X\nc X\nb X\n" }
+
+[[case]]
+name = "5['-a1']"
+args = ["-a1", "a", "b"]
+scratch = { "a" = "a A\nc C\nb B\n", "b" = "a X\nc X\nb X\n" }
+
+[[case]]
+name = "5['-a2']"
+args = ["-a2", "a", "b"]
+scratch = { "a" = "a A\nc C\nb B\n", "b" = "a X\nc X\nb X\n" }
+
+[[case]]
+name = "5['-a1', '-a2']"
+args = ["-a1", "-a2", "a", "b"]
+scratch = { "a" = "a A\nc C\nb B\n", "b" = "a X\nc X\nb X\n" }
+
+[[case]]
+name = "5['-v1']"
+args = ["-v1", "a", "b"]
+scratch = { "a" = "a A\nc C\nb B\n", "b" = "a X\nc X\nb X\n" }
+
+[[case]]
+name = "5['-v2']"
+args = ["-v2", "a", "b"]
+scratch = { "a" = "a A\nc C\nb B\n", "b" = "a X\nc X\nb X\n" }
+
+[[case]]
+name = "5['-v1', '-v2']"
+args = ["-v1", "-v2", "a", "b"]
+scratch = { "a" = "a A\nc C\nb B\n", "b" = "a X\nc X\nb X\n" }
+
+[[case]]
+name = "5['--header']"
+args = ["--header", "a", "b"]
+scratch = { "a" = "a A\nc C\nb B\n", "b" = "a X\nc X\nb X\n" }
+
+[[case]]
+name = "5['--header', '--check-order']"
+args = ["--header", "--check-order", "a", "b"]
+scratch = { "a" = "a A\nc C\nb B\n", "b" = "a X\nc X\nb X\n" }
+
+[[case]]
+name = "5['-o', 'auto', '-a1', '-a2']"
+args = ["-o", "auto", "-a1", "-a2", "a", "b"]
+scratch = { "a" = "a A\nc C\nb B\n", "b" = "a X\nc X\nb X\n" }
+
+[[case]]
+name = "5['-o', '0,1.1,2.1,1.9', '-e', '?', '-a1', '-a2']"
+args = ["-o", "0,1.1,2.1,1.9", "-e", "?", "-a1", "-a2", "a", "b"]
+scratch = { "a" = "a A\nc C\nb B\n", "b" = "a X\nc X\nb X\n" }
+
+[[case]]
+name = "5['-i']"
+args = ["-i", "a", "b"]
+scratch = { "a" = "a A\nc C\nb B\n", "b" = "a X\nc X\nb X\n" }
+
+[[case]]
+name = "6[]"
+args = ["a", "b"]
+scratch = { "a" = "a A1\na A2\n", "b" = "a B1\na B2\n" }
+
+[[case]]
+name = "6['--check-order']"
+args = ["--check-order", "a", "b"]
+scratch = { "a" = "a A1\na A2\n", "b" = "a B1\na B2\n" }
+
+[[case]]
+name = "6['--nocheck-order']"
+args = ["--nocheck-order", "a", "b"]
+scratch = { "a" = "a A1\na A2\n", "b" = "a B1\na B2\n" }
+
+[[case]]
+name = "6['-a1']"
+args = ["-a1", "a", "b"]
+scratch = { "a" = "a A1\na A2\n", "b" = "a B1\na B2\n" }
+
+[[case]]
+name = "6['-a2']"
+args = ["-a2", "a", "b"]
+scratch = { "a" = "a A1\na A2\n", "b" = "a B1\na B2\n" }
+
+[[case]]
+name = "6['-a1', '-a2']"
+args = ["-a1", "-a2", "a", "b"]
+scratch = { "a" = "a A1\na A2\n", "b" = "a B1\na B2\n" }
+
+[[case]]
+name = "6['-v1']"
+args = ["-v1", "a", "b"]
+scratch = { "a" = "a A1\na A2\n", "b" = "a B1\na B2\n" }
+
+[[case]]
+name = "6['-v2']"
+args = ["-v2", "a", "b"]
+scratch = { "a" = "a A1\na A2\n", "b" = "a B1\na B2\n" }
+
+[[case]]
+name = "6['-v1', '-v2']"
+args = ["-v1", "-v2", "a", "b"]
+scratch = { "a" = "a A1\na A2\n", "b" = "a B1\na B2\n" }
+
+[[case]]
+name = "6['--header']"
+args = ["--header", "a", "b"]
+scratch = { "a" = "a A1\na A2\n", "b" = "a B1\na B2\n" }
+
+[[case]]
+name = "6['--header', '--check-order']"
+args = ["--header", "--check-order", "a", "b"]
+scratch = { "a" = "a A1\na A2\n", "b" = "a B1\na B2\n" }
+
+[[case]]
+name = "6['-o', 'auto', '-a1', '-a2']"
+args = ["-o", "auto", "-a1", "-a2", "a", "b"]
+scratch = { "a" = "a A1\na A2\n", "b" = "a B1\na B2\n" }
+
+[[case]]
+name = "6['-o', '0,1.1,2.1,1.9', '-e', '?', '-a1', '-a2']"
+args = ["-o", "0,1.1,2.1,1.9", "-e", "?", "-a1", "-a2", "a", "b"]
+scratch = { "a" = "a A1\na A2\n", "b" = "a B1\na B2\n" }
+
+[[case]]
+name = "6['-i']"
+args = ["-i", "a", "b"]
+scratch = { "a" = "a A1\na A2\n", "b" = "a B1\na B2\n" }
+
+[[case]]
+name = "7[]"
+args = ["a", "b"]
+scratch = { "a" = " a  A  \n", "b" = "a B\n" }
+
+[[case]]
+name = "7['--check-order']"
+args = ["--check-order", "a", "b"]
+scratch = { "a" = " a  A  \n", "b" = "a B\n" }
+
+[[case]]
+name = "7['--nocheck-order']"
+args = ["--nocheck-order", "a", "b"]
+scratch = { "a" = " a  A  \n", "b" = "a B\n" }
+
+[[case]]
+name = "7['-a1']"
+args = ["-a1", "a", "b"]
+scratch = { "a" = " a  A  \n", "b" = "a B\n" }
+
+[[case]]
+name = "7['-a2']"
+args = ["-a2", "a", "b"]
+scratch = { "a" = " a  A  \n", "b" = "a B\n" }
+
+[[case]]
+name = "7['-a1', '-a2']"
+args = ["-a1", "-a2", "a", "b"]
+scratch = { "a" = " a  A  \n", "b" = "a B\n" }
+
+[[case]]
+name = "7['-v1']"
+args = ["-v1", "a", "b"]
+scratch = { "a" = " a  A  \n", "b" = "a B\n" }
+
+[[case]]
+name = "7['-v2']"
+args = ["-v2", "a", "b"]
+scratch = { "a" = " a  A  \n", "b" = "a B\n" }
+
+[[case]]
+name = "7['-v1', '-v2']"
+args = ["-v1", "-v2", "a", "b"]
+scratch = { "a" = " a  A  \n", "b" = "a B\n" }
+
+[[case]]
+name = "7['--header']"
+args = ["--header", "a", "b"]
+scratch = { "a" = " a  A  \n", "b" = "a B\n" }
+
+[[case]]
+name = "7['--header', '--check-order']"
+args = ["--header", "--check-order", "a", "b"]
+scratch = { "a" = " a  A  \n", "b" = "a B\n" }
+
+[[case]]
+name = "7['-o', 'auto', '-a1', '-a2']"
+args = ["-o", "auto", "-a1", "-a2", "a", "b"]
+scratch = { "a" = " a  A  \n", "b" = "a B\n" }
+
+[[case]]
+name = "7['-o', '0,1.1,2.1,1.9', '-e', '?', '-a1', '-a2']"
+args = ["-o", "0,1.1,2.1,1.9", "-e", "?", "-a1", "-a2", "a", "b"]
+scratch = { "a" = " a  A  \n", "b" = "a B\n" }
+
+[[case]]
+name = "7['-i']"
+args = ["-i", "a", "b"]
+scratch = { "a" = " a  A  \n", "b" = "a B\n" }
+
+[[case]]
+name = "8[]"
+args = ["a", "b"]
+scratch = { "a" = "a\nz\nb\n", "b" = "c\ny\na\n" }
+
+[[case]]
+name = "8['--check-order']"
+args = ["--check-order", "a", "b"]
+scratch = { "a" = "a\nz\nb\n", "b" = "c\ny\na\n" }
+
+[[case]]
+name = "8['--nocheck-order']"
+args = ["--nocheck-order", "a", "b"]
+scratch = { "a" = "a\nz\nb\n", "b" = "c\ny\na\n" }
+
+[[case]]
+name = "8['-a1']"
+args = ["-a1", "a", "b"]
+scratch = { "a" = "a\nz\nb\n", "b" = "c\ny\na\n" }
+
+[[case]]
+name = "8['-a2']"
+args = ["-a2", "a", "b"]
+scratch = { "a" = "a\nz\nb\n", "b" = "c\ny\na\n" }
+
+[[case]]
+name = "8['-a1', '-a2']"
+args = ["-a1", "-a2", "a", "b"]
+scratch = { "a" = "a\nz\nb\n", "b" = "c\ny\na\n" }
+
+[[case]]
+name = "8['-v1']"
+args = ["-v1", "a", "b"]
+scratch = { "a" = "a\nz\nb\n", "b" = "c\ny\na\n" }
+
+[[case]]
+name = "8['-v2']"
+args = ["-v2", "a", "b"]
+scratch = { "a" = "a\nz\nb\n", "b" = "c\ny\na\n" }
+
+[[case]]
+name = "8['-v1', '-v2']"
+args = ["-v1", "-v2", "a", "b"]
+scratch = { "a" = "a\nz\nb\n", "b" = "c\ny\na\n" }
+
+[[case]]
+name = "8['--header']"
+args = ["--header", "a", "b"]
+scratch = { "a" = "a\nz\nb\n", "b" = "c\ny\na\n" }
+
+[[case]]
+name = "8['--header', '--check-order']"
+args = ["--header", "--check-order", "a", "b"]
+scratch = { "a" = "a\nz\nb\n", "b" = "c\ny\na\n" }
+
+[[case]]
+name = "8['-o', 'auto', '-a1', '-a2']"
+args = ["-o", "auto", "-a1", "-a2", "a", "b"]
+scratch = { "a" = "a\nz\nb\n", "b" = "c\ny\na\n" }
+
+[[case]]
+name = "8['-o', '0,1.1,2.1,1.9', '-e', '?', '-a1', '-a2']"
+args = ["-o", "0,1.1,2.1,1.9", "-e", "?", "-a1", "-a2", "a", "b"]
+scratch = { "a" = "a\nz\nb\n", "b" = "c\ny\na\n" }
+
+[[case]]
+name = "8['-i']"
+args = ["-i", "a", "b"]
+scratch = { "a" = "a\nz\nb\n", "b" = "c\ny\na\n" }
+
+[[case]]
+name = "9[]"
+args = ["a", "b"]
+scratch = { "a" = "\n a\nb B\n", "b" = "\na X\n" }
+
+[[case]]
+name = "9['--check-order']"
+args = ["--check-order", "a", "b"]
+scratch = { "a" = "\n a\nb B\n", "b" = "\na X\n" }
+
+[[case]]
+name = "9['--nocheck-order']"
+args = ["--nocheck-order", "a", "b"]
+scratch = { "a" = "\n a\nb B\n", "b" = "\na X\n" }
+
+[[case]]
+name = "9['-a1']"
+args = ["-a1", "a", "b"]
+scratch = { "a" = "\n a\nb B\n", "b" = "\na X\n" }
+
+[[case]]
+name = "9['-a2']"
+args = ["-a2", "a", "b"]
+scratch = { "a" = "\n a\nb B\n", "b" = "\na X\n" }
+
+[[case]]
+name = "9['-a1', '-a2']"
+args = ["-a1", "-a2", "a", "b"]
+scratch = { "a" = "\n a\nb B\n", "b" = "\na X\n" }
+
+[[case]]
+name = "9['-v1']"
+args = ["-v1", "a", "b"]
+scratch = { "a" = "\n a\nb B\n", "b" = "\na X\n" }
+
+[[case]]
+name = "9['-v2']"
+args = ["-v2", "a", "b"]
+scratch = { "a" = "\n a\nb B\n", "b" = "\na X\n" }
+
+[[case]]
+name = "9['-v1', '-v2']"
+args = ["-v1", "-v2", "a", "b"]
+scratch = { "a" = "\n a\nb B\n", "b" = "\na X\n" }
+
+[[case]]
+name = "9['--header']"
+args = ["--header", "a", "b"]
+scratch = { "a" = "\n a\nb B\n", "b" = "\na X\n" }
+
+[[case]]
+name = "9['--header', '--check-order']"
+args = ["--header", "--check-order", "a", "b"]
+scratch = { "a" = "\n a\nb B\n", "b" = "\na X\n" }
+
+[[case]]
+name = "9['-o', 'auto', '-a1', '-a2']"
+args = ["-o", "auto", "-a1", "-a2", "a", "b"]
+scratch = { "a" = "\n a\nb B\n", "b" = "\na X\n" }
+
+[[case]]
+name = "9['-o', '0,1.1,2.1,1.9', '-e', '?', '-a1', '-a2']"
+args = ["-o", "0,1.1,2.1,1.9", "-e", "?", "-a1", "-a2", "a", "b"]
+scratch = { "a" = "\n a\nb B\n", "b" = "\na X\n" }
+
+[[case]]
+name = "9['-i']"
+args = ["-i", "a", "b"]
+scratch = { "a" = "\n a\nb B\n", "b" = "\na X\n" }
+
+[[case]]
+name = "10[]"
+args = ["a", "b"]
+scratch = { "a" = "H a\na A\n", "b" = "H b\nb B\n" }
+
+[[case]]
+name = "10['--check-order']"
+args = ["--check-order", "a", "b"]
+scratch = { "a" = "H a\na A\n", "b" = "H b\nb B\n" }
+
+[[case]]
+name = "10['--nocheck-order']"
+args = ["--nocheck-order", "a", "b"]
+scratch = { "a" = "H a\na A\n", "b" = "H b\nb B\n" }
+
+[[case]]
+name = "10['-a1']"
+args = ["-a1", "a", "b"]
+scratch = { "a" = "H a\na A\n", "b" = "H b\nb B\n" }
+
+[[case]]
+name = "10['-a2']"
+args = ["-a2", "a", "b"]
+scratch = { "a" = "H a\na A\n", "b" = "H b\nb B\n" }
+
+[[case]]
+name = "10['-a1', '-a2']"
+args = ["-a1", "-a2", "a", "b"]
+scratch = { "a" = "H a\na A\n", "b" = "H b\nb B\n" }
+
+[[case]]
+name = "10['-v1']"
+args = ["-v1", "a", "b"]
+scratch = { "a" = "H a\na A\n", "b" = "H b\nb B\n" }
+
+[[case]]
+name = "10['-v2']"
+args = ["-v2", "a", "b"]
+scratch = { "a" = "H a\na A\n", "b" = "H b\nb B\n" }
+
+[[case]]
+name = "10['-v1', '-v2']"
+args = ["-v1", "-v2", "a", "b"]
+scratch = { "a" = "H a\na A\n", "b" = "H b\nb B\n" }
+
+[[case]]
+name = "10['--header']"
+args = ["--header", "a", "b"]
+scratch = { "a" = "H a\na A\n", "b" = "H b\nb B\n" }
+
+[[case]]
+name = "10['--header', '--check-order']"
+args = ["--header", "--check-order", "a", "b"]
+scratch = { "a" = "H a\na A\n", "b" = "H b\nb B\n" }
+
+[[case]]
+name = "10['-o', 'auto', '-a1', '-a2']"
+args = ["-o", "auto", "-a1", "-a2", "a", "b"]
+scratch = { "a" = "H a\na A\n", "b" = "H b\nb B\n" }
+
+[[case]]
+name = "10['-o', '0,1.1,2.1,1.9', '-e', '?', '-a1', '-a2']"
+args = ["-o", "0,1.1,2.1,1.9", "-e", "?", "-a1", "-a2", "a", "b"]
+scratch = { "a" = "H a\na A\n", "b" = "H b\nb B\n" }
+
+[[case]]
+name = "10['-i']"
+args = ["-i", "a", "b"]
+scratch = { "a" = "H a\na A\n", "b" = "H b\nb B\n" }
+
+[[case]]
+name = "11[]"
+args = ["a", "b"]
+scratch = { "a" = "A 1\nb 2\n", "b" = "a 3\nB 4\n" }
+
+[[case]]
+name = "11['--check-order']"
+args = ["--check-order", "a", "b"]
+scratch = { "a" = "A 1\nb 2\n", "b" = "a 3\nB 4\n" }
+
+[[case]]
+name = "11['--nocheck-order']"
+args = ["--nocheck-order", "a", "b"]
+scratch = { "a" = "A 1\nb 2\n", "b" = "a 3\nB 4\n" }
+
+[[case]]
+name = "11['-a1']"
+args = ["-a1", "a", "b"]
+scratch = { "a" = "A 1\nb 2\n", "b" = "a 3\nB 4\n" }
+
+[[case]]
+name = "11['-a2']"
+args = ["-a2", "a", "b"]
+scratch = { "a" = "A 1\nb 2\n", "b" = "a 3\nB 4\n" }
+
+[[case]]
+name = "11['-a1', '-a2']"
+args = ["-a1", "-a2", "a", "b"]
+scratch = { "a" = "A 1\nb 2\n", "b" = "a 3\nB 4\n" }
+
+[[case]]
+name = "11['-v1']"
+args = ["-v1", "a", "b"]
+scratch = { "a" = "A 1\nb 2\n", "b" = "a 3\nB 4\n" }
+
+[[case]]
+name = "11['-v2']"
+args = ["-v2", "a", "b"]
+scratch = { "a" = "A 1\nb 2\n", "b" = "a 3\nB 4\n" }
+
+[[case]]
+name = "11['-v1', '-v2']"
+args = ["-v1", "-v2", "a", "b"]
+scratch = { "a" = "A 1\nb 2\n", "b" = "a 3\nB 4\n" }
+
+[[case]]
+name = "11['--header']"
+args = ["--header", "a", "b"]
+scratch = { "a" = "A 1\nb 2\n", "b" = "a 3\nB 4\n" }
+
+[[case]]
+name = "11['--header', '--check-order']"
+args = ["--header", "--check-order", "a", "b"]
+scratch = { "a" = "A 1\nb 2\n", "b" = "a 3\nB 4\n" }
+
+[[case]]
+name = "11['-o', 'auto', '-a1', '-a2']"
+args = ["-o", "auto", "-a1", "-a2", "a", "b"]
+scratch = { "a" = "A 1\nb 2\n", "b" = "a 3\nB 4\n" }
+
+[[case]]
+name = "11['-o', '0,1.1,2.1,1.9', '-e', '?', '-a1', '-a2']"
+args = ["-o", "0,1.1,2.1,1.9", "-e", "?", "-a1", "-a2", "a", "b"]
+scratch = { "a" = "A 1\nb 2\n", "b" = "a 3\nB 4\n" }
+
+[[case]]
+name = "11['-i']"
+args = ["-i", "a", "b"]
+scratch = { "a" = "A 1\nb 2\n", "b" = "a 3\nB 4\n" }
+
+[[case]]
+name = "fields ['-j2']"
+args = ["-j2", "-a1", "-a2", "a", "b"]
+scratch = { "a" = "a:1\nb:2\n", "b" = "a:3\nc:4\n" }
+
+[[case]]
+name = "fields ['-1', '2', '-2', '3']"
+args = ["-1", "2", "-2", "3", "-a1", "-a2", "a", "b"]
+scratch = { "a" = "a:1\nb:2\n", "b" = "a:3\nc:4\n" }
+
+[[case]]
+name = "fields ['-t', ':']"
+args = ["-t", ":", "-a1", "-a2", "a", "b"]
+scratch = { "a" = "a:1\nb:2\n", "b" = "a:3\nc:4\n" }
+
+[[case]]
+name = "fields ['-t', '']"
+args = ["-t", "", "-a1", "-a2", "a", "b"]
+scratch = { "a" = "a:1\nb:2\n", "b" = "a:3\nc:4\n" }
+
+[[case]]
+name = "fields ['-t', '\\\\0']"
+args = ["-t", "\\0", "-a1", "-a2", "a", "b"]
+scratch = { "a" = "a:1\nb:2\n", "b" = "a:3\nc:4\n" }
+
+[[case]]
+name = "fields ['-z']"
+args = ["-z", "-a1", "-a2", "a", "b"]
+scratch = { "a" = "a:1\nb:2\n", "b" = "a:3\nc:4\n" }
+
+[[case]]
+name = "fields ['-o', '1.2 0 2.2']"
+args = ["-o", "1.2 0 2.2", "-a1", "-a2", "a", "b"]
+scratch = { "a" = "a:1\nb:2\n", "b" = "a:3\nc:4\n" }
+
+[[case]]
+name = "bad file ['nope', 'b']"
+args = ["nope", "b"]
+scratch = { "a" = "a\n", "b" = "b\n" }
+
+[[case]]
+name = "bad file ['a', 'nope']"
+args = ["a", "nope"]
+scratch = { "a" = "a\n", "b" = "b\n" }
+
+[[case]]
+name = "bad file ['/', 'b']"
+args = ["/", "b"]
+scratch = { "a" = "a\n", "b" = "b\n" }
+
+[[case]]
+name = "bad file ['a', '/']"
+args = ["a", "/"]
+scratch = { "a" = "a\n", "b" = "b\n" }
+
+[[case]]
+name = "closed"
+args = ["a", "b"]
+scratch = { "a" = "a\n", "b" = "a\n" }
+stdout_closed = true
+
