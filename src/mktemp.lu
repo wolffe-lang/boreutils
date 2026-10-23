@@ -131,7 +131,15 @@ fn main() -> int {
         var collision = false
         var why = ""
         if dry {
-            let exists = fs_lstat(name) else |_| List[int]()
+            let exists = fs_lstat(name) else |e| {
+                let error = bore.io_error()
+                match e {
+                    not_found => {},
+                    denied => { why = error },
+                    io => { why = error },
+                }
+                List[int]()
+            }
             collision = exists.len > 0
         } else if directory {
             fs_create_dir_mode(name, 448) else |e| {
