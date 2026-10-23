@@ -110,6 +110,8 @@ fn main() -> int {
     var zero = false
     var to = ""
     var base = ""
+    var has_to = false
+    var has_base = false
     var i = 0
     while i < p.keys.len {
         let k = p.keys[i]
@@ -132,21 +134,21 @@ fn main() -> int {
         if k == "strip" || k == "no-symlinks" { strip = true }
         if k == "quiet" { quiet = true }
         if k == "zero" { zero = true }
-        if k == "relative-to" { to = p.values[i] }
-        if k == "relative-base" { base = p.values[i] }
+        if k == "relative-to" { to = p.values[i]; has_to = true }
+        if k == "relative-base" { base = p.values[i]; has_base = true }
         i += 1
     }
     if !bore.ok(p) { return bore.usage_error("realpath", p.error) }
     if p.operands.len == 0 { return bore.usage_error("realpath", "missing operand") }
-    if base.len > 0 && to.len == 0 { to = base }
+    if has_base && !has_to { to = base; has_to = true }
     var from = ""
     var under = ""
-    if to.len > 0 {
+    if has_to {
         let r = resolved(to, mode, logical, strip)
         if !r.ok { bore.input_error("realpath", to, r.why); return 1 }
         from = r.path
     }
-    if base.len > 0 {
+    if has_base {
         let r = resolved(base, mode, logical, strip)
         if !r.ok { bore.input_error("realpath", base, r.why); return 1 }
         under = r.path
