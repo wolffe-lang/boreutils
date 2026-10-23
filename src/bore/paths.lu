@@ -117,7 +117,12 @@ pub fn canonical(path: str, mode: int) -> Resolved {
         }
         if c == ".." {
             let _ = (mut stack).pop() else ""
-            if lexical && stack.len < lexical_depth { lexical = false }
+            if lexical && stack.len < lexical_depth {
+                lexical = false
+                // The cyclic/missing prefix was abandoned, not this walk's
+                // next resolved path: start its link budget afresh.
+                links = 0
+            }
             continue
         }
         if lexical {
