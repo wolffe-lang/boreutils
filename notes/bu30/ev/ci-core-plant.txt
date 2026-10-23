@@ -1,0 +1,157 @@
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	﻿2026-10-23T14:16:34.4043338Z ##[group]Run # Not -e (the runner's `bash -e` default): a red run is counted.
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:34.4044028Z ^[[36;1m# Not -e (the runner's `bash -e` default): a red run is counted.^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:34.4044416Z ^[[36;1mset +e -uo pipefail^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:34.4044697Z ^[[36;1mif [ "$RUNNER_OS" = "macOS" ]; then^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:34.4045061Z ^[[36;1m  if [ -x .gnu-bin/bin/timeout ]; then g=.gnu-bin/bin; p=""^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:34.4045522Z ^[[36;1m  else g=$(dirname "$(command -v gtimeout)"); p="--gnu-prefix g"; fi^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:34.4045993Z ^[[36;1m  tt="tools/timeouttest --engine none --gnu $g $p"^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:34.4046415Z ^[[36;1m  tools/timeouttest-selftest --engine none --gnu "$g" $p^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:34.4046760Z ^[[36;1melse^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:34.4047067Z ^[[36;1m  # bu28: a file core pattern, so the cores-on cases run and must.^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:34.4047590Z ^[[36;1m  echo "the runner's core pattern: $(cat /proc/sys/kernel/core_pattern)"^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:34.4048252Z ^[[36;1m  sudo sysctl -w kernel.core_pattern=core.%p^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:34.4048607Z ^[[36;1m  export BORE_CORE_REQUIRE=1^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:34.4049022Z ^[[36;1m  tt="tools/timeouttest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin"^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:34.4049613Z ^[[36;1m  tools/timeouttest-selftest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:34.4050049Z ^[[36;1mfi^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:34.4050249Z ^[[36;1mselftest=$?^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:34.4050469Z ^[[36;1mbad=0^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:34.4050672Z ^[[36;1mfor n in 1 2 3; do^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:34.4050903Z ^[[36;1m  bin=""^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:34.4051173Z ^[[36;1m  [ "$n" -eq 1 ] || bin="--bin target/timeouttest"^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:34.4051510Z ^[[36;1m  $tt $bin > "whole-$n.log" 2>&1^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:34.4051775Z ^[[36;1m  code=$?^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:34.4052143Z ^[[36;1m  echo "whole run $n: exit $code; $(grep -E '^timeouttest: [0-9]+ passed' "whole-$n.log")"^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:34.4053013Z ^[[36;1m  grep -A6 '^FAIL' "whole-$n.log" || true^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:34.4053401Z ^[[36;1m  [ "$code" -eq 0 ] || bad=$((bad + 1))^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:34.4053681Z ^[[36;1mdone^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:34.4053988Z ^[[36;1mecho "timeouttest: selftest exit $selftest; $bad of 3 runs red"^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:34.4054389Z ^[[36;1m[ "$selftest" -eq 0 ] && [ "$bad" -eq 0 ]^[[0m
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:34.4120581Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:34.4120945Z ##[endgroup]
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:34.4217534Z the runner's core pattern: |/usr/lib/systemd/systemd-coredump %P %u %g %s %t 9223372036854775808 %h %d
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:34.4282069Z kernel.core_pattern = core.%p
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:47.7738923Z timeouttest: release/timeout is static
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:47.7739668Z timeouttest: dev/timeout is static
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:47.7740671Z timeouttest: docker, image ubuntu:24.04, one fresh container a case, no mount, no network, as user 4242
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:47.7742252Z timeouttest: core pattern 'core.%p': cores-on cases run (a file in the case directory), and must (BORE_CORE_REQUIRE=1)
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:47.7744316Z timeouttest: gnu = timeout (GNU coreutils) 9.11 (/home/runner/work/boreutils/boreutils/.gnu-bin/bin/timeout)
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:47.7745479Z FAIL plant: the expiry  args=['0.3', 'sleep', '1']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:47.7746168Z FAIL plant: the group  args=['0.3', 'sh', '-c', 'sleep 30 & echo $! > gc; sleep 1']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:47.7746974Z FAIL plant: a death by a signal is not an exit status  args=['5', 'sh', '-c', 'kill -TERM $$']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:47.7747774Z FAIL plant: a field answered otherwise by design  args=['5', 'sh', '-c', 'exit 3']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:47.7748514Z FAIL plant: a cores-on case must run  args=['5', 'sh', '-c', 'kill -SEGV $$']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:47.7749101Z ok   control: a command that ends by itself
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:47.7749540Z timeouttest: 1 passed, 5 failed, 0 skipped
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:16:47.7750190Z timeouttest-selftest: the tool saw every planted difference
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:21:27.3986278Z whole run 1: exit 1; timeouttest: 159 passed, 3 failed, 1 skipped
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:21:27.3998803Z FAIL core: the command ends by SEGV  args=['5', 'sh', '-c', 'kill -SEGV $$']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:21:27.3999936Z     release cores: 2, gnu 1
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:21:27.4003072Z     dev cores: 2, gnu 1
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:21:27.4023791Z FAIL core: the command ends by ABRT, -p  args=['-p', '5', 'sh', '-c', 'kill -ABRT $$']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:21:27.4024839Z     release cores: 2, gnu 1
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:21:27.4025462Z     dev cores: 2, gnu 1
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:21:27.4026132Z ok   core: the command ends by TERM, no core
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:21:27.4026914Z ok   core: --foreground -s SEGV at the expiry
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:21:27.4027770Z ok   core: -s QUIT at the expiry
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:21:27.4028509Z ok   core: -p -s ABRT at the expiry, 134
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:21:27.4029234Z --
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:21:27.4030024Z FAIL core: QUIT sent to timeout, the command does not trap it  args=['5', 'sleep', '2']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:21:27.4031326Z     release cores: 2, gnu 1
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:21:27.4031905Z     dev cores: 2, gnu 1
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:21:27.4033102Z ok   group: the command's child ends at the expiry
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:21:27.4033995Z ok   group: --foreground leaves the command's child
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:21:27.4034788Z ok   group: -s KILL ends the command's child
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:21:27.4035705Z ok   group: a child in a group of its own outlives the expiry
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:25:58.5674155Z whole run 2: exit 1; timeouttest: 159 passed, 3 failed, 1 skipped
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:25:58.5685554Z FAIL core: the command ends by SEGV  args=['5', 'sh', '-c', 'kill -SEGV $$']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:25:58.5686954Z     release cores: 2, gnu 1
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:25:58.5687604Z     dev cores: 2, gnu 1
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:25:58.5688531Z FAIL core: the command ends by ABRT, -p  args=['-p', '5', 'sh', '-c', 'kill -ABRT $$']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:25:58.5689353Z     release cores: 2, gnu 1
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:25:58.5689885Z     dev cores: 2, gnu 1
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:25:58.5690500Z ok   core: the command ends by TERM, no core
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:25:58.5691087Z ok   core: --foreground -s SEGV at the expiry
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:25:58.5691599Z ok   core: -s QUIT at the expiry
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:25:58.5692080Z ok   core: -p -s ABRT at the expiry, 134
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:25:58.5692764Z --
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:25:58.5693327Z FAIL core: QUIT sent to timeout, the command does not trap it  args=['5', 'sleep', '2']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:25:58.5694040Z     release cores: 2, gnu 1
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:25:58.5694340Z     dev cores: 2, gnu 1
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:25:58.5694602Z ok   group: the command's child ends at the expiry
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:25:58.5694944Z ok   group: --foreground leaves the command's child
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:25:58.5695282Z ok   group: -s KILL ends the command's child
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:25:58.5695660Z ok   group: a child in a group of its own outlives the expiry
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:30:29.9091766Z whole run 3: exit 1; timeouttest: 159 passed, 3 failed, 1 skipped
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:30:29.9104649Z FAIL core: the command ends by SEGV  args=['5', 'sh', '-c', 'kill -SEGV $$']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:30:29.9105504Z     release cores: 2, gnu 1
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:30:29.9106029Z     dev cores: 2, gnu 1
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:30:29.9106875Z FAIL core: the command ends by ABRT, -p  args=['-p', '5', 'sh', '-c', 'kill -ABRT $$']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:30:29.9107990Z     release cores: 2, gnu 1
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:30:29.9108549Z     dev cores: 2, gnu 1
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:30:29.9109155Z ok   core: the command ends by TERM, no core
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:30:29.9109851Z ok   core: --foreground -s SEGV at the expiry
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:30:29.9110296Z ok   core: -s QUIT at the expiry
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:30:29.9110676Z ok   core: -p -s ABRT at the expiry, 134
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:30:29.9111051Z --
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:30:29.9111509Z FAIL core: QUIT sent to timeout, the command does not trap it  args=['5', 'sleep', '2']
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:30:29.9112105Z     release cores: 2, gnu 1
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:30:29.9112652Z     dev cores: 2, gnu 1
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:30:29.9113030Z ok   group: the command's child ends at the expiry
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:30:29.9113514Z ok   group: --foreground leaves the command's child
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:30:29.9115816Z ok   group: -s KILL ends the command's child
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:30:29.9116651Z ok   group: a child in a group of its own outlives the expiry
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:30:29.9117523Z timeouttest: selftest exit 0; 3 of 3 runs red
+timeout, repeated (bu27)	timeouttest, the selftest, then three times whole	2026-10-23T14:30:29.9129631Z ##[error]Process completed with exit code 1.
+tier partial	every chosen job succeeded, every other was skipped	﻿2026-10-23T14:30:37.1549918Z ##[group]Run python3 ci/tiers.py verdict
+tier partial	every chosen job succeeded, every other was skipped	2026-10-23T14:30:37.1551483Z ^[[36;1mpython3 ci/tiers.py verdict^[[0m
+tier partial	every chosen job succeeded, every other was skipped	2026-10-23T14:30:37.2811627Z shell: /usr/bin/bash -e {0}
+tier partial	every chosen job succeeded, every other was skipped	2026-10-23T14:30:37.2812970Z env:
+tier partial	every chosen job succeeded, every other was skipped	2026-10-23T14:30:37.2819656Z   NEEDS: {
+tier partial	every chosen job succeeded, every other was skipped	  "plan": {
+tier partial	every chosen job succeeded, every other was skipped	    "result": "success",
+tier partial	every chosen job succeeded, every other was skipped	    "outputs": {
+tier partial	every chosen job succeeded, every other was skipped	      "jobs": "[\"timeout\"]",
+tier partial	every chosen job succeeded, every other was skipped	      "matrix_gauntlet": "[{\"os\":\"ubuntu-latest\",\"gnu_prefix\":\"\"}]",
+tier partial	every chosen job succeeded, every other was skipped	      "tier": "partial"
+tier partial	every chosen job succeeded, every other was skipped	    }
+tier partial	every chosen job succeeded, every other was skipped	  },
+tier partial	every chosen job succeeded, every other was skipped	  "gauntlet": {
+tier partial	every chosen job succeeded, every other was skipped	    "result": "skipped",
+tier partial	every chosen job succeeded, every other was skipped	    "outputs": {}
+tier partial	every chosen job succeeded, every other was skipped	  },
+tier partial	every chosen job succeeded, every other was skipped	  "field": {
+tier partial	every chosen job succeeded, every other was skipped	    "result": "skipped",
+tier partial	every chosen job succeeded, every other was skipped	    "outputs": {}
+tier partial	every chosen job succeeded, every other was skipped	  },
+tier partial	every chosen job succeeded, every other was skipped	  "ttyprobe": {
+tier partial	every chosen job succeeded, every other was skipped	    "result": "skipped",
+tier partial	every chosen job succeeded, every other was skipped	    "outputs": {}
+tier partial	every chosen job succeeded, every other was skipped	  },
+tier partial	every chosen job succeeded, every other was skipped	  "macos-suite": {
+tier partial	every chosen job succeeded, every other was skipped	    "result": "skipped",
+tier partial	every chosen job succeeded, every other was skipped	    "outputs": {}
+tier partial	every chosen job succeeded, every other was skipped	  },
+tier partial	every chosen job succeeded, every other was skipped	  "inout": {
+tier partial	every chosen job succeeded, every other was skipped	    "result": "skipped",
+tier partial	every chosen job succeeded, every other was skipped	    "outputs": {}
+tier partial	every chosen job succeeded, every other was skipped	  },
+tier partial	every chosen job succeeded, every other was skipped	  "kill": {
+tier partial	every chosen job succeeded, every other was skipped	    "result": "skipped",
+tier partial	every chosen job succeeded, every other was skipped	    "outputs": {}
+tier partial	every chosen job succeeded, every other was skipped	  },
+tier partial	every chosen job succeeded, every other was skipped	  "timeout": {
+tier partial	every chosen job succeeded, every other was skipped	    "result": "failure",
+tier partial	every chosen job succeeded, every other was skipped	    "outputs": {}
+tier partial	every chosen job succeeded, every other was skipped	  }
+tier partial	every chosen job succeeded, every other was skipped	}
+tier partial	every chosen job succeeded, every other was skipped	2026-10-23T14:30:37.2826785Z ##[endgroup]
+tier partial	every chosen job succeeded, every other was skipped	2026-10-23T14:30:37.3283901Z tier partial: 1 of 7 job(s) chosen
+tier partial	every chosen job succeeded, every other was skipped	2026-10-23T14:30:37.3285922Z   gauntlet           skipped   ok
+tier partial	every chosen job succeeded, every other was skipped	2026-10-23T14:30:37.3287988Z   field              skipped   ok
+tier partial	every chosen job succeeded, every other was skipped	2026-10-23T14:30:37.3289702Z   ttyprobe           skipped   ok
+tier partial	every chosen job succeeded, every other was skipped	2026-10-23T14:30:37.3291513Z   macos-suite        skipped   ok
+tier partial	every chosen job succeeded, every other was skipped	2026-10-23T14:30:37.3293260Z   inout              skipped   ok
+tier partial	every chosen job succeeded, every other was skipped	2026-10-23T14:30:37.3294944Z   kill               skipped   ok
+tier partial	every chosen job succeeded, every other was skipped	2026-10-23T14:30:37.3296690Z   timeout            failure   WANTED success
+tier partial	every chosen job succeeded, every other was skipped	2026-10-23T14:30:37.3361749Z ##[error]Process completed with exit code 1.

@@ -343,3 +343,28 @@ name = "write-only file needs no read permission"
 args = ["-s", "2", "f"]
 scratch = { f = "abcdef" }
 scratch_modes = { f = 128 }
+
+[[case]]
+name = "leading space in size"
+args = ["-s", " 2", "f"]
+
+[[case]]
+name = "trailing space in size"
+args = ["-s", "2 ", "f"]
+
+[[case]]
+name = "leading zero decimal"
+args = ["-s", "010", "f"]
+
+[[case]]
+name = "byte suffix B"
+args = ["-s", "1B", "f"]
+
+[[case]]
+name = "decimal lowercase kB"
+args = ["-s", "1kB", "f"]
+
+[[case]]
+name = "relative leading space"
+args = ["-s", "+ 2", "f"]
+scratch = { f = "abcdef" }

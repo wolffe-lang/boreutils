@@ -15,7 +15,6 @@ fn main() -> int {
     (mut opts).push(bore.flag("", "version"))
     let p = bore.parse(opts, env_args(), bore.permute())
     var out = bore.stdout()
-    var data = false
     var whole = false
     for k in p.keys {
         if k == "help" {
@@ -26,7 +25,6 @@ fn main() -> int {
             bore.put(mut out, bore.version_text("sync")) else |_| {}
             return bore.finish(mut out, "sync", 0)
         }
-        if k == "data" { data = true }
         if k == "file-system" { whole = true }
     }
     if !bore.ok(p) { return bore.usage_error("sync", p.error) }
