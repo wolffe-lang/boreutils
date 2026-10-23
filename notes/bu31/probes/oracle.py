@@ -28,3 +28,6 @@ with tempfile.TemporaryDirectory(dir='/l/tmp') as t:
 for data in [b'a b b c',b'a b a b',b'b b a a c c',b'a b c d',b'a b c b d a',b'a b b a',b'a b b a c d d c',b'a b b c c a',b'a b c',b'a\vb\fc\rd',b'a\x00b c']:
  run('tsort',data=data)
 for args in [[],['a','b'],['-e'],['-i','3-1'],['-i','1-0'],['-i','0-0','-n','0'],['-r','-n','2'],['-n','-1'],['-n','x'],['-i','+1-3'],['-i','1-3','x'],['--random-source=/dev/null','-e','x'],['--random-source=/dev/null','-e','x','y']]:run('shuf',args)
+for args in [['-a','3'],['-v','0'],['-1','x'],['-j','+2'],['-o',''],['-o','1.0'],['-o','x'],['-o','1.1,,2.1'],['-t',':','-t',';'],['-e','x','-e','y'],['--check-order'],['-t','\\0']]:run('join',args+['/dev/null','/dev/null'])
+for data in [b'b\vc',b'b\fc',b'b\rc',b'b\tc',b'b\nc',b'b c',b'b\x00x c',b'b\x00x c c d']:
+ run('tsort',data=data)
