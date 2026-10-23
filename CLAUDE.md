@@ -156,11 +156,12 @@ against GNU. The short form for a new utility:
   back, `bore.current_umask`). The builtins are called directly:
   they were written before wolf-std's wrappers reached the std pin
   (they have since, at bu23's `9e5bd6b`).
-  An owner is changed by `fs_set_owner` (0.2.30, bu24). Nothing makes a fifo
-  or a device (#705), finds a hole (#703), renames without replacing
+  An owner is changed by `fs_set_owner` (0.2.30, bu24). `fs_mkfifo` makes
+  a fifo and `fs_fstat_record` reads a handle's full identity (0.2.35,
+  bu30). No surface makes a device (#705), finds a hole (#703), renames without replacing
   (#706), names an entry relative to an open directory (#707), sets a
   link's own mode, sets times through a handle (#714) or reads a
-  handle's open flags (#722) or identity (#536). `cat`'s input-is-output
+  handle's open flags (#722). `cat`'s input-is-output
   refusal reads standard output's identity through a PATH naming the
   descriptor instead (`/proc/self/fd/1`, `/dev/fd/1`): `src/bore/inout.lu`
   says what that costs on each host. A utility whose core operation is missing is
