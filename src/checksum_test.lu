@@ -51,6 +51,13 @@ fn main() {
         "abc",
         "ba80a53f981c4d0d6a2797b69f12f6e94c212f14685ac4b74b12bb6fdbffa2d17d87c5392aab792dc252d5de4533cc9518d38aa8dbf1925ab92386edd4009923",
     )
+    // NIST SHS million-a examples, streaming 1000-byte fragments.
+    repeated_vector(4, 128, "7707d6ae4e027c70eea2a935c2296f21")
+    repeated_vector(5, 160, "34aa973cd4c4daa4f61eeb2bdbad27316534016f")
+    repeated_vector(6, 224, "20794655980c91d8bbb4c1ea97618a4bf03f42581948b2ee4ee7ad67")
+    repeated_vector(7, 256, "cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0")
+    repeated_vector(8, 384, "9d0e1809716474cb086e834e310a4a1ced149e9c00f248527972cec5704c2a5b07b8b3dc38ecc4ebae97ddd87f3d8985")
+    repeated_vector(9, 512, "e718483d0ce769644e2e42c7bc15b4638e1f98b13b2044285632a803afa973ebde0ff244877ea60a4cb0432ce577c31beb009c5c2c49aa2e4eadb217ad8cc09b")
     // POSIX polynomial-derived regressions; Ethernet CRC check value.
     vector(0, 32, "", "ffffffff")
     vector(0, 32, "123456789", "377a6011")
@@ -58,4 +65,18 @@ fn main() {
     // BSD rotation and SysV additive definitions, hand-derived for abc.
     vector(2, 16, "abc", "00000126")
     vector(3, 16, "abc", "000040ac")
+}
+
+// NIST SHS million-'a' examples (SHA-1 also RFC 3174 section 7.3),
+// RFC 1321's MD5 message definition with the widely published million-a
+// regression. Chunking is deliberate and independent of compression sizes.
+fn repeated_vector(kind: int, bits: int, want: str) {
+    var d = checksum.digest_new(kind, bits)
+    var block = List[byte]()
+    var i = 0
+    while i < 1000 { (mut block).push(97 as byte); i += 1 }
+    i = 0
+    while i < 1000 { checksum.digest_feed(mut d, block); i += 1 }
+    let got = checksum.hex_bytes(checksum.digest_end(mut d))
+    assert(got == want, "million a digest {kind}/{bits}: {got}, want {want}")
 }
