@@ -141,7 +141,7 @@ fn main() -> int {
                 continue
             }
         }
-        let fd = fs_open_mode(name, 3) else |_| {
+        let fd = fs_open_mode(name, 2) else |_| {
             bore.warn("truncate", "cannot open {bore.quote(name)} for writing: {bore.io_error()}")
             status = 1
             continue

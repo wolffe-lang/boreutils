@@ -337,3 +337,9 @@ args = ["-s", "9223372036854775807K", "f"]
 [[case]]
 name = "grammar ''"
 args = ["-s", "", "f"]
+
+[[case]]
+name = "write-only file needs no read permission"
+args = ["-s", "2", "f"]
+scratch = { f = "abcdef" }
+scratch_modes = { f = 128 }
