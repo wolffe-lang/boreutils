@@ -6,6 +6,7 @@ executable oracle for message answers; CLI answers come from GNU 9.11.
 Run --measure for 256 MiB, three-run median speed and peak-RSS rows.
 """
 import hashlib
+import errno
 import json
 import os
 from pathlib import Path
@@ -138,6 +139,18 @@ class Checksums(unittest.TestCase):
                         self.assertEqual((a.returncode, a.stdout, a.stderr.replace(b"cksum", b"PROG")),
                                          (expected.returncode, expected.stdout, expected.stderr.replace(b"cksum", b"PROG")),
                                          (args, check))
+
+    def test_host_errno_words(self):
+        # Parsing a negative length synthesizes EOVERFLOW without a syscall.
+        # Compare the host's own strerror, not a Linux wording on Darwin.
+        why = os.strerror(errno.EOVERFLOW).encode()
+        for tool, flags in [("b2sum", ["-l", "-1"]),
+                            ("cksum", ["-l", "-1"]),
+                            ("cksum", ["-a", "sha2", "-l", "-1"])]:
+            wanted = tool.encode() + b": invalid length: '-1': " + why + b"\n"
+            for exe in [BIN / tool, gnu(tool)]:
+                p = run(exe, flags, b"abc")
+                self.assertEqual((p.returncode, p.stdout, p.stderr), (1, b"", wanted))
 
     def test_closed_standard_input_and_list_directories(self):
         with tempfile.TemporaryDirectory(prefix="bore-checksum-io.") as td:

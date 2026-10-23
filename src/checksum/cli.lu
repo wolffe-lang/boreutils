@@ -119,7 +119,7 @@ pub fn command(prog: str, default_kind: int, default_bits: int) -> int {
     if have_length {
         let n = length_number(length) else |e| {
             let why = match e {
-                overflow => ": Value too large for defined data type",
+                overflow => ": {bore.reason_of(if os_name() == "macos" then 84 else 75)}",
                 invalid => "",
             }
             bore.warn(prog, "invalid length: {bore.quote(length)}{why}")
@@ -235,7 +235,7 @@ pub fn command(prog: str, default_kind: int, default_bits: int) -> int {
         }
     }
     if seen.stdin && stdin_closed() {
-        bore.warn(prog, "standard input: Bad file descriptor")
+        bore.warn(prog, "standard input: {bore.bad_descriptor()}")
         status = 1
     }
     bore.finish(mut out, prog, if status == 2 then 1 else status)
