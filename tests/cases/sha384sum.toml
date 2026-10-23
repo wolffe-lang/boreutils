@@ -1553,3 +1553,33 @@ name = "POSIX option ordering"
 args = ["f", "--tag"]
 scratch = { "f" = "abc" }
 env = { "POSIXLY_CORRECT" = "1" }
+
+[[case]]
+name = "check parenthesized or blank filename (paren)"
+args = ["-c"]
+stdin = "cb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7  (paren)\n"
+scratch = {"(paren)" = "abc"}
+
+[[case]]
+name = "check parenthesized or blank filename a(b)c"
+args = ["-c"]
+stdin = "cb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7  a(b)c\n"
+scratch = {"a(b)c" = "abc"}
+
+[[case]]
+name = "check parenthesized or blank filename sp ace"
+args = ["-c"]
+stdin = "cb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7  sp ace\n"
+scratch = {"sp ace" = "abc"}
+
+[[case]]
+name = "reverse format old then marked"
+args = ["-cw"]
+stdin = "cb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7 f\ncb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7  f\n"
+scratch = {"f" = "abc"}
+
+[[case]]
+name = "reverse format marked then old"
+args = ["-cw"]
+stdin = "cb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7  f\ncb00753f45a35e8bb5a03d699ac65007272c32ab0eded1631a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7 f\n"
+scratch = {"f" = "abc"}
