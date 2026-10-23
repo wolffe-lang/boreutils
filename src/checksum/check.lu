@@ -44,7 +44,16 @@ fn manifest_line(mut r: ManifestReader) -> List[byte] ! {eof, io} {
     line
 }
 
-struct Record { name: str, expected: str, kind: int, bits: int, base64: bool, style: int, name_start: int, name_end: int }
+struct Record {
+    name: str,
+    expected: str,
+    kind: int,
+    bits: int,
+    base64: bool,
+    style: int,
+    name_start: int,
+    name_end: int,
+}
 
 fn ascii_blank(b: byte) -> bool { b as int == 32 || b as int == 9 }
 
@@ -97,7 +106,11 @@ fn parse_record(c: Settings, line: str, from_stdin: bool, reverse_style: int) ->
     var base = pos
     s = s[pos..]
     var escaped = false
-    if s.starts_with("\\") { escaped = true; s = s[1..]; base += 1 }
+    if s.starts_with("\\") {
+        escaped = true
+        s = s[1..]
+        base += 1
+    }
     var kind = c.kind
     var bits = c.bits
     var name = ""
@@ -433,8 +446,10 @@ fn raw_name_record(c: Settings, bytes: List[byte], style: int) -> bool {
     var i = 0
     while i < bytes.len {
         let width = utf8_span(bytes, i)
-        if width == 0 { (mut clean).push(120 as byte); i += 1 }
-        else {
+        if width == 0 {
+            (mut clean).push(120 as byte)
+            i += 1
+        } else {
             var j = 0
             while j < width { (mut clean).push(bytes[i + j]); j += 1 }
             i += width
@@ -461,7 +476,15 @@ fn utf8_range_ok(bytes: List[byte], start: int, end: int) -> bool {
 fn utf8_span(bytes: List[byte], at: int) -> int {
     let b = bytes[at] as int
     if b < 128 { return 1 }
-    let width = if b >= 194 && b <= 223 then 2 else if b >= 224 && b <= 239 then 3 else if b >= 240 && b <= 244 then 4 else 0
+    let width = if b >= 194 && b <= 223 {
+        2
+    } else if b >= 224 && b <= 239 {
+        3
+    } else if b >= 240 && b <= 244 {
+        4
+    } else {
+        0
+    }
     if width == 0 || at + width > bytes.len { return 0 }
     var j = 1
     while j < width {
@@ -470,7 +493,11 @@ fn utf8_span(bytes: List[byte], at: int) -> int {
         j += 1
     }
     let second = bytes[at + 1] as int
-    if b == 224 && second < 160 || b == 237 && second > 159 ||
-        b == 240 && second < 144 || b == 244 && second > 143 { return 0 }
+    if b == 224 && second < 160 ||
+        b == 237 && second > 159 ||
+        b == 240 && second < 144 ||
+        b == 244 && second > 143 {
+        return 0
+    }
     width
 }
