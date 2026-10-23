@@ -5,6 +5,7 @@
 //! (0BSD) are named design references only; no implementation consulted.
 //! Input chunks are 64 KiB, pending data <=128 bytes, schedules <=80 words.
 
+/// Fixed-capacity working state; constructed only by digest_new.
 pub struct Digest {
     kind: int,
     bits: int,
@@ -22,6 +23,7 @@ pub struct Digest {
     table: List[int],
 }
 
+/// Initialize a supported kind and digest length in bits; no failure rows.
 pub fn digest_new(kind: int, bits: int) -> Digest {
     var d = Digest {
         kind: kind, bits: bits, h: List[wrapping[u64]](),
@@ -72,6 +74,7 @@ fn digest_block(mut d: Digest, last: bool) {
     else { blake_block(mut d, last) }
 }
 
+/// Consume bytes without retaining them; state and pending data stay bounded.
 pub fn digest_feed(mut d: Digest, data: List[byte]) {
     if d.kind < 4 {
         for b in data { checksum_byte(mut d, b as int) }
@@ -93,6 +96,7 @@ pub fn digest_feed(mut d: Digest, data: List[byte]) {
     }
 }
 
+/// Finalize once and return digest bytes in the standard byte order.
 pub fn digest_end(mut d: Digest) -> List[byte] {
     if d.kind < 4 { return checksum_end(mut d) }
     let size = block_size(d)
@@ -159,6 +163,7 @@ fn rotr32(x: wrapping[u64], n: int) -> wrapping[u64] {
     ((x >> n as wrapping[u64]) | (x << (32 - n) as wrapping[u64])) & 0xffffffff
 }
 
+/// Encode bytes as lowercase hexadecimal.
 pub fn hex_bytes(data: List[byte]) -> str {
     var text = List[byte]()
     for b in data {
