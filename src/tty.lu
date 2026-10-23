@@ -6,6 +6,7 @@
 //! only (not recursively), follows each entry, and matches fd 0's dev
 //! and ino (fs_fstat_record words 9 and 10), never just its filename.
 //! This covers Darwin's /dev/ttysNNN ptys without probing other trees.
+
 use bore
 
 fn terminal_name() -> str {
@@ -34,7 +35,10 @@ fn main() -> int {
     var silent = false
     for k in p.keys {
         if k == "help" {
-            bore.put(mut out, "Usage: tty [OPTION]...\nName standard input's terminal; -s/--silent/--quiet only tests it.\n") else |_| {}
+            bore.put(
+                mut out,
+                "Usage: tty [OPTION]...\nName standard input's terminal; -s/--silent/--quiet only tests it.\n",
+            ) else |_| {}
             return finished(mut out, 0)
         }
         if k == "version" {
@@ -44,7 +48,10 @@ fn main() -> int {
         if k == "silent" || k == "quiet" { silent = true }
     }
     if !bore.ok(p) { bore.usage_error("tty", p.error); return 2 }
-    if p.operands.len > 0 { bore.usage_error("tty", "extra operand {bore.quote_always(p.operands[0])}"); return 2 }
+    if p.operands.len > 0 {
+        bore.usage_error("tty", "extra operand {bore.quote_always(p.operands[0])}")
+        return 2
+    }
     let terminal = os_isatty(0) else false
     if silent { return if terminal then 0 else 1 }
     if !terminal {

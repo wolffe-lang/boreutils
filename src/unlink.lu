@@ -7,6 +7,7 @@
 //! lstat additionally refuses directories, never their symlinks. The
 //! actual removal is fs_remove, whose file-only operation cannot remove
 //! a directory swapped into place after the lstat. No remove_dir call.
+
 use bore
 
 fn main() -> int {
@@ -27,7 +28,9 @@ fn main() -> int {
     }
     if !bore.ok(p) { return bore.usage_error("unlink", p.error) }
     if p.operands.len == 0 { return bore.usage_error("unlink", "missing operand") }
-    if p.operands.len > 1 { return bore.usage_error("unlink", "extra operand {bore.quote_always(p.operands[1])}") }
+    if p.operands.len > 1 {
+        return bore.usage_error("unlink", "extra operand {bore.quote_always(p.operands[1])}")
+    }
     let name = p.operands[0]
     let r = fs_lstat(name) else |_| {
         bore.warn("unlink", "cannot unlink {bore.quote_always(name)}: {bore.io_error()}")

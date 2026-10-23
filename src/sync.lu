@@ -5,6 +5,7 @@
 //! Bare sync and -f/--file-system are refused: sync(2) and syncfs(2)
 //! have no wolf surface. -d uses fs_sync (a stronger full fsync), not
 //! an invented claim to call fdatasync. Directory entries use fs_sync_dir.
+
 use bore
 
 fn main() -> int {
@@ -18,7 +19,10 @@ fn main() -> int {
     var whole = false
     for k in p.keys {
         if k == "help" {
-            bore.put(mut out, "Usage: sync [OPTION]... FILE...\nFlush each FILE; -d flushes data.\nBare sync and -f/--file-system need unavailable sync/syncfs surfaces.\n") else |_| {}
+            bore.put(
+                mut out,
+                "Usage: sync [OPTION]... FILE...\nFlush each FILE; -d flushes data.\nBare sync and -f/--file-system need unavailable sync/syncfs surfaces.\n",
+            ) else |_| {}
             return bore.finish(mut out, "sync", 0)
         }
         if k == "version" {
@@ -29,7 +33,10 @@ fn main() -> int {
     }
     if !bore.ok(p) { return bore.usage_error("sync", p.error) }
     if whole || p.operands.len == 0 {
-        bore.warn("sync", "unsupported operation: bare sync (sync(2)) and -f/--file-system (syncfs(2))")
+        bore.warn(
+            "sync",
+            "unsupported operation: bare sync (sync(2)) and -f/--file-system (syncfs(2))",
+        )
         return 1
     }
     var status = 0

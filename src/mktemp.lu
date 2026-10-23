@@ -8,6 +8,7 @@
 //! creation is the authority, not a preceding existence check. -u is
 //! deliberately unsafe, as documented by GNU, and reserves nothing.
 //! File and directory modes are 0600 / 0700, reduced by the caller's mask.
+
 use bore
 
 fn random_name(prefix: str, count: int, suffix: str) -> str {
@@ -53,7 +54,10 @@ fn main() -> int {
     while i < p.keys.len {
         let k = p.keys[i]
         if k == "help" {
-            bore.put(mut out, "Usage: mktemp [OPTION]... [TEMPLATE]\nCreate a private file; -d creates a directory, -u only prints a name.\n-q quiet; -p DIR/--tmpdir[=DIR] places it in DIR; -t uses TMPDIR.\n--suffix=SUFFIX appends a suffix. TEMPLATE ends in at least three Xs.\n") else |_| {}
+            bore.put(
+                mut out,
+                "Usage: mktemp [OPTION]... [TEMPLATE]\nCreate a private file; -d creates a directory, -u only prints a name.\n-q quiet; -p DIR/--tmpdir[=DIR] places it in DIR; -t uses TMPDIR.\n--suffix=SUFFIX appends a suffix. TEMPLATE ends in at least three Xs.\n",
+            ) else |_| {}
             return bore.finish(mut out, "mktemp", 0)
         }
         if k == "version" {
@@ -73,12 +77,17 @@ fn main() -> int {
     var template = "tmp.XXXXXXXXXX"
     if p.operands.len > 0 { template = p.operands[0] } else { temporary = true }
     if suffix.contains("/") {
-        bore.warn("mktemp", "invalid suffix {bore.quote_always(suffix)}, contains directory separator")
+        bore.warn(
+            "mktemp",
+            "invalid suffix {bore.quote_always(suffix)}, contains directory separator",
+        )
         return 1
     }
     var end = template.len
     if !explicit_suffix {
-        while end > 0 && template.bytes()[end - 1] != 88 as byte && template.bytes()[end - 1] != 47 as byte { end -= 1 }
+        while end > 0 &&
+            template.bytes()[end - 1] != 88 as byte &&
+            template.bytes()[end - 1] != 47 as byte { end -= 1 }
         suffix = template[end..template.len]
     }
     var start = end
@@ -89,11 +98,17 @@ fn main() -> int {
         return 1
     }
     if old && template.contains("/") {
-        bore.warn("mktemp", "invalid template, {bore.quote_always(template)}, contains directory separator")
+        bore.warn(
+            "mktemp",
+            "invalid template, {bore.quote_always(template)}, contains directory separator",
+        )
         return 1
     }
     if temporary && template.starts_with("/") {
-        bore.warn("mktemp", "invalid template, {bore.quote_always(template)}; with --tmpdir, it may not be absolute")
+        bore.warn(
+            "mktemp",
+            "invalid template, {bore.quote_always(template)}; with --tmpdir, it may not be absolute",
+        )
         return 1
     }
     let envdir = env_get("TMPDIR") else ""
@@ -117,12 +132,26 @@ fn main() -> int {
         } else if directory {
             fs_create_dir_mode(name, 448) else |e| {
                 why = bore.io_error()
-                match e { exists => { collision = true }, not_found => {}, denied => {}, invalid => {}, unsupported => {}, io => {} }
+                match e {
+                    exists => { collision = true },
+                    not_found => {},
+                    denied => {},
+                    invalid => {},
+                    unsupported => {},
+                    io => {},
+                }
             }
         } else {
             let fd = fs_open_perm(name, 4, 384) else |e| {
                 why = bore.io_error()
-                match e { exists => { collision = true }, not_found => {}, denied => {}, invalid => {}, unsupported => {}, io => {} }
+                match e {
+                    exists => { collision = true },
+                    not_found => {},
+                    denied => {},
+                    invalid => {},
+                    unsupported => {},
+                    io => {},
+                }
                 -1
             }
             if fd >= 0 { fs_close(fd) else |_| {} }
@@ -131,7 +160,10 @@ fn main() -> int {
         if why.len > 0 {
             if !quiet {
                 let kind = if directory then "directory" else "file"
-                bore.warn("mktemp", "failed to create {kind} via template {bore.quote_always(shown)}: {why}")
+                bore.warn(
+                    "mktemp",
+                    "failed to create {kind} via template {bore.quote_always(shown)}: {why}",
+                )
             }
             return 1
         }

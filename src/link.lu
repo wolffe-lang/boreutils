@@ -2,6 +2,7 @@
 //! link — give an existing file another name.
 //! References consulted: POSIX.1-2024 link; GNU coreutils 9.11's
 //! documented invocation and black-box binary runs. No implementation source.
+
 use bore
 
 fn main() -> int {
@@ -12,7 +13,10 @@ fn main() -> int {
     var out = bore.stdout()
     for k in p.keys {
         if k == "help" {
-            bore.put(mut out, "Usage: link FILE1 FILE2\nMake FILE2 a hard link to FILE1.\n") else |_| {}
+            bore.put(
+                mut out,
+                "Usage: link FILE1 FILE2\nMake FILE2 a hard link to FILE1.\n",
+            ) else |_| {}
             return bore.finish(mut out, "link", 0)
         }
         if k == "version" {
@@ -22,12 +26,19 @@ fn main() -> int {
     }
     if !bore.ok(p) { return bore.usage_error("link", p.error) }
     if p.operands.len == 0 { return bore.usage_error("link", "missing operand") }
-    if p.operands.len == 1 { return bore.usage_error("link", "missing operand after {bore.quote_always(p.operands[0])}") }
-    if p.operands.len > 2 { return bore.usage_error("link", "extra operand {bore.quote_always(p.operands[2])}") }
+    if p.operands.len == 1 {
+        return bore.usage_error("link", "missing operand after {bore.quote_always(p.operands[0])}")
+    }
+    if p.operands.len > 2 {
+        return bore.usage_error("link", "extra operand {bore.quote_always(p.operands[2])}")
+    }
     let a = p.operands[0]
     let b = p.operands[1]
     fs_link(a, b) else |_| {
-        bore.warn("link", "cannot create link {bore.quote_always(b)} to {bore.quote_always(a)}: {bore.io_error()}")
+        bore.warn(
+            "link",
+            "cannot create link {bore.quote_always(b)} to {bore.quote_always(a)}: {bore.io_error()}",
+        )
         return 1
     }
     bore.finish(mut out, "link", 0)

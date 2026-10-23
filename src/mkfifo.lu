@@ -3,6 +3,7 @@
 //! References consulted: POSIX.1-2024 mkfifo; GNU coreutils 9.11's
 //! documented invocation and black-box binary runs. No implementation source.
 //! -Z/--context are refused by name: wolf has no SELinux surface.
+
 use bore
 
 fn main() -> int {
@@ -20,15 +21,20 @@ fn main() -> int {
     while i < p.keys.len {
         let k = p.keys[i]
         if k == "help" {
-            bore.put(mut out, "Usage: mkfifo [OPTION]... NAME...\nMake named pipes; -m MODE sets permissions.\n-Z/--context require an unavailable SELinux surface.\n") else |_| {}
+            bore.put(
+                mut out,
+                "Usage: mkfifo [OPTION]... NAME...\nMake named pipes; -m MODE sets permissions.\n-Z/--context require an unavailable SELinux surface.\n",
+            ) else |_| {}
             return bore.finish(mut out, "mkfifo", 0)
         }
         if k == "version" {
             bore.put(mut out, bore.version_text("mkfifo")) else |_| {}
             return bore.finish(mut out, "mkfifo", 0)
         }
-        if k == "Z" || k == "context" { bore.warn("mkfifo", "unsupported option: SELinux (-Z/--context)")
-            return 1 }
+        if k == "Z" || k == "context" {
+            bore.warn("mkfifo", "unsupported option: SELinux (-Z/--context)")
+            return 1
+        }
         if k == "mode" {
             let m = bore.parse_mode(p.values[i]) else |_| {
                 bore.warn("mkfifo", "invalid mode")
@@ -53,11 +59,17 @@ fn main() -> int {
         fs_mkfifo(name, mode % 512) else |_| { code = bore.host_code() }
         if mask >= 0 { let _ = os_umask(mask) else 0 }
         if code != 0 {
-            bore.warn("mkfifo", "cannot create fifo {bore.quote_always(name)}: {bore.reason_of(code)}")
+            bore.warn(
+                "mkfifo",
+                "cannot create fifo {bore.quote_always(name)}: {bore.reason_of(code)}",
+            )
             status = 1
         } else if explicit && mode >= 512 {
             fs_set_mode(name, mode) else |_| {
-                bore.warn("mkfifo", "cannot set permissions of {bore.quote_always(name)}: {bore.io_error()}")
+                bore.warn(
+                    "mkfifo",
+                    "cannot set permissions of {bore.quote_always(name)}: {bore.io_error()}",
+                )
                 status = 1
             }
         }
