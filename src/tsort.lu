@@ -1,0 +1,140 @@
+//! member: false
+//! tsort — pair graph, byte-sorted initial roots, FIFO newly-ready nodes.
+//! References consulted: POSIX tsort, GNU 9.11 help/manual and black-box
+//! graph probes. uutils (MIT), toybox (0BSD) design references only.
+//! No GNU/gnulib source read. GNU token blanks are space, TAB and LF.
+use bore
+use textio
+
+struct Edge { from: int, to: int, live: bool }
+struct Search { path: List[int], cycle: List[int], visited: List[bool] }
+fn main() -> int {
+    var out = bore.stdout()
+    var spec = List[bore.Opt]()
+    (mut spec).push(bore.flag("", "help")); (mut spec).push(bore.flag("", "version"))
+    let p = bore.parse(spec, env_args(), bore.permute())
+    for key in p.keys {
+        if key == "help" || key == "version" {
+            bore.put(mut out, if key == "version" then bore.version_text("tsort") else "Usage: tsort [FILE]\nPrint a topological ordering of token pairs.\n") else |_| {}
+            return bore.finish(mut out, "tsort", 0)
+        }
+    }
+    if !bore.ok(p) { return bore.usage_error("tsort", p.error) }
+    if p.operands.len > 1 { return bore.usage_error("tsort", "extra operand {bore.quote(p.operands[1])}") }
+    let path = if p.operands.len == 0 then "-" else p.operands[0]
+    let rows = textio.load("tsort", path, 10)
+    if rows.failed { return 1 }
+    var tokens = List[str]()
+    for r in rows.items {
+        var start = 0
+        for k in 0..=r.data.len {
+            if k == r.data.len || r.data[k] as int == 9 || r.data[k] as int == 32 {
+                if k > start {
+                    let raw = r.data[start..k]
+                    var end = raw.len
+                    for j in 0..raw.len { if raw[j] as int == 0 { end = j; break } }
+                    let word = str_from_utf8(raw[0..end]) else {
+                        bore.warn("tsort", "non-UTF-8 token is not supported"); return 1
+                    }
+                    (mut tokens).push(word)
+                }
+                start = k + 1
+            }
+        }
+    }
+    if tokens.len % 2 != 0 { bore.warn("tsort", "{bore.quote_name(path)}: input contains an odd number of tokens"); return 1 }
+    var names = List[str]()
+    var ids = Map[str, int]()
+    for word in tokens {
+        if !(ids.contains(word)) {
+            (mut ids).insert(word, names.len)
+            (mut names).push(word)
+        }
+    }
+    var order = List[int]()
+    // Insertion-sort indices only; graph identifiers remain stable.
+    for i in 0..names.len {
+        (mut order).push(i)
+        var j = order.len - 1
+        while j > 0 && names[order[j]] < names[order[j-1]] {
+            let t = order[j]; order[j] = order[j-1]; order[j-1] = t; j -= 1
+        }
+    }
+    var edges = List[Edge](), indegree = List[int](), done = List[bool]()
+    for _ in names { (mut indegree).push(0); (mut done).push(false) }
+    var seen = Map[str, bool]()
+    var k = 0
+    while k < tokens.len {
+        let a = ids.get(tokens[k]) else 0, b = ids.get(tokens[k+1]) else 0
+        let key = "{a}:{b}"
+        if a != b && !seen.contains(key) {
+            (mut seen).insert(key, true); (mut edges).push(Edge { from: a, to: b, live: true }); indegree[b] += 1
+        }
+        k += 2
+    }
+    var queue = List[int]()
+    for i in order { if indegree[i] == 0 { (mut queue).push(i) } }
+    var head = 0, remaining = names.len, status = 0
+    while remaining > 0 {
+        while head < queue.len {
+            let node = queue[head]; head += 1
+            if done[node] { continue }
+            bore.put(mut out, "{names[node]}\n") else |_| { return bore.finish(mut out, "tsort", 1) }
+            done[node] = true; remaining -= 1
+            var e = edges.len
+            while e > 0 {
+                e -= 1
+                if edges[e].live && edges[e].from == node {
+                    let to = edges[e].to
+                    edges[e].live = false; indegree[to] -= 1
+                    if indegree[to] == 0 { (mut queue).push(to) }
+                }
+            }
+        }
+        if remaining == 0 { break }
+        var search = Search { path: List[int](), cycle: List[int](), visited: List[bool]() }
+        for _ in names { (mut search.visited).push(false) }
+        for node in order {
+            if !done[node] && !search.visited[node] {
+                find_cycle(mut search, node, edges, order, done)
+                if search.cycle.len > 0 { break }
+            }
+        }
+        if search.cycle.len == 0 { bore.warn("tsort", "internal graph invariant failed"); return 1 }
+        status = 1
+        bore.warn("tsort", "{bore.quote_name(path)}: input contains a loop:")
+        let root = search.cycle[0]
+        bore.warn("tsort", names[root])
+        var j = search.cycle.len
+        while j > 1 { j -= 1; bore.warn("tsort", names[search.cycle[j]]) }
+        let predecessor = search.cycle[1]
+        for e in 0..edges.len {
+            if edges[e].live && edges[e].from == predecessor && edges[e].to == root {
+                edges[e].live = false; indegree[root] -= 1
+                if indegree[root] == 0 { (mut queue).push(root) }
+                break
+            }
+        }
+    }
+    bore.finish(mut out, "tsort", status)
+}
+
+fn find_cycle(mut s: Search, node: int, edges: List[Edge], order: List[int], done: List[bool]) {
+    if s.cycle.len > 0 { return }
+    for k in 0..s.path.len {
+        if s.path[k] == node { s.cycle = s.path[k..]; return }
+    }
+    if s.visited[node] || done[node] { return }
+    s.visited[node] = true
+    (mut s.path).push(node)
+    for pred in order {
+        if done[pred] { continue }
+        for e in edges {
+            if e.live && e.from == pred && e.to == node {
+                find_cycle(mut s, pred, edges, order, done)
+                if s.cycle.len > 0 { return }
+            }
+        }
+    }
+    (mut s.path).pop() else |_| {}
+}
