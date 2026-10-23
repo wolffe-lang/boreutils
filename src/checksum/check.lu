@@ -180,6 +180,10 @@ fn parse_record(c: Settings, line: str, from_stdin: bool, reverse_style: int) ->
     if name.len == 0 || name.contains("\0") || from_stdin && name == "-" { return invalid }
     var hex = expected.len == bits / 4
     for b in expected.bytes() { if !hex_digit(b) { hex = false } }
+    // GNU cksum prefers base64 when the two encoded lengths coincide
+    // (BLAKE2b-16 and -32); its own short hexadecimal records then fail
+    // the base64 padding check. b2sum remains hex-only and accepts them.
+    if c.prog == "cksum" && expected.len == (bits / 8 + 2) / 3 * 4 { hex = false }
     if hex {
         expected = lower_hex(expected)
     } else {
