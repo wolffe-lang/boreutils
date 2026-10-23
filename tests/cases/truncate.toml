@@ -373,3 +373,8 @@ scratch = { f = "abcdef" }
 name = "relative size overflows offset"
 args = ["-s", "+9223372036854775807", "f"]
 scratch = { f = "abcdef" }
+
+[[case]]
+name = "minimum signed reduction"
+args = ["-s", "-9223372036854775808", "f"]
+scratch = { f = "abcdef" }

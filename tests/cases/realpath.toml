@@ -736,3 +736,8 @@ scratch = {}
 name = "existing strip needs existing target"
 args = ["-es", "dangling"]
 scratch_links = { dangling = "absent" }
+
+[[case]]
+name = "explicit E permits only a missing last component"
+args = ["-E", "missing"]
+scratch = {}
