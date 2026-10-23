@@ -378,3 +378,7 @@ scratch = { f = "abcdef" }
 name = "minimum signed reduction"
 args = ["-s", "-9223372036854775808", "f"]
 scratch = { f = "abcdef" }
+
+[[case]]
+name = "non-ASCII invalid size is a diagnostic, not a trap"
+args = ["-s", "é", "f"]

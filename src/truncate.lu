@@ -128,7 +128,7 @@ fn main() -> int {
     var how = ""
     if sized {
         var digits = text
-        if text.len > 0 && "+-<>/%".contains(text[0..1]) {
+        if text.len > 0 && text.bytes()[0] as int < 128 && "+-<>/%".contains(text[0..1]) {
             how = text[0..1]
             digits = text[1..text.len]
         }
