@@ -1,0 +1,467 @@
+[[case]]
+name = "0"
+args = []
+stdin = ""
+
+[[case]]
+name = "1"
+args = []
+stdin = "a b b c"
+
+[[case]]
+name = "2"
+args = []
+stdin = "a b a b"
+
+[[case]]
+name = "3"
+args = []
+stdin = "b b a a c c"
+
+[[case]]
+name = "4"
+args = []
+stdin = "a b c d"
+
+[[case]]
+name = "5"
+args = []
+stdin = "a b c b d a"
+
+[[case]]
+name = "6"
+args = []
+stdin = "a b b a"
+
+[[case]]
+name = "7"
+args = []
+stdin = "a b b a c d d c"
+
+[[case]]
+name = "8"
+args = []
+stdin = "a b b c c a"
+
+[[case]]
+name = "9"
+args = []
+stdin = "a b c"
+
+[[case]]
+name = "10"
+args = []
+stdin = "a\u000bb\fc\rd"
+
+[[case]]
+name = "11"
+args = []
+stdin = "a\u0000b c"
+
+[[case]]
+name = "12"
+args = []
+stdin = "a b a c"
+
+[[case]]
+name = "13"
+args = []
+stdin = "a c a b"
+
+[[case]]
+name = "14"
+args = []
+stdin = "a b a c b d c d"
+
+[[case]]
+name = "15"
+args = []
+stdin = "z x a y"
+
+[[case]]
+name = "16"
+args = []
+stdin = "a b c d e f"
+
+[[case]]
+name = "17"
+args = []
+stdin = "z z b b a a"
+
+[[case]]
+name = "18"
+args = []
+stdin = "a b b a a c c a"
+
+[[case]]
+name = "19"
+args = []
+stdin = "a b b c c b"
+
+[[case]]
+name = "20"
+args = []
+stdin = "c b b a a b"
+
+[[case]]
+name = "21"
+args = []
+stdin = "a b b a c a"
+
+[[case]]
+name = "22"
+args = []
+stdin = "a b b c c a d e"
+
+[[case]]
+name = "['--help']"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "['--version']"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "['--bogus']"
+args = ["--bogus"]
+
+[[case]]
+name = "['a', 'b']"
+args = ["a", "b"]
+
+[[case]]
+name = "['nope']"
+args = ["nope"]
+
+[[case]]
+name = "['/']"
+args = ["/"]
+
+[[case]]
+name = "closed"
+args = []
+stdin = "a b"
+stdout_closed = true
+
+[[case]]
+name = "graph-0"
+args = []
+stdin = ""
+
+[[case]]
+name = "graph-1"
+args = []
+stdin = "a b"
+
+[[case]]
+name = "graph-2"
+args = []
+stdin = "a c"
+
+[[case]]
+name = "graph-3"
+args = []
+stdin = "a b a c"
+
+[[case]]
+name = "graph-4"
+args = []
+stdin = "b a"
+
+[[case]]
+name = "graph-5"
+args = []
+stdin = "a b b a"
+
+[[case]]
+name = "graph-6"
+args = []
+stdin = "a c b a"
+
+[[case]]
+name = "graph-7"
+args = []
+stdin = "a b a c b a"
+
+[[case]]
+name = "graph-8"
+args = []
+stdin = "b c"
+
+[[case]]
+name = "graph-9"
+args = []
+stdin = "a b b c"
+
+[[case]]
+name = "graph-10"
+args = []
+stdin = "a c b c"
+
+[[case]]
+name = "graph-11"
+args = []
+stdin = "a b a c b c"
+
+[[case]]
+name = "graph-12"
+args = []
+stdin = "b a b c"
+
+[[case]]
+name = "graph-13"
+args = []
+stdin = "a b b a b c"
+
+[[case]]
+name = "graph-14"
+args = []
+stdin = "a c b a b c"
+
+[[case]]
+name = "graph-15"
+args = []
+stdin = "a b a c b a b c"
+
+[[case]]
+name = "graph-16"
+args = []
+stdin = "c a"
+
+[[case]]
+name = "graph-17"
+args = []
+stdin = "a b c a"
+
+[[case]]
+name = "graph-18"
+args = []
+stdin = "a c c a"
+
+[[case]]
+name = "graph-19"
+args = []
+stdin = "a b a c c a"
+
+[[case]]
+name = "graph-20"
+args = []
+stdin = "b a c a"
+
+[[case]]
+name = "graph-21"
+args = []
+stdin = "a b b a c a"
+
+[[case]]
+name = "graph-22"
+args = []
+stdin = "a c b a c a"
+
+[[case]]
+name = "graph-23"
+args = []
+stdin = "a b a c b a c a"
+
+[[case]]
+name = "graph-24"
+args = []
+stdin = "b c c a"
+
+[[case]]
+name = "graph-25"
+args = []
+stdin = "a b b c c a"
+
+[[case]]
+name = "graph-26"
+args = []
+stdin = "a c b c c a"
+
+[[case]]
+name = "graph-27"
+args = []
+stdin = "a b a c b c c a"
+
+[[case]]
+name = "graph-28"
+args = []
+stdin = "b a b c c a"
+
+[[case]]
+name = "graph-29"
+args = []
+stdin = "a b b a b c c a"
+
+[[case]]
+name = "graph-30"
+args = []
+stdin = "a c b a b c c a"
+
+[[case]]
+name = "graph-31"
+args = []
+stdin = "a b a c b a b c c a"
+
+[[case]]
+name = "graph-32"
+args = []
+stdin = "c b"
+
+[[case]]
+name = "graph-33"
+args = []
+stdin = "a b c b"
+
+[[case]]
+name = "graph-34"
+args = []
+stdin = "a c c b"
+
+[[case]]
+name = "graph-35"
+args = []
+stdin = "a b a c c b"
+
+[[case]]
+name = "graph-36"
+args = []
+stdin = "b a c b"
+
+[[case]]
+name = "graph-37"
+args = []
+stdin = "a b b a c b"
+
+[[case]]
+name = "graph-38"
+args = []
+stdin = "a c b a c b"
+
+[[case]]
+name = "graph-39"
+args = []
+stdin = "a b a c b a c b"
+
+[[case]]
+name = "graph-40"
+args = []
+stdin = "b c c b"
+
+[[case]]
+name = "graph-41"
+args = []
+stdin = "a b b c c b"
+
+[[case]]
+name = "graph-42"
+args = []
+stdin = "a c b c c b"
+
+[[case]]
+name = "graph-43"
+args = []
+stdin = "a b a c b c c b"
+
+[[case]]
+name = "graph-44"
+args = []
+stdin = "b a b c c b"
+
+[[case]]
+name = "graph-45"
+args = []
+stdin = "a b b a b c c b"
+
+[[case]]
+name = "graph-46"
+args = []
+stdin = "a c b a b c c b"
+
+[[case]]
+name = "graph-47"
+args = []
+stdin = "a b a c b a b c c b"
+
+[[case]]
+name = "graph-48"
+args = []
+stdin = "c a c b"
+
+[[case]]
+name = "graph-49"
+args = []
+stdin = "a b c a c b"
+
+[[case]]
+name = "graph-50"
+args = []
+stdin = "a c c a c b"
+
+[[case]]
+name = "graph-51"
+args = []
+stdin = "a b a c c a c b"
+
+[[case]]
+name = "graph-52"
+args = []
+stdin = "b a c a c b"
+
+[[case]]
+name = "graph-53"
+args = []
+stdin = "a b b a c a c b"
+
+[[case]]
+name = "graph-54"
+args = []
+stdin = "a c b a c a c b"
+
+[[case]]
+name = "graph-55"
+args = []
+stdin = "a b a c b a c a c b"
+
+[[case]]
+name = "graph-56"
+args = []
+stdin = "b c c a c b"
+
+[[case]]
+name = "graph-57"
+args = []
+stdin = "a b b c c a c b"
+
+[[case]]
+name = "graph-58"
+args = []
+stdin = "a c b c c a c b"
+
+[[case]]
+name = "graph-59"
+args = []
+stdin = "a b a c b c c a c b"
+
+[[case]]
+name = "graph-60"
+args = []
+stdin = "b a b c c a c b"
+
+[[case]]
+name = "graph-61"
+args = []
+stdin = "a b b a b c c a c b"
+
+[[case]]
+name = "graph-62"
+args = []
+stdin = "a c b a b c c a c b"
+
+[[case]]
+name = "graph-63"
+args = []
+stdin = "a b a c b a b c c a c b"
+

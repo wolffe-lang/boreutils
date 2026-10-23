@@ -377,7 +377,7 @@ FIXTURES = os.path.join(ROOT, "tests", "fixtures")
 ALL = ("stdout", "stderr", "exit")
 FIELDS = ALL + ("files", "offset", "tree", "times")
 # The utilities that change the file system (bu21): see the docstring.
-CHANGERS = ("mkdir", "rmdir", "rm", "mv", "cp", "touch", "ln", "chmod", "mkfifo", "link", "unlink", "truncate", "sync", "mktemp")
+CHANGERS = ("mkdir", "rmdir", "rm", "mv", "cp", "touch", "ln", "chmod", "mkfifo", "link", "unlink", "truncate", "sync", "mktemp", "shuf")
 KEYS = {"name", "args", "stdin", "stdin_file", "stdin_offset", "requires",
         "stdin_repeat", "env",
         "compare", "stdout_bytes", "stdout_closed", "stdout_file", "skip",
@@ -386,7 +386,7 @@ KEYS = {"name", "args", "stdin", "stdin_file", "stdin_offset", "requires",
         "cwd", "tree", "tty", "scratch_fifos", "scratch_sockets",
         "scratch_hardlinks", "scratch_atimes", "scratch_time_all",
         "scratch_keep", "mask", "scratch_sizes", "accounts", "umask",
-        "times", "skip_on", "gnu_keep", "oracle_build_differs", "temp_shape", "tty_stdin", "tty_name"}
+        "times", "skip_on", "gnu_keep", "oracle_build_differs", "temp_shape", "tty_stdin", "tty_name", "shuf_shape"}
 # Naming any of these gives a case a scratch directory and a `files` field.
 SCRATCH = ("scratch", "scratch_dirs", "scratch_links", "scratch_modes",
            "scratch_times", "cwd", "scratch_fifos", "scratch_sockets",
@@ -1037,7 +1037,52 @@ def run(exe, argv0, case, base_env, top=None, now=0, fresh=True):
         result["files"] = snapshot(top)
         result["tree"] = tree(top, now)
         result["times"] = stamps(top, started, time.time_ns() + 20_000_000)
-    return temp_result(result, case, top, cwd)
+    return temp_result(shuf_result(result, case), case, top, cwd)
+
+
+def shuf_result(result, case):
+    """Check each random answer independently, before erasing its order.
+
+    A bounded sample without replacement cannot exceed ANY population
+    multiplicity. A full permutation must have the exact multiset. Repeat
+    samples need the exact count and every member must belong to the input.
+    Output files are validated just like stdout, not hidden by normalization.
+    """
+    from collections import Counter
+    shape = case.get("shuf_shape")
+    if shape is None:
+        return result
+    result["shape_error"] = ""
+    filename = shape.get("file")
+    data = result["stdout"]
+    if filename is not None:
+        matches = [r for r in result.get("files", []) if r[0] == filename and r[1] == "file"]
+        if len(matches) != 1 or data:
+            result["shape_error"] = "missing output file or unexpected stdout"
+            return result
+        data = matches[0][2]
+    delim = shape.get("delimiter", "\n").encode()
+    if data and not data.endswith(delim):
+        result["shape_error"] = "missing final record delimiter"
+        return result
+    records = data[:-len(delim)].split(delim) if data else []
+    population = Counter(x.encode() for x in shape["population"])
+    got = Counter(records)
+    valid = (result["exit"] == 0 and len(records) == shape["count"]
+             and not (got.keys() - population.keys()))
+    if not shape.get("repeat", False):
+        valid = valid and all(n <= population[x] for x, n in got.items())
+    if not valid:
+        result["shape_error"] = "sample count, membership, multiplicity, or exit is invalid"
+        return result
+    if filename is None:
+        result["stdout"] = b"<SHUFFLE>"
+    else:
+        result["files"] = [(name, kind, b"<SHUFFLE>" if name == filename else content)
+                           for name, kind, content in result["files"]]
+        result["tree"] = [row[:4] + (-1,) + row[5:] if row[0] == filename else row
+                          for row in result["tree"]]
+    return result
 
 
 def temp_result(result, case, top, cwd):
@@ -1321,6 +1366,17 @@ def load(path, util=None):
     for c in cases:
         if c.get("tty_name") and not c.get("tty_stdin"):
             die(f"{path}: tty_name requires tty_stdin")
+        if "shuf_shape" in c:
+            shape = c["shuf_shape"]
+            if (util != "shuf" or not isinstance(shape, dict)
+                    or set(shape) - {"population", "count", "repeat", "file", "delimiter"}
+                    or not isinstance(shape.get("population"), list)
+                    or not all(isinstance(x, str) for x in shape["population"])
+                    or type(shape.get("count")) is not int or shape["count"] < 0
+                    or type(shape.get("repeat", False)) is not bool
+                    or shape.get("delimiter", "\n") not in ("\n", "\0")
+                    or ("file" in shape and unsafe(shape["file"]) is not None)):
+                die(f"{path}: malformed shuf_shape")
         extra = set(c) - KEYS - {"_changer"}
         if "name" not in c or extra:
             die(f"{path}: case {c.get('name', '?')!r} is malformed "
@@ -1558,7 +1614,7 @@ def main(argv):
             else:
                 failed += 1
                 print(f"FAIL {label}  args={case.get('args', [])!r}")
-                if case.get("temp_shape"):
+                if case.get("temp_shape") or case.get("shuf_shape"):
                     print(f"    shape errors: bore={None if b is None else b.get('shape_error')!r}, gnu={None if g is None else g.get('shape_error')!r}")
                 if case.get("tty_name"):
                     print(f"    tty errors: bore={None if b is None else b.get('tty_error')!r}, gnu={None if g is None else g.get('tty_error')!r}")

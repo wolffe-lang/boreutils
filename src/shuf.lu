@@ -17,7 +17,8 @@ fn main() -> int {
     (mut spec).push(bore.takes("", "random-source")); (mut spec).push(bore.flag("r", "repeat"))
     (mut spec).push(bore.flag("z", "zero-terminated")); (mut spec).push(bore.flag("", "help")); (mut spec).push(bore.flag("", "version"))
     let p = bore.parse(spec, env_args(), bore.permute())
-    var echo = false, range_given = false, repeat = false, limit = 9223372036854775807
+    var echo = false, range_given = false, repeat = false
+    var limit: int = 9223372036854775807
     var low = 0, high = 0, delim = 10, output_path = "", output_given = false, random_given = false
     for k in 0..p.keys.len {
         let key = p.keys[k], v = p.values[k]
