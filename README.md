@@ -1325,7 +1325,6 @@ table answers it per utility, from the evidence and from nothing else.
 | `mktemp` | 8 / 8 | 49 / 0 | not benched (hasu cases) | drop-in |
 | `realpath` | 12 / 12 | 116 / 0 | not benched (hasu cases) | drop-in |
 | `tty` | 3 / 3 | 12 / 0 | not benched (hasu cases) | drop-in |
-
 | `base64` | 5 / 5 | 218 / 0 | not benched (hasu) | drop-in |
 | `base32` | 5 / 5 | 218 / 0 | not benched (hasu) | drop-in |
 | `comm` | 10 / 10 | 134 / 0 | not benched (hasu) | drop-in under LC_ALL=C |
