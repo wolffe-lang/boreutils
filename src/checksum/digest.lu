@@ -1,0 +1,169 @@
+//! Streaming digest state. Algorithm numbers: crc, crc32b, sysv, bsd,
+//! md5, sha1, sha224, sha256, sha384, sha512, blake2b.
+//! Standards: POSIX.1-2024 cksum; RFC 1321; FIPS 180-4; RFC 7693.
+//! Their vectors are in checksum_test.lu. uutils (MIT) and toybox
+//! (0BSD) are named design references only; no implementation consulted.
+//! Input chunks are 64 KiB, pending data <=128 bytes, schedules <=80 words.
+
+pub struct Digest {
+    kind: int,
+    bits: int,
+    h: List[wrapping[u64]],
+    w: List[wrapping[u64]],
+    k: List[wrapping[u64]],
+    m: List[wrapping[u64]],
+    order: List[int],
+    buf: List[byte],
+    used: int,
+    lo: wrapping[u64],
+    hi: wrapping[u64],
+    count: int,
+    crc: int,
+    table: List[int],
+}
+
+pub fn digest_new(kind: int, bits: int) -> Digest {
+    var d = Digest {
+        kind: kind, bits: bits, h: List[wrapping[u64]](),
+        w: List[wrapping[u64]](), k: List[wrapping[u64]](),
+        m: List[wrapping[u64]](), order: List[int](),
+        buf: List[byte](), used: 0, lo: 0, hi: 0, count: 0,
+        crc: if kind == 1 then 4294967295 else 0, table: List[int](),
+    }
+    var i = 0
+    while i < 128 {
+        (mut d.buf).push(0)
+        i += 1
+    }
+    i = 0
+    while i < 80 {
+        (mut d.w).push(0)
+        if i < 16 { (mut d.m).push(0) }
+        i += 1
+    }
+    if kind < 4 {
+        d.table = crc_table(kind == 1)
+    } else if kind == 4 {
+        d.h = md5_initial()
+        d.k = md5_constants()
+        d.order = md5_rotations()
+    } else if kind == 5 {
+        d.h = [0x67452301, 0xefcdab89, 0x98badcfe, 0x10325476, 0xc3d2e1f0]
+    } else if kind < 10 {
+        d.h = sha_initial(kind)
+        d.k = sha_constants(kind >= 8)
+    } else {
+        d.h = sha_initial(9)
+        d.k = sha_initial(9)
+        d.h[0] = d.h[0] ^ (0x01010000 + bits / 8) as wrapping[u64]
+        d.order = blake_order()
+    }
+    d
+}
+
+fn block_size(d: Digest) -> int {
+    if d.kind >= 8 then 128 else 64
+}
+
+fn digest_block(mut d: Digest, last: bool) {
+    if d.kind == 4 { md5_block(mut d) }
+    else if d.kind == 5 { sha1_block(mut d) }
+    else if d.kind < 10 { sha2_block(mut d) }
+    else { blake_block(mut d, last) }
+}
+
+pub fn digest_feed(mut d: Digest, data: List[byte]) {
+    if d.kind < 4 {
+        for b in data { checksum_byte(mut d, b as int) }
+        d.lo += data.len as wrapping[u64]
+        return
+    }
+    let size = block_size(d)
+    for b in data {
+        // BLAKE2 must retain even a full final block until EOF is known.
+        if d.used == size {
+            digest_block(mut d, false)
+            d.used = 0
+        }
+        d.buf[d.used] = b
+        d.used += 1
+        let before = d.lo
+        d.lo += 1
+        if d.lo < before { d.hi += 1 }
+    }
+}
+
+pub fn digest_end(mut d: Digest) -> List[byte] {
+    if d.kind < 4 { return checksum_end(mut d) }
+    let size = block_size(d)
+    if d.kind == 10 {
+        var j = d.used
+        while j < size { d.buf[j] = 0; j += 1 }
+        digest_block(mut d, true)
+    } else {
+        if d.used == size { digest_block(mut d, false); d.used = 0 }
+        d.buf[d.used] = 128
+        d.used += 1
+        let lenbytes = if size == 128 then 16 else 8
+        if d.used > size - lenbytes {
+            while d.used < size { d.buf[d.used] = 0; d.used += 1 }
+            digest_block(mut d, false)
+            d.used = 0
+        }
+        while d.used < size { d.buf[d.used] = 0; d.used += 1 }
+        let low = d.lo << 3
+        let high = (d.hi << 3) | (d.lo >> 61)
+        var j = 0
+        while j < 8 {
+            let at = if d.kind == 4 then size - 8 + j else size - 1 - j
+            d.buf[at] = ((low >> (j * 8) as wrapping[u64]) & 255) as byte
+            if size == 128 {
+                d.buf[size - 9 - j] = ((high >> (j * 8) as wrapping[u64]) & 255) as byte
+            }
+            j += 1
+        }
+        digest_block(mut d, false)
+    }
+    var result = List[byte]()
+    let width = if d.kind >= 8 then 8 else 4
+    let little = d.kind == 4 || d.kind == 10
+    var j = 0
+    while j < d.bits / 8 {
+        let shift = (if little then j % width else width - 1 - j % width) * 8
+        (mut result).push(((d.h[j / width] >> shift as wrapping[u64]) & 255) as byte)
+        j += 1
+    }
+    result
+}
+
+fn load_words(mut d: Digest, width: int, little: bool) {
+    var i = 0
+    while i < 16 {
+        var x: wrapping[u64] = 0
+        var j = 0
+        while j < width {
+            let shift = (if little then j else width - 1 - j) * 8
+            x = x | ((d.buf[i * width + j] as wrapping[u64]) << shift as wrapping[u64])
+            j += 1
+        }
+        d.w[i] = x
+        i += 1
+    }
+}
+
+fn rotr64(x: wrapping[u64], n: int) -> wrapping[u64] {
+    (x >> n as wrapping[u64]) | (x << (64 - n) as wrapping[u64])
+}
+
+fn rotr32(x: wrapping[u64], n: int) -> wrapping[u64] {
+    ((x >> n as wrapping[u64]) | (x << (32 - n) as wrapping[u64])) & 0xffffffff
+}
+
+pub fn hex_bytes(data: List[byte]) -> str {
+    var text = List[byte]()
+    for b in data {
+        (mut text).push("0123456789abcdef".bytes()[b as int / 16])
+        (mut text).push("0123456789abcdef".bytes()[b as int % 16])
+    }
+    str_from_utf8(text) else ""
+}
