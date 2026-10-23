@@ -283,7 +283,7 @@ fn lines(rows: List[textio.Rec], sep: int) -> List[Line] {
     answer
 }
 
-fn blank(b: byte) -> bool { b as int == 32 || b as int >= 9 && b as int <= 13 }
+fn blank(b: byte) -> bool { b as int == 32 || b as int == 9 || b as int == 10 }
 
 fn field(line: Line, k: int) -> List[byte] {
     if k >= line.fields.len { return List[byte]() }

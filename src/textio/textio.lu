@@ -84,7 +84,7 @@ pub fn cmp(a: List[byte], b: List[byte], fold: bool) -> int {
 }
 
 fn folded(x: int, fold: bool) -> int {
-    if fold && x >= 65 && x <= 90 { return x + 32 }
+    if fold && x >= 97 && x <= 122 { return x - 32 }
     x
 }
 
