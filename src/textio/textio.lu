@@ -1,0 +1,75 @@
+//! Byte-record helpers for the text tools; no UTF-8 assumption.
+//! Derived from bore's own readers and GNU 9.11 binary observations.
+use bore
+
+/// One delimiter-free record, including arbitrary non-UTF-8 bytes.
+pub struct Rec { data: List[byte] }
+/// A record set with a reported read failure.
+pub struct Rows { items: List[Rec], failed: bool }
+
+/// Read byte records. Diagnostics use GNU's operand/read-error distinction.
+/// Storage is proportional to input; codecs do not use this whole-input API.
+pub fn load(prog: str, path: str, delim: int) -> Rows {
+    var rows = Rows { items: List[Rec](), failed: false }
+    let src = bore.open_input(path) else |e| match e {
+        not_found => { bore.input_error(prog, path, bore.no_such_file()); rows.failed = true; return rows },
+        denied => { bore.input_error(prog, path, bore.permission_denied()); rows.failed = true; return rows },
+        is_dir => {
+            if prog == "comm" || prog == "join" { bore.input_error(prog, path, bore.directory_reason()) }
+            else { bore.warn(prog, "read error: {bore.directory_reason()}") }
+            rows.failed = true; return rows
+        },
+        io => { bore.input_error(prog, path, bore.io_error()); rows.failed = true; return rows },
+    }
+    defer bore.close_input(src)
+    let keep = region()
+    var line = List[byte]()
+    var done = false
+    while !done {
+        region pass {
+            let bs = bore.read_chunk(src, 65536) else |e| match e {
+                eof => { done = true; List[byte]() },
+                io => { bore.warn(prog, "read error: {bore.io_error()}"); rows.failed = true; done = true; List[byte]() },
+            }
+            if bs.len == 0 { done = true }
+            in keep {
+                for b in bs {
+                    if b as int == delim {
+                        (mut rows.items).push(Rec { data: line })
+                        line = List[byte]()
+                    } else { (mut line).push(b) }
+                }
+            }
+        }
+    }
+    if line.len > 0 { (mut rows.items).push(Rec { data: line }) }
+    rows
+}
+
+/// Unsigned bytewise C-locale comparison, optionally ASCII case-folded.
+pub fn cmp(a: List[byte], b: List[byte], fold: bool) -> int {
+    var k = 0
+    while k < a.len && k < b.len {
+        let x = folded(a[k] as int, fold)
+        let y = folded(b[k] as int, fold)
+        if x < y { return -1 }
+        if x > y { return 1 }
+        k += 1
+    }
+    if a.len < b.len { return -1 }
+    if a.len > b.len { return 1 }
+    0
+}
+fn folded(x: int, fold: bool) -> int {
+    if fold && x >= 65 && x <= 90 { return x + 32 }
+    x
+}
+
+/// Return record bytes as diagnostic text, replacing only invalid UTF-8.
+pub fn label(bs: List[byte]) -> str { str_from_utf8(bs) else "<non-UTF-8>" }
+
+/// Write a byte record with its delimiter, retaining bore's write convention.
+pub fn put(mut out: bore.Out, bs: List[byte], delim: int) -> () ! {io} {
+    for b in bs { bore.put_byte(mut out, b)? }
+    bore.put_byte(mut out, delim as byte)?
+}
