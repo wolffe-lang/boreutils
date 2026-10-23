@@ -1,0 +1,243 @@
+//! GNU 9.11 checksum manifest grammar and diagnostics, black-box derived.
+//! Digest algorithms and vectors are separately implemented from standards.
+//! uutils (MIT), toybox (0BSD): design references only; never GNU source.
+use bore
+
+struct ManifestReader {
+    src: bore.In,
+    buf: List[byte],
+    at: int,
+    used: int,
+    ended: bool,
+}
+
+fn manifest_reader(src: bore.In) -> ManifestReader {
+    var b = List[byte]()
+    var i = 0
+    while i < 65536 { (mut b).push(0 as byte); i += 1 }
+    ManifestReader { src: src, buf: b, at: 0, used: 0, ended: false }
+}
+
+fn manifest_line(mut r: ManifestReader) -> List[byte] ! {eof, io} {
+    var line = List[byte]()
+    loop {
+        if r.at == r.used {
+            if r.ended { if line.len > 0 { return line }; return eof }
+            region refill {
+                let b = bore.read_chunk(r.src, 65536) else |e| match e {
+                    eof => { r.ended = true; continue },
+                    io => { return io },
+                }
+                r.at = 0
+                r.used = b.len
+                if b.len == 0 { r.ended = true; continue }
+                var i = 0
+                while i < b.len { r.buf[i] = b[i]; i += 1 }
+            }
+        }
+        let b = r.buf[r.at]
+        r.at += 1
+        if b as int == 10 { return line }
+        (mut line).push(b)
+    }
+    line
+}
+
+struct Record { name: str, expected: str, kind: int, bits: int, base64: bool }
+
+fn ascii_blank(b: byte) -> bool { b as int == 32 || b as int == 9 }
+fn hex_digit(b: byte) -> bool {
+    let x = b as int
+    x >= 48 && x <= 57 || x >= 65 && x <= 70 || x >= 97 && x <= 102
+}
+fn lower_hex(s: str) -> str {
+    var out = List[byte]()
+    for b in s.bytes() { let n = b as int; (mut out).push((if n >= 65 && n <= 70 then n + 32 else n) as byte) }
+    str_from_utf8(out) else ""
+}
+
+fn unescape_filename(s: str) -> str ! {invalid} {
+    var out = List[byte]()
+    var i = 0
+    while i < s.len {
+        var b = s.bytes()[i]
+        i += 1
+        if b as int == 92 {
+            if i == s.len { return invalid }
+            let n = s.bytes()[i] as int
+            i += 1
+            if n == 92 { b = 92 as byte }
+            else if n == 110 { b = 10 as byte }
+            else if n == 114 { b = 13 as byte }
+            else { return invalid }
+        }
+        (mut out).push(b)
+    }
+    str_from_utf8(out) else { return invalid }
+}
+
+fn parse_record(c: Settings, line: str, from_stdin: bool) -> Record ! {invalid} {
+    var s = line
+    if s.ends_with("\r") { s = s[..s.len - 1] }
+    var pos = 0
+    while pos < s.len && ascii_blank(s.bytes()[pos]) { pos += 1 }
+    s = s[pos..]
+    var escaped = false
+    if s.starts_with("\\") { escaped = true; s = s[1..] }
+    var kind = c.kind
+    var bits = c.bits
+    var name = ""
+    var expected = ""
+    var tagged = false
+    let open = s.find("(") else -1
+    let close = s.rfind(")") else -1
+    if open >= 0 && close > open {
+        var label = s[..open]
+        if label.ends_with(" ") { label = label[..label.len - 1] }
+        kind = label_kind(label) else { return invalid }
+        bits = kind_bits(kind)
+        if kind == 10 && label.starts_with("BLAKE2b-") {
+            bits = length_number(label[8..]) else { return invalid }
+            if bits < 8 || bits > 512 || bits % 8 != 0 { return invalid }
+        }
+        if (c.prog != "cksum" || c.explicit_kind) && kind != c.kind { return invalid }
+        name = s[open + 1..close]
+        var tail = s[close + 1..]
+        if tail.starts_with(" ") { tail = tail[1..] }
+        if !tail.starts_with("=") { return invalid }
+        tail = tail[1..]
+        if tail.starts_with(" ") { tail = tail[1..] }
+        expected = tail
+        tagged = true
+    } else {
+        if c.prog == "cksum" && !c.explicit_kind { return invalid }
+        pos = 0
+        while pos < s.len && !ascii_blank(s.bytes()[pos]) { pos += 1 }
+        if pos == s.len { return invalid }
+        expected = s[..pos]
+        pos += 1
+        if pos < s.len && (s.bytes()[pos] as int == 32 || s.bytes()[pos] as int == 42) { pos += 1 }
+        if pos == s.len { return invalid }
+        name = s[pos..]
+        if kind == 10 { bits = expected.len * 4 }
+    }
+    if escaped { name = unescape_filename(name)? }
+    if name.len == 0 || name.contains("\0") || from_stdin && name == "-" { return invalid }
+    var hex = expected.len == bits / 4
+    for b in expected.bytes() { if !hex_digit(b) { hex = false } }
+    if hex {
+        expected = lower_hex(expected)
+    } else {
+        if c.prog != "cksum" { return invalid }
+        if expected.len != (bits / 8 + 2) / 3 * 4 { return invalid }
+        // Canonical base64 is checked against the computed bytes below;
+        // syntax and padding must be valid even for a mismatching digest.
+        if !valid_base64(expected, bits / 8) { return invalid }
+    }
+    if kind < 4 || kind > 10 || bits < 8 || bits > 512 || bits % 8 != 0 { return invalid }
+    if !tagged && kind == 10 && !hex { return invalid }
+    Record { name: name, expected: expected, kind: kind, bits: bits, base64: !hex }
+}
+
+fn label_kind(label: str) -> int ! {invalid} {
+    if label == "MD5" { return 4 }
+    if label == "SHA1" { return 5 }
+    if label == "SHA224" { return 6 }
+    if label == "SHA256" { return 7 }
+    if label == "SHA384" { return 8 }
+    if label == "SHA512" { return 9 }
+    if label == "BLAKE2b" || label.starts_with("BLAKE2b-") { return 10 }
+    invalid
+}
+
+fn valid_base64(s: str, bytes: int) -> bool {
+    let pad = (3 - bytes % 3) % 3
+    var i = 0
+    while i < s.len {
+        let b = s.bytes()[i] as int
+        if i >= s.len - pad { if b != 61 { return false } }
+        else if !(b >= 65 && b <= 90 || b >= 97 && b <= 122 || b >= 48 && b <= 57 || b == 43 || b == 47) { return false }
+        i += 1
+    }
+    true
+}
+
+struct CheckCounts { proper: int, malformed: int, unread: int, mismatch: int, matched: int, line: int }
+
+fn check_file(mut out: bore.Out, c: Settings, path: str) -> int {
+    let src = bore.open_input(path) else |e| {
+        let why = match e { not_found => bore.no_such_file(), denied => bore.permission_denied(), is_dir => bore.directory_reason(), io => bore.io_error() }
+        bore.input_error(c.prog, path, why)
+        return 1
+    }
+    var r = manifest_reader(src)
+    var n = CheckCounts { proper: 0, malformed: 0, unread: 0, mismatch: 0, matched: 0, line: 0 }
+    var bad_read = false
+    loop {
+        region row {
+            let bytes = manifest_line(mut r) else |e| match e {
+                eof => { break },
+                io => { bore.input_error(c.prog, path, bore.io_error()); bad_read = true; break },
+            }
+            n.line += 1
+            let line = str_from_utf8(bytes) else { malformed_line(c, path, mut n); continue }
+            if line.len == 0 || line == "\r" || line.starts_with("#") { continue }
+            let rec = parse_record(c, line, path == "-") else { malformed_line(c, path, mut n); continue }
+            n.proper += 1
+            let a = compute(c, rec.name, rec.kind, rec.bits) else |e| {
+                if e == failed {
+                    n.unread += 1
+                    check_result(mut out, c, rec.name, "FAILED open or read")
+                }
+                continue
+            }
+            let actual = if rec.base64 then base64_bytes(a.bytes) else hex_bytes(a.bytes)
+            if rec.expected == actual {
+                n.matched += 1
+                if !c.quiet { check_result(mut out, c, rec.name, "OK") }
+            } else {
+                n.mismatch += 1
+                check_result(mut out, c, rec.name, "FAILED")
+            }
+        }
+    }
+    bore.close_input(src)
+    if n.proper == 0 {
+        bore.warn(c.prog, "{manifest_name(path)}: no properly formatted checksum lines found")
+        return 1
+    }
+    if !c.status {
+        if n.malformed > 0 {
+            let suffix = if n.malformed == 1 then "line is" else "lines are"
+            bore.warn(c.prog, "WARNING: {n.malformed} {suffix} improperly formatted")
+        }
+        if n.unread > 0 {
+            let suffix = if n.unread == 1 then "file" else "files"
+            bore.warn(c.prog, "WARNING: {n.unread} listed {suffix} could not be read")
+        }
+        if n.mismatch > 0 {
+            let suffix = if n.mismatch == 1 then "checksum" else "checksums"
+            bore.warn(c.prog, "WARNING: {n.mismatch} computed {suffix} did NOT match")
+        }
+        if c.ignore && n.matched == 0 { bore.warn(c.prog, "{manifest_name(path)}: no file was verified") }
+    }
+    if bad_read || n.unread > 0 || n.mismatch > 0 || c.strict && n.malformed > 0 || c.ignore && n.matched == 0 { return 1 }
+    0
+}
+
+fn manifest_name(path: str) -> str {
+    bore.quote_name(if path == "-" then "standard input" else path)
+}
+fn malformed_line(c: Settings, path: str, mut n: CheckCounts) {
+    n.malformed += 1
+    if c.warn && !c.status {
+        let label = if c.kind == 0 then "CRC" else if c.kind == 10 then "BLAKE2b" else digest_label(c.kind, c.bits)
+        bore.warn(c.prog, "{manifest_name(path)}: {n.line}: improperly formatted {label} checksum line")
+    }
+}
+fn check_result(mut out: bore.Out, c: Settings, name: str, status: str) {
+    if c.status { return }
+    let escape = name.contains("\\") || name.contains("\n") || name.contains("\r")
+    let shown = if escape then "\\{escape_filename(name)}" else name
+    bore.put(mut out, "{shown}: {status}\n") else |_| {}
+}

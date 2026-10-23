@@ -1,0 +1,326 @@
+//! Shared GNU 9.11 command edge, derived from --help, the info manual
+//! and black-box runs, LC_ALL=C. POSIX cksum and sum definitions;
+//! RFC 1321 / FIPS 180-4 / RFC 7693 supply algorithms, not GNU source.
+//! uutils (MIT), toybox (0BSD) named design references only, no source read.
+//! sm3 and sha3 are explicitly refused; there is no substitute digest.
+use bore
+
+struct Settings {
+    prog: str,
+    kind: int,
+    bits: int,
+    explicit_kind: bool,
+    tag: bool,
+    explicit_tag: bool,
+    binary: bool,
+    text_given: bool,
+    zero: bool,
+    raw: bool,
+    base64: bool,
+    check: bool,
+    quiet: bool,
+    status: bool,
+    strict: bool,
+    warn: bool,
+    ignore: bool,
+}
+
+/// Run a checksum command. default_kind follows digest_new's kind table.
+/// All errors are diagnosed here and returned as process status, never rows.
+pub fn command(prog: str, default_kind: int, default_bits: int) -> int {
+    var out = bore.stdout()
+    let p = bore.parse(checksum_options(prog), env_args(), bore.permute())
+    var c = Settings {
+        prog: prog, kind: default_kind, bits: default_bits, explicit_kind: false,
+        tag: prog == "cksum", explicit_tag: false, binary: false, text_given: false,
+        zero: false, raw: false, base64: false, check: false,
+        quiet: false, status: false, strict: false, warn: false, ignore: false,
+    }
+    var length = ""
+    var have_length = false
+    var sha2 = false
+    var unsupported = ""
+    var debug = false
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i]
+        if k == "help" {
+            bore.put(mut out, "Usage: {prog} [OPTION]... [FILE]...\nCompute or verify streaming file checksums.\nWith no file, or -, read standard input.\n") else |_| {}
+            return bore.finish(mut out, prog, 0)
+        }
+        if k == "version" {
+            bore.put(mut out, bore.version_text(prog)) else |_| {}
+            return bore.finish(mut out, prog, 0)
+        }
+        if k == "algorithm" {
+            let a = bore.argmatch(p.values[i], algorithm_names(), algorithm_meanings())
+            if a < 0 {
+                return bore.argmatch_error(prog, p.values[i], "algorithm", algorithm_names(), algorithm_meanings(), a == -2)
+            }
+            c.explicit_kind = true
+            c.kind = a
+            sha2 = a == 11
+            unsupported = if a == 12 then "sha3" else if a == 13 then "sm3" else ""
+            c.bits = kind_bits(a)
+        }
+        if k == "length" { length = p.values[i]; have_length = true }
+        if k == "r" { c.kind = 3; c.bits = 16 }
+        if k == "sysv" { c.kind = 2; c.bits = 16 }
+        if k == "tag" { c.tag = true; c.explicit_tag = true }
+        if k == "untagged" { c.tag = false; c.explicit_tag = false }
+        if k == "binary" { c.binary = true; c.text_given = false }
+        if k == "text" { c.binary = false; c.text_given = true }
+        if k == "zero" { c.zero = true }
+        if k == "raw" { c.raw = true }
+        if k == "base64" { c.base64 = true }
+        if k == "check" { c.check = true }
+        if k == "quiet" { c.quiet = true }
+        if k == "status" { c.status = true }
+        if k == "strict" { c.strict = true }
+        if k == "warn" { c.warn = true }
+        if k == "ignore-missing" { c.ignore = true }
+        if k == "debug" { debug = true }
+        i += 1
+    }
+    if !bore.ok(p) { return bore.usage_error(prog, p.error) }
+    if unsupported.len > 0 {
+        bore.warn(prog, "--algorithm={unsupported} is not supported: this build implements POSIX CRC, MD5, SHA-1/SHA-2 and BLAKE2b only")
+        return 1
+    }
+    if have_length {
+        let n = length_number(length) else |e| {
+            let why = if e == overflow then ": Value too large for defined data type" else ""
+            bore.warn(prog, "invalid length: {bore.quote(length)}{why}")
+            return 1
+        }
+        if sha2 {
+            if n != 224 && n != 256 && n != 384 && n != 512 {
+                bore.warn(prog, "invalid length: {bore.quote(length)}")
+                bore.warn(prog, "digest length for 'SHA2' must be 224, 256, 384, or 512")
+                return 1
+            }
+            c.kind = if n == 224 then 6 else if n == 256 then 7 else if n == 384 then 8 else 9
+            c.bits = n
+        } else if c.kind == 10 {
+            if n > 512 {
+                bore.warn(prog, "invalid length: {bore.quote(length)}")
+                bore.warn(prog, "maximum digest length for 'BLAKE2b' is 512 bits")
+                return 1
+            }
+            if n % 8 != 0 {
+                bore.warn(prog, "invalid length: {bore.quote(length)}")
+                bore.warn(prog, "length is not a multiple of 8")
+                return 1
+            }
+            c.bits = if n == 0 then 512 else n
+        } else if n != 0 {
+            bore.warn(prog, "--length is only supported with --algorithm blake2b, sha2, or sha3")
+            return 1
+        }
+    } else if sha2 {
+        bore.warn(prog, "--algorithm=sha2 requires specifying --length 224, 256, 384, or 512")
+        return 1
+    }
+    if c.raw && c.base64 { return bore.usage_error(prog, "--base64 and --raw are mutually exclusive") }
+    if c.check {
+        if c.zero { return bore.usage_error(prog, "the --zero option is not supported when verifying checksums") }
+        if c.binary || c.text_given { return bore.usage_error(prog, "the --binary and --text options are meaningless when verifying checksums") }
+        if c.explicit_tag { return bore.usage_error(prog, "the --tag option is meaningless when verifying checksums") }
+        if c.explicit_kind && c.kind < 4 {
+            bore.warn(prog, "--check is not supported with --algorithm={{bsd,sysv,crc,crc32b}}")
+            return 1
+        }
+    } else {
+        let mode = if c.ignore then "ignore-missing" else if c.status then "status" else if c.quiet then "quiet" else if c.warn then "warn" else if c.strict then "strict" else ""
+        if mode.len > 0 { return bore.usage_error(prog, "the --{mode} option is meaningful only when verifying checksums") }
+    }
+    if c.tag && c.text_given {
+        return bore.usage_error(prog, if prog == "cksum" then "--text mode is only supported with --untagged" else "--tag does not support --text mode")
+    }
+    if debug {
+        bore.warn(prog, "--debug is not supported: standards-based scalar implementation, no GNU hardware dispatch")
+        return 1
+    }
+    if c.raw && p.operands.len > 1 { bore.warn(prog, "the --raw option is not supported with multiple files"); return 1 }
+    var status = 0
+    if p.operands.len == 0 {
+        status = checksum_operand(mut out, c, "-", false)
+    } else {
+        for name in p.operands {
+            region operand {
+                let code = checksum_operand(mut out, c, name, true)
+                if code != 0 { status = code }
+            }
+        }
+    }
+    bore.finish(mut out, prog, status)
+}
+
+fn checksum_options(prog: str) -> List[bore.Opt] {
+    var o = List[bore.Opt]()
+    (mut o).push(bore.flag("", "help"))
+    (mut o).push(bore.flag("", "version"))
+    if prog == "sum" {
+        (mut o).push(bore.flag("r", ""))
+        (mut o).push(bore.flag("s", "sysv"))
+        return o
+    }
+    (mut o).push(bore.flag("b", "binary"))
+    (mut o).push(bore.flag("t", "text"))
+    (mut o).push(bore.flag("c", "check"))
+    (mut o).push(bore.flag("z", "zero"))
+    (mut o).push(bore.flag("", "tag"))
+    (mut o).push(bore.flag("", "ignore-missing"))
+    (mut o).push(bore.flag("", "quiet"))
+    (mut o).push(bore.flag("", "status"))
+    (mut o).push(bore.flag("", "strict"))
+    (mut o).push(bore.flag("w", "warn"))
+    if prog == "b2sum" || prog == "cksum" { (mut o).push(bore.takes("l", "length")) }
+    if prog == "cksum" {
+        (mut o).push(bore.takes("a", "algorithm"))
+        (mut o).push(bore.flag("", "raw"))
+        (mut o).push(bore.flag("", "base64"))
+        (mut o).push(bore.flag("", "untagged"))
+        (mut o).push(bore.flag("", "debug"))
+    }
+    o
+}
+
+fn algorithm_names() -> List[str] {
+    ["bsd", "sysv", "crc", "crc32b", "md5", "sha1", "sha224", "sha256", "sha384", "sha512", "sha2", "sha3", "blake2b", "sm3"]
+}
+fn algorithm_meanings() -> List[int] { [3, 2, 0, 1, 4, 5, 6, 7, 8, 9, 11, 12, 10, 13] }
+fn kind_bits(k: int) -> int {
+    if k < 2 then 32 else if k < 4 then 16 else if k == 4 then 128 else if k == 5 then 160 else if k == 6 then 224 else if k == 7 then 256 else if k == 8 then 384 else 512
+}
+fn digest_label(k: int, bits: int) -> str {
+    if k == 4 { return "MD5" }
+    if k == 5 { return "SHA1" }
+    if k < 10 { return "SHA{bits}" }
+    if bits == 512 { return "BLAKE2b" }
+    "BLAKE2b-{bits}"
+}
+
+fn length_number(s: str) -> int ! {invalid, overflow} {
+    let bs = s.bytes()
+    var i = 0
+    while i < bs.len && (bs[i] as int == 32 || bs[i] as int >= 9 && bs[i] as int <= 13) { i += 1 }
+    if i < bs.len && bs[i] as int == 45 { return overflow }
+    if i < bs.len && bs[i] as int == 43 { i += 1 }
+    let start = i
+    var n = 0
+    while i < bs.len {
+        let b = bs[i] as int
+        if b < 48 || b > 57 { return invalid }
+        if n > (9223372036854775807 - (b - 48)) / 10 { return overflow }
+        n = n * 10 + b - 48
+        i += 1
+    }
+    if i == start { return invalid }
+    n
+}
+
+struct Answer { bytes: List[byte], size: wrapping[u64], number: int }
+
+fn compute(c: Settings, name: str, kind: int, bits: int) -> Answer ! {missing, failed} {
+    let src = bore.open_input(name) else |e| {
+        if e == not_found && c.ignore { return missing }
+        let why = match e {
+            not_found => bore.no_such_file(), denied => bore.permission_denied(),
+            is_dir => bore.directory_reason(), io => bore.io_error(),
+        }
+        bore.input_error(c.prog, name, why)
+        return failed
+    }
+    var d = digest_new(kind, bits)
+    var bad = false
+    loop {
+        region chunk {
+            let piece = bore.read_chunk(src, 65536) else |e| match e {
+                eof => { break },
+                io => {
+                    bore.input_error(c.prog, name, bore.io_error())
+                    bad = true
+                    break
+                },
+            }
+            if piece.len == 0 { break }
+            digest_feed(mut d, piece)
+        }
+    }
+    bore.close_input(src)
+    if bad { return failed }
+    let bytes = digest_end(mut d)
+    Answer { bytes: bytes, size: d.lo, number: d.crc }
+}
+
+fn checksum_operand(mut out: bore.Out, c: Settings, name: str, explicit: bool) -> int {
+    if c.check { return check_file(mut out, c, name) }
+    let a = compute(c, name, c.kind, c.bits) else |_| { return 1 }
+    if c.raw {
+        var i = if c.kind == 2 || c.kind == 3 then 2 else 0
+        while i < a.bytes.len { bore.put_byte(mut out, a.bytes[i]) else |_| {}; i += 1 }
+        return 0
+    }
+    let end = if c.zero then "\0" else "\n"
+    if c.kind < 4 {
+        let count = bore.u64_text(a.size)
+        var head = "{a.number} {count}"
+        if c.kind >= 2 {
+            let block: wrapping[u64] = if c.kind == 2 then 512 else 1024
+            // Avoid wrapping division: count is at most a real file's int size.
+            let sz = a.size as int
+            let blocks = sz / block as int + (if sz % block as int == 0 then 0 else 1)
+            if c.kind == 2 { head = "{a.number} {blocks}" }
+            else { head = "{pad_left("{a.number}", 5, "0")} {pad_left("{blocks}", 5, " ")}" }
+        }
+        bore.put(mut out, head) else |_| {}
+        if explicit { bore.put(mut out, " {name}") else |_| {} }
+        bore.put(mut out, end) else |_| {}
+        return 0
+    }
+    let encoded = if c.base64 then base64_bytes(a.bytes) else hex_bytes(a.bytes)
+    let escape = !c.zero && (name.contains("\\") || name.contains("\n") || name.contains("\r"))
+    let shown = if escape then escape_filename(name) else name
+    if escape { bore.put(mut out, "\\") else |_| {} }
+    let line = if c.tag then "{digest_label(c.kind, c.bits)} ({shown}) = {encoded}{end}"
+        else "{encoded} {if c.binary then "*" else " "}{shown}{end}"
+    bore.put(mut out, line) else |_| {}
+    0
+}
+
+fn pad_left(s: str, width: int, fill: str) -> str {
+    var r = ""
+    var i = s.len
+    while i < width { r += fill; i += 1 }
+    r + s
+}
+
+fn escape_filename(s: str) -> str {
+    var b = List[byte]()
+    for x in s.bytes() {
+        let n = x as int
+        if n == 92 || n == 10 || n == 13 {
+            (mut b).push(92 as byte)
+            (mut b).push((if n == 92 then 92 else if n == 10 then 110 else 114) as byte)
+        } else { (mut b).push(x) }
+    }
+    str_from_utf8(b) else ""
+}
+
+fn base64_bytes(xs: List[byte]) -> str {
+    let alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+    var out = List[byte]()
+    var i = 0
+    while i < xs.len {
+        let a = xs[i] as int
+        let b = if i + 1 < xs.len then xs[i + 1] as int else 0
+        let c = if i + 2 < xs.len then xs[i + 2] as int else 0
+        (mut out).push(alphabet.bytes()[a >> 2])
+        (mut out).push(alphabet.bytes()[((a & 3) << 4) | (b >> 4)])
+        (mut out).push(if i + 1 < xs.len then alphabet.bytes()[((b & 15) << 2) | (c >> 6)] else 61 as byte)
+        (mut out).push(if i + 2 < xs.len then alphabet.bytes()[c & 63] else 61 as byte)
+        i += 3
+    }
+    str_from_utf8(out) else ""
+}
