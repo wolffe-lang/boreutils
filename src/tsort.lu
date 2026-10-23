@@ -46,8 +46,8 @@ fn main() -> int {
     var names = List[str]()
     var ids = Map[str, int]()
     for word in tokens {
-        if !(ids.contains(word)) {
-            (mut ids).insert(word, names.len)
+        if (ids[word] else -1) < 0 {
+            ids[word] = names.len
             (mut names).push(word)
         }
     }
@@ -67,8 +67,8 @@ fn main() -> int {
     while k < tokens.len {
         let a = ids.get(tokens[k]) else 0, b = ids.get(tokens[k+1]) else 0
         let key = "{a}:{b}"
-        if a != b && !seen.contains(key) {
-            (mut seen).insert(key, true); (mut edges).push(Edge { from: a, to: b, live: true }); indegree[b] += 1
+        if a != b && !(seen[key] else false) {
+            seen[key] = true; (mut edges).push(Edge { from: a, to: b, live: true }); indegree[b] += 1
         }
         k += 2
     }
@@ -136,5 +136,5 @@ fn find_cycle(mut s: Search, node: int, edges: List[Edge], order: List[int], don
             }
         }
     }
-    (mut s.path).pop() else |_| {}
+    let _ = (mut s.path).pop() else -1
 }
