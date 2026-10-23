@@ -59,6 +59,13 @@ class StreamAndRefusals(unittest.TestCase):
         self.assertIn(b'--random-source is not supported',p.stderr)
         self.assertEqual(p.stdout,b'')
 
+    def test_named_complex_cycle(self):
+        tier=os.environ.get('BORE_TEXT_TIER','release')
+        for graph in [b'a b b a a c c a',b'b a b c c b']:
+            p=subprocess.run([str(ROOT/'target'/tier/'tsort')],input=graph,capture_output=True,timeout=5)
+            self.assertEqual(p.returncode,1)
+            self.assertIn(b'complex cyclic components or cycles with outgoing tails are not supported',p.stderr)
+
     def test_codec_bounded_memory(self):
         tier=os.environ.get('BORE_TEXT_TIER','release')
         # 32 MiB fits the harness, but retaining per-read arenas would exceed

@@ -3,6 +3,11 @@
 //! References consulted: POSIX tsort, GNU 9.11 help/manual and black-box
 //! graph probes. uutils (MIT), toybox (0BSD) design references only.
 //! No GNU/gnulib source read. GNU token blanks are space, TAB and LF.
+//! R-bu31-2: after all zero-indegree nodes have been emitted, the
+//! residual graph must be a disjoint union of simple cycles (one live
+//! incoming and one live outgoing edge per node). Otherwise refuse by
+//! name: complex cyclic components and cycles with outgoing tails need
+//! GNU-specific cycle selection not established by our black-box probes.
 use bore
 use textio
 
@@ -92,6 +97,15 @@ fn main() -> int {
             }
         }
         if remaining == 0 { break }
+        for node in order {
+            if done[node] { continue }
+            var outgoing = 0
+            for e in edges { if e.live && e.from == node { outgoing += 1 } }
+            if indegree[node] != 1 || outgoing != 1 {
+                bore.warn("tsort", "complex cyclic components or cycles with outgoing tails are not supported: GNU cycle selection is not derived")
+                return bore.finish(mut out, "tsort", 1)
+            }
+        }
         var search = Search { path: List[int](), cycle: List[int](), visited: List[bool]() }
         for _ in names { (mut search.visited).push(false) }
         for node in order {
