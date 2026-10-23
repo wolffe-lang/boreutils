@@ -53,6 +53,7 @@ tools/fetch-toolchain     # wolf + lupin release archives, sha256-checked
 tools/fetch-oracle        # GNU coreutils 9.11, sha256-checked, if needed
 tools/build               # every utility into target/release/
 tools/difftest            # the differential suite against the oracle
+tools/texttest            # shuffle shape plants and bounded codec round-trips
 tools/killtest --gnu DIR  # kill where it sends: a throwaway container a case
 tools/killprobe --gnu K P # kill -l and -t of every number 0..140000 and a sample above, against GNU
 tools/timeouttest --gnu DIR # timeout where it runs a command: a throwaway container a case
@@ -159,7 +160,7 @@ derives no boreutils code from GPL source.
 
 Every shipped utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus, except where a case says otherwise and is
-skipped with its reason. The corpus holds **7,150 cases**; `kill` has
+skipped with its reason. The corpus holds **8,137 cases**; `kill` has
 365 more that SEND, each run in a container of its own (`tests/kill/`,
 `tools/killtest`: **365 passed, 0 failed** on hasu at bu30, groups,
 `kill 0` and `kill -1` among them), `timeout` 163 more that run a
@@ -168,15 +169,32 @@ failed** on hasu at bu30, and 13 skipped there: twelve that need a
 core written as a file, which run on CI's ubuntu runner, and one of
 macOS's), and the six identity tools 1,126 more that
 run as root and as users or change an owner (`tests/ids/`,
-`tools/idtest`: 28 of them only on CI's macOS runner). The bu30 measurement in an unprivileged Ubuntu 24.04 container on hasu
+`tools/idtest`: 28 of them only on CI's macOS runner). The text-tool measurement in an unprivileged Ubuntu 24.04 container on hasu
 (linux x86-64, CPUs 0–5), at wolf 0.2.35 / lupin 0.1.56 with bundled
-std `2386522e`, answers **7,020 passed, 0 failed, 130 skipped** on both
-release and dev. Eight new utilities add 359 cases (349 passed, ten
-named surface skips), and three `readlink` regressions cover recovered
-prefixes and a link target ending in a slash. Random
+std `2386522e`, answers **7,980 passed, 0 failed, 157 skipped** on both
+release and dev (before: 7,020 / 0 / 130). Six utilities add 987 cases:
+960 pass and 27 explicitly name the two refused behaviours below. Random
 `mktemp` names are checked by fixed prefix, suffix, replaced X count,
 alphabet, object kind and private mode, never compared byte for byte.
 `tty` has standard-input pty cases, separate from standard-output ptys.
+
+The newest tools are `base64`, `base32`, `comm`, `join`, `tsort` and
+`shuf`. Both codecs stream in bounded chunks, including malformed padding
+and decode groups split across reads. `comm` supports suppressed columns,
+custom delimiters, order diagnostics and totals; `join` supports selected
+fields, Cartesian groups, unpaired records, headers and automatic output
+fields. Comparisons are under `LC_ALL=C`. These two merge tools currently
+retain their records in memory. `shuf` checks compare sample count,
+membership and multiplicity independently on each side, including output
+files, never random order. It supports the full unsigned 64-bit input
+range, but refuses `--random-source` by name: GNU's general byte-draw rule
+has not been derived. `tsort` matches GNU's byte order on all 29,849
+labelled DAGs of three through five nodes and 36,815 edge-order variants,
+and supports simple/disjoint cycles. Once all zero-indegree nodes have
+been emitted, a cyclic residual must have exactly one live incoming and
+one live outgoing edge per node; complex cyclic components and cycles
+with outgoing tails are refused by name. The measured GNU answers and
+those refusals are retained in `notes/bu31/refusals.jsonl`.
 
 The pin alone preserved **6,668 / 0 / 120** on both tiers, as at
 0.2.34 (bu29, `notes/bu29-the-pin-0234.md`). The container-suite
@@ -1181,6 +1199,12 @@ depth is start-up on both sides.
 | `mktemp` | done: templates, `-d`, `-u`, `-q`, `-p`/`--tmpdir`, `-t`, explicit and inferred suffixes; kernel randomness and exclusive creation | not benched |
 | `realpath` | done: `-E`, `-e`, `-m`, `-L`, `-P`, `-q`, `-s`, `-z`, `--relative-to`, `--relative-base` | not benched |
 | `tty` | done: terminal name and `-s`; Linux `/proc/self/fd/0`, Darwin's immediate `/dev` character devices matched by identity | not benched |
+| `base64` | done: streaming encode/decode, wrap, ignore-garbage and exact invalid-input prefixes | not benched |
+| `base32` | done: streaming encode/decode, wrap, ignore-garbage and exact padding diagnostics | not benched |
+| `comm` | done: columns, order checks, delimiters, NUL records, totals and alternating shared stdin | not benched |
+| `join` | done: selected fields, unpaired rows, output lists/auto, separators, ignore-case, headers and order checks | not benched |
+| `tsort` | done for DAGs and residual unions of simple cycles; complex cyclic components and cycles with outgoing tails refused | not benched |
+| `shuf` | done: echo, full-u64 ranges, count, repeat, output and NUL records; random-source refused by name | not benched |
 | `uname` | blocked on the listed surface: raw kernel fields; `os_name` and `os_arch` are normalized lowercase words, and node/release/version have no call | — |
 
 ## Differences from GNU
@@ -1302,7 +1326,14 @@ table answers it per utility, from the evidence and from nothing else.
 | `realpath` | 12 / 12 | 116 / 0 | not benched (hasu cases) | drop-in |
 | `tty` | 3 / 3 | 12 / 0 | not benched (hasu cases) | drop-in |
 
-**23 drop-in, 32 drop-in for scripts that avoid a named thing, none shipped not
+| `base64` | 5 / 5 | 218 / 0 | not benched (hasu) | drop-in |
+| `base32` | 5 / 5 | 218 / 0 | not benched (hasu) | drop-in |
+| `comm` | 10 / 10 | 134 / 0 | not benched (hasu) | drop-in under LC_ALL=C |
+| `join` | 15 / 15 | 226 / 0 | not benched (hasu) | drop-in under LC_ALL=C |
+| `tsort` | 2 / 2 | 68 / 26 | not benched (hasu) | drop-in for DAGs and residual unions of simple cycles; complex cyclic components and cycles with outgoing tails refused by name |
+| `shuf` | 8 / 9 | 96 / 1 | not benched (hasu) | drop-in for scripts that avoid --random-source, refused by name |
+
+**27 drop-in, 34 drop-in for scripts that avoid a named thing, none shipped not
 yet** (bu28: `kill`'s two named things became one, and `timeout`'s four
 became three narrower ones; bu27: `timeout` arrived with named things, and `kill`'s three
 became two narrower ones; bu24: the six identity tools arrived with a named thing each —
@@ -1321,8 +1352,8 @@ evidence, with an upstream issue where one is already filed.
 sums counted as one and `[` as `test`; Arch's build installs 102
 binaries and leaves out `arch`, `chcon`, `runcon`, `hostname`, `kill`
 and `uptime`; `kill` is built only when asked for, which the oracle of
-record now does). boreutils ships **55 of them, 53%**. Effort is not what
-blocks many of the other 48: some need missing wolf surfaces. Existing
+record now does). boreutils ships **61 of them, 59%**. Effort is not what
+blocks many of the other 42: some need missing wolf surfaces. Existing
 issues carry witnesses; newly measured gaps below are listed for upstream. The OS surface lane's first cut, s199's
 wolf-lang#426 and #424 (seek, tell, the positional read, and the
 standard descriptors), shipped in 0.2.22, and `tail`, `head` and `wc`
