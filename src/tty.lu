@@ -3,7 +3,8 @@
 //! References consulted: POSIX.1-2024 tty; GNU coreutils 9.11's documented
 //! invocation and black-box runs. No implementation source.
 //! Linux reads /proc/self/fd/0. macOS scans the immediate /dev entries
-//! only (not recursively), follows each entry, and matches fd 0's dev
+//! only (not recursively), selects real character devices (not aliases
+//! such as /dev/stdin), and matches fd 0's dev
 //! and ino (fs_fstat_record words 9 and 10), never just its filename.
 //! This covers Darwin's /dev/ttysNNN ptys without probing other trees.
 
@@ -18,7 +19,8 @@ fn terminal_name() -> str {
     let names = fs_read_dir("/dev") else |_| { return "" }
     for name in names {
         let path = "/dev/{name}"
-        let r = fs_stat(path) else |_| { continue }
+        let r = fs_lstat(path) else |_| { continue }
+        if r[0] != bore.kind_char() { continue }
         if r[9] == fd[9] && r[10] == fd[10] { return path }
     }
     ""
