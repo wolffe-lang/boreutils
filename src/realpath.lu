@@ -127,8 +127,8 @@ fn main() -> int {
         if k == "canonicalize" { mode = bore.all_but_last() }
         if k == "canonicalize-existing" { mode = bore.existing() }
         if k == "canonicalize-missing" { mode = bore.missing() }
-        if k == "logical" { logical = true }
-        if k == "physical" { logical = false }
+        if k == "logical" { logical = true; strip = false }
+        if k == "physical" { logical = false; strip = false }
         if k == "strip" || k == "no-symlinks" { strip = true }
         if k == "quiet" { quiet = true }
         if k == "zero" { zero = true }
