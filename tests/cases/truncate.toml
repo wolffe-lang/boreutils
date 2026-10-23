@@ -1,0 +1,339 @@
+# GNU coreutils 9.11 black-box cases; bu30. No implementation source.
+
+[[case]]
+name = "help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "version"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "bad option"
+args = ["--not-an-option"]
+
+[[case]]
+name = "closed help"
+args = ["--help"]
+stdout_closed = true
+
+[[case]]
+name = "no options"
+args = []
+
+[[case]]
+name = "missing file"
+args = ["-s", "5"]
+
+[[case]]
+name = "missing size"
+args = ["f"]
+
+[[case]]
+name = "new empty file"
+args = ["-s", "0", "f"]
+
+[[case]]
+name = "new sparse file"
+args = ["-s", "128", "f"]
+
+[[case]]
+name = "shorten"
+args = ["-s", "2", "f"]
+scratch = { "f" = "abcdef" }
+
+[[case]]
+name = "extend"
+args = ["-s", "12", "f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "no create"
+args = ["-c", "-s", "10", "absent"]
+
+[[case]]
+name = "no create existing"
+args = ["-c", "-s", "2", "f"]
+scratch = { "f" = "abcdef" }
+
+[[case]]
+name = "reference"
+args = ["-r", "ref", "f"]
+scratch = { "ref" = "abcd", "f" = "abcdefgh" }
+
+[[case]]
+name = "missing reference"
+args = ["-r", "missing", "f"]
+
+[[case]]
+name = "reference with absolute size"
+args = ["-r", "ref", "-s", "2", "f"]
+scratch = { "ref" = "abcd" }
+
+[[case]]
+name = "directory"
+args = ["-s", "2", "d"]
+scratch_dirs = ["d"]
+
+[[case]]
+name = "follow link"
+args = ["-s", "2", "l"]
+scratch = { "f" = "abcdef" }
+scratch_links = { "l" = "f" }
+
+[[case]]
+name = "continue after error"
+args = ["-s", "2", "no/parent", "f"]
+
+[[case]]
+name = "io blocks refused"
+args = ["-o", "-s", "1", "f"]
+skip = "R-bu30-1: no stat st_blksize word; named refusal tested by smalltest"
+
+[[case]]
+name = "size +0"
+args = ["-s", "+0", "f"]
+scratch = { "f" = "abcdef" }
+
+[[case]]
+name = "size +2"
+args = ["-s", "+2", "f"]
+scratch = { "f" = "abcdef" }
+
+[[case]]
+name = "size +4"
+args = ["-s", "+4", "f"]
+scratch = { "f" = "abcdef" }
+
+[[case]]
+name = "size +8"
+args = ["-s", "+8", "f"]
+scratch = { "f" = "abcdef" }
+
+[[case]]
+name = "reference relative +"
+args = ["-r", "ref", "-s", "+3", "f"]
+scratch = { "ref" = "abcde", "f" = "abcdefgh" }
+
+[[case]]
+name = "size -0"
+args = ["-s", "-0", "f"]
+scratch = { "f" = "abcdef" }
+
+[[case]]
+name = "size -2"
+args = ["-s", "-2", "f"]
+scratch = { "f" = "abcdef" }
+
+[[case]]
+name = "size -4"
+args = ["-s", "-4", "f"]
+scratch = { "f" = "abcdef" }
+
+[[case]]
+name = "size -8"
+args = ["-s", "-8", "f"]
+scratch = { "f" = "abcdef" }
+
+[[case]]
+name = "reference relative -"
+args = ["-r", "ref", "-s", "-3", "f"]
+scratch = { "ref" = "abcde", "f" = "abcdefgh" }
+
+[[case]]
+name = "size <0"
+args = ["-s", "<0", "f"]
+scratch = { "f" = "abcdef" }
+
+[[case]]
+name = "size <2"
+args = ["-s", "<2", "f"]
+scratch = { "f" = "abcdef" }
+
+[[case]]
+name = "size <4"
+args = ["-s", "<4", "f"]
+scratch = { "f" = "abcdef" }
+
+[[case]]
+name = "size <8"
+args = ["-s", "<8", "f"]
+scratch = { "f" = "abcdef" }
+
+[[case]]
+name = "reference relative <"
+args = ["-r", "ref", "-s", "<3", "f"]
+scratch = { "ref" = "abcde", "f" = "abcdefgh" }
+
+[[case]]
+name = "size >0"
+args = ["-s", ">0", "f"]
+scratch = { "f" = "abcdef" }
+
+[[case]]
+name = "size >2"
+args = ["-s", ">2", "f"]
+scratch = { "f" = "abcdef" }
+
+[[case]]
+name = "size >4"
+args = ["-s", ">4", "f"]
+scratch = { "f" = "abcdef" }
+
+[[case]]
+name = "size >8"
+args = ["-s", ">8", "f"]
+scratch = { "f" = "abcdef" }
+
+[[case]]
+name = "reference relative >"
+args = ["-r", "ref", "-s", ">3", "f"]
+scratch = { "ref" = "abcde", "f" = "abcdefgh" }
+
+[[case]]
+name = "size /0"
+args = ["-s", "/0", "f"]
+scratch = { "f" = "abcdef" }
+
+[[case]]
+name = "size /2"
+args = ["-s", "/2", "f"]
+scratch = { "f" = "abcdef" }
+
+[[case]]
+name = "size /4"
+args = ["-s", "/4", "f"]
+scratch = { "f" = "abcdef" }
+
+[[case]]
+name = "size /8"
+args = ["-s", "/8", "f"]
+scratch = { "f" = "abcdef" }
+
+[[case]]
+name = "reference relative /"
+args = ["-r", "ref", "-s", "/3", "f"]
+scratch = { "ref" = "abcde", "f" = "abcdefgh" }
+
+[[case]]
+name = "size %0"
+args = ["-s", "%0", "f"]
+scratch = { "f" = "abcdef" }
+
+[[case]]
+name = "size %2"
+args = ["-s", "%2", "f"]
+scratch = { "f" = "abcdef" }
+
+[[case]]
+name = "size %4"
+args = ["-s", "%4", "f"]
+scratch = { "f" = "abcdef" }
+
+[[case]]
+name = "size %8"
+args = ["-s", "%8", "f"]
+scratch = { "f" = "abcdef" }
+
+[[case]]
+name = "reference relative %"
+args = ["-r", "ref", "-s", "%3", "f"]
+scratch = { "ref" = "abcde", "f" = "abcdefgh" }
+
+[[case]]
+name = "grammar '1c'"
+args = ["-s", "1c", "f"]
+
+[[case]]
+name = "grammar '1w'"
+args = ["-s", "1w", "f"]
+
+[[case]]
+name = "grammar '1b'"
+args = ["-s", "1b", "f"]
+
+[[case]]
+name = "grammar '1k'"
+args = ["-s", "1k", "f"]
+
+[[case]]
+name = "grammar '1K'"
+args = ["-s", "1K", "f"]
+
+[[case]]
+name = "grammar '1KB'"
+args = ["-s", "1KB", "f"]
+
+[[case]]
+name = "grammar '1KiB'"
+args = ["-s", "1KiB", "f"]
+
+[[case]]
+name = "grammar '0M'"
+args = ["-s", "0M", "f"]
+
+[[case]]
+name = "grammar '0G'"
+args = ["-s", "0G", "f"]
+
+[[case]]
+name = "grammar '0T'"
+args = ["-s", "0T", "f"]
+
+[[case]]
+name = "grammar '0P'"
+args = ["-s", "0P", "f"]
+
+[[case]]
+name = "grammar '0E'"
+args = ["-s", "0E", "f"]
+
+[[case]]
+name = "grammar '0Z'"
+args = ["-s", "0Z", "f"]
+
+[[case]]
+name = "grammar '0Y'"
+args = ["-s", "0Y", "f"]
+
+[[case]]
+name = "grammar '0R'"
+args = ["-s", "0R", "f"]
+
+[[case]]
+name = "grammar '0Q'"
+args = ["-s", "0Q", "f"]
+
+[[case]]
+name = "grammar '0x10'"
+args = ["-s", "0x10", "f"]
+
+[[case]]
+name = "grammar '-1'"
+args = ["-s", "-1", "f"]
+
+[[case]]
+name = "grammar 'x'"
+args = ["-s", "x", "f"]
+
+[[case]]
+name = "grammar '1XB'"
+args = ["-s", "1XB", "f"]
+
+[[case]]
+name = "grammar '1.5K'"
+args = ["-s", "1.5K", "f"]
+
+[[case]]
+name = "grammar '9223372036854775808'"
+args = ["-s", "9223372036854775808", "f"]
+
+[[case]]
+name = "grammar '9223372036854775807K'"
+args = ["-s", "9223372036854775807K", "f"]
+
+[[case]]
+name = "grammar ''"
+args = ["-s", "", "f"]

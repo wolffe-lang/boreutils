@@ -1,0 +1,172 @@
+//! member: false
+//! truncate — set or adjust file lengths without rewriting their bytes.
+//! References consulted: GNU coreutils 9.11's documented invocation and
+//! black-box runs. No implementation source. All size arithmetic is checked
+//! before it reaches wolf's trapping arithmetic. -o is refused by name:
+//! st_blocks is allocated space, not the unavailable st_blksize (R-bu30-1).
+use bore
+
+fn size_word(text: str) -> int ! {invalid} {
+    var i = 0
+    var n = 0
+    while i < text.len {
+        let b = text.bytes()[i] as int
+        if b < 48 || b > 57 { break }
+        let d = b - 48
+        if n > (9223372036854775807 - d) / 10 { raise invalid }
+        n = n * 10 + d
+        i += 1
+    }
+    if i == 0 { raise invalid }
+    let tail = text[i..text.len]
+    if tail.len == 0 { return n }
+    if tail == "c" { return n }
+    if tail == "w" {
+        if n > 9223372036854775807 / 2 { raise invalid }
+        return n * 2
+    }
+    if tail == "b" {
+        if n > 9223372036854775807 / 512 { raise invalid }
+        return n * 512
+    }
+    var power = 0
+    let marks = "kMGTPEZYRQ"
+    var j = 0
+    while j < marks.len {
+        let a = marks.bytes()[j]
+        if tail.bytes()[0] == a || j == 0 && tail.bytes()[0] == 75 { power = j + 1 }
+        j += 1
+    }
+    if power == 0 { raise invalid }
+    var base = 1024
+    if tail.len == 2 && tail[1..2] == "B" { base = 1000 }
+    else if tail.len == 3 && tail[1..3] == "iB" {}
+    else if tail.len != 1 { raise invalid }
+    while power > 0 {
+        if n > 9223372036854775807 / base { raise invalid }
+        n *= base
+        power -= 1
+    }
+    n
+}
+
+fn adjusted(old: int, n: int, how: str) -> int ! {invalid} {
+    if how == "+" {
+        if old > 9223372036854775807 - n { raise invalid }
+        return old + n
+    }
+    if how == "-" { return if old < n then 0 else old - n }
+    if how == "<" { return if old < n then old else n }
+    if how == ">" { return if old > n then old else n }
+    if how == "/" { if n == 0 { raise invalid }; return old - old % n }
+    if how == "%" {
+        if n == 0 { raise invalid }
+        let extra = if old % n == 0 then 0 else n - old % n
+        if old > 9223372036854775807 - extra { raise invalid }
+        return old + extra
+    }
+    n
+}
+
+fn main() -> int {
+    var opts = List[bore.Opt]()
+    (mut opts).push(bore.takes("s", "size"))
+    (mut opts).push(bore.takes("r", "reference"))
+    (mut opts).push(bore.flag("c", "no-create"))
+    (mut opts).push(bore.flag("o", "io-blocks"))
+    (mut opts).push(bore.flag("", "help"))
+    (mut opts).push(bore.flag("", "version"))
+    let p = bore.parse(opts, env_args(), bore.permute())
+    var out = bore.stdout()
+    var text = ""
+    var sized = false
+    var reference = ""
+    var nocreate = false
+    var blocks = false
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i]
+        if k == "help" {
+            bore.put(mut out, "Usage: truncate OPTION... FILE...\n-s SIZE sets a length; + - < > / % adjust it.\n-r FILE supplies a reference length; -c avoids creation.\n-o/--io-blocks needs an unavailable st_blksize surface.\n") else |_| {}
+            return bore.finish(mut out, "truncate", 0)
+        }
+        if k == "version" {
+            bore.put(mut out, bore.version_text("truncate")) else |_| {}
+            return bore.finish(mut out, "truncate", 0)
+        }
+        if k == "size" { sized = true; text = p.values[i] }
+        if k == "reference" { reference = p.values[i] }
+        if k == "no-create" { nocreate = true }
+        if k == "io-blocks" { blocks = true }
+        i += 1
+    }
+    if !bore.ok(p) { return bore.usage_error("truncate", p.error) }
+    if blocks {
+        bore.warn("truncate", "-o (--io-blocks) is not supported by this truncate (requires st_blksize)")
+        return 1
+    }
+    if !sized && reference.len == 0 { return bore.usage_error("truncate", "you must specify either {bore.quote("--size")} or {bore.quote("--reference")}") }
+    var n = 0
+    var how = ""
+    if sized {
+        var digits = text
+        if text.len > 0 && "+-<>/%".contains(text[0..1]) { how = text[0..1]; digits = text[1..text.len] }
+        n = size_word(digits) else |_| {
+            bore.warn("truncate", "Invalid number: {bore.quote(text)}")
+            return 1
+        }
+        if (how == "/" || how == "%") && n == 0 {
+            bore.warn("truncate", "division by zero")
+            return 1
+        }
+    }
+    if reference.len > 0 && sized && how.len == 0 { return bore.usage_error("truncate", "you must specify a relative {bore.quote("--size")} with {bore.quote("--reference")}") }
+    var refsize = -1
+    if reference.len > 0 {
+        let r = fs_stat(reference) else |_| {
+            bore.warn("truncate", "cannot stat {bore.quote(reference)}: {bore.io_error()}")
+            return 1
+        }
+        refsize = bore.rec_size(r)
+        if !sized { n = refsize }
+    }
+    if p.operands.len == 0 { return bore.usage_error("truncate", "missing file operand") }
+    var status = 0
+    for name in p.operands {
+        if nocreate {
+            let _ = fs_stat(name) else |e| {
+                match e { not_found => { continue }, denied => {}, io => {} }
+                bore.warn("truncate", "cannot open {bore.quote(name)} for writing: {bore.io_error()}")
+                status = 1
+                continue
+            }
+        }
+        let fd = fs_open_mode(name, 3) else |_| {
+            bore.warn("truncate", "cannot open {bore.quote(name)} for writing: {bore.io_error()}")
+            status = 1
+            continue
+        }
+        var old = refsize
+        if old < 0 {
+            let r = fs_fstat_record(fd) else |_| {
+                bore.warn("truncate", "cannot fstat {bore.quote(name)}: {bore.io_error()}")
+                fs_close(fd) else |_| {}
+                status = 1
+                continue
+            }
+            old = bore.rec_size(r)
+        }
+        let length = adjusted(old, n, how) else |_| {
+            bore.warn("truncate", "overflow in {bore.quote(name)}")
+            fs_close(fd) else |_| {}
+            status = 1
+            continue
+        }
+        fs_truncate(fd, length) else |_| {
+            bore.warn("truncate", "failed to truncate {bore.quote(name)} at {length} bytes: {bore.io_error()}")
+            status = 1
+        }
+        fs_close(fd) else |_| {}
+    }
+    bore.finish(mut out, "truncate", status)
+}
