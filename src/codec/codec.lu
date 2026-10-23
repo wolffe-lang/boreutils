@@ -3,6 +3,7 @@
 //! named, no implementation source consulted (including GNU/gnulib).
 use bore
 
+/// Execute the RFC 4648 CLI with five- or six-bit alphabet symbols.
 pub fn run(prog: str, width: int) -> int {
     var out = bore.stdout()
     var spec = List[bore.Opt]()

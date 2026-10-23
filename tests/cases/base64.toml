@@ -1,0 +1,996 @@
+[[case]]
+name = "help"
+args = ["--help"]
+stdin = ""
+compare = ["exit"]
+
+[[case]]
+name = "version"
+args = ["--version"]
+stdin = ""
+compare = ["exit"]
+
+[[case]]
+name = "bad option"
+args = ["--bogus"]
+stdin = ""
+
+[[case]]
+name = "encode 0 wrap 0"
+args = ["-w", "0"]
+stdin = ""
+
+[[case]]
+name = "encode 0 wrap 1"
+args = ["-w", "1"]
+stdin = ""
+
+[[case]]
+name = "encode 0 wrap 4"
+args = ["-w", "4"]
+stdin = ""
+
+[[case]]
+name = "encode 0 wrap 7"
+args = ["-w", "7"]
+stdin = ""
+
+[[case]]
+name = "encode 0 wrap 76"
+args = ["-w", "76"]
+stdin = ""
+
+[[case]]
+name = "encode 1 wrap 0"
+args = ["-w", "0"]
+stdin = "abcde"
+
+[[case]]
+name = "encode 1 wrap 1"
+args = ["-w", "1"]
+stdin = "abcde"
+
+[[case]]
+name = "encode 1 wrap 4"
+args = ["-w", "4"]
+stdin = "abcde"
+
+[[case]]
+name = "encode 1 wrap 7"
+args = ["-w", "7"]
+stdin = "abcde"
+
+[[case]]
+name = "encode 1 wrap 76"
+args = ["-w", "76"]
+stdin = "abcde"
+
+[[case]]
+name = "encode 2 wrap 0"
+args = ["-w", "0"]
+stdin = "abcdeabcde"
+
+[[case]]
+name = "encode 2 wrap 1"
+args = ["-w", "1"]
+stdin = "abcdeabcde"
+
+[[case]]
+name = "encode 2 wrap 4"
+args = ["-w", "4"]
+stdin = "abcdeabcde"
+
+[[case]]
+name = "encode 2 wrap 7"
+args = ["-w", "7"]
+stdin = "abcdeabcde"
+
+[[case]]
+name = "encode 2 wrap 76"
+args = ["-w", "76"]
+stdin = "abcdeabcde"
+
+[[case]]
+name = "encode 3 wrap 0"
+args = ["-w", "0"]
+stdin = "abcdeabcdeabcde"
+
+[[case]]
+name = "encode 3 wrap 1"
+args = ["-w", "1"]
+stdin = "abcdeabcdeabcde"
+
+[[case]]
+name = "encode 3 wrap 4"
+args = ["-w", "4"]
+stdin = "abcdeabcdeabcde"
+
+[[case]]
+name = "encode 3 wrap 7"
+args = ["-w", "7"]
+stdin = "abcdeabcdeabcde"
+
+[[case]]
+name = "encode 3 wrap 76"
+args = ["-w", "76"]
+stdin = "abcdeabcdeabcde"
+
+[[case]]
+name = "encode 4 wrap 0"
+args = ["-w", "0"]
+stdin = "abcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 4 wrap 1"
+args = ["-w", "1"]
+stdin = "abcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 4 wrap 4"
+args = ["-w", "4"]
+stdin = "abcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 4 wrap 7"
+args = ["-w", "7"]
+stdin = "abcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 4 wrap 76"
+args = ["-w", "76"]
+stdin = "abcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 5 wrap 0"
+args = ["-w", "0"]
+stdin = "abcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 5 wrap 1"
+args = ["-w", "1"]
+stdin = "abcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 5 wrap 4"
+args = ["-w", "4"]
+stdin = "abcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 5 wrap 7"
+args = ["-w", "7"]
+stdin = "abcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 5 wrap 76"
+args = ["-w", "76"]
+stdin = "abcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 6 wrap 0"
+args = ["-w", "0"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 6 wrap 1"
+args = ["-w", "1"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 6 wrap 4"
+args = ["-w", "4"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 6 wrap 7"
+args = ["-w", "7"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 6 wrap 76"
+args = ["-w", "76"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 7 wrap 0"
+args = ["-w", "0"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 7 wrap 1"
+args = ["-w", "1"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 7 wrap 4"
+args = ["-w", "4"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 7 wrap 7"
+args = ["-w", "7"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 7 wrap 76"
+args = ["-w", "76"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 8 wrap 0"
+args = ["-w", "0"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 8 wrap 1"
+args = ["-w", "1"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 8 wrap 4"
+args = ["-w", "4"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 8 wrap 7"
+args = ["-w", "7"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 8 wrap 76"
+args = ["-w", "76"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 9 wrap 0"
+args = ["-w", "0"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 9 wrap 1"
+args = ["-w", "1"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 9 wrap 4"
+args = ["-w", "4"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 9 wrap 7"
+args = ["-w", "7"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 9 wrap 76"
+args = ["-w", "76"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 10 wrap 0"
+args = ["-w", "0"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 10 wrap 1"
+args = ["-w", "1"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 10 wrap 4"
+args = ["-w", "4"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 10 wrap 7"
+args = ["-w", "7"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 10 wrap 76"
+args = ["-w", "76"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 11 wrap 0"
+args = ["-w", "0"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 11 wrap 1"
+args = ["-w", "1"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 11 wrap 4"
+args = ["-w", "4"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 11 wrap 7"
+args = ["-w", "7"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 11 wrap 76"
+args = ["-w", "76"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 12 wrap 0"
+args = ["-w", "0"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 12 wrap 1"
+args = ["-w", "1"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 12 wrap 4"
+args = ["-w", "4"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 12 wrap 7"
+args = ["-w", "7"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 12 wrap 76"
+args = ["-w", "76"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 13 wrap 0"
+args = ["-w", "0"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 13 wrap 1"
+args = ["-w", "1"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 13 wrap 4"
+args = ["-w", "4"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 13 wrap 7"
+args = ["-w", "7"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 13 wrap 76"
+args = ["-w", "76"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 14 wrap 0"
+args = ["-w", "0"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 14 wrap 1"
+args = ["-w", "1"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 14 wrap 4"
+args = ["-w", "4"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 14 wrap 7"
+args = ["-w", "7"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 14 wrap 76"
+args = ["-w", "76"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 15 wrap 0"
+args = ["-w", "0"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 15 wrap 1"
+args = ["-w", "1"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 15 wrap 4"
+args = ["-w", "4"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 15 wrap 7"
+args = ["-w", "7"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 15 wrap 76"
+args = ["-w", "76"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 16 wrap 0"
+args = ["-w", "0"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 16 wrap 1"
+args = ["-w", "1"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 16 wrap 4"
+args = ["-w", "4"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 16 wrap 7"
+args = ["-w", "7"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 16 wrap 76"
+args = ["-w", "76"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 17 wrap 0"
+args = ["-w", "0"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 17 wrap 1"
+args = ["-w", "1"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 17 wrap 4"
+args = ["-w", "4"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 17 wrap 7"
+args = ["-w", "7"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 17 wrap 76"
+args = ["-w", "76"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 18 wrap 0"
+args = ["-w", "0"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 18 wrap 1"
+args = ["-w", "1"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 18 wrap 4"
+args = ["-w", "4"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 18 wrap 7"
+args = ["-w", "7"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 18 wrap 76"
+args = ["-w", "76"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 19 wrap 0"
+args = ["-w", "0"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 19 wrap 1"
+args = ["-w", "1"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 19 wrap 4"
+args = ["-w", "4"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 19 wrap 7"
+args = ["-w", "7"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "encode 19 wrap 76"
+args = ["-w", "76"]
+stdin = "abcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcdeabcde"
+
+[[case]]
+name = "-d ''"
+args = ["-d"]
+stdin = ""
+
+[[case]]
+name = "-di ''"
+args = ["-di"]
+stdin = ""
+
+[[case]]
+name = "-d 'Zg=='"
+args = ["-d"]
+stdin = "Zg=="
+
+[[case]]
+name = "-di 'Zg=='"
+args = ["-di"]
+stdin = "Zg=="
+
+[[case]]
+name = "-d 'Zg='"
+args = ["-d"]
+stdin = "Zg="
+
+[[case]]
+name = "-di 'Zg='"
+args = ["-di"]
+stdin = "Zg="
+
+[[case]]
+name = "-d 'Zg'"
+args = ["-d"]
+stdin = "Zg"
+
+[[case]]
+name = "-di 'Zg'"
+args = ["-di"]
+stdin = "Zg"
+
+[[case]]
+name = "-d 'Zg==Zg=='"
+args = ["-d"]
+stdin = "Zg==Zg=="
+
+[[case]]
+name = "-di 'Zg==Zg=='"
+args = ["-di"]
+stdin = "Zg==Zg=="
+
+[[case]]
+name = "-d 'Zg==A'"
+args = ["-d"]
+stdin = "Zg==A"
+
+[[case]]
+name = "-di 'Zg==A'"
+args = ["-di"]
+stdin = "Zg==A"
+
+[[case]]
+name = "-d 'Zg==!'"
+args = ["-d"]
+stdin = "Zg==!"
+
+[[case]]
+name = "-di 'Zg==!'"
+args = ["-di"]
+stdin = "Zg==!"
+
+[[case]]
+name = "-d 'Zg==\\r\\n'"
+args = ["-d"]
+stdin = "Zg==\r\n"
+
+[[case]]
+name = "-di 'Zg==\\r\\n'"
+args = ["-di"]
+stdin = "Zg==\r\n"
+
+[[case]]
+name = "-d '\\nZg=='"
+args = ["-d"]
+stdin = "\nZg=="
+
+[[case]]
+name = "-di '\\nZg=='"
+args = ["-di"]
+stdin = "\nZg=="
+
+[[case]]
+name = "-d 'zg=='"
+args = ["-d"]
+stdin = "zg=="
+
+[[case]]
+name = "-di 'zg=='"
+args = ["-di"]
+stdin = "zg=="
+
+[[case]]
+name = "-d '='"
+args = ["-d"]
+stdin = "="
+
+[[case]]
+name = "-di '='"
+args = ["-di"]
+stdin = "="
+
+[[case]]
+name = "-d '===='"
+args = ["-d"]
+stdin = "===="
+
+[[case]]
+name = "-di '===='"
+args = ["-di"]
+stdin = "===="
+
+[[case]]
+name = "-d 'AA!'"
+args = ["-d"]
+stdin = "AA!"
+
+[[case]]
+name = "-di 'AA!'"
+args = ["-di"]
+stdin = "AA!"
+
+[[case]]
+name = "-d 'AA='"
+args = ["-d"]
+stdin = "AA="
+
+[[case]]
+name = "-di 'AA='"
+args = ["-di"]
+stdin = "AA="
+
+[[case]]
+name = "-d 'AAA='"
+args = ["-d"]
+stdin = "AAA="
+
+[[case]]
+name = "-di 'AAA='"
+args = ["-di"]
+stdin = "AAA="
+
+[[case]]
+name = "-d 'AA=='"
+args = ["-d"]
+stdin = "AA=="
+
+[[case]]
+name = "-di 'AA=='"
+args = ["-di"]
+stdin = "AA=="
+
+[[case]]
+name = "-d 'AA==='"
+args = ["-d"]
+stdin = "AA==="
+
+[[case]]
+name = "-di 'AA==='"
+args = ["-di"]
+stdin = "AA==="
+
+[[case]]
+name = "-d 'AAAA===='"
+args = ["-d"]
+stdin = "AAAA===="
+
+[[case]]
+name = "-di 'AAAA===='"
+args = ["-di"]
+stdin = "AAAA===="
+
+[[case]]
+name = "-d 'AAAAA==='"
+args = ["-d"]
+stdin = "AAAAA==="
+
+[[case]]
+name = "-di 'AAAAA==='"
+args = ["-di"]
+stdin = "AAAAA==="
+
+[[case]]
+name = "-d 'AAAAAA=='"
+args = ["-d"]
+stdin = "AAAAAA=="
+
+[[case]]
+name = "-di 'AAAAAA=='"
+args = ["-di"]
+stdin = "AAAAAA=="
+
+[[case]]
+name = "-d 'AAAAAAA='"
+args = ["-d"]
+stdin = "AAAAAAA="
+
+[[case]]
+name = "-di 'AAAAAAA='"
+args = ["-di"]
+stdin = "AAAAAAA="
+
+[[case]]
+name = "-d 'AA==AA'"
+args = ["-d"]
+stdin = "AA==AA"
+
+[[case]]
+name = "-di 'AA==AA'"
+args = ["-di"]
+stdin = "AA==AA"
+
+[[case]]
+name = "-d 'AAB'"
+args = ["-d"]
+stdin = "AAB"
+
+[[case]]
+name = "-di 'AAB'"
+args = ["-di"]
+stdin = "AAB"
+
+[[case]]
+name = "-d 'AB'"
+args = ["-d"]
+stdin = "AB"
+
+[[case]]
+name = "-di 'AB'"
+args = ["-di"]
+stdin = "AB"
+
+[[case]]
+name = "-d 'A'"
+args = ["-d"]
+stdin = "A"
+
+[[case]]
+name = "-di 'A'"
+args = ["-di"]
+stdin = "A"
+
+[[case]]
+name = "-d 'AA'"
+args = ["-d"]
+stdin = "AA"
+
+[[case]]
+name = "-di 'AA'"
+args = ["-di"]
+stdin = "AA"
+
+[[case]]
+name = "-d 'AAA'"
+args = ["-d"]
+stdin = "AAA"
+
+[[case]]
+name = "-di 'AAA'"
+args = ["-di"]
+stdin = "AAA"
+
+[[case]]
+name = "-d 'AAAA'"
+args = ["-d"]
+stdin = "AAAA"
+
+[[case]]
+name = "-di 'AAAA'"
+args = ["-di"]
+stdin = "AAAA"
+
+[[case]]
+name = "-d 'AAAAA'"
+args = ["-d"]
+stdin = "AAAAA"
+
+[[case]]
+name = "-di 'AAAAA'"
+args = ["-di"]
+stdin = "AAAAA"
+
+[[case]]
+name = "-d 'AAAAAA'"
+args = ["-d"]
+stdin = "AAAAAA"
+
+[[case]]
+name = "-di 'AAAAAA'"
+args = ["-di"]
+stdin = "AAAAAA"
+
+[[case]]
+name = "-d 'AAAAAAA'"
+args = ["-d"]
+stdin = "AAAAAAA"
+
+[[case]]
+name = "-di 'AAAAAAA'"
+args = ["-di"]
+stdin = "AAAAAAA"
+
+[[case]]
+name = "-d 'AAAAAAAA'"
+args = ["-d"]
+stdin = "AAAAAAAA"
+
+[[case]]
+name = "-di 'AAAAAAAA'"
+args = ["-di"]
+stdin = "AAAAAAAA"
+
+[[case]]
+name = "-d 'AAAAAAAAA'"
+args = ["-d"]
+stdin = "AAAAAAAAA"
+
+[[case]]
+name = "-di 'AAAAAAAAA'"
+args = ["-di"]
+stdin = "AAAAAAAAA"
+
+[[case]]
+name = "-d 'AAAAAAAAAA'"
+args = ["-d"]
+stdin = "AAAAAAAAAA"
+
+[[case]]
+name = "-di 'AAAAAAAAAA'"
+args = ["-di"]
+stdin = "AAAAAAAAAA"
+
+[[case]]
+name = "-d 'AAAAAAAAAAA'"
+args = ["-d"]
+stdin = "AAAAAAAAAAA"
+
+[[case]]
+name = "-di 'AAAAAAAAAAA'"
+args = ["-di"]
+stdin = "AAAAAAAAAAA"
+
+[[case]]
+name = "-d 'AAAAAAAAAAAA'"
+args = ["-d"]
+stdin = "AAAAAAAAAAAA"
+
+[[case]]
+name = "-di 'AAAAAAAAAAAA'"
+args = ["-di"]
+stdin = "AAAAAAAAAAAA"
+
+[[case]]
+name = "-d 'AAAAAAAAAAAAA'"
+args = ["-d"]
+stdin = "AAAAAAAAAAAAA"
+
+[[case]]
+name = "-di 'AAAAAAAAAAAAA'"
+args = ["-di"]
+stdin = "AAAAAAAAAAAAA"
+
+[[case]]
+name = "-d 'AAAAAAAAAAAAAA'"
+args = ["-d"]
+stdin = "AAAAAAAAAAAAAA"
+
+[[case]]
+name = "-di 'AAAAAAAAAAAAAA'"
+args = ["-di"]
+stdin = "AAAAAAAAAAAAAA"
+
+[[case]]
+name = "-d 'AAAAAAAAAAAAAAA'"
+args = ["-d"]
+stdin = "AAAAAAAAAAAAAAA"
+
+[[case]]
+name = "-di 'AAAAAAAAAAAAAAA'"
+args = ["-di"]
+stdin = "AAAAAAAAAAAAAAA"
+
+[[case]]
+name = "-d 'AAAAAAAAAAAAAAAA'"
+args = ["-d"]
+stdin = "AAAAAAAAAAAAAAAA"
+
+[[case]]
+name = "-di 'AAAAAAAAAAAAAAAA'"
+args = ["-di"]
+stdin = "AAAAAAAAAAAAAAAA"
+
+[[case]]
+name = "-d 'AAAAAAAAAAAAAAAAA'"
+args = ["-d"]
+stdin = "AAAAAAAAAAAAAAAAA"
+
+[[case]]
+name = "-di 'AAAAAAAAAAAAAAAAA'"
+args = ["-di"]
+stdin = "AAAAAAAAAAAAAAAAA"
+
+[[case]]
+name = "invalid wrap '-1'"
+args = ["-w", "-1"]
+stdin = "a"
+
+[[case]]
+name = "invalid wrap 'x'"
+args = ["-w", "x"]
+stdin = "a"
+
+[[case]]
+name = "invalid wrap ''"
+args = ["-w", ""]
+stdin = "a"
+
+[[case]]
+name = "invalid wrap '+4'"
+args = ["-w", "+4"]
+stdin = "a"
+
+[[case]]
+name = "invalid wrap '4x'"
+args = ["-w", "4x"]
+stdin = "a"
+
+[[case]]
+name = "extra"
+args = ["a", "b"]
+stdin = ""
+
+[[case]]
+name = "missing"
+args = ["does-not-exist"]
+stdin = ""
+
+[[case]]
+name = "directory"
+args = ["/"]
+stdin = ""
+
+[[case]]
+name = "stdin dash"
+args = ["-"]
+stdin = "foo\n"
+
+[[case]]
+name = "closed empty"
+args = []
+stdin = ""
+stdout_closed = true
+
+[[case]]
+name = "closed output"
+args = []
+stdin = "foo"
+stdout_closed = true
+
+[[case]]
+name = "full output"
+args = []
+stdin = "foo"
+stdout_file = "/dev/full"
+
+[[case]]
+name = "stream chunk boundary"
+args = ["-w", "7"]
+stdin = "ab"
+stdin_repeat = 100000
+
