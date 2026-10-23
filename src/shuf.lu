@@ -61,7 +61,7 @@ fn main() -> int {
             if overflowed {
                 bore.warn(
                     "shuf",
-                    "invalid input range: {bore.quote(v)}: Value too large for defined data type",
+                    "invalid input range: {bore.quote(v)}: {overflow_reason()}",
                 )
                 return 1
             }
@@ -124,8 +124,8 @@ fn main() -> int {
         fd = fs_open_mode(output_path, 1) else |e| match e {
             not_found => { bore.input_error("shuf", output_path, bore.no_such_file()); return 1 },
             denied => { bore.input_error("shuf", output_path, bore.permission_denied()); return 1 },
-            exists => { bore.input_error("shuf", output_path, "File exists"); return 1 },
-            invalid => { bore.input_error("shuf", output_path, "Invalid argument"); return 1 },
+            exists => { bore.input_error("shuf", output_path, bore.reason_of(17)); return 1 },
+            invalid => { bore.input_error("shuf", output_path, bore.reason_of(22)); return 1 },
             io => {
                 bore.input_error("shuf", output_path, bore.reason_of(bore.host_code()))
                 return 1
@@ -201,4 +201,11 @@ fn signed_key(v: wrapping[u64]) -> int {
     if v <= 9223372036854775807 { return v as int }
     let max: wrapping[u64] = 18446744073709551615
     -1 - (max - v) as int
+}
+
+// A parsed range overflow has no failing syscall to supply errno.
+// EOVERFLOW is 75 on Linux and 84 on macOS; its text also differs.
+// Let the host stringify its own code, never a Linux wording on Darwin.
+fn overflow_reason() -> str {
+    bore.reason_of(if os_name() == "macos" then 84 else 75)
 }
