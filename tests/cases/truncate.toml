@@ -368,3 +368,8 @@ args = ["-s", "1kB", "f"]
 name = "relative leading space"
 args = ["-s", "+ 2", "f"]
 scratch = { f = "abcdef" }
+
+[[case]]
+name = "relative size overflows offset"
+args = ["-s", "+9223372036854775807", "f"]
+scratch = { f = "abcdef" }

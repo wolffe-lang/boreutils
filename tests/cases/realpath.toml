@@ -708,3 +708,31 @@ args = ["-m", "--relative-to=absent/child", "f"]
 scratch = { "f" = "abcdef", "d/sub/f" = "xyz" }
 scratch_dirs = ["d", "d/sub"]
 scratch_links = { "l" = "d/sub", "dangling" = "absent", "cycle" = "cycle" }
+
+[[case]]
+name = "missing component then parent recovers symlink"
+args = ["-m", "missing/../l"]
+scratch_dirs = ["d"]
+scratch_links = { l = "d" }
+
+[[case]]
+name = "strip then physical"
+args = ["-sP", "l"]
+scratch_dirs = ["d"]
+scratch_links = { l = "d" }
+
+[[case]]
+name = "physical then strip"
+args = ["-Ps", "l"]
+scratch_dirs = ["d"]
+scratch_links = { l = "d" }
+
+[[case]]
+name = "quiet nonexistent relative directory"
+args = ["-q", "--relative-to=missing/dir", "."]
+scratch = {}
+
+[[case]]
+name = "existing strip needs existing target"
+args = ["-es", "dangling"]
+scratch_links = { dangling = "absent" }

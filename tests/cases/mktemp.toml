@@ -272,3 +272,8 @@ name = "temporary subdirectory"
 args = ["--tmpdir={scratch}", "d/name.XXXXXX"]
 scratch_dirs = ["d"]
 temp_shape = { prefix = "name.", xs = 6, suffix = "", directory = "{scratch}/d", kind = "file", mode = 384 }
+
+[[case]]
+name = "explicit suffix requires X at template end"
+args = ["--suffix=.log", "aXXX.txt"]
+scratch = {}
