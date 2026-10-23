@@ -7,7 +7,7 @@
 
 use bore
 
-fn size_word(text: str, leading: bool) -> int ! {invalid, large} {
+fn size_word(text: str, leading: bool, negative: bool) -> int ! {invalid, large} {
     var i = 0
     var n = 0
     while leading && i < text.len {
@@ -20,8 +20,13 @@ fn size_word(text: str, leading: bool) -> int ! {invalid, large} {
         let b = text.bytes()[i] as int
         if b < 48 || b > 57 { break }
         let d = b - 48
-        if n > (9223372036854775807 - d) / 10 { return large }
-        n = n * 10 + d
+        if negative {
+            if n < (-9223372036854775808 + d) / 10 { return large }
+            n = n * 10 - d
+        } else {
+            if n > (9223372036854775807 - d) / 10 { return large }
+            n = n * 10 + d
+        }
         i += 1
     }
     if i == start { return invalid }
@@ -43,7 +48,9 @@ fn size_word(text: str, leading: bool) -> int ! {invalid, large} {
         return invalid
     }
     while power > 0 {
-        if n > 9223372036854775807 / base { return large }
+        if negative {
+            if n < -9223372036854775808 / base { return large }
+        } else if n > 9223372036854775807 / base { return large }
         n *= base
         power -= 1
     }
@@ -55,7 +62,7 @@ fn adjusted(old: int, n: int, how: str) -> int ! {invalid} {
         if old > 9223372036854775807 - n { return invalid }
         return old + n
     }
-    if how == "-" { return if old < n then 0 else old - n }
+    if how == "-" { return if n < -old then 0 else old + n }
     if how == "<" { return if old < n then old else n }
     if how == ">" { return if old > n then old else n }
     if how == "/" { if n == 0 { return invalid }; return old - old % n }
@@ -125,7 +132,7 @@ fn main() -> int {
             how = text[0..1]
             digits = text[1..text.len]
         }
-        n = size_word(digits, how != "+" && how != "-") else |e| {
+        n = size_word(digits, how != "+" && how != "-", how == "-") else |e| {
             var detail = ""
             match e {
                 invalid => {},
