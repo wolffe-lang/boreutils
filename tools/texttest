@@ -1,0 +1,80 @@
+#!/usr/bin/env python3
+"""Text-tool shape plants, bounded codec streaming and refusal checks."""
+import copy
+import contextlib
+import io
+import os
+from pathlib import Path
+import resource
+import runpy
+import subprocess
+import tempfile
+import unittest
+
+ROOT = Path(__file__).resolve().parent.parent
+H = runpy.run_path(str(ROOT / 'tools/difftest'))
+
+class ShuffleShape(unittest.TestCase):
+    def test_permutation_and_plants(self):
+        case = {'shuf_shape': {'population': ['a','b','a'], 'count':3}}
+        good = dict(exit=0,stdout=b'b\na\na\n',stderr=b'')
+        self.assertEqual(H['shuf_result'](dict(good),case)['stdout'], b'<SHUFFLE>')
+        for output in [b'a\na\na\n', b'a\nb\nb\n', b'a\nb\n', b'a\na\nb\nx\n', b'a\na\nx\n', b'a\na\nb']:
+            self.assertTrue(H['shuf_result'](dict(good,stdout=output),case)['shape_error'],output)
+        self.assertTrue(H['shuf_result'](dict(good,exit=1),case)['shape_error'])
+        case['shuf_shape']['count']=2
+        self.assertFalse(H['shuf_result'](dict(good,stdout=b'a\na\n'),case)['shape_error'])
+        self.assertTrue(H['shuf_result'](dict(good,stdout=b'b\nb\n'),case)['shape_error'])
+        case['shuf_shape']['repeat']=True
+        self.assertFalse(H['shuf_result'](dict(good,stdout=b'b\nb\n'),case)['shape_error'])
+        self.assertTrue(H['shuf_result'](dict(good,stdout=b'b\nx\n'),case)['shape_error'])
+
+    def test_nul_and_file_plants(self):
+        case={'shuf_shape':{'population':['','b'], 'count':2,'delimiter':'\0','file':'out'}}
+        good={'exit':0,'stdout':b'', 'files':[('out','file',b'b\0\0')], 'tree':[('out','file',420,1,3,None)]}
+        answer=H['shuf_result'](copy.deepcopy(good),case)
+        self.assertFalse(answer['shape_error'])
+        self.assertEqual(answer['files'],[('out','file',b'<SHUFFLE>')])
+        for changes in [{'stdout':b'leak'}, {'files':[]}, {'files':[('out','file',b'b\0b\0')]}]:
+            self.assertTrue(H['shuf_result'](dict(good,**changes),case)['shape_error'])
+
+    def test_guard_and_malformed_shape(self):
+        self.assertIn('shuf',H['CHANGERS'])
+        with tempfile.TemporaryDirectory(prefix='bore-text-') as top:
+            p=Path(top)/'shuf.toml'
+            for args,shape in [(['-o','/outside'],None), (['--out=/outside'],None),(['-o../../outside'],None),([],{'population':['a'],'count':-1}),([],{'population':['a'],'count':True}),([],{'population':'a','count':1}),([],{'population':['a'],'count':1,'file':'/outside'})]:
+                import json
+                import tomllib
+                text='[[case]]\nname="plant"\nargs='+json.dumps(args)+'\n'
+                if shape is not None:
+                    text+='shuf_shape = { '+', '.join(json.dumps(k)+' = '+json.dumps(v) for k,v in shape.items())+' }\n'
+                p.write_text(text)
+                with contextlib.redirect_stderr(io.StringIO()),self.assertRaises(SystemExit):H['load'](str(p),'shuf')
+
+class StreamAndRefusals(unittest.TestCase):
+    def test_named_random_source(self):
+        tier=os.environ.get('BORE_TEXT_TIER','release')
+        p=subprocess.run([str(ROOT/'target'/tier/'shuf'),'--random-source=/dev/null','-e','a','b'],capture_output=True,timeout=5)
+        self.assertEqual(p.returncode,1)
+        self.assertIn(b'--random-source is not supported',p.stderr)
+        self.assertEqual(p.stdout,b'')
+
+    def test_codec_bounded_memory(self):
+        tier=os.environ.get('BORE_TEXT_TIER','release')
+        # 32 MiB fits the harness, but retaining per-read arenas would exceed
+        # the child's 48 MiB address-space cap. Exclude the host's ASan mode.
+        data=b'abcd'* (8*1024*1024)
+        for u in ['base64','base32']:
+            def cap():resource.setrlimit(resource.RLIMIT_AS,(48*1024*1024,48*1024*1024))
+            with tempfile.TemporaryFile() as encoded:
+                p=subprocess.run([str(ROOT/'target'/tier/u),'-w0'],input=data,stdout=encoded,stderr=subprocess.PIPE,preexec_fn=cap if os.uname().sysname=='Linux' else None,timeout=120)
+                self.assertEqual((p.returncode,p.stderr),(0,b''))
+                encoded.seek(0)
+                with tempfile.TemporaryFile() as decoded:
+                    p=subprocess.run([str(ROOT/'target'/tier/u),'-d'],stdin=encoded,stdout=decoded,stderr=subprocess.PIPE,preexec_fn=cap if os.uname().sysname=='Linux' else None,timeout=120)
+                    self.assertEqual((p.returncode,p.stderr),(0,b''))
+                    self.assertEqual(decoded.tell(),len(data))
+                    decoded.seek(0)
+                    self.assertEqual(decoded.read(),data)
+
+if __name__=='__main__':unittest.main()

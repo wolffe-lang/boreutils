@@ -224,6 +224,9 @@ jobs:
       - name: the harness sees a difference (the planted red)
         run: tools/difftest-selftest
 
+      - name: Text-tool shape plants and bounded codecs
+        run: tools/texttest
+
       # boreutils#10. Three macOS reds have ended at exit 141 with an
       # empty transcript, so the harness is gated on keeping its report:
       # a broken pipe of its own does not take the run down, and a run
