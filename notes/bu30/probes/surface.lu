@@ -1,0 +1,22 @@
+//! member: false
+fn main() -> int {
+    let p = env_args()
+    if p.len > 0 && p[0] == "remove-dir" {
+        fs_create_dir("remove-witness") else |_| { return 9 }
+        fs_remove("remove-witness") else |_| {
+            print("fs_remove directory refused: {os_error_text(os_error())}")
+            fs_remove_dir("remove-witness") else |_| {}
+            return 0
+        }
+        print("fs_remove removed empty directory")
+        return 0
+    }
+    print("os_name={os_name()} os_arch={os_arch()}")
+    let fd = fs_open("wolf-toolchain.toml") else |_| { return 9 }
+    let r = fs_fstat_record(fd) else |_| { return 9 }
+    print("fstat_record words={r.len}; 8=st_blocks {r[8]}; 9=dev {r[9]}; 10=ino {r[10]}; no st_blksize word")
+    fs_close(fd) else |_| {}
+    // There is no prelude sync() or syncfs(fd) call: fs_sync(fd) and
+    // fs_sync_dir(path) are file-scoped, not system/filesystem-scoped.
+    0
+}
