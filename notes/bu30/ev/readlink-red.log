@@ -1,0 +1,19 @@
+difftest: gnu = true (GNU coreutils) 9.11 (prefix '') on Linux x86_64
+difftest: bore = /l/boreutils/target/release
+difftest: oracle environment, LC_ALL=C _POSIX2_VERSION=200112
+difftest: oracle of record, GNU coreutils 9.11
+difftest: oracle profile OK — `uniq +1 /dev/null` exits 1 (the obsolete +N operand form is off, so +1 is a file name (B73))
+difftest: scratch root /l/scratch
+FAIL readlink: missing component then parent recovers symlink  args=['-m', 'missing/../l']
+    bore stdout: b'/l/scratch/bore-scratch.3iv5zjx8/s/l\n'
+    bore stderr: b''
+    bore exit: 0
+    bore files: [('d', 'dir', b''), ('l', 'link', b'd')]
+    bore tree: [('.', 'dir', 493, None, None, None), ('d', 'dir', 493, None, None, None), ('l', 'link', None, 1, None, None)]
+    gnu  stdout: b'/l/scratch/bore-scratch.3iv5zjx8/s/d\n'
+    gnu  stderr: b''
+    gnu  exit: 0
+    gnu  files: [('d', 'dir', b''), ('l', 'link', b'd')]
+    gnu  tree: [('.', 'dir', 493, None, None, None), ('d', 'dir', 493, None, None, None), ('l', 'link', None, 1, None, None)]
+difftest: 0 passed, 1 failed, 0 skipped
+READLINK-RED exit=1

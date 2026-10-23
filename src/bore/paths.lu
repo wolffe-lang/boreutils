@@ -1,7 +1,8 @@
 //! paths — a path made canonical: absolute, with no `.`, no `..` and no
 //! symbolic link in it.
 //!
-//! wolf has no `realpath`, and since 0.2.27 needs none: `fs_lstat` says
+//! This walk also supports realpath's lexical and missing modes beyond
+//! fs_realpath (added in 0.2.34): `fs_lstat` says
 //! what a component is and `fs_read_link` where a link leads (s218), so
 //! the walk is written here, one component at a time, as POSIX
 //! describes pathname resolution. `readlink -f`, `-e` and `-m` are its
@@ -14,10 +15,10 @@
 //! - `all_but_last` (`-f`): the LAST component may be missing (`nope`,
 //!   and `nope/` too), no other; a file followed by a slash or by
 //!   anything is `Not a directory`.
-//! - `missing` (`-m`): nothing need exist. From the first component
-//!   that is missing, is a file with more after it, or is a link the
-//!   walk has followed too many of, the rest is taken as written (`..`
-//!   still removing what precedes it).
+//! - `missing` (`-m`): nothing need exist. Missing or non-directory
+//!   prefixes are taken lexically until `..` returns to an existing
+//!   directory, where link resolution resumes (bu30 regression twins
+//!   in readlink and realpath).
 //! - An empty path is `No such file or directory` in every mode.
 //! - Forty links is the limit (`Too many levels of symbolic links`).
 //!
@@ -106,6 +107,7 @@ pub fn canonical(path: str, mode: int) -> Resolved {
     let trailing = path.ends_with("/")
     var links = 0
     var lexical = false
+    var lexical_depth = 0
     var i = 0
     while i < rest.len {
         let c = rest[i]
@@ -115,6 +117,7 @@ pub fn canonical(path: str, mode: int) -> Resolved {
         }
         if c == ".." {
             let _ = (mut stack).pop() else ""
+            if lexical && stack.len < lexical_depth { lexical = false }
             continue
         }
         if lexical {
@@ -133,6 +136,7 @@ pub fn canonical(path: str, mode: int) -> Resolved {
             if mode == missing() {
                 (mut stack).push(c)
                 lexical = true
+                lexical_depth = stack.len
                 continue
             }
             // ENOENT, and nothing after it: the one component -f lets
@@ -152,6 +156,7 @@ pub fn canonical(path: str, mode: int) -> Resolved {
                 if mode == missing() {
                     (mut stack).push(c)
                     lexical = true
+                    lexical_depth = stack.len
                     continue
                 }
                 return stopped("Too many levels of symbolic links")
@@ -181,6 +186,7 @@ pub fn canonical(path: str, mode: int) -> Resolved {
             if mode == missing() {
                 (mut stack).push(c)
                 lexical = true
+                lexical_depth = stack.len
                 continue
             }
             return stopped("Not a directory")
