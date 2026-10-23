@@ -386,7 +386,7 @@ KEYS = {"name", "args", "stdin", "stdin_file", "stdin_offset", "requires",
         "cwd", "tree", "tty", "scratch_fifos", "scratch_sockets",
         "scratch_hardlinks", "scratch_atimes", "scratch_time_all",
         "scratch_keep", "mask", "scratch_sizes", "accounts", "umask",
-        "times", "skip_on", "gnu_keep", "oracle_build_differs", "temp_shape", "tty_stdin"}
+        "times", "skip_on", "gnu_keep", "oracle_build_differs", "temp_shape", "tty_stdin", "tty_name"}
 # Naming any of these gives a case a scratch directory and a `files` field.
 SCRATCH = ("scratch", "scratch_dirs", "scratch_links", "scratch_modes",
            "scratch_times", "cwd", "scratch_fifos", "scratch_sockets",
@@ -1114,6 +1114,7 @@ def run_tty(exe, argv0, case, env, cwd, stdin, data, timeout, cols, top, now=0):
     import struct
     import termios
     master, slave = pty.openpty()
+    slave_name = os.ttyname(slave)
     fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, cols, 0, 0))
     proc = subprocess.Popen(
         [argv0] + [substitute(a, top) for a in case.get("args", [])],
@@ -1171,10 +1172,16 @@ def run_tty(exe, argv0, case, env, cwd, stdin, data, timeout, cols, top, now=0):
             stdin.close()
     out = bytes(out)
     err = bytes(err)
-    if case.get("tty_stdin"):
-        out = re.sub(rb"^/dev/(?:pts/[0-9]+|ttys[0-9]+)\r?\n$", b"<PTY>\n", out)
+    tty_error = ""
+    if case.get("tty_name"):
+        expected = slave_name.encode()
+        if out not in (expected + b"\n", expected + b"\r\n"):
+            tty_error = f"terminal name is not the actual slave {slave_name!r}"
+        else:
+            out = b"<PTY>\n"
     result = {"stdout": masked(out, case), "stderr": masked(normalize(err, argv0, case.get("_util")), case),
               "exit": status(proc.returncode)}
+    result["tty_error"] = tty_error
     if top is not None:
         result["files"] = snapshot(top)
         result["tree"] = tree(top, now)
@@ -1541,6 +1548,7 @@ def main(argv):
                     if keep.search(line.rstrip(b"\n")))
             ok = (b is not None and g is not None
                   and not b.get("shape_error") and not g.get("shape_error")
+                  and not b.get("tty_error") and not g.get("tty_error")
                   and all(b[f] == g[f] for f in fields))
             if ok:
                 passed += 1
@@ -1550,6 +1558,8 @@ def main(argv):
                 print(f"FAIL {label}  args={case.get('args', [])!r}")
                 if case.get("temp_shape"):
                     print(f"    shape errors: bore={None if b is None else b.get("shape_error")!r}, gnu={None if g is None else g.get("shape_error")!r}")
+                if case.get("tty_name"):
+                    print(f"    tty errors: bore={None if b is None else b.get('tty_error')!r}, gnu={None if g is None else g.get('tty_error')!r}")
                 print(show("bore", b, fields))
                 print(show("gnu ", g, fields))
     print(f"difftest: {passed} passed, {failed} failed, {skipped} skipped")
