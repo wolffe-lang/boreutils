@@ -1027,7 +1027,7 @@ def run(exe, argv0, case, base_env, top=None, now=0, fresh=True):
             stdin.close()
         if hasattr(stdout, "close"):
             stdout.close()
-    if case.get("_changer"):
+    if case.get("_changer") and case.get("_util") != "shuf":
         out = prog_lines(out, argv0, case.get("_util"))
     result = {"stdout": masked(out, case), "stderr": masked(normalize(err, argv0, case.get("_util")), case),
               "exit": status(proc.returncode)}
