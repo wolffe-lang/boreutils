@@ -13,6 +13,8 @@ tools/difftest --bin target/dev > /l/ev/final-difftest-dev.log 2>&1
 tail -n 1 /l/ev/final-difftest-{release,dev}.log
 tools/checksumtest > /l/ev/final-checksum-release.log 2>&1
 BORE_CHECKSUM_TIER=dev tools/checksumtest > /l/ev/final-checksum-dev.log 2>&1
+tools/texttest > /l/ev/final-text-release.log 2>&1
+BORE_TEXT_TIER=dev tools/texttest > /l/ev/final-text-dev.log 2>&1
 tools/checksumtest --large > /l/ev/final-large.log 2>&1
 tools/difftest-selftest
 tools/difftest-evidence
