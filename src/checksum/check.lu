@@ -87,7 +87,9 @@ fn unescape_filename(s: str) -> str ! {invalid} {
     str_from_utf8(out) else { return invalid }
 }
 
-fn parse_record(c: Settings, line: str, from_stdin: bool, reverse_style: int) -> Record ! {invalid} {
+fn parse_record(c: Settings, line: str, from_stdin: bool, reverse_style: int) -> Record ! {
+    invalid,
+} {
     var s = line
     if s.ends_with("\r") { s = s[..s.len - 1] }
     var pos = 0
@@ -144,14 +146,33 @@ fn parse_record(c: Settings, line: str, from_stdin: bool, reverse_style: int) ->
         if kind == 10 || kind == 11 {
             var all_hex = expected.len % 2 == 0
             for b in expected.bytes() { if !hex_digit(b) { all_hex = false } }
-            if all_hex { bits = expected.len * 4 }
-            else if c.prog == "cksum" {
+            if all_hex {
+                bits = expected.len * 4
+            } else if c.prog == "cksum" {
                 if expected.len % 4 != 0 { return invalid }
-                let pad = if expected.ends_with("==") then 2 else if expected.ends_with("=") then 1 else 0
+                let pad = if expected.ends_with("==") {
+                    2
+                } else if expected.ends_with("=") {
+                    1
+                } else {
+                    0
+                }
                 bits = (expected.len / 4 * 3 - pad) * 8
-            } else { return invalid }
+            } else {
+                return invalid
+            }
             if kind == 11 {
-                kind = if bits == 224 then 6 else if bits == 256 then 7 else if bits == 384 then 8 else if bits == 512 then 9 else -1
+                kind = if bits == 224 {
+                    6
+                } else if bits == 256 {
+                    7
+                } else if bits == 384 {
+                    8
+                } else if bits == 512 {
+                    9
+                } else {
+                    -1
+                }
             }
         }
     }
@@ -171,7 +192,14 @@ fn parse_record(c: Settings, line: str, from_stdin: bool, reverse_style: int) ->
     }
     if kind < 4 || kind > 10 || bits < 8 || bits > 512 || bits % 8 != 0 { return invalid }
     if !tagged && kind == 10 && !hex { return invalid }
-    Record { name: name, expected: expected, kind: kind, bits: bits, base64: false, style: if tagged then 0 else style }
+    Record {
+        name: name,
+        expected: expected,
+        kind: kind,
+        bits: bits,
+        base64: false,
+        style: if tagged then 0 else style,
+    }
 }
 
 fn label_kind(label: str) -> int ! {invalid} {
@@ -202,7 +230,6 @@ fn valid_base64(s: str, bytes: int) -> bool {
     true
 }
 
-
 fn base64_value(b: byte) -> int {
     let x = b as int
     if x >= 65 && x <= 90 { return x - 65 }
@@ -219,9 +246,9 @@ fn decode_base64_hex(s: str, count: int) -> str {
         let b = base64_value(s.bytes()[i + 1])
         let c = base64_value(s.bytes()[i + 2])
         let e = base64_value(s.bytes()[i + 3])
-        if out.len < count { (mut out).push(((a << 2) | (b >> 4)) as byte) }
-        if out.len < count { (mut out).push(((b << 4) | (c >> 2)) as byte) }
-        if out.len < count { (mut out).push(((c << 6) | e) as byte) }
+        if out.len < count { (mut out).push((a << 2 | b >> 4) as byte) }
+        if out.len < count { (mut out).push((b << 4 | c >> 2) as byte) }
+        if out.len < count { (mut out).push((c << 6 | e) as byte) }
         i += 4
     }
     hex_bytes(out)
