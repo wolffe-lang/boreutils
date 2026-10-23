@@ -1,0 +1,24 @@
+bu31 prediction, before implementation
+
+Base: 85d3e69. Six new standalone entries, no toolchain or std changes.
+Prediction: existing release/dev difftest remains 7027/0/123 on linux
+and 6831/0/319 on macOS CI. Local baseline may retain bu30's
+7020/0/130 host-specific skips; measure, do not relabel.
+
+base64/base32: bit accumulators and incremental padding validation, bounded
+input chunks. Invalid decode may emit its valid prefix before status 1.
+comm: byte ordering under LC_ALL=C, conditional default disorder diagnostics,
+column suppression, NUL records and totals.
+join: field splitting distinct for blanks, explicit byte, and empty separator;
+Cartesian groups, unpaired records and ordering diagnostics measured first.
+tsort: unique nodes and edges, stable topological traversal; cycles require
+black-box observations, not guessed diagnostics.
+shuf: shuffle/replacement shapes tested independently, not byte order. Derive
+random-source draws black-box only if feasible; otherwise refuse by name and
+request R-bu31-1, retaining a reversible refusal.
+
+Tests: GNU 9.11 binary probes first; per-utility TOML cases; random shape
+harness with its own planted failures; bounded streaming witness; both native
+tiers; existing complete strict gauntlet. CI plant exercises the new gate.
+README: six utilities, census/readiness and test counts updated after evidence.
+No GNU or gnulib source, Mac build/test/config, labels, merge, tags or issues.
