@@ -83,6 +83,10 @@ fn main() -> int {
         )
         return 1
     }
+    if explicit_suffix && !template.ends_with("X") {
+        bore.warn("mktemp", "with --suffix, template {bore.quote_always(template)} must end in X")
+        return 1
+    }
     var end = template.len
     if !explicit_suffix {
         while end > 0 &&
