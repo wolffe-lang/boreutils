@@ -1,0 +1,153 @@
+# GNU coreutils 9.11 black-box cases; bu30. No implementation source.
+
+[[case]]
+name = "help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "version"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "bad option"
+args = ["--not-an-option"]
+
+[[case]]
+name = "closed help"
+args = ["--help"]
+stdout_closed = true
+
+[[case]]
+name = "no operands"
+args = []
+
+[[case]]
+name = "one fifo"
+args = ["f"]
+
+[[case]]
+name = "two fifos"
+args = ["f", "g"]
+
+[[case]]
+name = "missing parent"
+args = ["absent/f"]
+
+[[case]]
+name = "existing file"
+args = ["f"]
+scratch = { "f" = "abc" }
+
+[[case]]
+name = "existing directory"
+args = ["d"]
+scratch_dirs = ["d"]
+
+[[case]]
+name = "continue after error"
+args = ["f", "g"]
+scratch = { "f" = "x" }
+
+[[case]]
+name = "trailing slash"
+args = ["f/"]
+
+[[case]]
+name = "empty name"
+args = [""]
+
+[[case]]
+name = "mode 000"
+args = ["-m", "000", "f"]
+
+[[case]]
+name = "mode 600"
+args = ["-m", "600", "f"]
+
+[[case]]
+name = "mode 640"
+args = ["-m", "640", "f"]
+
+[[case]]
+name = "mode 777"
+args = ["-m", "777", "f"]
+
+[[case]]
+name = "mode u=rw,g=r,o="
+args = ["-m", "u=rw,g=r,o=", "f"]
+
+[[case]]
+name = "mode a+r"
+args = ["-m", "a+r", "f"]
+
+[[case]]
+name = "mode u+X"
+args = ["-m", "u+X", "f"]
+
+[[case]]
+name = "mode a=rw"
+args = ["-m", "a=rw", "f"]
+
+[[case]]
+name = "mode 1777"
+args = ["-m", "1777", "f"]
+
+[[case]]
+name = "mode invalid"
+args = ["-m", "invalid", "f"]
+
+[[case]]
+name = "mode 888"
+args = ["-m", "888", "f"]
+
+[[case]]
+name = "umask 0"
+args = ["f"]
+umask = 0
+
+[[case]]
+name = "explicit mode under mask 0"
+args = ["-m", "640", "f"]
+umask = 0
+
+[[case]]
+name = "umask 18"
+args = ["f"]
+umask = 18
+
+[[case]]
+name = "explicit mode under mask 18"
+args = ["-m", "640", "f"]
+umask = 18
+
+[[case]]
+name = "umask 63"
+args = ["f"]
+umask = 63
+
+[[case]]
+name = "explicit mode under mask 63"
+args = ["-m", "640", "f"]
+umask = 63
+
+[[case]]
+name = "umask 511"
+args = ["f"]
+umask = 511
+
+[[case]]
+name = "explicit mode under mask 511"
+args = ["-m", "640", "f"]
+umask = 511
+
+[[case]]
+name = "SELinux -Z refused"
+args = ["-Z", "f"]
+skip = "No wolf SELinux surface; named refusal tested by smalltest"
+
+[[case]]
+name = "SELinux context refused"
+args = ["--context=foo", "f"]
+skip = "No wolf SELinux surface; named refusal tested by smalltest"
