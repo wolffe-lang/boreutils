@@ -1,0 +1,76 @@
+# GNU coreutils 9.11 black-box cases; bu30. No implementation source.
+
+[[case]]
+name = "help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "version"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "bad option"
+args = ["--not-an-option"]
+
+[[case]]
+name = "closed help"
+args = ["--help"]
+stdout_closed = true
+
+[[case]]
+name = "no operands"
+args = []
+
+[[case]]
+name = "one operand"
+args = ["f"]
+
+[[case]]
+name = "extra operand"
+args = ["f", "h", "extra"]
+
+[[case]]
+name = "make hard link"
+args = ["f", "h"]
+scratch = { "f" = "abc\n" }
+
+[[case]]
+name = "missing source"
+args = ["absent", "h"]
+
+[[case]]
+name = "existing target"
+args = ["f", "h"]
+scratch = { "f" = "abc", "h" = "xyz" }
+
+[[case]]
+name = "directory source"
+args = ["d", "h"]
+scratch_dirs = ["d"]
+
+[[case]]
+name = "symbolic link itself"
+args = ["l", "h"]
+scratch_links = { "l" = "absent" }
+
+[[case]]
+name = "follow parent link"
+args = ["f", "l/h"]
+scratch = { "f" = "abc" }
+scratch_dirs = ["d"]
+scratch_links = { "l" = "d" }
+
+[[case]]
+name = "trailing slash target"
+args = ["f", "h/"]
+scratch = { "f" = "x" }
+
+[[case]]
+name = "empty name"
+args = ["", "h"]
+
+[[case]]
+name = "quoted names"
+args = ["q'file", "h"]
