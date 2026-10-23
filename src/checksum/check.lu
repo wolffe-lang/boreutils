@@ -1,6 +1,7 @@
 //! GNU 9.11 checksum manifest grammar and diagnostics, black-box derived.
 //! Digest algorithms and vectors are separately implemented from standards.
 //! uutils (MIT), toybox (0BSD): design references only; never GNU source.
+
 use bore
 
 struct ManifestReader {
@@ -46,13 +47,18 @@ fn manifest_line(mut r: ManifestReader) -> List[byte] ! {eof, io} {
 struct Record { name: str, expected: str, kind: int, bits: int, base64: bool }
 
 fn ascii_blank(b: byte) -> bool { b as int == 32 || b as int == 9 }
+
 fn hex_digit(b: byte) -> bool {
     let x = b as int
     x >= 48 && x <= 57 || x >= 65 && x <= 70 || x >= 97 && x <= 102
 }
+
 fn lower_hex(s: str) -> str {
     var out = List[byte]()
-    for b in s.bytes() { let n = b as int; (mut out).push((if n >= 65 && n <= 70 then n + 32 else n) as byte) }
+    for b in s.bytes() {
+        let n = b as int
+        (mut out).push((if n >= 65 && n <= 70 then n + 32 else n) as byte)
+    }
     str_from_utf8(out) else ""
 }
 
@@ -66,10 +72,15 @@ fn unescape_filename(s: str) -> str ! {invalid} {
             if i == s.len { return invalid }
             let n = s.bytes()[i] as int
             i += 1
-            if n == 92 { b = 92 as byte }
-            else if n == 110 { b = 10 as byte }
-            else if n == 114 { b = 13 as byte }
-            else { return invalid }
+            if n == 92 {
+                b = 92 as byte
+            } else if n == 110 {
+                b = 10 as byte
+            } else if n == 114 {
+                b = 13 as byte
+            } else {
+                return invalid
+            }
         }
         (mut out).push(b)
     }
@@ -100,7 +111,11 @@ fn parse_record(c: Settings, line: str, from_stdin: bool) -> Record ! {invalid} 
             bits = length_number(label[8..]) else { return invalid }
             if bits < 8 || bits > 512 || bits % 8 != 0 { return invalid }
         }
-        if (c.prog != "cksum" || c.explicit_kind) && kind != c.kind && !(c.kind == 11 && kind >= 6 && kind <= 9) { return invalid }
+        if (c.prog != "cksum" || c.explicit_kind) &&
+            kind != c.kind &&
+            !(c.kind == 11 && kind >= 6 && kind <= 9) {
+            return invalid
+        }
         name = s[open + 1..close]
         var tail = s[close + 1..]
         if tail.starts_with(" ") { tail = tail[1..] }
@@ -116,7 +131,9 @@ fn parse_record(c: Settings, line: str, from_stdin: bool) -> Record ! {invalid} 
         if pos == s.len { return invalid }
         expected = s[..pos]
         pos += 1
-        if pos + 1 < s.len && (s.bytes()[pos] as int == 32 || s.bytes()[pos] as int == 42) { pos += 1 }
+        if pos + 1 < s.len && (s.bytes()[pos] as int == 32 || s.bytes()[pos] as int == 42) {
+            pos += 1
+        }
         if pos == s.len { return invalid }
         name = s[pos..]
         if kind == 10 { bits = expected.len * 4 }
@@ -155,40 +172,78 @@ fn valid_base64(s: str, bytes: int) -> bool {
     var i = 0
     while i < s.len {
         let b = s.bytes()[i] as int
-        if i >= s.len - pad { if b != 61 { return false } }
-        else if !(b >= 65 && b <= 90 || b >= 97 && b <= 122 || b >= 48 && b <= 57 || b == 43 || b == 47) { return false }
+        if i >= s.len - pad {
+            if b != 61 { return false }
+        } else if !(
+            b >= 65 && b <= 90 || b >= 97 && b <= 122 || b >= 48 && b <= 57 || b == 43 || b == 47
+        ) {
+            return false
+        }
         i += 1
     }
     true
 }
 
-struct CheckCounts { proper: int, malformed: int, unread: int, mismatch: int, matched: int, line: int, last_kind: int, last_bits: int }
+struct CheckCounts {
+    proper: int,
+    malformed: int,
+    unread: int,
+    mismatch: int,
+    matched: int,
+    line: int,
+    last_kind: int,
+    last_bits: int,
+}
 
 fn check_file(c: Settings, path: str) -> int {
     let src = bore.open_input(path) else |e| {
-        let why = match e { not_found => bore.no_such_file(), denied => bore.permission_denied(), is_dir => bore.directory_reason(), io => bore.io_error() }
+        let why = match e {
+            not_found => bore.no_such_file(),
+            denied => bore.permission_denied(),
+            is_dir => bore.directory_reason(),
+            io => bore.io_error(),
+        }
         bore.input_error(c.prog, path, why)
         return 1
     }
     var r = manifest_reader(src)
-    var n = CheckCounts { proper: 0, malformed: 0, unread: 0, mismatch: 0, matched: 0, line: 0, last_kind: c.kind, last_bits: c.bits }
+    var n = CheckCounts {
+        proper: 0,
+        malformed: 0,
+        unread: 0,
+        mismatch: 0,
+        matched: 0,
+        line: 0,
+        last_kind: c.kind,
+        last_bits: c.bits,
+    }
     var bad_read = false
     var bad_write = false
     loop {
         region row {
             let bytes = manifest_line(mut r) else |e| match e {
                 eof => { break },
-                io => { bore.input_error(c.prog, path, bore.io_error()); bad_read = true; break },
+                io => {
+                    bore.input_error(c.prog, path, bore.io_error())
+                    bad_read = true
+                    break
+                },
             }
             n.line += 1
             let line = str_from_utf8(bytes) else { malformed_line(c, path, mut n); continue }
             if line.len == 0 || line == "\r" || line.starts_with("#") { continue }
-            let rec = parse_record(c, line, path == "-") else { malformed_line(c, path, mut n); continue }
+            let rec = parse_record(c, line, path == "-") else {
+                malformed_line(c, path, mut n)
+                continue
+            }
             n.proper += 1
             n.last_kind = rec.kind
             n.last_bits = rec.bits
             let a = compute(c, rec.name, rec.kind, rec.bits) else |e| {
-                let unread = match e { failed => true, missing => false }
+                let unread = match e {
+                    failed => true,
+                    missing => false,
+                }
                 if unread {
                     n.unread += 1
                     if !check_result(c, rec.name, "FAILED open or read") { bad_write = true; break }
@@ -224,22 +279,43 @@ fn check_file(c: Settings, path: str) -> int {
             let suffix = if n.mismatch == 1 then "checksum" else "checksums"
             bore.warn(c.prog, "WARNING: {n.mismatch} computed {suffix} did NOT match")
         }
-        if c.ignore && n.matched == 0 { bore.warn(c.prog, "{manifest_name(path)}: no file was verified") }
+        if c.ignore && n.matched == 0 {
+            bore.warn(c.prog, "{manifest_name(path)}: no file was verified")
+        }
     }
-    if bad_read || n.unread > 0 || n.mismatch > 0 || c.strict && n.malformed > 0 || c.ignore && n.matched == 0 { return 1 }
+    if bad_read ||
+        n.unread > 0 ||
+        n.mismatch > 0 ||
+        c.strict && n.malformed > 0 ||
+        c.ignore && n.matched == 0 {
+        return 1
+    }
     0
 }
 
 fn manifest_name(path: str) -> str {
     bore.quote_name(if path == "-" then "standard input" else path)
 }
+
 fn malformed_line(c: Settings, path: str, mut n: CheckCounts) {
     n.malformed += 1
     if c.warn && !c.status {
-        let label = if n.last_kind == 0 then "CRC" else if n.last_kind == 10 then "BLAKE2b" else if n.last_kind == 11 then "SHA2" else digest_label(n.last_kind, n.last_bits)
-        bore.warn(c.prog, "{manifest_name(path)}: {n.line}: improperly formatted {label} checksum line")
+        let label = if n.last_kind == 0 {
+            "CRC"
+        } else if n.last_kind == 10 {
+            "BLAKE2b"
+        } else if n.last_kind == 11 {
+            "SHA2"
+        } else {
+            digest_label(n.last_kind, n.last_bits)
+        }
+        bore.warn(
+            c.prog,
+            "{manifest_name(path)}: {n.line}: improperly formatted {label} checksum line",
+        )
     }
 }
+
 fn check_result(c: Settings, name: str, status: str) -> bool {
     if c.status { return true }
     var out = bore.stdout()

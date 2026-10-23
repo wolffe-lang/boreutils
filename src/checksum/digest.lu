@@ -26,11 +26,20 @@ pub struct Digest {
 /// Initialize a supported kind and digest length in bits; no failure rows.
 pub fn digest_new(kind: int, bits: int) -> Digest {
     var d = Digest {
-        kind: kind, bits: bits, h: List[wrapping[u64]](),
-        w: List[wrapping[u64]](), k: List[wrapping[u64]](),
-        m: List[wrapping[u64]](), order: List[int](),
-        buf: List[byte](), used: 0, lo: 0, hi: 0, count: 0,
-        crc: if kind == 1 then 4294967295 else 0, table: List[int](),
+        kind: kind,
+        bits: bits,
+        h: List[wrapping[u64]](),
+        w: List[wrapping[u64]](),
+        k: List[wrapping[u64]](),
+        m: List[wrapping[u64]](),
+        order: List[int](),
+        buf: List[byte](),
+        used: 0,
+        lo: 0,
+        hi: 0,
+        count: 0,
+        crc: if kind == 1 then 4294967295 else 0,
+        table: List[int](),
     }
     var i = 0
     while i < 128 {
@@ -68,10 +77,15 @@ fn block_size(d: Digest) -> int {
 }
 
 fn digest_block(mut d: Digest, last: bool) {
-    if d.kind == 4 { md5_block(mut d) }
-    else if d.kind == 5 { sha1_block(mut d) }
-    else if d.kind < 10 { sha2_block(mut d) }
-    else { blake_block(mut d, last) }
+    if d.kind == 4 {
+        md5_block(mut d)
+    } else if d.kind == 5 {
+        sha1_block(mut d)
+    } else if d.kind < 10 {
+        sha2_block(mut d)
+    } else {
+        blake_block(mut d, last)
+    }
 }
 
 /// Consume bytes without retaining them; state and pending data stay bounded.
@@ -116,13 +130,13 @@ pub fn digest_end(mut d: Digest) -> List[byte] {
         }
         while d.used < size { d.buf[d.used] = 0 as byte; d.used += 1 }
         let low = d.lo << 3
-        let high = (d.hi << 3) | (d.lo >> 61)
+        let high = d.hi << 3 | d.lo >> 61
         var j = 0
         while j < 8 {
             let at = if d.kind == 4 then size - 8 + j else size - 1 - j
-            d.buf[at] = ((low >> (j * 8) as wrapping[u64]) & 255) as int as byte
+            d.buf[at] = (low >> (j * 8) as wrapping[u64] & 255) as int as byte
             if size == 128 {
-                d.buf[size - 9 - j] = ((high >> (j * 8) as wrapping[u64]) & 255) as int as byte
+                d.buf[size - 9 - j] = (high >> (j * 8) as wrapping[u64] & 255) as int as byte
             }
             j += 1
         }
@@ -134,7 +148,7 @@ pub fn digest_end(mut d: Digest) -> List[byte] {
     var j = 0
     while j < d.bits / 8 {
         let shift = (if little then j % width else width - 1 - j % width) * 8
-        (mut result).push(((d.h[j / width] >> shift as wrapping[u64]) & 255) as int as byte)
+        (mut result).push((d.h[j / width] >> shift as wrapping[u64] & 255) as int as byte)
         j += 1
     }
     result
@@ -147,7 +161,7 @@ fn load_words(mut d: Digest, width: int, little: bool) {
         var j = 0
         while j < width {
             let shift = (if little then j else width - 1 - j) * 8
-            x = x | ((d.buf[i * width + j] as int as wrapping[u64]) << shift as wrapping[u64])
+            x = x | d.buf[i * width + j] as int as wrapping[u64] << shift as wrapping[u64]
             j += 1
         }
         d.w[i] = x
@@ -156,11 +170,11 @@ fn load_words(mut d: Digest, width: int, little: bool) {
 }
 
 fn rotr64(x: wrapping[u64], n: int) -> wrapping[u64] {
-    (x >> n as wrapping[u64]) | (x << (64 - n) as wrapping[u64])
+    x >> n as wrapping[u64] | x << (64 - n) as wrapping[u64]
 }
 
 fn rotr32(x: wrapping[u64], n: int) -> wrapping[u64] {
-    ((x >> n as wrapping[u64]) | (x << (32 - n) as wrapping[u64])) & 0xffffffff
+    (x >> n as wrapping[u64] | x << (32 - n) as wrapping[u64]) & 0xffffffff
 }
 
 /// Encode bytes as lowercase hexadecimal.

@@ -15,8 +15,11 @@ fn crc_table(reflected: bool) -> List[int] {
         var x = if reflected then i else i << 24
         var j = 0
         while j < 8 {
-            if reflected { x = (x >> 1) ^ (if x & 1 != 0 then 0xedb88320 else 0) }
-            else { x = ((x << 1) ^ (if x & 0x80000000 != 0 then 0x04c11db7 else 0)) & 0xffffffff }
+            if reflected {
+                x = x >> 1 ^ (if x & 1 != 0 then 0xedb88320 else 0)
+            } else {
+                x = (x << 1 ^ (if x & 0x80000000 != 0 then 0x04c11db7 else 0)) & 0xffffffff
+            }
             j += 1
         }
         (mut xs).push(x)
@@ -26,10 +29,15 @@ fn crc_table(reflected: bool) -> List[int] {
 }
 
 fn checksum_byte(mut d: Digest, b: int) {
-    if d.kind == 0 { d.crc = ((d.crc << 8) ^ d.table[((d.crc >> 24) ^ b) & 255]) & 0xffffffff }
-    else if d.kind == 1 { d.crc = (d.crc >> 8) ^ d.table[(d.crc ^ b) & 255] }
-    else if d.kind == 2 { d.crc = (d.crc + b) & 0xffffffff }
-    else { d.crc = (((d.crc >> 1) | ((d.crc & 1) << 15)) + b) & 65535 }
+    if d.kind == 0 {
+        d.crc = (d.crc << 8 ^ d.table[(d.crc >> 24 ^ b) & 255]) & 0xffffffff
+    } else if d.kind == 1 {
+        d.crc = d.crc >> 8 ^ d.table[(d.crc ^ b) & 255]
+    } else if d.kind == 2 {
+        d.crc = d.crc + b & 0xffffffff
+    } else {
+        d.crc = (d.crc >> 1 | (d.crc & 1) << 15) + b & 65535
+    }
 }
 
 fn checksum_end(mut d: Digest) -> List[byte] {
@@ -37,13 +45,14 @@ fn checksum_end(mut d: Digest) -> List[byte] {
         var n = d.lo
         while n != 0 { checksum_byte(mut d, (n & 255) as int); n = n >> 8 }
         d.crc = d.crc ^ 0xffffffff
-    } else if d.kind == 1 { d.crc = d.crc ^ 0xffffffff }
-    else if d.kind == 2 {
+    } else if d.kind == 1 {
+        d.crc = d.crc ^ 0xffffffff
+    } else if d.kind == 2 {
         d.crc = (d.crc & 65535) + (d.crc >> 16)
         d.crc = (d.crc & 65535) + (d.crc >> 16)
     }
     var result = List[byte]()
     var i = 3
-    while i >= 0 { (mut result).push(((d.crc >> (i * 8)) & 255) as byte); i -= 1 }
+    while i >= 0 { (mut result).push((d.crc >> i * 8 & 255) as byte); i -= 1 }
     result
 }
