@@ -87,6 +87,24 @@ class SurfaceRefusals(unittest.TestCase):
             file.chmod(0o600)
             self.assertEqual(file.read_bytes(), b"abcdef")
 
+    def test_macos_link_follow_refusal(self):
+        if sys.platform != "darwin":
+            print("SKIP smalltest: macOS link-follow refusal (not Darwin)", flush=True)
+            self.skipTest("macOS-only fs_link follow gap")
+        tier = os.environ.get("BORE_SMALL_TIER", "release")
+        with tempfile.TemporaryDirectory(prefix="bore-link-follow.") as top:
+            p = Path(top)
+            (p / "f").write_bytes(b"abcdef")
+            (p / "live").symlink_to("f")
+            (p / "dangling").symlink_to("missing")
+            for source in ("live", "dangling"):
+                done = subprocess.run([str(ROOT / "target" / tier / "link"), source, "h"],
+                                      cwd=top, capture_output=True, timeout=2)
+                self.assertEqual(done.returncode, 1, done.stderr)
+                self.assertIn(b"following a source symbolic link", done.stderr)
+                self.assertFalse(os.path.lexists(p / "h"))
+            self.assertEqual((p / "f").read_bytes(), b"abcdef")
+
     def test_named_refusals(self):
         for tier in (os.environ.get("BORE_SMALL_TIER", "release"),):
             for utility, args, words in [

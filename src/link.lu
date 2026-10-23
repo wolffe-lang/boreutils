@@ -2,6 +2,10 @@
 //! link — give an existing file another name.
 //! References consulted: POSIX.1-2024 link; GNU coreutils 9.11's
 //! documented invocation and black-box binary runs. No implementation source.
+//! Listed macOS gap: GNU link(1) follows its final source symlink; wolf's
+//! [os.fs.link] never follows (runtime fs_change.rs, linkat without a flag).
+//! Refuse that operand by name. Resolving and then linking would not be
+//! the atomic following operation (R-bu30-4); never fabricate ENOENT.
 
 use bore
 
@@ -34,6 +38,16 @@ fn main() -> int {
     }
     let a = p.operands[0]
     let b = p.operands[1]
+    if os_name() == "macos" {
+        let rec = fs_lstat(a) else |_| List[int]()
+        if rec.len == 20 && bore.rec_kind(rec) == bore.kind_link() {
+            bore.warn(
+                "link",
+                "following a source symbolic link is not supported by this link on macOS: {bore.quote_always(a)}",
+            )
+            return 1
+        }
+    }
     fs_link(a, b) else |_| {
         bore.warn(
             "link",

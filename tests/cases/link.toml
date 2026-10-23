@@ -51,6 +51,9 @@ args = ["d", "h"]
 scratch_dirs = ["d"]
 
 [[case]]
+# GNU 9.11 on macOS follows the source and reports ENOENT for this
+# dangling link (CI 39987951234); fs_link deliberately never follows.
+skip_on = { Darwin = "Listed fs_link follow gap: macOS link(1) follows a source symlink, wolf fs_link cannot; named refusal tested by smalltest" }
 name = "symbolic link itself"
 args = ["l", "h"]
 scratch_links = { "l" = "absent" }
@@ -74,3 +77,10 @@ args = ["", "h"]
 [[case]]
 name = "quoted names"
 args = ["q'file", "h"]
+
+[[case]]
+name = "source link to an existing file"
+args = ["l", "h"]
+scratch = { f = "abcdef" }
+scratch_links = { l = "f" }
+skip_on = { Darwin = "Listed fs_link follow gap: macOS link(1) follows a source symlink, wolf fs_link cannot; named refusal tested by smalltest" }
