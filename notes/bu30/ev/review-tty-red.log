@@ -1,0 +1,66 @@
+difftest-selftest: REFUSED — the plant 'echo: a made-up terminal name is not the slave name' did not fail:
+difftest: gnu = true (GNU coreutils) 9.11 (prefix '') on Linux x86_64
+difftest: bore = /l/boreutils/target/release
+difftest: oracle environment, LC_ALL=C _POSIX2_VERSION=200112
+difftest: oracle of record, GNU coreutils 9.11
+difftest: oracle profile OK — `uniq +1 /dev/null` exits 1 (the obsolete +N operand form is off, so +1 is a file name (B73))
+difftest: scratch root /l/scratch
+FAIL echo: what a terminal received  args=['x']
+    bore stdout: b'x
+'
+    gnu  stdout: b''
+FAIL echo: a mask hides only what it names  args=['n=5 tail']
+    bore stdout: b'<MASK> tail
+'
+    gnu  stdout: b'<MASK> tail'
+FAIL echo: a kept line the other side lacks  args=['3']
+    bore stdout: b'3
+'
+    gnu  stdout: b'2
+3
+'
+ok   echo: kept lines alike
+FAIL echo: two identical invalid random shapes still fail  args=['fixed.a_0']
+    shape errors: bore='name, alphabet, X count, suffix, or exit differs from the declared shape', gnu='name, alphabet, X count, suffix, or exit differs from the declared shape'
+    bore stdout: b'fixed.a_0
+'
+    bore stderr: b''
+    bore exit: 0
+    bore files: []
+    bore tree: [('.', 'dir', 493, None, None, None)]
+    gnu  stdout: b'fixed.a_0
+'
+    gnu  stderr: b''
+    gnu  exit: 0
+    gnu  files: []
+    gnu  tree: [('.', 'dir', 493, None, None, None)]
+ok   echo: a made-up terminal name is not the slave name
+FAIL head: an offset one side moves  args=['-']
+    bore offset: 35
+    gnu  offset: 39
+FAIL tee: a file one side writes  args=['a']
+    bore files: [('a', 'file', b'')]
+    gnu  files: []
+FAIL tee: a file whose bytes differ  args=['a']
+    bore files: [('a', 'file', b'new
+')]
+    gnu  files: [('a', 'file', b'old
+')]
+FAIL tee: two names of one file  args=['a', 'b']
+    bore tree: [('.', 'dir', 493, None, None, None), ('a', 'file', 420, 1, 2, None), ('b', 'file', 420, 1, 2, None)]
+    gnu  tree: [('.', 'dir', 493, None, None, None), ('a', 'file', 420, 2, 2, None), ('b', 'file', 420, 2, 2, None)]
+ok   tee: two names of one file, by bytes alone
+ok   tee: a mask reaches our side
+ok   tee: a mask reaches both sides or neither
+FAIL tee: a time one side sets  args=['a']
+    bore times: [('.', 'now', 'now'), ('a', 'now', 'now')]
+    gnu  times: [('.', 'now', 'now'), ('a', 'now', 1000000000123456789)]
+ok   tee: times both sides leave alike
+FAIL true: true is not false  args=[]
+    bore stdout: b''
+    bore stderr: b''
+    bore exit: 0
+    gnu  stdout: b''
+    gnu  stderr: b''
+    gnu  exit: 1
+difftest: 6 passed, 10 failed, 0 skipped

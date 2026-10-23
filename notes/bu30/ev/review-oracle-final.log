@@ -1,0 +1,57 @@
+waiting for block A: 2026-10-23T15:15:49Z
+From https://github.com/wolffe-lang/boreutils
+   197a6a7..0a354d9  bu30       -> origin/bu30
+Updating 197a6a7..0a354d9
+Fast-forward
+ notes/bu30/probes/open-gap.lu      | 25 +++++++++++++++++++++++++
+ notes/bu30/probes/review-oracle.py | 12 ++++++++++--
+ tests/cases/tty.toml               |  1 +
+ tests/selftest/echo.toml           |  1 +
+ tools/difftest                     | 20 ++++++++++++++++----
+ 5 files changed, 53 insertions(+), 6 deletions(-)
+ create mode 100644 notes/bu30/probes/open-gap.lu
+2 empty reference relative uid 1000 argv ['-r', '', '-s', '+1', 'f']
+exit 1 stdout b'' stderr b"truncate: cannot stat '': No such file or directory\n"
+2 empty reference alone uid 1000 argv ['-r', '', 'f']
+exit 1 stdout b'' stderr b"truncate: cannot stat '': No such file or directory\n"
+3 fifo uid 1000 argv ['-s', '0', 'fifo']
+exit 1 stdout b'' stderr b"truncate: cannot open 'fifo' for writing: No such device or address\n"
+3 fifo no-create uid 1000 argv ['-c', '-s', '0', 'fifo']
+exit 1 stdout b'' stderr b"truncate: cannot open 'fifo' for writing: No such device or address\n"
+3 fifo symlink uid 1000 argv ['-s', '0', 'lfifo']
+exit 1 stdout b'' stderr b"truncate: cannot open 'lfifo' for writing: No such device or address\n"
+4 link target slash existing uid 1000 argv ['-e', 'lf']
+exit 1 stdout b'' stderr b'realpath: lf: Not a directory\n'
+4 link target slash E uid 1000 argv ['-E', 'lf']
+exit 1 stdout b'' stderr b'realpath: lf: Not a directory\n'
+4 readlink target slash existing uid 1000 argv ['-e', 'lf']
+exit 1 stdout b'' stderr b''
+5 cyclic prefix recovers uid 1000 argv ['-m', 'cycle/../l']
+exit 0 stdout b'/l/tmp/bu30-oracle-review.vv6x7a1x/d\n' stderr b''
+5 readlink cyclic prefix recovers uid 1000 argv ['-m', 'cycle/../l']
+exit 0 stdout b'/l/tmp/bu30-oracle-review.0kc117_t/d\n' stderr b''
+6 empty relative-to uid 1000 argv ['--relative-to=', 'f']
+exit 1 stdout b'' stderr b"realpath: '': No such file or directory\n"
+6 empty relative-base uid 1000 argv ['--relative-base=', 'f']
+exit 1 stdout b'' stderr b"realpath: '': No such file or directory\n"
+B minimum signed reduction uid 1000 argv ['-s', '-9223372036854775808', 'f']
+exit 0 stdout b'' stderr b''
+B below minimum signed reduction uid 1000 argv ['-s', '-9223372036854775809', 'f']
+exit 1 stdout b'' stderr b"truncate: Invalid number: '-9223372036854775809': Value too large for defined data type\n"
+B minimum through K uid 1000 argv ['-s', '-9007199254740992K', 'f']
+exit 0 stdout b'' stderr b''
+B below minimum through K uid 1000 argv ['-s', '-9007199254740993K', 'f']
+exit 1 stdout b'' stderr b"truncate: Invalid number: '-9007199254740993K': Value too large for defined data type\n"
+B MAX no-create absent uid 1000 argv ['-c', '-s', '9223372036854775807', 'absent']
+exit 0 stdout b'' stderr b''
+B MAX+1 no-create absent uid 1000 argv ['-c', '-s', '9223372036854775808', 'absent']
+exit 1 stdout b'' stderr b"truncate: Invalid number: '9223372036854775808': Value too large for defined data type\n"
+B plus Unicode uid 1000 argv ['-s', '+é', 'f']
+exit 1 stdout b'' stderr b"truncate: Invalid number: '+\\303\\251'\n"
+B minus Unicode uid 1000 argv ['-s', '-é', 'f']
+exit 1 stdout b'' stderr b"truncate: Invalid number: '-\\303\\251'\n"
+U write-only sync uid 1000 argv ['f']
+exit 0 stdout b'' stderr b''
+U write-only data sync uid 1000 argv ['-d', 'f']
+exit 0 stdout b'' stderr b''
+REVIEW-ORACLE-DONE

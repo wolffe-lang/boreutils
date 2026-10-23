@@ -1,0 +1,467 @@
+difftest: gnu = true (GNU coreutils) 9.11 (prefix '') on Linux x86_64
+difftest: bore = /l/boreutils/target/release
+difftest: oracle environment, LC_ALL=C _POSIX2_VERSION=200112
+difftest: oracle of record, GNU coreutils 9.11
+difftest: oracle profile OK — `uniq +1 /dev/null` exits 1 (the obsolete +N operand form is off, so +1 is a file name (B73))
+difftest: scratch root /l/scratch
+ok   truncate: help
+ok   truncate: version
+ok   truncate: bad option
+ok   truncate: closed help
+ok   truncate: no options
+ok   truncate: missing file
+ok   truncate: missing size
+ok   truncate: new empty file
+ok   truncate: new sparse file
+ok   truncate: shorten
+ok   truncate: extend
+ok   truncate: no create
+ok   truncate: no create existing
+ok   truncate: reference
+ok   truncate: missing reference
+ok   truncate: reference with absolute size
+ok   truncate: directory
+ok   truncate: follow link
+ok   truncate: continue after error
+SKIP truncate: io blocks refused (R-bu30-1: no stat st_blksize word; named refusal tested by smalltest)
+ok   truncate: size +0
+ok   truncate: size +2
+ok   truncate: size +4
+ok   truncate: size +8
+ok   truncate: reference relative +
+ok   truncate: size -0
+ok   truncate: size -2
+ok   truncate: size -4
+ok   truncate: size -8
+ok   truncate: reference relative -
+ok   truncate: size <0
+ok   truncate: size <2
+ok   truncate: size <4
+ok   truncate: size <8
+ok   truncate: reference relative <
+ok   truncate: size >0
+ok   truncate: size >2
+ok   truncate: size >4
+ok   truncate: size >8
+ok   truncate: reference relative >
+ok   truncate: size /0
+ok   truncate: size /2
+ok   truncate: size /4
+ok   truncate: size /8
+ok   truncate: reference relative /
+ok   truncate: size %0
+ok   truncate: size %2
+ok   truncate: size %4
+ok   truncate: size %8
+ok   truncate: reference relative %
+ok   truncate: grammar '1c'
+ok   truncate: grammar '1w'
+ok   truncate: grammar '1b'
+ok   truncate: grammar '1k'
+ok   truncate: grammar '1K'
+ok   truncate: grammar '1KB'
+ok   truncate: grammar '1KiB'
+ok   truncate: grammar '0M'
+ok   truncate: grammar '0G'
+ok   truncate: grammar '0T'
+ok   truncate: grammar '0P'
+ok   truncate: grammar '0E'
+ok   truncate: grammar '0Z'
+ok   truncate: grammar '0Y'
+ok   truncate: grammar '0R'
+ok   truncate: grammar '0Q'
+ok   truncate: grammar '0x10'
+ok   truncate: grammar '-1'
+ok   truncate: grammar 'x'
+ok   truncate: grammar '1XB'
+ok   truncate: grammar '1.5K'
+ok   truncate: grammar '9223372036854775808'
+ok   truncate: grammar '9223372036854775807K'
+ok   truncate: grammar ''
+ok   truncate: write-only file needs no read permission
+ok   truncate: leading space in size
+ok   truncate: trailing space in size
+ok   truncate: leading zero decimal
+ok   truncate: byte suffix B
+ok   truncate: decimal lowercase kB
+ok   truncate: relative leading space
+ok   truncate: relative size overflows offset
+ok   truncate: minimum signed reduction
+FAIL truncate: non-ASCII invalid size is a diagnostic, not a trap  args=['-s', 'é', 'f']
+    bore stdout: b''
+    bore stderr: b'wolf-trap: bounds\n  at src/PROG.lu:131:9\n'
+    bore exit: 134
+    bore files: []
+    bore tree: [('.', 'dir', 493, None, None, None)]
+    gnu  stdout: b''
+    gnu  stderr: b"PROG: Invalid number: '\\303\\251'\n"
+    gnu  exit: 1
+    gnu  files: []
+    gnu  tree: [('.', 'dir', 493, None, None, None)]
+FAIL truncate: review 2 empty reference with relative size  args=['-r', '', '-s', '+1', 'f']
+    bore stdout: b''
+    bore stderr: b''
+    bore exit: 0
+    bore files: [('f', 'file', b'abcdef\x00')]
+    bore tree: [('.', 'dir', 493, None, None, None), ('f', 'file', 420, 1, 7, None)]
+    gnu  stdout: b''
+    gnu  stderr: b"PROG: cannot stat '': No such file or directory\n"
+    gnu  exit: 1
+    gnu  files: [('f', 'file', b'abcdef')]
+    gnu  tree: [('.', 'dir', 493, None, None, None), ('f', 'file', 420, 1, 6, None)]
+FAIL truncate: review 2 empty reference alone  args=['-r', '', 'f']
+    bore stdout: b''
+    bore stderr: b"PROG: you must specify either '--size' or '--reference'\nTry 'PROG --help' for more information.\n"
+    bore exit: 1
+    bore files: [('f', 'file', b'abcdef')]
+    bore tree: [('.', 'dir', 493, None, None, None), ('f', 'file', 420, 1, 6, None)]
+    gnu  stdout: b''
+    gnu  stderr: b"PROG: cannot stat '': No such file or directory\n"
+    gnu  exit: 1
+    gnu  files: [('f', 'file', b'abcdef')]
+    gnu  tree: [('.', 'dir', 493, None, None, None), ('f', 'file', 420, 1, 6, None)]
+FAIL truncate: review 3 fifo without reader  args=['-s', '0', 'fifo']
+    bore: TIMED OUT
+    gnu  stdout: b''
+    gnu  stderr: b"PROG: cannot open 'fifo' for writing: No such device or address\n"
+    gnu  exit: 1
+    gnu  files: [('fifo', 'other', b'')]
+    gnu  tree: [('.', 'dir', 493, None, None, None), ('fifo', 'fifo', 420, 1, None, None)]
+FAIL truncate: review 3 fifo no-create  args=['-c', '-s', '0', 'fifo']
+    bore: TIMED OUT
+    gnu  stdout: b''
+    gnu  stderr: b"PROG: cannot open 'fifo' for writing: No such device or address\n"
+    gnu  exit: 1
+    gnu  files: [('fifo', 'other', b'')]
+    gnu  tree: [('.', 'dir', 493, None, None, None), ('fifo', 'fifo', 420, 1, None, None)]
+FAIL truncate: review 3 fifo through symlink  args=['-s', '0', 'l']
+    bore: TIMED OUT
+    gnu  stdout: b''
+    gnu  stderr: b"PROG: cannot open 'l' for writing: No such device or address\n"
+    gnu  exit: 1
+    gnu  files: [('fifo', 'other', b''), ('l', 'link', b'fifo')]
+    gnu  tree: [('.', 'dir', 493, None, None, None), ('fifo', 'fifo', 420, 1, None, None), ('l', 'link', None, 1, None, None)]
+ok   realpath: help
+ok   realpath: version
+ok   realpath: bad option
+ok   realpath: closed help
+ok   realpath: missing operand
+ok   realpath: f
+ok   realpath: -e f
+ok   realpath: -m f
+ok   realpath: -L f
+ok   realpath: -P f
+ok   realpath: -s f
+ok   realpath: -m -s f
+ok   realpath: missing
+ok   realpath: -e missing
+ok   realpath: -m missing
+ok   realpath: -L missing
+ok   realpath: -P missing
+ok   realpath: -s missing
+ok   realpath: -m -s missing
+ok   realpath: no/parent
+ok   realpath: -e no/parent
+ok   realpath: -m no/parent
+ok   realpath: -L no/parent
+ok   realpath: -P no/parent
+ok   realpath: -s no/parent
+ok   realpath: -m -s no/parent
+ok   realpath: d/../f
+ok   realpath: -e d/../f
+ok   realpath: -m d/../f
+ok   realpath: -L d/../f
+ok   realpath: -P d/../f
+ok   realpath: -s d/../f
+ok   realpath: -m -s d/../f
+ok   realpath: l/../f
+ok   realpath: -e l/../f
+ok   realpath: -m l/../f
+ok   realpath: -L l/../f
+ok   realpath: -P l/../f
+ok   realpath: -s l/../f
+ok   realpath: -m -s l/../f
+ok   realpath: dangling
+ok   realpath: -e dangling
+ok   realpath: -m dangling
+ok   realpath: -L dangling
+ok   realpath: -P dangling
+ok   realpath: -s dangling
+ok   realpath: -m -s dangling
+ok   realpath: cycle
+ok   realpath: -e cycle
+ok   realpath: -m cycle
+ok   realpath: -L cycle
+ok   realpath: -P cycle
+ok   realpath: -s cycle
+ok   realpath: -m -s cycle
+ok   realpath: f/
+ok   realpath: -e f/
+ok   realpath: -m f/
+ok   realpath: -L f/
+ok   realpath: -P f/
+ok   realpath: -s f/
+ok   realpath: -m -s f/
+ok   realpath: f/child
+ok   realpath: -e f/child
+ok   realpath: -m f/child
+ok   realpath: -L f/child
+ok   realpath: -P f/child
+ok   realpath: -s f/child
+ok   realpath: -m -s f/child
+ok   realpath: 
+ok   realpath: -e 
+ok   realpath: -m 
+ok   realpath: -L 
+ok   realpath: -P 
+ok   realpath: -s 
+ok   realpath: -m -s 
+ok   realpath: .
+ok   realpath: -e .
+ok   realpath: -m .
+ok   realpath: -L .
+ok   realpath: -P .
+ok   realpath: -s .
+ok   realpath: -m -s .
+ok   realpath: d//sub/./f
+ok   realpath: -e d//sub/./f
+ok   realpath: -m d//sub/./f
+ok   realpath: -L d//sub/./f
+ok   realpath: -P d//sub/./f
+ok   realpath: -s d//sub/./f
+ok   realpath: -m -s d//sub/./f
+ok   realpath: d/sub/../../f
+ok   realpath: -e d/sub/../../f
+ok   realpath: -m d/sub/../../f
+ok   realpath: -L d/sub/../../f
+ok   realpath: -P d/sub/../../f
+ok   realpath: -s d/sub/../../f
+ok   realpath: -m -s d/sub/../../f
+ok   realpath: quiet missing
+ok   realpath: NUL output
+ok   realpath: relative same
+ok   realpath: relative parent
+ok   realpath: relative base inside
+ok   realpath: relative base and to
+ok   realpath: relative missing
+ok   realpath: missing component then parent recovers symlink
+ok   realpath: strip then physical
+ok   realpath: physical then strip
+ok   realpath: quiet nonexistent relative directory
+ok   realpath: existing strip needs existing target
+ok   realpath: explicit E permits only a missing last component
+FAIL realpath: review 4 link target slash requires directory existing  args=['-e', 'l']
+    bore stdout: b'/l/scratch/bore-scratch.s1gcahlg/s/f\n'
+    bore stderr: b''
+    bore exit: 0
+    bore files: [('f', 'file', b'abcdef'), ('l', 'link', b'f/')]
+    bore tree: [('.', 'dir', 493, None, None, None), ('f', 'file', 420, 1, 6, None), ('l', 'link', None, 1, None, None)]
+    gnu  stdout: b''
+    gnu  stderr: b'PROG: l: Not a directory\n'
+    gnu  exit: 1
+    gnu  files: [('f', 'file', b'abcdef'), ('l', 'link', b'f/')]
+    gnu  tree: [('.', 'dir', 493, None, None, None), ('f', 'file', 420, 1, 6, None), ('l', 'link', None, 1, None, None)]
+FAIL realpath: review 4 link target slash requires directory E  args=['-E', 'l']
+    bore stdout: b'/l/scratch/bore-scratch.jsuj6l0r/s/f\n'
+    bore stderr: b''
+    bore exit: 0
+    bore files: [('f', 'file', b'abcdef'), ('l', 'link', b'f/')]
+    bore tree: [('.', 'dir', 493, None, None, None), ('f', 'file', 420, 1, 6, None), ('l', 'link', None, 1, None, None)]
+    gnu  stdout: b''
+    gnu  stderr: b'PROG: l: Not a directory\n'
+    gnu  exit: 1
+    gnu  files: [('f', 'file', b'abcdef'), ('l', 'link', b'f/')]
+    gnu  tree: [('.', 'dir', 493, None, None, None), ('f', 'file', 420, 1, 6, None), ('l', 'link', None, 1, None, None)]
+FAIL realpath: review 5 cyclic prefix recovery  args=['-m', 'cycle/../l']
+    bore stdout: b'/l/scratch/bore-scratch.ewq5um5t/s/l\n'
+    bore stderr: b''
+    bore exit: 0
+    bore files: [('cycle', 'link', b'cycle'), ('d', 'dir', b''), ('l', 'link', b'd')]
+    bore tree: [('.', 'dir', 493, None, None, None), ('cycle', 'link', None, 1, None, None), ('d', 'dir', 493, None, None, None), ('l', 'link', None, 1, None, None)]
+    gnu  stdout: b'/l/scratch/bore-scratch.ewq5um5t/s/d\n'
+    gnu  stderr: b''
+    gnu  exit: 0
+    gnu  files: [('cycle', 'link', b'cycle'), ('d', 'dir', b''), ('l', 'link', b'd')]
+    gnu  tree: [('.', 'dir', 493, None, None, None), ('cycle', 'link', None, 1, None, None), ('d', 'dir', 493, None, None, None), ('l', 'link', None, 1, None, None)]
+FAIL realpath: review 6 empty relative-to  args=['--relative-to=', 'f']
+    bore stdout: b'/l/scratch/bore-scratch.acan87n1/s/f\n'
+    bore stderr: b''
+    bore exit: 0
+    bore files: [('f', 'file', b'abcdef')]
+    bore tree: [('.', 'dir', 493, None, None, None), ('f', 'file', 420, 1, 6, None)]
+    gnu  stdout: b''
+    gnu  stderr: b"PROG: '': No such file or directory\n"
+    gnu  exit: 1
+    gnu  files: [('f', 'file', b'abcdef')]
+    gnu  tree: [('.', 'dir', 493, None, None, None), ('f', 'file', 420, 1, 6, None)]
+FAIL realpath: review 6 empty relative-base  args=['--relative-base=', 'f']
+    bore stdout: b'/l/scratch/bore-scratch.u3zqlp_y/s/f\n'
+    bore stderr: b''
+    bore exit: 0
+    bore files: [('f', 'file', b'abcdef')]
+    bore tree: [('.', 'dir', 493, None, None, None), ('f', 'file', 420, 1, 6, None)]
+    gnu  stdout: b''
+    gnu  stderr: b"PROG: '': No such file or directory\n"
+    gnu  exit: 1
+    gnu  files: [('f', 'file', b'abcdef')]
+    gnu  tree: [('.', 'dir', 493, None, None, None), ('f', 'file', 420, 1, 6, None)]
+ok   readlink: a link
+ok   readlink: three links
+ok   readlink: a link to a link is not resolved
+ok   readlink: an absolute target
+ok   readlink: a target with a space
+ok   readlink: a target with a newline
+ok   readlink: a link in a loop is still a link
+ok   readlink: a file is not a link: nothing, status 1
+ok   readlink: a directory is not a link
+ok   readlink: a missing name: nothing, status 1
+ok   readlink: an empty operand
+ok   readlink: a link and a file: the link still prints
+ok   readlink: -v says why a file is refused
+ok   readlink: -v says why a missing name is refused
+ok   readlink: -v of several
+ok   readlink: --verbose
+ok   readlink: -q
+ok   readlink: -s
+ok   readlink: --quiet
+ok   readlink: --silent
+ok   readlink: -v and then -q
+ok   readlink: -q and then -v
+ok   readlink: -v of an empty operand
+ok   readlink: -v of a directory
+ok   readlink: -n leaves the newline off
+ok   readlink: --no-newline
+ok   readlink: -n with two operands is ignored, and said
+ok   readlink: -z ends with NUL
+ok   readlink: --zero
+ok   readlink: -n and -z of one
+ok   readlink: -n and -z of two
+ok   readlink: a dash name after --
+ok   readlink: a link with a trailing slash in its target
+ok   readlink: POSIXLY_CORRECT says why
+ok   readlink: POSIXLY_CORRECT ends the options at an operand
+ok   readlink: -f of a link
+ok   readlink: -f follows a chain
+ok   readlink: -f of a file and a directory
+ok   readlink: -f of . and ..
+ok   readlink: -f of the root, however many slashes
+ok   readlink: -f of a dangling link is where it points
+ok   readlink: -f of a missing last component
+ok   readlink: -f of a missing last component with a slash
+ok   readlink: -f of a missing middle component fails
+ok   readlink: -f of a file with a slash fails
+ok   readlink: -f of a name under a file fails
+ok   readlink: -f through a link to a name under a file fails
+ok   readlink: -f removes . and ..
+ok   readlink: -f through a link to a directory
+ok   readlink: -f through . and .. links
+ok   readlink: -f of a loop fails
+ok   readlink: -f of a link to itself fails
+ok   readlink: -f of an empty operand fails
+ok   readlink: -f to an absolute target
+ok   readlink: -fv says why
+ok   readlink: -fq says nothing
+ok   readlink: -fn
+ok   readlink: -fn with two
+ok   readlink: -fz
+ok   readlink: --canonicalize
+ok   readlink: --canon abbreviates to it
+ok   readlink: -f from inside a directory
+ok   readlink: -f of a name with a space
+ok   readlink: -f of a trailing-slash target
+ok   readlink: -e of what exists
+ok   readlink: -e of a dangling link fails
+ok   readlink: -e of a missing name fails
+ok   readlink: -e of a file with a slash fails
+ok   readlink: -e of a missing name in a directory fails
+ok   readlink: -e of a loop fails
+ok   readlink: -e of an empty operand fails
+ok   readlink: -e: the good ones still print
+ok   readlink: -ev says why
+ok   readlink: --canonicalize-existing
+ok   readlink: -m of what exists
+ok   readlink: -m of a dangling link is where it points
+ok   readlink: -m of missing names
+ok   readlink: -m under a file
+ok   readlink: -m of a loop is the name
+ok   readlink: -m removes .. as written
+ok   readlink: -m of .. past the root
+ok   readlink: -m of slashes
+ok   readlink: -m of an empty operand fails
+ok   readlink: -mv of an empty operand
+ok   readlink: --canonicalize-missing
+ok   readlink: -f and then -e
+ok   readlink: -e and then -f
+ok   readlink: -m and then -e
+ok   readlink: -e and then -m
+ok   readlink: -f and then -m
+ok   readlink: -m and then -f
+ok   readlink: no operand
+ok   readlink: no operand after an option
+ok   readlink: an unknown option
+ok   readlink: an unknown long option
+ok   readlink: --help
+ok   readlink: --version
+ok   readlink: missing component then parent recovers symlink
+FAIL readlink: review 4 link target slash requires directory existing  args=['-e', 'l']
+    bore stdout: b'/l/scratch/bore-scratch.v_0k_c75/s/f\n'
+    bore stderr: b''
+    bore exit: 0
+    bore files: [('f', 'file', b'abcdef'), ('l', 'link', b'f/')]
+    bore tree: [('.', 'dir', 493, None, None, None), ('f', 'file', 420, 1, 6, None), ('l', 'link', None, 1, None, None)]
+    gnu  stdout: b''
+    gnu  stderr: b''
+    gnu  exit: 1
+    gnu  files: [('f', 'file', b'abcdef'), ('l', 'link', b'f/')]
+    gnu  tree: [('.', 'dir', 493, None, None, None), ('f', 'file', 420, 1, 6, None), ('l', 'link', None, 1, None, None)]
+FAIL readlink: review 5 cyclic prefix recovery  args=['-m', 'cycle/../l']
+    bore stdout: b'/l/scratch/bore-scratch.57ak3bo3/s/l\n'
+    bore stderr: b''
+    bore exit: 0
+    bore files: [('cycle', 'link', b'cycle'), ('d', 'dir', b''), ('l', 'link', b'd')]
+    bore tree: [('.', 'dir', 493, None, None, None), ('cycle', 'link', None, 1, None, None), ('d', 'dir', 493, None, None, None), ('l', 'link', None, 1, None, None)]
+    gnu  stdout: b'/l/scratch/bore-scratch.57ak3bo3/s/d\n'
+    gnu  stderr: b''
+    gnu  exit: 0
+    gnu  files: [('cycle', 'link', b'cycle'), ('d', 'dir', b''), ('l', 'link', b'd')]
+    gnu  tree: [('.', 'dir', 493, None, None, None), ('cycle', 'link', None, 1, None, None), ('d', 'dir', 493, None, None, None), ('l', 'link', None, 1, None, None)]
+ok   sync: help
+ok   sync: version
+ok   sync: bad option
+ok   sync: closed help
+ok   sync: one file
+ok   sync: two files
+ok   sync: data file
+ok   sync: data long
+ok   sync: directory
+ok   sync: data directory
+ok   sync: missing file
+ok   sync: continue after error
+ok   sync: dangling link
+ok   sync: link
+ok   sync: fifo
+SKIP sync: bare sync refused (No sync(2) surface; named refusal tested by smalltest)
+SKIP sync: filesystem sync refused (No syncfs(2) surface; named refusal tested by smalltest)
+FAIL sync: review uncertain write-only owner file  args=['f']
+    bore stdout: b''
+    bore stderr: b"PROG: error opening 'f': Permission denied\n"
+    bore exit: 1
+    bore files: [('f', 'unreadable', b'13')]
+    bore tree: [('.', 'dir', 493, None, None, None), ('f', 'file', 128, 1, 6, None)]
+    gnu  stdout: b''
+    gnu  stderr: b''
+    gnu  exit: 0
+    gnu  files: [('f', 'unreadable', b'13')]
+    gnu  tree: [('.', 'dir', 493, None, None, None), ('f', 'file', 128, 1, 6, None)]
+FAIL sync: review uncertain write-only owner data file  args=['-d', 'f']
+    bore stdout: b''
+    bore stderr: b"PROG: error opening 'f': Permission denied\n"
+    bore exit: 1
+    bore files: [('f', 'unreadable', b'13')]
+    bore tree: [('.', 'dir', 493, None, None, None), ('f', 'file', 128, 1, 6, None)]
+    gnu  stdout: b''
+    gnu  stderr: b''
+    gnu  exit: 0
+    gnu  files: [('f', 'unreadable', b'13')]
+    gnu  tree: [('.', 'dir', 493, None, None, None), ('f', 'file', 128, 1, 6, None)]
+difftest: 304 passed, 15 failed, 3 skipped
