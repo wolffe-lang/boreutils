@@ -191,7 +191,6 @@ fn parse_record(c: Settings, line: str, from_stdin: bool, reverse_style: int) ->
         expected = decode_base64_hex(expected, bits / 8)
     }
     if kind < 4 || kind > 10 || bits < 8 || bits > 512 || bits % 8 != 0 { return invalid }
-    if !tagged && kind == 10 && !hex { return invalid }
     Record {
         name: name,
         expected: expected,
