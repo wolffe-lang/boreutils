@@ -411,3 +411,36 @@ args = ["-s", "0", "l"]
 scratch_fifos = ["fifo"]
 scratch_links = { l = "fifo" }
 timeout = 2
+
+[[case]]
+name = "review boundary below minimum signed reduction"
+args = ["-s", "-9223372036854775809", "f"]
+scratch = { f = "abcdef" }
+
+[[case]]
+name = "review boundary minimum signed through K"
+args = ["-s", "-9007199254740992K", "f"]
+scratch = { f = "abcdef" }
+
+[[case]]
+name = "review boundary below minimum signed through K"
+args = ["-s", "-9007199254740993K", "f"]
+scratch = { f = "abcdef" }
+
+[[case]]
+name = "review boundary MAX no-create absent"
+args = ["-c", "-s", "9223372036854775807", "absent"]
+
+[[case]]
+name = "review boundary MAX plus one no-create absent"
+args = ["-c", "-s", "9223372036854775808", "absent"]
+
+[[case]]
+name = "review boundary plus Unicode"
+args = ["-s", "+é", "f"]
+scratch = { f = "abcdef" }
+
+[[case]]
+name = "review boundary minus Unicode"
+args = ["-s", "-é", "f"]
+scratch = { f = "abcdef" }
