@@ -69,8 +69,8 @@ fn main() -> int {
                     else { bore.put(mut out, sep) else |_| { return bore.finish(mut out, "comm", 1) } }
                 }
             }
-            let data = if c == 1 then b.items[j].data else a.items[i].data
-            textio.put(mut out, data, delim) else |_| { return bore.finish(mut out, "comm", 1) }
+            if c == 1 { textio.put(mut out, b.items[j].data, delim) else |_| { return bore.finish(mut out, "comm", 1) } }
+            else { textio.put(mut out, a.items[i].data, delim) else |_| { return bore.finish(mut out, "comm", 1) } }
         }
         if c != 1 { i += 1 }; if c != 0 { j += 1 }
     }

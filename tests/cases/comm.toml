@@ -1,0 +1,652 @@
+[[case]]
+name = "--help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "--version"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "[]"
+args = []
+scratch = { "a" = "a\n", "b" = "b\n" }
+
+[[case]]
+name = "['a']"
+args = ["a"]
+scratch = { "a" = "a\n", "b" = "b\n" }
+
+[[case]]
+name = "['a', 'b', 'c']"
+args = ["a", "b", "c"]
+scratch = { "a" = "a\n", "b" = "b\n" }
+
+[[case]]
+name = "['--bogus']"
+args = ["--bogus"]
+scratch = { "a" = "a\n", "b" = "b\n" }
+
+[[case]]
+name = "['--output-delimiter=x', '--output-delimiter=y', 'a', 'b']"
+args = ["--output-delimiter=x", "--output-delimiter=y", "a", "b"]
+scratch = { "a" = "a\n", "b" = "b\n" }
+
+[[case]]
+name = "['--output-delimiter=x', '--output-delimiter=x', 'a', 'b']"
+args = ["--output-delimiter=x", "--output-delimiter=x", "a", "b"]
+scratch = { "a" = "a\n", "b" = "b\n" }
+
+[[case]]
+name = "0[]"
+args = ["a", "b"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "0['--check-order']"
+args = ["--check-order", "a", "b"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "0['--nocheck-order']"
+args = ["--nocheck-order", "a", "b"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "0['--total']"
+args = ["--total", "a", "b"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "0['-1']"
+args = ["-1", "a", "b"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "0['-2']"
+args = ["-2", "a", "b"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "0['-3']"
+args = ["-3", "a", "b"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "0['-12']"
+args = ["-12", "a", "b"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "0['-13']"
+args = ["-13", "a", "b"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "0['-23']"
+args = ["-23", "a", "b"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "0['-123']"
+args = ["-123", "a", "b"]
+scratch = { "a" = "", "b" = "" }
+
+[[case]]
+name = "1[]"
+args = ["a", "b"]
+scratch = { "a" = "a\nb\n", "b" = "b\nc\n" }
+
+[[case]]
+name = "1['--check-order']"
+args = ["--check-order", "a", "b"]
+scratch = { "a" = "a\nb\n", "b" = "b\nc\n" }
+
+[[case]]
+name = "1['--nocheck-order']"
+args = ["--nocheck-order", "a", "b"]
+scratch = { "a" = "a\nb\n", "b" = "b\nc\n" }
+
+[[case]]
+name = "1['--total']"
+args = ["--total", "a", "b"]
+scratch = { "a" = "a\nb\n", "b" = "b\nc\n" }
+
+[[case]]
+name = "1['-1']"
+args = ["-1", "a", "b"]
+scratch = { "a" = "a\nb\n", "b" = "b\nc\n" }
+
+[[case]]
+name = "1['-2']"
+args = ["-2", "a", "b"]
+scratch = { "a" = "a\nb\n", "b" = "b\nc\n" }
+
+[[case]]
+name = "1['-3']"
+args = ["-3", "a", "b"]
+scratch = { "a" = "a\nb\n", "b" = "b\nc\n" }
+
+[[case]]
+name = "1['-12']"
+args = ["-12", "a", "b"]
+scratch = { "a" = "a\nb\n", "b" = "b\nc\n" }
+
+[[case]]
+name = "1['-13']"
+args = ["-13", "a", "b"]
+scratch = { "a" = "a\nb\n", "b" = "b\nc\n" }
+
+[[case]]
+name = "1['-23']"
+args = ["-23", "a", "b"]
+scratch = { "a" = "a\nb\n", "b" = "b\nc\n" }
+
+[[case]]
+name = "1['-123']"
+args = ["-123", "a", "b"]
+scratch = { "a" = "a\nb\n", "b" = "b\nc\n" }
+
+[[case]]
+name = "2[]"
+args = ["a", "b"]
+scratch = { "a" = "a\na\nb\n", "b" = "a\nb\nb\n" }
+
+[[case]]
+name = "2['--check-order']"
+args = ["--check-order", "a", "b"]
+scratch = { "a" = "a\na\nb\n", "b" = "a\nb\nb\n" }
+
+[[case]]
+name = "2['--nocheck-order']"
+args = ["--nocheck-order", "a", "b"]
+scratch = { "a" = "a\na\nb\n", "b" = "a\nb\nb\n" }
+
+[[case]]
+name = "2['--total']"
+args = ["--total", "a", "b"]
+scratch = { "a" = "a\na\nb\n", "b" = "a\nb\nb\n" }
+
+[[case]]
+name = "2['-1']"
+args = ["-1", "a", "b"]
+scratch = { "a" = "a\na\nb\n", "b" = "a\nb\nb\n" }
+
+[[case]]
+name = "2['-2']"
+args = ["-2", "a", "b"]
+scratch = { "a" = "a\na\nb\n", "b" = "a\nb\nb\n" }
+
+[[case]]
+name = "2['-3']"
+args = ["-3", "a", "b"]
+scratch = { "a" = "a\na\nb\n", "b" = "a\nb\nb\n" }
+
+[[case]]
+name = "2['-12']"
+args = ["-12", "a", "b"]
+scratch = { "a" = "a\na\nb\n", "b" = "a\nb\nb\n" }
+
+[[case]]
+name = "2['-13']"
+args = ["-13", "a", "b"]
+scratch = { "a" = "a\na\nb\n", "b" = "a\nb\nb\n" }
+
+[[case]]
+name = "2['-23']"
+args = ["-23", "a", "b"]
+scratch = { "a" = "a\na\nb\n", "b" = "a\nb\nb\n" }
+
+[[case]]
+name = "2['-123']"
+args = ["-123", "a", "b"]
+scratch = { "a" = "a\na\nb\n", "b" = "a\nb\nb\n" }
+
+[[case]]
+name = "3[]"
+args = ["a", "b"]
+scratch = { "a" = "b\na\n", "b" = "" }
+
+[[case]]
+name = "3['--check-order']"
+args = ["--check-order", "a", "b"]
+scratch = { "a" = "b\na\n", "b" = "" }
+
+[[case]]
+name = "3['--nocheck-order']"
+args = ["--nocheck-order", "a", "b"]
+scratch = { "a" = "b\na\n", "b" = "" }
+
+[[case]]
+name = "3['--total']"
+args = ["--total", "a", "b"]
+scratch = { "a" = "b\na\n", "b" = "" }
+
+[[case]]
+name = "3['-1']"
+args = ["-1", "a", "b"]
+scratch = { "a" = "b\na\n", "b" = "" }
+
+[[case]]
+name = "3['-2']"
+args = ["-2", "a", "b"]
+scratch = { "a" = "b\na\n", "b" = "" }
+
+[[case]]
+name = "3['-3']"
+args = ["-3", "a", "b"]
+scratch = { "a" = "b\na\n", "b" = "" }
+
+[[case]]
+name = "3['-12']"
+args = ["-12", "a", "b"]
+scratch = { "a" = "b\na\n", "b" = "" }
+
+[[case]]
+name = "3['-13']"
+args = ["-13", "a", "b"]
+scratch = { "a" = "b\na\n", "b" = "" }
+
+[[case]]
+name = "3['-23']"
+args = ["-23", "a", "b"]
+scratch = { "a" = "b\na\n", "b" = "" }
+
+[[case]]
+name = "3['-123']"
+args = ["-123", "a", "b"]
+scratch = { "a" = "b\na\n", "b" = "" }
+
+[[case]]
+name = "4[]"
+args = ["a", "b"]
+scratch = { "a" = "", "b" = "b\na\n" }
+
+[[case]]
+name = "4['--check-order']"
+args = ["--check-order", "a", "b"]
+scratch = { "a" = "", "b" = "b\na\n" }
+
+[[case]]
+name = "4['--nocheck-order']"
+args = ["--nocheck-order", "a", "b"]
+scratch = { "a" = "", "b" = "b\na\n" }
+
+[[case]]
+name = "4['--total']"
+args = ["--total", "a", "b"]
+scratch = { "a" = "", "b" = "b\na\n" }
+
+[[case]]
+name = "4['-1']"
+args = ["-1", "a", "b"]
+scratch = { "a" = "", "b" = "b\na\n" }
+
+[[case]]
+name = "4['-2']"
+args = ["-2", "a", "b"]
+scratch = { "a" = "", "b" = "b\na\n" }
+
+[[case]]
+name = "4['-3']"
+args = ["-3", "a", "b"]
+scratch = { "a" = "", "b" = "b\na\n" }
+
+[[case]]
+name = "4['-12']"
+args = ["-12", "a", "b"]
+scratch = { "a" = "", "b" = "b\na\n" }
+
+[[case]]
+name = "4['-13']"
+args = ["-13", "a", "b"]
+scratch = { "a" = "", "b" = "b\na\n" }
+
+[[case]]
+name = "4['-23']"
+args = ["-23", "a", "b"]
+scratch = { "a" = "", "b" = "b\na\n" }
+
+[[case]]
+name = "4['-123']"
+args = ["-123", "a", "b"]
+scratch = { "a" = "", "b" = "b\na\n" }
+
+[[case]]
+name = "5[]"
+args = ["a", "b"]
+scratch = { "a" = "b\na\n", "b" = "c\n" }
+
+[[case]]
+name = "5['--check-order']"
+args = ["--check-order", "a", "b"]
+scratch = { "a" = "b\na\n", "b" = "c\n" }
+
+[[case]]
+name = "5['--nocheck-order']"
+args = ["--nocheck-order", "a", "b"]
+scratch = { "a" = "b\na\n", "b" = "c\n" }
+
+[[case]]
+name = "5['--total']"
+args = ["--total", "a", "b"]
+scratch = { "a" = "b\na\n", "b" = "c\n" }
+
+[[case]]
+name = "5['-1']"
+args = ["-1", "a", "b"]
+scratch = { "a" = "b\na\n", "b" = "c\n" }
+
+[[case]]
+name = "5['-2']"
+args = ["-2", "a", "b"]
+scratch = { "a" = "b\na\n", "b" = "c\n" }
+
+[[case]]
+name = "5['-3']"
+args = ["-3", "a", "b"]
+scratch = { "a" = "b\na\n", "b" = "c\n" }
+
+[[case]]
+name = "5['-12']"
+args = ["-12", "a", "b"]
+scratch = { "a" = "b\na\n", "b" = "c\n" }
+
+[[case]]
+name = "5['-13']"
+args = ["-13", "a", "b"]
+scratch = { "a" = "b\na\n", "b" = "c\n" }
+
+[[case]]
+name = "5['-23']"
+args = ["-23", "a", "b"]
+scratch = { "a" = "b\na\n", "b" = "c\n" }
+
+[[case]]
+name = "5['-123']"
+args = ["-123", "a", "b"]
+scratch = { "a" = "b\na\n", "b" = "c\n" }
+
+[[case]]
+name = "6[]"
+args = ["a", "b"]
+scratch = { "a" = "b\na\n", "b" = "b\na\n" }
+
+[[case]]
+name = "6['--check-order']"
+args = ["--check-order", "a", "b"]
+scratch = { "a" = "b\na\n", "b" = "b\na\n" }
+
+[[case]]
+name = "6['--nocheck-order']"
+args = ["--nocheck-order", "a", "b"]
+scratch = { "a" = "b\na\n", "b" = "b\na\n" }
+
+[[case]]
+name = "6['--total']"
+args = ["--total", "a", "b"]
+scratch = { "a" = "b\na\n", "b" = "b\na\n" }
+
+[[case]]
+name = "6['-1']"
+args = ["-1", "a", "b"]
+scratch = { "a" = "b\na\n", "b" = "b\na\n" }
+
+[[case]]
+name = "6['-2']"
+args = ["-2", "a", "b"]
+scratch = { "a" = "b\na\n", "b" = "b\na\n" }
+
+[[case]]
+name = "6['-3']"
+args = ["-3", "a", "b"]
+scratch = { "a" = "b\na\n", "b" = "b\na\n" }
+
+[[case]]
+name = "6['-12']"
+args = ["-12", "a", "b"]
+scratch = { "a" = "b\na\n", "b" = "b\na\n" }
+
+[[case]]
+name = "6['-13']"
+args = ["-13", "a", "b"]
+scratch = { "a" = "b\na\n", "b" = "b\na\n" }
+
+[[case]]
+name = "6['-23']"
+args = ["-23", "a", "b"]
+scratch = { "a" = "b\na\n", "b" = "b\na\n" }
+
+[[case]]
+name = "6['-123']"
+args = ["-123", "a", "b"]
+scratch = { "a" = "b\na\n", "b" = "b\na\n" }
+
+[[case]]
+name = "7[]"
+args = ["a", "b"]
+scratch = { "a" = "a\nc\nb\n", "b" = "a\nc\nb\n" }
+
+[[case]]
+name = "7['--check-order']"
+args = ["--check-order", "a", "b"]
+scratch = { "a" = "a\nc\nb\n", "b" = "a\nc\nb\n" }
+
+[[case]]
+name = "7['--nocheck-order']"
+args = ["--nocheck-order", "a", "b"]
+scratch = { "a" = "a\nc\nb\n", "b" = "a\nc\nb\n" }
+
+[[case]]
+name = "7['--total']"
+args = ["--total", "a", "b"]
+scratch = { "a" = "a\nc\nb\n", "b" = "a\nc\nb\n" }
+
+[[case]]
+name = "7['-1']"
+args = ["-1", "a", "b"]
+scratch = { "a" = "a\nc\nb\n", "b" = "a\nc\nb\n" }
+
+[[case]]
+name = "7['-2']"
+args = ["-2", "a", "b"]
+scratch = { "a" = "a\nc\nb\n", "b" = "a\nc\nb\n" }
+
+[[case]]
+name = "7['-3']"
+args = ["-3", "a", "b"]
+scratch = { "a" = "a\nc\nb\n", "b" = "a\nc\nb\n" }
+
+[[case]]
+name = "7['-12']"
+args = ["-12", "a", "b"]
+scratch = { "a" = "a\nc\nb\n", "b" = "a\nc\nb\n" }
+
+[[case]]
+name = "7['-13']"
+args = ["-13", "a", "b"]
+scratch = { "a" = "a\nc\nb\n", "b" = "a\nc\nb\n" }
+
+[[case]]
+name = "7['-23']"
+args = ["-23", "a", "b"]
+scratch = { "a" = "a\nc\nb\n", "b" = "a\nc\nb\n" }
+
+[[case]]
+name = "7['-123']"
+args = ["-123", "a", "b"]
+scratch = { "a" = "a\nc\nb\n", "b" = "a\nc\nb\n" }
+
+[[case]]
+name = "8[]"
+args = ["a", "b"]
+scratch = { "a" = "z\na\n", "b" = "b\ny\n" }
+
+[[case]]
+name = "8['--check-order']"
+args = ["--check-order", "a", "b"]
+scratch = { "a" = "z\na\n", "b" = "b\ny\n" }
+
+[[case]]
+name = "8['--nocheck-order']"
+args = ["--nocheck-order", "a", "b"]
+scratch = { "a" = "z\na\n", "b" = "b\ny\n" }
+
+[[case]]
+name = "8['--total']"
+args = ["--total", "a", "b"]
+scratch = { "a" = "z\na\n", "b" = "b\ny\n" }
+
+[[case]]
+name = "8['-1']"
+args = ["-1", "a", "b"]
+scratch = { "a" = "z\na\n", "b" = "b\ny\n" }
+
+[[case]]
+name = "8['-2']"
+args = ["-2", "a", "b"]
+scratch = { "a" = "z\na\n", "b" = "b\ny\n" }
+
+[[case]]
+name = "8['-3']"
+args = ["-3", "a", "b"]
+scratch = { "a" = "z\na\n", "b" = "b\ny\n" }
+
+[[case]]
+name = "8['-12']"
+args = ["-12", "a", "b"]
+scratch = { "a" = "z\na\n", "b" = "b\ny\n" }
+
+[[case]]
+name = "8['-13']"
+args = ["-13", "a", "b"]
+scratch = { "a" = "z\na\n", "b" = "b\ny\n" }
+
+[[case]]
+name = "8['-23']"
+args = ["-23", "a", "b"]
+scratch = { "a" = "z\na\n", "b" = "b\ny\n" }
+
+[[case]]
+name = "8['-123']"
+args = ["-123", "a", "b"]
+scratch = { "a" = "z\na\n", "b" = "b\ny\n" }
+
+[[case]]
+name = "9[]"
+args = ["a", "b"]
+scratch = { "a" = "\n\r\nx", "b" = "\n\r\nx\n" }
+
+[[case]]
+name = "9['--check-order']"
+args = ["--check-order", "a", "b"]
+scratch = { "a" = "\n\r\nx", "b" = "\n\r\nx\n" }
+
+[[case]]
+name = "9['--nocheck-order']"
+args = ["--nocheck-order", "a", "b"]
+scratch = { "a" = "\n\r\nx", "b" = "\n\r\nx\n" }
+
+[[case]]
+name = "9['--total']"
+args = ["--total", "a", "b"]
+scratch = { "a" = "\n\r\nx", "b" = "\n\r\nx\n" }
+
+[[case]]
+name = "9['-1']"
+args = ["-1", "a", "b"]
+scratch = { "a" = "\n\r\nx", "b" = "\n\r\nx\n" }
+
+[[case]]
+name = "9['-2']"
+args = ["-2", "a", "b"]
+scratch = { "a" = "\n\r\nx", "b" = "\n\r\nx\n" }
+
+[[case]]
+name = "9['-3']"
+args = ["-3", "a", "b"]
+scratch = { "a" = "\n\r\nx", "b" = "\n\r\nx\n" }
+
+[[case]]
+name = "9['-12']"
+args = ["-12", "a", "b"]
+scratch = { "a" = "\n\r\nx", "b" = "\n\r\nx\n" }
+
+[[case]]
+name = "9['-13']"
+args = ["-13", "a", "b"]
+scratch = { "a" = "\n\r\nx", "b" = "\n\r\nx\n" }
+
+[[case]]
+name = "9['-23']"
+args = ["-23", "a", "b"]
+scratch = { "a" = "\n\r\nx", "b" = "\n\r\nx\n" }
+
+[[case]]
+name = "9['-123']"
+args = ["-123", "a", "b"]
+scratch = { "a" = "\n\r\nx", "b" = "\n\r\nx\n" }
+
+[[case]]
+name = "delimiter ''False"
+args = ["--output-delimiter=", "--total", "a", "b"]
+scratch = { "a" = "a\nb\n", "b" = "b\nc\n" }
+
+[[case]]
+name = "delimiter ''True"
+args = ["--output-delimiter=", "--total", "-z", "a", "b"]
+scratch = { "a" = "a\u0000b\u0000", "b" = "b\u0000c\u0000" }
+
+[[case]]
+name = "delimiter '::'False"
+args = ["--output-delimiter=::", "--total", "a", "b"]
+scratch = { "a" = "a\nb\n", "b" = "b\nc\n" }
+
+[[case]]
+name = "delimiter '::'True"
+args = ["--output-delimiter=::", "--total", "-z", "a", "b"]
+scratch = { "a" = "a\u0000b\u0000", "b" = "b\u0000c\u0000" }
+
+[[case]]
+name = "delimiter '\\t'False"
+args = ["--output-delimiter=\t", "--total", "a", "b"]
+scratch = { "a" = "a\nb\n", "b" = "b\nc\n" }
+
+[[case]]
+name = "delimiter '\\t'True"
+args = ["--output-delimiter=\t", "--total", "-z", "a", "b"]
+scratch = { "a" = "a\u0000b\u0000", "b" = "b\u0000c\u0000" }
+
+[[case]]
+name = "bad file ['nope', 'b']"
+args = ["nope", "b"]
+scratch = { "a" = "a\n", "b" = "b\n" }
+
+[[case]]
+name = "bad file ['a', 'nope']"
+args = ["a", "nope"]
+scratch = { "a" = "a\n", "b" = "b\n" }
+
+[[case]]
+name = "bad file ['/', 'b']"
+args = ["/", "b"]
+scratch = { "a" = "a\n", "b" = "b\n" }
+
+[[case]]
+name = "bad file ['a', '/']"
+args = ["a", "/"]
+scratch = { "a" = "a\n", "b" = "b\n" }
+
+[[case]]
+name = "stdin"
+args = ["-", "b"]
+stdin = "a\nb\n"
+scratch = { "b" = "b\nc\n" }
+
+[[case]]
+name = "closed"
+args = ["a", "b"]
+scratch = { "a" = "a\n", "b" = "b\n" }
+stdout_closed = true
+
