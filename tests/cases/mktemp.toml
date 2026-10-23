@@ -277,3 +277,16 @@ temp_shape = { prefix = "name.", xs = 6, suffix = "", directory = "{scratch}/d",
 name = "explicit suffix requires X at template end"
 args = ["--suffix=.log", "aXXX.txt"]
 scratch = {}
+
+# GNU 9.11, uid 1000 on hasu: exit 1, Permission denied (quiet suppresses it).
+[[case]]
+name = "dry-run denied parent is an error"
+args = ["-u", "-p", "d", "fXXX"]
+scratch_dirs = ["d"]
+scratch_modes = { d = 0 }
+
+[[case]]
+name = "quiet dry-run denied parent is still an error"
+args = ["-uq", "-p", "d", "fXXX"]
+scratch_dirs = ["d"]
+scratch_modes = { d = 0 }
