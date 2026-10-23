@@ -310,7 +310,10 @@ fn check_file(mut seen: InputUse, c: Settings, path: str) -> int {
             if bytes.len > 0 && bytes[0] as int == 35 { continue }
             let line = str_from_utf8(bytes) else {
                 if raw_name_record(c, bytes, n.reverse_style) {
-                    bore.warn(c.prog, "non-UTF-8 file names in checksum lists are not supported: wolf 0.2.35 fs_open requires a UTF-8 path")
+                    bore.warn(
+                        c.prog,
+                        "non-UTF-8 file names in checksum lists are not supported: wolf 0.2.35 fs_open requires a UTF-8 path",
+                    )
                     unsupported_path = true
                     break
                 }

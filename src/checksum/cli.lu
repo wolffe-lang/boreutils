@@ -346,7 +346,10 @@ fn length_number(s: str) -> int ! {invalid, overflow} {
 
 struct Answer { bytes: List[byte], size: wrapping[u64], number: int }
 
-fn compute(mut seen: InputUse, c: Settings, name: str, kind: int, bits: int) -> Answer ! {missing, failed} {
+fn compute(mut seen: InputUse, c: Settings, name: str, kind: int, bits: int) -> Answer ! {
+    missing,
+    failed,
+} {
     if name == "-" { seen.stdin = true }
     let src = bore.open_input(name) else |e| {
         let absent = match copy e {
