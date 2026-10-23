@@ -58,8 +58,11 @@ fn main() -> int {
     for s in ["check-order", "nocheck-order", "header", "help", "version"] {
         (mut spec).push(bore.flag("", s))
     }
-    let p = bore.parse(spec, env_args(), bore.permute())
-    var given_sep = false, given_empty = false
+    let raw_args = env_args()
+    let first = bore.parse(spec, raw_args, bore.permute())
+    let args = legacy_args(raw_args, first.operands.len - 2)
+    let p = bore.parse(spec, args, bore.permute())
+    var given_sep = false, given_empty = false, given1 = false, given2 = false
     for k in 0..p.keys.len {
         let key = p.keys[k], v = p.values[k]
         if key == "help" || key == "version" {
@@ -76,8 +79,14 @@ fn main() -> int {
         if key == "1" || key == "2" || key == "j" {
             let n = field_number(v)
             if n < 0 { return 1 }
-            if key != "2" { c.field1 = n }
-            if key != "1" { c.field2 = n }
+            if key != "2" {
+                if given1 && c.field1 != n { bore.warn("join", "incompatible join fields {c.field1}, {n}"); return 1 }
+                c.field1 = n; given1 = true
+            }
+            if key != "1" {
+                if given2 && c.field2 != n { bore.warn("join", "incompatible join fields {c.field2}, {n}"); return 1 }
+                c.field2 = n; given2 = true
+            }
         }
         if key == "a" || key == "v" {
             let parsed = numcli.count(v, false) else numcli.Count { value: 0, large: false }
@@ -334,4 +343,37 @@ fn output(mut out: bore.Out, a: Line, b: Line, c: Conf) -> () ! {io} {
         }
     }
     bore.put_byte(mut out, c.delim as byte)?
+}
+
+// GNU's obsolete split -j1 FIELD / -j2 FIELD and an unquoted -o list
+// consume only operands in excess of the two input files. The ordinary
+// -j1/-j2 spellings without that extra word still select both fields.
+fn legacy_args(args: List[str], extra_operands: int) -> List[str] {
+    var extra = extra_operands, i = 0, literal = false
+    var result = List[str]()
+    while i < args.len {
+        let word = args[i]
+        if word == "--" { literal = true }
+        if !literal && extra > 0 && (word == "-j1" || word == "-j2") && i + 1 < args.len && !args[i+1].starts_with("-") {
+            (mut result).push(if word == "-j1" then "-1" else "-2")
+            i += 1; (mut result).push(args[i]); extra -= 1
+        } else if !literal && (word == "-o" || (word.starts_with("-o") && !word.starts_with("--") && word.len > 2)) {
+            var format = ""
+            if word == "-o" {
+                (mut result).push(word)
+                i += 1
+                if i >= args.len { break }
+                format = args[i]
+            } else { (mut result).push("-o"); format = word[2..] }
+            while extra > 0 && i + 1 < args.len && field_word(args[i+1]) {
+                i += 1; format += " {args[i]}"; extra -= 1
+            }
+            (mut result).push(format)
+        } else { (mut result).push(word) }
+        i += 1
+    }
+    result
+}
+fn field_word(word: str) -> bool {
+    word == "0" || word.starts_with("1.") || word.starts_with("2.")
 }
