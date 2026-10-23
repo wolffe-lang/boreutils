@@ -160,7 +160,7 @@ derives no boreutils code from GPL source.
 
 Every shipped utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus, except where a case says otherwise and is
-skipped with its reason. The corpus holds **8,137 cases**; `kill` has
+skipped with its reason. The corpus holds **8,162 cases**; `kill` has
 365 more that SEND, each run in a container of its own (`tests/kill/`,
 `tools/killtest`: **365 passed, 0 failed** on hasu at bu30, groups,
 `kill 0` and `kill -1` among them), `timeout` 163 more that run a
@@ -171,9 +171,9 @@ macOS's), and the six identity tools 1,126 more that
 run as root and as users or change an owner (`tests/ids/`,
 `tools/idtest`: 28 of them only on CI's macOS runner). The text-tool measurement in an unprivileged Ubuntu 24.04 container on hasu
 (linux x86-64, CPUs 0–5), at wolf 0.2.35 / lupin 0.1.56 with bundled
-std `2386522e`, answers **7,980 passed, 0 failed, 157 skipped** on both
-release and dev (before: 7,020 / 0 / 130). Six utilities add 987 cases:
-960 pass and 27 explicitly name the two refused behaviours below. Random
+std `2386522e`, answers **8,005 passed, 0 failed, 157 skipped** on both
+release and dev (before: 7,020 / 0 / 130). Six utilities add 1,012 cases:
+985 pass and 27 explicitly name the two refused behaviours below. Random
 `mktemp` names are checked by fixed prefix, suffix, replaced X count,
 alphabet, object kind and private mode, never compared byte for byte.
 `tty` has standard-input pty cases, separate from standard-output ptys.
@@ -187,7 +187,8 @@ fields. Comparisons are under `LC_ALL=C`. These two merge tools currently
 retain their records in memory. `shuf` checks compare sample count,
 membership and multiplicity independently on each side, including output
 files, never random order. It supports the full unsigned 64-bit input
-range, but refuses `--random-source` by name: GNU's general byte-draw rule
+range. Head counts saturate at INT64_MAX (9,223,372,036,854,775,807),
+independently of the unsigned range endpoints. It refuses `--random-source` by name: GNU's general byte-draw rule
 has not been derived. `tsort` matches GNU's byte order on all 29,849
 labelled DAGs of three through five nodes and 36,815 edge-order variants,
 and supports simple/disjoint cycles. Once all zero-indegree nodes have
@@ -1327,10 +1328,10 @@ table answers it per utility, from the evidence and from nothing else.
 | `tty` | 3 / 3 | 12 / 0 | not benched (hasu cases) | drop-in |
 | `base64` | 5 / 5 | 218 / 0 | not benched (hasu) | drop-in |
 | `base32` | 5 / 5 | 218 / 0 | not benched (hasu) | drop-in |
-| `comm` | 10 / 10 | 134 / 0 | not benched (hasu) | drop-in under LC_ALL=C |
-| `join` | 15 / 15 | 226 / 0 | not benched (hasu) | drop-in under LC_ALL=C |
-| `tsort` | 2 / 2 | 68 / 26 | not benched (hasu) | drop-in for DAGs and residual unions of simple cycles; complex cyclic components and cycles with outgoing tails refused by name |
-| `shuf` | 8 / 9 | 96 / 1 | not benched (hasu) | drop-in for scripts that avoid --random-source, refused by name |
+| `comm` | 10 / 10 | 150 / 0 | not benched (hasu) | drop-in under LC_ALL=C |
+| `join` | 15 / 15 | 233 / 0 | not benched (hasu) | drop-in under LC_ALL=C |
+| `tsort` | 2 / 2 | 69 / 26 | not benched (hasu) | drop-in for DAGs and residual unions of simple cycles; complex cyclic components and cycles with outgoing tails refused by name |
+| `shuf` | 8 / 9 | 97 / 1 | not benched (hasu) | drop-in for scripts that avoid --random-source, refused by name |
 
 **27 drop-in, 34 drop-in for scripts that avoid a named thing, none shipped not
 yet** (bu28: `kill`'s two named things became one, and `timeout`'s four
