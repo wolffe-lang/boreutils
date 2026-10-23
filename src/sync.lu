@@ -40,7 +40,7 @@ fn main() -> int {
             continue
         }
         var code = 0
-        if bore.rec_kind(r) == bore.kind_dir() && !data {
+        if bore.rec_kind(r) == bore.kind_dir() {
             fs_sync_dir(name) else |_| { code = bore.host_code() }
         } else {
             let fd = fs_open_mode(name, 5) else |_| {
