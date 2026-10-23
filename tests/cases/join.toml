@@ -1068,3 +1068,7 @@ name = "file-number spelling '3'"
 args = ["-a", "3", "a", "b"]
 scratch = { a = "a\n", b = "b\n" }
 
+[[case]]
+name = "carriage return belongs to the key"
+args = ["-i", "a", "b"]
+scratch = { a="a\rX\na x\n", b="a\rX\na y\n" }
