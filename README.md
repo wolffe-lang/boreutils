@@ -157,7 +157,7 @@ derives no boreutils code from GPL source.
 
 ## Status
 
-Every utility below is byte-for-byte identical to GNU coreutils 9.11 on
+Every shipped utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus, except where a case says otherwise and is
 skipped with its reason. The corpus holds **7,145 cases**; `kill` has
 365 more that SEND, each run in a container of its own (`tests/kill/`,
