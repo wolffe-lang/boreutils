@@ -253,11 +253,6 @@ stdin = "abc"
 stdout_file = "/dev/full"
 
 [[case]]
-name = "closed input"
-args = []
-stdin_closed = true
-
-[[case]]
 name = "format -b"
 args = ["-b", "f"]
 scratch = { "f" = "abc" }

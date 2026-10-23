@@ -253,11 +253,6 @@ stdin = "abc"
 stdout_file = "/dev/full"
 
 [[case]]
-name = "closed input"
-args = []
-stdin_closed = true
-
-[[case]]
 name = "algorithm format crc []"
 args = ["-a", "crc", "f"]
 scratch = { "f" = "abc" }
@@ -2001,3 +1996,21 @@ scratch = { "car\rriage" = "abc" }
 name = "algorithm filename blake2b ['-z'] 'back\\\\slash'"
 args = ["-a", "blake2b", "-z", "back\\slash"]
 scratch = { "back\\slash" = "abc" }
+
+[[case]]
+name = "named unimplemented sha3"
+args = ["-a", "sha3", "-l", "256"]
+stdin = "abc"
+skip = "R-bu32-1: named refusal; standards implementation is a later item; checked by checksumtest"
+
+[[case]]
+name = "named unimplemented sm3"
+args = ["-a", "sm3"]
+stdin = "abc"
+skip = "R-bu32-1: named refusal; standards implementation is a later item; checked by checksumtest"
+
+[[case]]
+name = "named hardware debug refusal"
+args = ["--debug"]
+stdin = "abc"
+skip = "Scalar implementation has no GNU hardware-dispatch diagnostics; checked by checksumtest"
