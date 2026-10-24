@@ -30,6 +30,31 @@ def check(ok, name):
     passed += 1
     print("ok integration:", name, flush=True)
 
+def tty_run(name, mask, top):
+    with tempfile.TemporaryDirectory(dir=top) as cwd:
+        master, slave = pty.openpty()
+        try:
+            closed = mask == 8
+            child = sp.Popen([str(name), "/bin/sh", "-c", "printf out; printf err >&2"], cwd=cwd,
+                             stdin=slave if mask & 1 else sp.DEVNULL,
+                             stdout=slave if mask & 2 else sp.PIPE,
+                             stderr=slave if mask & 4 or closed else sp.PIPE,
+                             preexec_fn=(lambda: os.close(1)) if closed else None,
+                             start_new_session=True)
+            os.close(slave); slave = -1
+            out, err = child.communicate(timeout=10)
+            terminal = b""
+            while select.select([master], [], [], 0)[0]:
+                try: part = os.read(master, 65536)
+                except OSError: break
+                if not part: break
+                terminal += part
+            files = {p.name: (p.read_bytes(), p.stat().st_mode & 0o777) for p in Path(cwd).iterdir()}
+            return child.returncode, out, err, terminal.replace(b"\r\n", b"\n"), files
+        finally:
+            os.close(master)
+            if slave >= 0: os.close(slave)
+
 with tempfile.TemporaryDirectory(prefix="bu34.") as raw:
     top = Path(raw)
     for tier in ("release", "dev"):
@@ -64,6 +89,10 @@ with tempfile.TemporaryDirectory(prefix="bu34.") as raw:
                           f"{tier} {name}: HOME fallback")
                 finally:
                     os.close(master); os.close(slave)
+        for mask in range(9):
+            expected = tty_run(GNU / "nohup", mask, top)
+            got = tty_run(bin / "nohup", mask, top)
+            check(expected == got, f"{tier}: nohup tty descriptor mask {mask}: {expected!r} vs {got!r}")
         f = top / "shred-me"
         f.write_bytes(b"secret" * 13)
         result = run([bin / "shred", "-xvz", "-n", "25", f])
