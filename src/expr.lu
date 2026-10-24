@@ -2,16 +2,16 @@
 //! expr — token grammar, lazy Boolean operators and anchored BRE captures.
 //! References consulted: GNU coreutils 9.11 --help and binary probes;
 //! clean-room scent BRE engine at b6f63a4 plus our capture adapter.
-//! Integers outside signed 64-bit range are refused explicitly, including
+//! Integers outside 64-bit magnitude range are refused explicitly, including
 //! arithmetic results (wolf-std#100: no general bigint surface at this pin).
 
 use bore
 use re
-use std.fmt
+use numcli
 
 struct Parser { args: List[str], at: int, status: int, message: str }
 fn fail(mut p: Parser, message: str) { if p.status == 0 { p.status = 2; p.message = message } }
-fn gap(mut p: Parser) { fail(mut p, "unsupported integer: outside the signed 64-bit range (wolf-std#100)") }
+fn gap(mut p: Parser) { fail(mut p, "unsupported integer: outside the 64-bit magnitude range (wolf-std#100)") }
 fn spelling(bs: List[byte]) -> str { str_from_utf8(bs) else "<non-UTF-8>" }
 fn numeric(bs: List[byte]) -> bool {
     var k = 0
@@ -27,7 +27,7 @@ fn truth(bs: List[byte]) -> bool {
     while k < bs.len { if bs[k] != 48 as byte { return true }; k += 1 }; false
 }
 fn checked(mut p: Parser, bs: List[byte], eval: bool) -> List[byte] {
-    if eval && numeric(bs) { let _ = fmt.parse_int(spelling(bs)) else |_| { gap(mut p); return List[byte]() } }
+    if eval && numeric(bs) { let text = spelling(bs); let _ = numcli.unsigned(if text.starts_with("-") then text[1..] else text) else |_| { gap(mut p); return List[byte]() } }
     copy bs
 }
 fn precedence(op: str) -> int {
@@ -47,7 +47,7 @@ fn regex(mut p: Parser, text: List[byte], pattern: List[byte], eval: bool) -> Li
 }
 fn primary(mut p: Parser, eval: bool) -> List[byte] {
     if p.at >= p.args.len {
-        if p.at > 0 { fail(mut p, "syntax error: missing argument after ‘{p.args[p.at - 1]}’") } else { fail(mut p, "missing operand") }
+        if p.at > 0 { fail(mut p, "syntax error: missing argument after {bore.quote_always(p.args[p.at - 1])}") } else { fail(mut p, "missing operand") }
         return List[byte]()
     }
     let token = p.args[p.at]; p.at += 1
@@ -55,11 +55,11 @@ fn primary(mut p: Parser, eval: bool) -> List[byte] {
     if token == "(" {
         let result = expression(mut p, 1, eval)
         if p.status != 0 { return List[byte]() }
-        if p.at >= p.args.len || p.args[p.at] != ")" { fail(mut p, "syntax error: expecting ')' after ‘{p.args[p.at - 1]}’"); return List[byte]() }
+        if p.at >= p.args.len || p.args[p.at] != ")" { fail(mut p, "syntax error: expecting ')' after {bore.quote_always(p.args[p.at - 1])}"); return List[byte]() }
         p.at += 1; return result
     }
     if token == "+" {
-        if p.at >= p.args.len { fail(mut p, "syntax error: missing argument after ‘+’"); return List[byte]() }
+        if p.at >= p.args.len { fail(mut p, "syntax error: missing argument after '+'"); return List[byte]() }
         let value = p.args[p.at].bytes(); p.at += 1
         return checked(mut p, value, eval)
     }
@@ -74,9 +74,10 @@ fn primary(mut p: Parser, eval: bool) -> List[byte] {
         let text = primary(mut p, eval), position = primary(mut p, eval), count = primary(mut p, eval)
         var result = List[byte]()
         if !eval || !numeric(position) || !numeric(count) { return result }
-        let a = fmt.parse_int(spelling(position)) else 0, n = fmt.parse_int(spelling(count)) else 0
-        if a <= 0 || n <= 0 || a > text.len { return result }
-        let amount = if n < text.len - a + 1 then n else text.len - a + 1
+        let first = number(position), length = number(count)
+        if first.neg || length.neg || first.mag == 0 || length.mag == 0 || first.mag > text.len as wrapping[u64] { return result }
+        let a = first.mag as int
+        let amount = if length.mag < (text.len - a + 1) as wrapping[u64] then length.mag as int else text.len - a + 1
         for k in a - 1..a - 1 + amount { (mut result).push(text[k]) }; return result
     }
     if token == "match" { let text = primary(mut p, eval), pattern = primary(mut p, eval); return regex(mut p, text, pattern, eval) }
@@ -95,30 +96,36 @@ fn binary(mut p: Parser, left: List[byte], op: str, right: List[byte], eval: boo
     let nums = numeric(left) && numeric(right)
     if precedence(op) == 3 {
         var c = 0
-        if nums { let a = fmt.parse_int(spelling(left)) else 0, b = fmt.parse_int(spelling(right)) else 0; c = if a < b then -1 else if a > b then 1 else 0 } else { c = compare(left, right) }
+        if nums { let a = number(left), b = number(right); c = if a.neg != b.neg then (if a.neg then -1 else 1) else if a.mag == b.mag then 0 else if (a.mag < b.mag) != a.neg then -1 else 1 } else { c = compare(left, right) }
         let yes = if op == "=" then c == 0 else if op == "!=" then c != 0 else if op == "<" then c < 0 else if op == "<=" then c <= 0 else if op == ">" then c > 0 else c >= 0
         return (if yes then "1" else "0").bytes()
     }
     if !nums { fail(mut p, "non-integer argument"); return List[byte]() }
-    let a = fmt.parse_int(spelling(left)) else 0, b = fmt.parse_int(spelling(right)) else 0
-    let maximum: int = 9223372036854775807, minimum: int = -9223372036854775807 - 1
-    var n = 0
-    if op == "+" {
-        if b > 0 && a > maximum - b || b < 0 && a < minimum - b { gap(mut p); return List[byte]() }; n = a + b
-    } else if op == "-" {
-        if b > 0 && a < minimum + b || b < 0 && a > maximum + b { gap(mut p); return List[byte]() }; n = a - b
+    let a = number(left)
+    var b = number(right)
+    let maximum: wrapping[u64] = 18446744073709551615
+    var result = Number { mag: 0, neg: false }
+    if op == "-" { b.neg = !b.neg && b.mag != 0 }
+    if op == "+" || op == "-" {
+        if a.neg == b.neg { if a.mag > maximum - b.mag { gap(mut p); return List[byte]() }; result.mag = a.mag + b.mag; result.neg = a.neg } else if a.mag >= b.mag { result.mag = a.mag - b.mag; result.neg = a.neg } else { result.mag = b.mag - a.mag; result.neg = b.neg }
     } else if op == "*" {
-        if a != 0 && b != 0 {
-            if a == minimum && b == -1 || b == minimum && a == -1 { gap(mut p); return List[byte]() }
-            if a > 0 && b > 0 && a > maximum / b || a > 0 && b < 0 && b < minimum / a || a < 0 && b > 0 && a < minimum / b || a < 0 && b < 0 && a < maximum / b { gap(mut p); return List[byte]() }
-        }; n = a * b
+        if b.mag != 0 && a.mag > maximum / b.mag { gap(mut p); return List[byte]() }
+        result.mag = a.mag * b.mag; result.neg = a.neg != b.neg
     } else {
-        if b == 0 { fail(mut p, "division by zero"); return List[byte]() }
-        if a == minimum && b == -1 { if op == "%" { return "0".bytes() }; gap(mut p); return List[byte]() }
-        n = if op == "/" then a / b else a % b
+        if b.mag == 0 { fail(mut p, "division by zero"); return List[byte]() }
+        result.mag = if op == "/" then a.mag / b.mag else a.mag % b.mag
+        result.neg = if op == "/" then a.neg != b.neg else a.neg
     }
-    "{n}".bytes()
+    let digits = bore.u64_text(result.mag)
+    (if result.neg && result.mag != 0 then "-" + digits else digits).bytes()
 }
+struct Number { mag: wrapping[u64], neg: bool }
+fn number(bytes: List[byte]) -> Number {
+    let text = spelling(bytes), neg = text.starts_with("-")
+    let mag = numcli.unsigned(if neg then text[1..] else text) else |_| { 0 as wrapping[u64] }
+    Number { mag: mag, neg: neg && mag != 0 }
+}
+
 fn expression(mut p: Parser, least: int, eval: bool) -> List[byte] {
     var left = primary(mut p, eval)
     while p.status == 0 && p.at < p.args.len {
@@ -138,14 +145,14 @@ fn finish(mut out: bore.Out, status: int) -> int {
 fn main() -> int {
     var args = env_args(), out = bore.stdout()
     if args.len == 1 && (args[0] == "--help" || args[0] == "--version") {
-        bore.put(mut out, if args[0] == "--version" then bore.version_text("expr") else "Usage: expr EXPRESSION\nEvaluate arithmetic, strings, Boolean expressions and anchored BRE matches.\nIntegers outside the signed 64-bit range require wolf-std#100.\n") else |_| { bore.write_error(out, "expr", "write error"); return 3 }
+        bore.put(mut out, if args[0] == "--version" then bore.version_text("expr") else "Usage: expr EXPRESSION\nEvaluate arithmetic, strings, Boolean expressions and anchored BRE matches.\nIntegers outside the 64-bit magnitude range require wolf-std#100.\n") else |_| { bore.write_error(out, "expr", "write error"); return 3 }
         return finish(mut out, 0)
     }
     if args.len > 0 && args[0] == "--" { var rest = List[str](); for k in 1..args.len { (mut rest).push(args[k]) }; args = rest }
     if args.len == 0 { let _ = bore.usage_error("expr", "missing operand"); return 2 }
     var p = Parser { args: args, at: 0, status: 0, message: "" }
     let result = expression(mut p, 1, true)
-    if p.status == 0 && p.at < p.args.len { fail(mut p, "syntax error: unexpected argument ‘{p.args[p.at]}’") }
+    if p.status == 0 && p.at < p.args.len { fail(mut p, "syntax error: unexpected argument {bore.quote_always(p.args[p.at])}") }
     if p.status != 0 { bore.warn("expr", p.message); return p.status }
     bore.write_all(mut out, result) else |_| { bore.write_error(out, "expr", "write error"); return 3 }
     bore.put(mut out, "\n") else |_| { bore.write_error(out, "expr", "write error"); return 3 }
