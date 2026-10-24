@@ -19,6 +19,21 @@ struct Sink {
     names: List[str],
 }
 
+fn suffix_error(word: str) -> str {
+    var k = 0, conversions = 0
+    while k < word.len {
+        if word.bytes()[k] != 37 as byte { k += 1; continue }; k += 1
+        if k < word.len && word.bytes()[k] == 37 as byte { k += 1; continue }
+        conversions += 1
+        if conversions > 1 { return "too many conversion specifications in suffix" }
+        while k < word.len { let c = word.bytes()[k] as int; if c == 35 || c == 45 || c == 46 || c >= 48 && c <= 57 { k += 1 } else { break } }
+        if k == word.len { return "missing conversion specifier in suffix" }
+        let c = word[k..k + 1]
+        if c != "d" && c != "i" && c != "o" && c != "u" && c != "x" && c != "X" { return "invalid conversion specifier in suffix: {c}" }
+        k += 1
+    }
+    if conversions == 0 { return "missing conversion specifier in suffix" }; ""
+}
 fn filename(s: Sink) -> str {
     if !s.format_given { return s.prefix + fmt.pad_left_with("{s.serial}", s.digits, "0") }
     let f = s.format
@@ -145,7 +160,11 @@ fn main() -> int {
         if key == "suppress-matched" { suppress = true }
     }
     if !bore.ok(p) { return bore.usage_error("csplit", p.error) }
-    if sink.format_given && filename(sink).len == 0 { bore.warn("csplit", "invalid suffix format"); return 1 }
+    if sink.format_given {
+        let error = suffix_error(sink.format)
+        if error.len > 0 { bore.warn("csplit", error); return 1 }
+        if filename(sink).len == 0 { bore.warn("csplit", "invalid suffix format"); return 1 }
+    }
     if p.operands.len < 2 {
         return bore.usage_error(
             "csplit",
