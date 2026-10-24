@@ -186,7 +186,7 @@ fn main() -> int {
         if key == "numeric-suffixes" || key == "hex-suffixes" {
             if p.given[k] {
                 o.next = if key == "hex-suffixes" {
-                    (fmt.parse_int_base(v, 16) else -1)
+                    fmt.parse_int_base(v, 16) else -1
                 } else {
                     quantity(v)
                 }
