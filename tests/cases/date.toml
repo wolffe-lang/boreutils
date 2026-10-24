@@ -1771,9 +1771,8 @@ args = ["-d", "@1.", "+%s"]
 env = { TZ = "UTC0" }
 
 [[case]]
-name = "unbalanced comments contradict manual R-bu35-3"
+name = "unterminated comment accepted R-bu35-3"
 args = ["-d", "2022-11-14 (", "+%s"]
-skip = "R-bu35-3 pending: manual requires balanced comments, GNU silently accepts an unclosed comment; witness date-first.log"
 env = { TZ = "UTC0" }
 
 [[case]]

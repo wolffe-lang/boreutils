@@ -25,7 +25,8 @@ fn date_tokens(s: str) -> List[DateToken] ! {invalid} {
         }
         (mut result).push(DateToken { text: s[start..k], number: digit })
     }
-    if depth != 0 { return invalid }
+    // GNU 9.11 accepts an unterminated comment through end of input.
+    // Its manual requires balance; R-bu35-3 keeps the pinned binary.
     result
 }
 

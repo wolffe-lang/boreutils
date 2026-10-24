@@ -1,0 +1,18 @@
+//! Date grammar with an injected clock: relative items cannot race a day.
+use bore
+
+fn stamp(s: str) -> str {
+    let now = bore.Instant { secs: 1668466800, nanos: 123000000 }
+    let t = bore.date_read(s, bore.utc(), now) else |_| { return "refused" }
+    bore.date_format("%F %T.%N", t, bore.utc()) else "refused"
+}
+
+fn main() {
+    assert(stamp("@0") == "1970-01-01 00:00:00.000000000", "epoch")
+    assert(stamp("@-0.0000000001") == "1969-12-31 23:59:59.999999999", "negative floor")
+    assert(stamp("2022-12-31 -1 month") == "2022-12-01 00:00:00.000000000", "fuzzy month")
+    assert(stamp("2022-11-14 3 days ago") == "2022-11-11 00:00:00.000000000", "ago")
+    assert(stamp("2022-11-14 (") == "2022-11-14 00:00:00.000000000", "R-bu35-3")
+    assert(stamp("Mon, 14 Nov 2022 21:02:42 +0000") == "2022-11-14 21:02:42.000000000", "RFC")
+    assert(stamp("2020-02-30") == "refused", "invalid calendar")
+}
