@@ -1,8 +1,8 @@
 //! member: false
 //! dd — bounded block IO and record conversions.
 //! References consulted: POSIX.1-2024 dd; GNU coreutils 9.11 manual and
-//! black-box runs only. The conversion tables are measured byte mappings,
-//! not implementation text. Reads retain only one input and output block.
+//! black-box runs only. Reads retain only one input and output block.
+//! EBCDIC conversions are refused by name until their byte tables land.
 //! Open flags not served by wolf are refused by their operand and flag.
 //! fdatasync uses the stronger fs_sync, as sync -d does in this tree.
 
@@ -55,7 +55,7 @@ fn write_block(mut w: Writer, bytes: List[byte], c: Config, mut s: Stats) -> boo
     var moved = false
     if zeros {
         let at = fs_tell(w.fd) else -1
-        if at >= 0 { fs_seek(w.fd, at + bytes.len) else |_| { return false }; moved = true }
+        if at >= 0 { let _ = fs_seek(w.fd, at + bytes.len, 0) else |_| { return false }; moved = true }
     }
     if !moved {
         fs_write_chunk(w.fd, bytes) else |_| {
@@ -69,10 +69,11 @@ fn write_block(mut w: Writer, bytes: List[byte], c: Config, mut s: Stats) -> boo
     true
 }
 fn put(mut w: Writer, b: byte, c: Config, mut s: Stats) -> bool {
-    (mut w.buf).push(b)
-    if w.buf.len == c.obs {
+    w.buf[w.at] = b
+    w.at += 1
+    if w.at == c.obs {
         if !write_block(mut w, w.buf, c, mut s) { return false }
-        w.buf = List[byte]()
+        w.at = 0
     }
     true
 }
@@ -169,7 +170,7 @@ fn main() -> int {
     if skip > 0 {
         let at = fs_tell(input) else -1
         var sought = false
-        if at >= 0 { fs_seek(input, at + skip) else |_| { return 1 }; sought = true }
+        if at >= 0 { let _ = fs_seek(input, at + skip, 0) else |_| { return 1 }; sought = true }
         if !sought {
             var left = skip
             while left > 0 {
@@ -181,20 +182,23 @@ fn main() -> int {
         }
     }
     if c.seek > 0 {
-        fs_seek(fd, c.seek * if c.seekbytes then 1 else c.obs) else |_| { bore.warn("dd", "{bore.quote_always(c.output)}: cannot seek: {bore.io_error()}"); return 1 }
+        let _ = fs_seek(fd, c.seek * (if c.seekbytes then 1 else c.obs), 0) else |_| { bore.warn("dd", "{bore.quote_always(c.output)}: cannot seek: {bore.io_error()}"); return 1 }
     }
     let started = os_clock_ns()
     os_signal_listen(signal.user()) else |_| { bore.warn("dd", "cannot listen for USR1"); return 1 }
     var last = started
     var s = Stats { wholein: 0, partialin: 0, wholeout: 0, partialout: 0, bytes: 0, trunc: 0 }
-    var w = Writer { fd: fd, buf: List[byte](), at: 0, sparse_end: false }
+    var buffer = List[byte]()
+    var b = 0
+    while b < c.obs { (mut buffer).push(0 as byte); b += 1 }
+    var w = Writer { fd: fd, buf: take buffer, at: 0, sparse_end: false }
     var blocks: int = 0, consumed: int = 0, record: int = 0, spaces: int = 0
     var status = 0, stop = false, over = false
     while !stop && (c.count < 0 || (if c.countbytes then consumed else blocks) < c.count) {
         var wanted = c.ibs
         if c.countbytes && c.count >= 0 && c.count - consumed < wanted { wanted = c.count - consumed }
-        var chunk = List[byte]()
         region readblock {
+        var chunk = List[byte]()
             while chunk.len < wanted {
                 let part = fs_read_chunk(input, wanted - chunk.len) else |e| match e {
                     eof => { stop = true; break },
@@ -204,7 +208,7 @@ fn main() -> int {
                         else {
                             let at = fs_tell(input) else -1
                             if at < 0 { bore.warn("dd", "cannot continue noerror on an unseekable input"); status = 1; stop = true }
-                            else { fs_seek(input, at + wanted) else |_| { status = 1; stop = true } }
+                            else { let _ = fs_seek(input, at + wanted, 0) else |_| { status = 1; stop = true; 0 } }
                         }
                         break
                     },
@@ -212,7 +216,6 @@ fn main() -> int {
                 for b in part { (mut chunk).push(b) }
                 if !c.full { break }
             }
-        }
         if chunk.len == 0 { break }
         consumed += chunk.len
         blocks += 1
@@ -246,7 +249,7 @@ fn main() -> int {
                 if record == c.cbs { if !put(mut w, 10 as byte, c, mut s) { status = 1; break }; record = 0; spaces = 0 }
             } else if !put(mut w, b as byte, c, mut s) { status = 1; break }
         }
-        chunk = List[byte]()
+        }
         if status != 0 { break }
         let heard = os_signal_poll(signal.user()) else 0
         let now = os_clock_ns()
@@ -256,7 +259,7 @@ fn main() -> int {
         while record < c.cbs { if !put(mut w, 32 as byte, c, mut s) { status = 1; break }; record += 1 }
     }
     if c.unblock && record > 0 { if !put(mut w, 10 as byte, c, mut s) { status = 1 } }
-    if w.buf.len > 0 { if !write_block(mut w, w.buf, c, mut s) { status = 1 } }
+    if w.at > 0 { if !write_block(mut w, w.buf[..w.at], c, mut s) { status = 1 } }
     if w.sparse_end || c.seek > 0 && !c.notrunc && c.output != "standard output" {
         let end = fs_tell(fd) else -1
         if end >= 0 { fs_truncate(fd, end) else |_| { status = 1 } }
