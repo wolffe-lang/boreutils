@@ -8,11 +8,20 @@
 use bore
 use numcli
 use factorcore
+use std.fmt
 
+fn quoted(word: str) -> str {
+    var result = "'"
+    for b in word.bytes() {
+        let c = b as int
+        if c == 39 { result += "\\'" } else if c == 92 { result += "\\\\" } else if c == 9 { result += "\\t" } else if c == 10 { result += "\\n" } else if c == 13 { result += "\\r" } else if c == 7 { result += "\\a" } else if c == 8 { result += "\\b" } else if c == 11 { result += "\\v" } else if c == 12 { result += "\\f" } else if c < 32 || c >= 127 { result += "\\" + fmt.pad_left_with(fmt.to_str_base(c, 8) else "0", 3, "0") } else { result += str_from_utf8([b]) else "?" }
+    }
+    result + "'"
+}
 fn number(mut out: bore.Out, word: str, exponents: bool) -> int {
     var bad = false, large = false
     let value = numcli.unsigned(word) else |e| match e { parse => { bad = true; 0 as wrapping[u64] }, overflow => { large = true; 0 as wrapping[u64] } }
-    if bad { bore.warn("factor", "{bore.quote_always(word)} is not a valid positive integer"); return 1 }
+    if bad { bore.warn("factor", "{quoted(word)} is not a valid positive integer"); return 1 }
     if large { bore.warn("factor", "unsupported integer: {bore.quote_always(word)} exceeds 64 bits (wolf-std#100)"); return 1 }
     let factors = factorcore.factors(value)
     bore.put(mut out, bore.u64_text(value) + ":") else |_| { return 1 }
