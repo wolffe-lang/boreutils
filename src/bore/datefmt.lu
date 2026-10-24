@@ -161,11 +161,19 @@ pub fn date_format(fmt: str, t: Instant, z: Zone) -> str ! {unread} {
         else if d == "t" { value = "\t"; numeric = false }
         else if d == "%" { value = "%"; numeric = false }
         else { value = fmt[start..k]; numeric = false; width = -1 }
+        if d == "D" && (pad == " " || pad == "") {
+            value = zero_padded(c.month, 2) + "/" + zero_padded(c.day, 2) + "/" + date_pad("{(c.year % 100 + 100) % 100}", 2, pad)
+        }
+        if d == "z" && colons == 0 && (pad == " " || pad == "") {
+            let magnitude = if c.offset < 0 then -c.offset else c.offset
+            value = (if c.offset < 0 then "-" else "+") + "{magnitude / 3600 * 100 + magnitude / 60 % 60}"
+            natural = 5
+        }
         // E/O are identity in the C locale for their documented conversions.
         if modifier == "E" && !"cCxXyY".contains(d) || modifier == "O" && !"deHImMSuUVwWy".contains(d) || colons > 0 && d != "z" {
             value = fmt[start..k]; width = -1; natural = 0
         }
-        if upper || opposite && (d == "a" || d == "A" || d == "b" || d == "B" || d == "h") { value = value.upper() }
+        if upper && d != "P" || opposite && (d == "a" || d == "A" || d == "b" || d == "B" || d == "h") { value = value.upper() }
         if opposite && (d == "p" || d == "P" || d == "Z") { value = value.lower() }
         if plus && (d == "Y" || d == "G") && c.year > 9999 { value = "+" + value }
         var fill = pad
