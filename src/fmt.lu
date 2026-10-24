@@ -105,7 +105,7 @@ fn paragraph(mut out: bore.Out, rows: List[Row], a: int, z: int, o: Options) -> 
             }
             cost += costs[end + 1]
             var rough = ragged[end + 1]
-            if end + 1 < words.len {
+            if end + 1 < words.len && !words[end].sentence {
                 var following = rest_indent
                 for j in end + 1..next[end + 1] { if j > end + 1 { following += words[j].gap }; following += words[j].bytes.len }
                 rough += (width - following) * (width - following)
