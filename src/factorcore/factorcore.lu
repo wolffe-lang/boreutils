@@ -1,0 +1,119 @@
+//! Independent 64-bit factorization design: trial division, deterministic
+//! Miller-Rabin, then Brent-batched Pollard rho. Montgomery reduction is
+//! derived from (t + (t.lo * -n^-1 mod 2^64) * n) / 2^64; two 32-bit
+//! limbs recover the high product without u128. No factoring source read.
+//! The seven-base 64-bit Miller-Rabin witness set is the published set
+//! 2,325,9375,28178,450775,9780504,1795265022.
+
+struct Wide { hi: wrapping[u64], lo: wrapping[u64] }
+struct Modulus { n: wrapping[u64], inverse: wrapping[u64], r2: wrapping[u64], one: wrapping[u64] }
+fn wide(a: wrapping[u64], b: wrapping[u64]) -> Wide {
+    let mask: wrapping[u64] = 4294967295
+    let a0 = a & mask, a1 = a >> 32, b0 = b & mask, b1 = b >> 32
+    let low = a0 * b0
+    let middle = a1 * b0 + (low >> 32)
+    let part = (middle & mask) + a0 * b1
+    Wide { hi: a1 * b1 + (middle >> 32) + (part >> 32), lo: (part << 32) + (low & mask) }
+}
+fn addmod(a: wrapping[u64], b: wrapping[u64], n: wrapping[u64]) -> wrapping[u64] {
+    if a >= n - b then a - (n - b) else a + b
+}
+fn slow_product(a: wrapping[u64], b: wrapping[u64], n: wrapping[u64]) -> wrapping[u64] {
+    var x = a % n, y = b, result: wrapping[u64] = 0
+    while y != 0 { if y & 1 != 0 { result = addmod(result, x, n) }; y = y >> 1; if y != 0 { x = addmod(x, x, n) } }
+    result
+}
+fn modulus(n: wrapping[u64]) -> Modulus {
+    var inverse: wrapping[u64] = 1
+    for _ in 0..6 { inverse = inverse * (2 - n * inverse) }
+    let one = ((0 as wrapping[u64]) - n) % n
+    Modulus { n: n, inverse: (0 as wrapping[u64]) - inverse, r2: slow_product(one, one, n), one: one }
+}
+fn multiply(a: wrapping[u64], b: wrapping[u64], m: Modulus) -> wrapping[u64] {
+    let product = wide(a, b)
+    let correction = wide(product.lo * m.inverse, m.n)
+    let low = product.lo + correction.lo
+    let carry: wrapping[u64] = if low < product.lo then 1 else 0
+    var result = product.hi + correction.hi
+    var overflow = result < product.hi
+    let before = result
+    result += carry
+    if result < before { overflow = true }
+    if overflow || result >= m.n { result -= m.n }
+    result
+}
+fn encoded(a: wrapping[u64], m: Modulus) -> wrapping[u64] { multiply(a % m.n, m.r2, m) }
+fn power(a: wrapping[u64], exponent: wrapping[u64], m: Modulus) -> wrapping[u64] {
+    var x = encoded(a, m), e = exponent, result = m.one
+    while e != 0 { if e & 1 != 0 { result = multiply(result, x, m) }; e = e >> 1; if e != 0 { x = multiply(x, x, m) } }
+    result
+}
+fn prime(n: wrapping[u64]) -> bool {
+    if n < 2 { return false }
+    for p in [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37] {
+        if n == p as wrapping[u64] { return true }; if n % p as wrapping[u64] == 0 { return false }
+    }
+    var d = n - 1, twos = 0
+    while d & 1 == 0 { d = d >> 1; twos += 1 }
+    let m = modulus(n), minus = n - m.one
+    for a in [2, 325, 9375, 28178, 450775, 9780504, 1795265022] {
+        if a as wrapping[u64] % n == 0 { continue }
+        var x = power(a as wrapping[u64], d, m)
+        if x == m.one || x == minus { continue }
+        var passed = false
+        for _ in 1..twos { x = multiply(x, x, m); if x == minus { passed = true; break } }
+        if !passed { return false }
+    }
+    true
+}
+fn gcd(a: wrapping[u64], b: wrapping[u64]) -> wrapping[u64] {
+    var x = a, y = b
+    while y != 0 { let r = x % y; x = y; y = r }; x
+}
+fn distance(a: wrapping[u64], b: wrapping[u64]) -> wrapping[u64] { if a >= b then a - b else b - a }
+fn step(x: wrapping[u64], c: wrapping[u64], m: Modulus) -> wrapping[u64] { addmod(multiply(x, x, m), c, m.n) }
+fn rho(n: wrapping[u64]) -> wrapping[u64] {
+    let m = modulus(n)
+    var seed: wrapping[u64] = 1
+    loop {
+        let c = encoded(seed, m)
+        var y = encoded(seed + 1, m), x: wrapping[u64] = 0, saved: wrapping[u64] = 0
+        var q = m.one, g: wrapping[u64] = 1, length = 1
+        while g == 1 && length <= 16777216 {
+            x = y
+            for _ in 0..length { y = step(y, c, m) }
+            var k = 0
+            while k < length && g == 1 {
+                saved = y
+                let amount = if length - k < 128 then length - k else 128
+                for _ in 0..amount { y = step(y, c, m); q = multiply(q, distance(x, y), m) }
+                g = gcd(q, n); k += amount
+            }
+            length *= 2
+        }
+        if g == n {
+            g = 1
+            while g == 1 { saved = step(saved, c, m); g = gcd(distance(x, saved), n) }
+        }
+        if g > 1 && g < n { return g }
+        seed += 1
+    }
+}
+fn divide(mut result: List[wrapping[u64]], n: wrapping[u64]) {
+    if n <= 1 { return }
+    if prime(n) { (mut result).push(n); return }
+    let p = rho(n)
+    divide(mut result, p); divide(mut result, n / p)
+}
+/// Sorted prime factors of every unsigned 64-bit input; 0 and 1 have none.
+pub fn factors(value: wrapping[u64]) -> List[wrapping[u64]] {
+    var result = List[wrapping[u64]](), n = value
+    if n < 2 { return result }
+    while n & 1 == 0 { (mut result).push(2); n = n >> 1 }
+    var p: wrapping[u64] = 3
+    while p <= 1000 && p * p <= n { while n % p == 0 { (mut result).push(p); n /= p }; p += 2 }
+    divide(mut result, n)
+    var i = 1
+    while i < result.len { var j = i; while j > 0 && result[j] < result[j - 1] { let old = result[j]; result[j] = result[j - 1]; result[j - 1] = old; j -= 1 }; i += 1 }
+    result
+}

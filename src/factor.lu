@@ -1,0 +1,60 @@
+//! member: false
+//! factor — unsigned 64-bit prime factorization.
+//! References consulted: GNU coreutils 9.11 --help and binary probes.
+//! Trial division then independently designed Montgomery/Miller-Rabin/
+//! Pollard rho in factorcore; no factoring implementation source read.
+//! Beyond 64 bits is refused by name (wolf-std#100, no bigint/u128 API).
+
+use bore
+use numcli
+use factorcore
+
+fn number(mut out: bore.Out, word: str, exponents: bool) -> int {
+    var bad = false, large = false
+    let value = numcli.unsigned(word) else |e| match e { parse => { bad = true; 0 as wrapping[u64] }, overflow => { large = true; 0 as wrapping[u64] } }
+    if bad { bore.warn("factor", "{bore.quote_always(word)} is not a valid positive integer"); return 1 }
+    if large { bore.warn("factor", "unsupported integer: {bore.quote_always(word)} exceeds 64 bits (wolf-std#100)"); return 1 }
+    let factors = factorcore.factors(value)
+    bore.put(mut out, bore.u64_text(value) + ":") else |_| { return 1 }
+    var k = 0
+    while k < factors.len {
+        let p = factors[k]
+        var end = k + 1
+        while end < factors.len && factors[end] == p { end += 1 }
+        if exponents {
+            bore.put(mut out, " " + bore.u64_text(p) + (if end - k > 1 then "^{end - k}" else "")) else |_| { return 1 }
+        } else { for _ in k..end { bore.put(mut out, " " + bore.u64_text(p)) else |_| { return 1 } } }
+        k = end
+    }
+    bore.put(mut out, "\n") else |_| { return 1 }
+    0
+}
+fn main() -> int {
+    var spec = List[bore.Opt]()
+    (mut spec).push(bore.flag("h", "exponents")); (mut spec).push(bore.flag("", "help")); (mut spec).push(bore.flag("", "version"))
+    let p = bore.parse(spec, env_args(), bore.permute())
+    var out = bore.stdout(), exponents = false
+    for key in p.keys {
+        if key == "help" || key == "version" { bore.put(mut out, if key == "version" then bore.version_text("factor") else "Usage: factor [OPTION] [NUMBER]...\nPrint prime factors of unsigned 64-bit integers.\n-h, --exponents prints repeated factors with exponents.\nLarger integers require wolf-std#100.\n") else |_| {}; return bore.finish(mut out, "factor", 0) }
+        if key == "exponents" { exponents = true }
+    }
+    if !bore.ok(p) { return bore.usage_error("factor", p.error) }
+    var status = 0
+    if p.operands.len > 0 { for word in p.operands { if number(mut out, word, exponents) != 0 { status = 1 } } } else {
+        let src = bore.open_input("-") else |_| { bore.warn("factor", "read error: {bore.io_error()}"); return 1 }
+        defer bore.close_input(src)
+        var token = List[byte](), done = false
+        while !done {
+            let chunk = bore.read_chunk(src, 65536) else |e| match e { eof => { done = true; List[byte]() }, io => { bore.warn("factor", "read error: {bore.io_error()}"); status = 1; done = true; List[byte]() } }
+            if chunk.len == 0 { done = true }
+            for b in chunk {
+                let c = b as int
+                if c == 32 || c >= 9 && c <= 13 {
+                    if token.len > 0 { if number(mut out, str_from_utf8(token) else "<non-UTF-8>", exponents) != 0 { status = 1 }; token = List[byte]() }
+                } else { (mut token).push(b) }
+            }
+        }
+        if token.len > 0 { if number(mut out, str_from_utf8(token) else "<non-UTF-8>", exponents) != 0 { status = 1 } }
+    }
+    bore.finish(mut out, "factor", status)
+}
