@@ -58,8 +58,7 @@ pub fn run(prog: str, width: int) -> int {
         io => { bore.warn(prog, "{bore.quote_name(path)}: {bore.io_error()}"); return 1 },
     }
     defer bore.close_input(src)
-    if decode { return decoding(src, out, prog, width, ignore) }
-    encoding(src, out, prog, width, wrap)
+    transform(src, out, prog, width, alphabet(width), decode, ignore, wrap)
 }
 
 fn alphabet(width: int) -> str {
@@ -67,8 +66,7 @@ fn alphabet(width: int) -> str {
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
 }
 
-fn encoding(src: bore.In, out: bore.Out, prog: str, width: int, wrap: int) -> int {
-    let table = alphabet(width)
+fn encoding(src: bore.In, out: bore.Out, prog: str, width: int, wrap: int, table: str) -> int {
     let mask = if width == 6 then 63 else 31
     let quantum = if width == 6 then 4 else 8
     var bits = 0, acc = 0, chars = 0, col = 0, done = false, status = 0
@@ -125,7 +123,16 @@ fn emit(mut bytes: List[byte], b: byte, wrap: int, mut col: int) {
     }
 }
 
-fn value(c: int, width: int) -> int {
+fn value(c: int, width: int, table: str) -> int {
+    if width == 5 && table.starts_with("012345") {
+        if c >= 48 && c <= 57 { return c - 48 }
+        if c >= 65 && c <= 86 { return c - 55 }
+        return -1
+    }
+    if width == 6 && table.ends_with("-_") {
+        if c == 45 { return 62 }; if c == 95 { return 63 }
+        if c == 43 || c == 47 { return -1 }
+    }
     if c >= 65 && c <= 90 { return c - 65 }
     if width == 5 {
         if c >= 50 && c <= 55 { return c - 24 }
@@ -143,8 +150,8 @@ fn valid_count(n: int, width: int) -> bool {
     n == 0 || n == 2 || n == 4 || n == 5 || n == 7 || n == 8
 }
 
-fn decoding(src: bore.In, out: bore.Out, prog: str, width: int, ignore: bool) -> int {
-    if width == 5 { return decoding32(src, out, prog, ignore) }
+fn decoding(src: bore.In, out: bore.Out, prog: str, width: int, ignore: bool, table: str) -> int {
+    if width == 5 { return decoding32(src, out, prog, ignore, table) }
     let quantum = if width == 6 then 4 else 8
     var acc = 0, bits = 0, n = 0, pads = 0, done = false, bad = false, read_bad = false
     // A base32 padded quantum is committed only when its padding is complete.
@@ -163,7 +170,7 @@ fn decoding(src: bore.In, out: bore.Out, prog: str, width: int, ignore: bool) ->
             var bytes = List[byte]()
             for b in bs {
                 let c = b as int
-                let v = value(c, width)
+                let v = value(c, width, table)
                 if c == 10 || ignore && v < 0 && c != 61 { continue }
                 if c == 61 {
                     if n == 0 { bad = true; break }
@@ -228,7 +235,7 @@ fn flush_pending(mut bytes: List[byte], pending: int, n: int) {
 // The binary buffers each base32 quantum. At EOF it virtually pads an
 // unpadded quantum, but does not complete a short explicit padding suffix.
 // This distinguishes AA! (one prefix byte) from AA!= (none).
-fn decoding32(src: bore.In, out: bore.Out, prog: str, ignore: bool) -> int {
+fn decoding32(src: bore.In, out: bore.Out, prog: str, ignore: bool, table: str) -> int {
     var block = [0, 0, 0, 0, 0, 0, 0, 0]
     var used = 0, done = false, bad = false, read_bad = false
     while !done && !bad {
@@ -245,11 +252,11 @@ fn decoding32(src: bore.In, out: bore.Out, prog: str, ignore: bool) -> int {
             var bytes = List[byte]()
             for b in bs {
                 let c = b as int
-                if c == 10 || ignore && c != 61 && value(c, 5) < 0 { continue }
+                if c == 10 || ignore && c != 61 && value(c, 5, table) < 0 { continue }
                 block[used] = c
                 used += 1
                 if used == 8 {
-                    if !group32(block, mut bytes) { bad = true; break }
+                    if !group32(block, mut bytes, table) { bad = true; break }
                     used = 0
                 }
             }
@@ -258,7 +265,7 @@ fn decoding32(src: bore.In, out: bore.Out, prog: str, ignore: bool) -> int {
                     bad = true
                 } else {
                     while used < 8 { block[used] = 61; used += 1 }
-                    if !group32(block, mut bytes) { bad = true }
+                    if !group32(block, mut bytes, table) { bad = true }
                 }
             }
             if bytes.len > 0 {
@@ -274,11 +281,11 @@ fn decoding32(src: bore.In, out: bore.Out, prog: str, ignore: bool) -> int {
     0
 }
 
-fn group32(block: List[int], mut bytes: List[byte]) -> bool {
+fn group32(block: List[int], mut bytes: List[byte], table: str) -> bool {
     var acc = 0, bits = 0, count = 0, padding = false
     for c in block {
         if c == 61 { padding = true; continue }
-        let v = value(c, 5)
+        let v = value(c, 5, table)
         if v < 0 || padding { return false }
         count += 1
         acc = acc << 5 | v
@@ -287,4 +294,12 @@ fn group32(block: List[int], mut bytes: List[byte]) -> bool {
         acc &= (1 << bits) - 1
     }
     count > 0 && valid_count(count, 5) && acc == 0
+}
+
+/// Shared RFC 4648 transformation for base64/base32 and basenc variants.
+/// Alphabets contain exactly 2^width bytes; width is five or six.
+pub fn transform(src: bore.In, out: bore.Out, prog: str, width: int, table: str, decode: bool, ignore: bool, wrap: int) -> int {
+    assert((width == 5 || width == 6) && table.len == 1 << width, "RFC alphabet width")
+    if decode { return decoding(src, out, prog, width, ignore, table) }
+    encoding(src, out, prog, width, wrap, table)
 }
