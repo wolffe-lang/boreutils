@@ -162,7 +162,7 @@ derives no boreutils code from GPL source.
 
 Every shipped utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus, except where a case says otherwise and is
-skipped with its reason. The combined corpus holds **10,696 cases**; `kill` has
+skipped with its reason. The combined corpus holds **10,697 cases**; `kill` has
 365 more that SEND, each run in a container of its own (`tests/kill/`,
 `tools/killtest`: **365 passed, 0 failed** on hasu at bu30, groups,
 `kill 0` and `kill -1` among them), `timeout` 163 more that run a
@@ -218,7 +218,7 @@ the two CRCs and BSD/SysV sums compare with GNU on that input too.
 
 The disk/process pass adds `du`, `dd`, `install`, `mknod`, `shred`,
 `dir`, `vdir`, `dircolors`, `chroot`, `nice`, `nohup` and `stdbuf`:
-**316 new differential cases**, with 19 named surface/implementation skips.
+**317 new differential cases**, with 19 named surface/implementation skips.
 `ls`, `dir` and `vdir` share one listing engine; the latter two default to
 `-C -b` and `-l -b`. The color database is emitted with original comments;
 a separate semantic check feeds it to GNU and verifies identical color rules.
@@ -1463,7 +1463,7 @@ table answers it per utility, from the evidence and from nothing else.
 | `dircolors` | scoped above | 27 / 0 | not benched (hasu) | drop-in for scripts that avoid the named limits above |
 | `chroot` | scoped above | 3 / 1 | not benched (hasu) | not yet |
 | `nice` | scoped above | 9 / 1 | not benched (hasu) | not yet |
-| `nohup` | scoped above | 11 / 0 | not benched (hasu) | drop-in |
+| `nohup` | scoped above | 12 / 0 | not benched (hasu) | drop-in |
 | `stdbuf` | scoped above | 9 / 0 | not benched (hasu) | not yet |
 
 **29 drop-in, 50 drop-in for scripts that avoid a named thing, 3 not yet** (command rows, not the manual's grouped utility units; new checksum
