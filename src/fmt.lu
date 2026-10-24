@@ -190,7 +190,7 @@ fn paragraph(mut out: bore.Out, rows: List[Row], a: int, z: int, o: Options) -> 
                 }
                 rough += (width - following) * (width - following)
             }
-            if best == 9223372036854775807 || cost * 4 + rough < best * 4 + best_ragged {
+            if cost < best || cost == best && rough < best_ragged {
                 best = cost
                 best_ragged = rough
                 next[i] = end + 1
@@ -288,7 +288,7 @@ fn main() -> int {
     }
     if !bore.ok(p) { return bore.usage_error("fmt", p.error) }
     if !width_given && o.goal > 0 { o.width = o.goal + 10 }
-    if o.goal == 0 { o.goal = (o.width * 93 + 50) / 100 }
+    if o.goal == 0 { o.goal = o.width * 187 / 200 }
     var paths = copy p.operands
     if paths.len == 0 { (mut paths).push("-") }
     var status = 0
