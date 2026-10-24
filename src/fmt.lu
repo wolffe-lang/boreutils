@@ -98,7 +98,7 @@ fn paragraph(mut out: bore.Out, rows: List[Row], a: int, z: int, o: Options) -> 
             if width > o.width && end > i { break }
             let distance = o.goal - width
             var cost = distance * distance
-            if end == words.len - 1 { cost /= 4; if end == i && i > 0 { cost += 20 } } else {
+            if end == words.len - 1 { cost = 0 } else {
                 if words[end].sentence { cost -= 200 }
                 if end + 1 < words.len && sentence(words[end + 1].bytes) { cost += 20 }
             }
@@ -165,7 +165,13 @@ fn main() -> int {
         var start = 0
         while start < rows.len {
             if !rows[start].selected || rows[start].begin == rows[start].bytes.len {
-                if !putline(mut out, rows[start].bytes, false) { return bore.finish(mut out, "fmt", 1) }; start += 1; continue
+                if rows[start].begin == rows[start].bytes.len {
+                    if !putline(mut out, List[byte](), false) { return bore.finish(mut out, "fmt", 1) }
+                } else {
+                    var original = copy rows[start].bytes
+                    if start == rows.len - 1 && line.len > 0 { bore.write_all(mut out, original) else |_| { return bore.finish(mut out, "fmt", 1) } } else if !putline(mut out, original, false) { return bore.finish(mut out, "fmt", 1) }
+                }
+                start += 1; continue
             }
             var end = start + 1
             if !o.split {
