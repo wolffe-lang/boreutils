@@ -957,3 +957,24 @@ args = ["missing"]
 name = "large valid formatting parameter"
 args = ["-t", "-l1000001"]
 stdin = ""
+
+[[case]]
+name = "literal date directive %Y %Q"
+args = ["-l11", "-D", "%Y %Q", "f"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = 946782245 }
+env = { TZ = "UTC" }
+
+[[case]]
+name = "literal date directive %"
+args = ["-l11", "-D", "%", "f"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = 946782245 }
+env = { TZ = "UTC" }
+
+[[case]]
+name = "literal date directive literal %% %Y"
+args = ["-l11", "-D", "literal %% %Y", "f"]
+scratch = { "f" = "x\n" }
+scratch_times = { "f" = 946782245 }
+env = { TZ = "UTC" }
