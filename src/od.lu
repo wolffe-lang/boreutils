@@ -24,6 +24,7 @@ struct Options {
 fn quantity(s: str) -> int {
     var k = 0, radix = 10
     if s.starts_with("0x") || s.starts_with("0X") { k = 2; radix = 16 }
+    if k == 0 && s.len > 1 && s.bytes()[0] == 48 as byte { radix = 8 }
     let start = k
     while k < s.len {
         let c = s.bytes()[k] as int
@@ -36,7 +37,7 @@ fn quantity(s: str) -> int {
     if k == start { return -1 }
     var n = fmt.parse_int_base(s[start..k], radix) else -1
     if n < 0 { return -1 }
-    let suffix = s[k..]
+    let suffix = if s[k..] == "k" then "K" else if s[k..] == "m" then "M" else s[k..]
     if suffix.len == 0 { return n }
     if suffix == "b" { if n > 9223372036854775807 / 512 { return -1 }; return n * 512 }
     let letters = "KMGTPEZYRQ"
@@ -54,7 +55,7 @@ fn old_offset(s: str) -> int {
     var word = s
     if word.starts_with("+") { word = word[1..] }
     var scale = 1
-    if word.ends_with("b") { word = word[0..word.len - 1]; scale = 512 }
+    if word.ends_with("b") && !word.starts_with("0x") && !word.starts_with("0X") { word = word[0..word.len - 1]; scale = 512 }
     var base = 8
     if word.ends_with(".") { base = 10; word = word[0..word.len - 1] }
     if word.starts_with("0x") || word.starts_with("0X") { base = 16; word = word[2..] }

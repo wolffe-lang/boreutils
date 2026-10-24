@@ -1098,3 +1098,39 @@ name = "full u64 byte quantity 18446744073709551615"
 args = ["-b", "18446744073709551615"]
 stdin = "abc\ndef\n"
 scratch = {}
+
+[[case]]
+name = "quantity grammar ['-b1k']"
+args = ["-b1k"]
+stdin = "abc\ndef\n"
+scratch = {}
+
+[[case]]
+name = "quantity grammar ['-b1m']"
+args = ["-b1m"]
+stdin = "abc\ndef\n"
+scratch = {}
+
+[[case]]
+name = "quantity grammar ['-l1K']"
+args = ["-l1K"]
+stdin = "abc\ndef\n"
+scratch = {}
+
+[[case]]
+name = "quantity grammar ['-n1K']"
+args = ["-n1K"]
+stdin = "abc\ndef\n"
+scratch = {}
+
+[[case]]
+name = "quantity grammar ['--numeric-suffixes=1K', '-l1']"
+args = ["--numeric-suffixes=1K", "-l1"]
+stdin = "abc\ndef\n"
+scratch = {}
+
+[[case]]
+name = "quantity grammar ['-a0', '-l1']"
+args = ["-a0", "-l1"]
+stdin = "abc\ndef\n"
+scratch = {}

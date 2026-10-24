@@ -696,3 +696,23 @@ args = ["missing"]
 name = "separate short strings length"
 args = ["-S", "3"]
 stdin = "abc\u0000defgh\u0000"
+
+[[case]]
+name = "quantity grammar ['-j010', '-tx1']"
+args = ["-j010", "-tx1"]
+stdin_file = "bu33-od-bytes"
+
+[[case]]
+name = "quantity grammar ['-N010', '-tx1']"
+args = ["-N010", "-tx1"]
+stdin_file = "bu33-od-bytes"
+
+[[case]]
+name = "quantity grammar ['-j1k', '-tx1']"
+args = ["-j1k", "-tx1"]
+stdin_file = "bu33-od-bytes"
+
+[[case]]
+name = "quantity grammar ['--traditional', '-tx1', '+0x1b']"
+args = ["--traditional", "-tx1", "+0x1b"]
+stdin_file = "bu33-od-bytes"
