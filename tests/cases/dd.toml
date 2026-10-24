@@ -295,3 +295,53 @@ stdin_file = "disk-allbytes.bin"
 name = "all bytes ['conv=ebcdic,sync', 'ibs=300']"
 args = ["conv=ebcdic,sync", "ibs=300", "status=noxfer"]
 stdin_file = "disk-allbytes.bin"
+
+[[case]]
+name = "cbs composition ascii"
+args = ["cbs=4", "ibs=3", "obs=5", "conv=ascii", "status=noxfer"]
+stdin_file = "disk-allbytes.bin"
+
+[[case]]
+name = "cbs composition ascii,unblock"
+args = ["cbs=4", "ibs=3", "obs=5", "conv=ascii,unblock", "status=noxfer"]
+stdin_file = "disk-allbytes.bin"
+
+[[case]]
+name = "cbs composition ascii,lcase"
+args = ["cbs=4", "ibs=3", "obs=5", "conv=ascii,lcase", "status=noxfer"]
+stdin_file = "disk-allbytes.bin"
+
+[[case]]
+name = "cbs composition ascii,ucase"
+args = ["cbs=4", "ibs=3", "obs=5", "conv=ascii,ucase", "status=noxfer"]
+stdin_file = "disk-allbytes.bin"
+
+[[case]]
+name = "cbs composition ebcdic"
+args = ["cbs=4", "ibs=3", "obs=5", "conv=ebcdic", "status=noxfer"]
+stdin = "ab\ncDeFghi\nxy"
+
+[[case]]
+name = "cbs composition ebcdic,block"
+args = ["cbs=4", "ibs=3", "obs=5", "conv=ebcdic,block", "status=noxfer"]
+stdin = "ab\ncDeFghi\nxy"
+
+[[case]]
+name = "cbs composition ebcdic,ucase"
+args = ["cbs=4", "ibs=3", "obs=5", "conv=ebcdic,ucase", "status=noxfer"]
+stdin = "ab\ncDeFghi\nxy"
+
+[[case]]
+name = "cbs composition ibm"
+args = ["cbs=4", "ibs=3", "obs=5", "conv=ibm", "status=noxfer"]
+stdin = "ab\ncDeFghi\nxy"
+
+[[case]]
+name = "cbs composition ibm,block"
+args = ["cbs=4", "ibs=3", "obs=5", "conv=ibm,block", "status=noxfer"]
+stdin = "ab\ncDeFghi\nxy"
+
+[[case]]
+name = "cbs composition ibm,lcase"
+args = ["cbs=4", "ibs=3", "obs=5", "conv=ibm,lcase", "status=noxfer"]
+stdin = "ab\ncDeFghi\nxy"

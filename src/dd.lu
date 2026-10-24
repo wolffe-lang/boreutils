@@ -129,7 +129,7 @@ fn write_block(fd: int, mut sparse_end: bool, bytes: List[byte], c: Config, mut 
 }
 
 fn put(mut w: Writer, b: byte, c: Config, mut s: Stats) -> bool {
-    w.buf[w.at] = b
+    w.buf[w.at] = if c.table.len > 0 && c.table != "ascii" then mapped(mapping(c.table), b as int) as byte else b
     w.at += 1
     if w.at == c.obs {
         if !write_block(w.fd, mut w.sparse_end, w.buf, c, mut s) { return false }
@@ -143,7 +143,6 @@ fn converted(b: int, c: Config, table: str) -> byte {
     if c.table == "ascii" { n = mapped(table, n) }
     if c.lower && n >= 65 && n <= 90 { n += 32 }
     if c.upper && n >= 97 && n <= 122 { n -= 32 }
-    if c.table.len > 0 && c.table != "ascii" { n = mapped(table, n) }
     n as byte
 }
 
@@ -310,6 +309,10 @@ fn main() -> int {
         }
     }
     if bs_given { c.ibs = bs; c.obs = bs }
+    if c.cbs > 0 {
+        if c.table == "ascii" { c.unblock = true }
+        else if c.table.len > 0 { c.block = true }
+    }
     if c.ibs <= 0 || c.obs <= 0 || c.lower && c.upper || c.block && c.unblock {
         bore.warn("dd", "invalid or conflicting block size or conversion")
         return 1
@@ -405,10 +408,12 @@ fn main() -> int {
         }
         region readblock {
             var chunk = List[byte]()
+            var read_failed = false
             while chunk.len < wanted {
                 let part = fs_read_chunk(input, wanted - chunk.len) else |e| match e {
                     eof => { stop = true; break },
                     io => {
+                        read_failed = true
                         bore.warn(
                             "dd",
                             "error reading {bore.quote_always(c.input)}: {bore.io_error()}",
@@ -417,13 +422,14 @@ fn main() -> int {
                             status = 1
                             stop = true
                         } else {
+                            report(s, c.status, started)
                             let at = fs_tell(input) else -1
                             if at < 0 {
                                 bore.warn("dd", "cannot continue noerror on an unseekable input")
                                 status = 1
                                 stop = true
                             } else {
-                                let _ = fs_seek(input, at + wanted, 0) else |_| {
+                                let _ = fs_seek(input, at + wanted - chunk.len, 0) else |_| {
                                     status = 1
                                     stop = true
                                     0
@@ -436,7 +442,11 @@ fn main() -> int {
                 for b in part { (mut chunk).push(b) }
                 if !c.full { break }
             }
-            if chunk.len == 0 { break }
+            if chunk.len == 0 {
+                if read_failed && c.noerror && !stop {
+                    if !c.pad { continue }
+                } else { break }
+            }
             if short_previous > 0 &&
                 piped &&
                 !partial_warning &&

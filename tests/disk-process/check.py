@@ -57,6 +57,8 @@ def tty_run(name, mask, top):
 
 with tempfile.TemporaryDirectory(prefix="bu34.") as raw:
     top = Path(raw)
+    shim = top / "read-eio.so"
+    sp.run(["cc", "-shared", "-fPIC", str(ROOT / "tests/disk-process/read-eio.c"), "-ldl", "-o", str(shim)], check=True)
     for tier in ("release", "dev"):
         bin = ROOT / "target" / tier
         for name in (GNU / "nohup", bin / "nohup"):
@@ -118,6 +120,16 @@ with tempfile.TemporaryDirectory(prefix="bu34.") as raw:
             got = run([GNU / "dircolors", "-b", file], env=env)
             check(db.returncode == 0 and got.returncode == 0 and expected.stdout == got.stdout,
                   tier + ": emitted database has GNU's color-rule semantics for " + term)
+        fixture = top / "read-eio-input"
+        fixture.write_bytes(b"abcdefghijkl")
+        for conv in ("noerror", "noerror,sync"):
+            outputs = []
+            for name in (GNU / "dd", bin / "dd"):
+                result = run([name, "if=" + str(fixture), "bs=4", "count=3", "conv=" + conv, "status=noxfer"],
+                             env=dict(os.environ, LD_PRELOAD=str(shim), BU34_EIO_PATH=str(fixture)))
+                assert b"Input/output error" in result.stderr, result.stderr
+                outputs.append((result.returncode, result.stdout, result.stderr.replace(str(name).encode(), b"dd")))
+            check(outputs[0] == outputs[1], tier + ": recover one EIO with " + conv + repr(outputs))
         for name in (GNU / "dd", bin / "dd"):
             child = sp.Popen([str(name), "bs=512", "count=2", "status=noxfer"], stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE, start_new_session=True)
             try:
