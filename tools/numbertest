@@ -24,6 +24,11 @@ class NumberRefusals(unittest.TestCase):
                 self.assertIn(b'unsupported integer', p.stderr)
                 self.assertIn(b'wolf-std#100', p.stderr)
 
+    def test_ptx_traditional_is_named(self):
+        p = subprocess.run([BIN / 'ptx', '-G'], input=b'x', capture_output=True, timeout=5)
+        self.assertEqual((p.returncode, p.stdout), (1, b''))
+        self.assertIn(b'unsupported option: traditional (-G)', p.stderr)
+
     def test_numfmt_debug_is_named(self):
         p = subprocess.run([BIN / 'numfmt', '--debug', '1'], capture_output=True, timeout=5)
         self.assertEqual((p.returncode, p.stdout), (1, b''))
@@ -59,6 +64,33 @@ class NumberStreaming(unittest.TestCase):
                                    stderr=subprocess.PIPE, preexec_fn=before, timeout=120)
                 self.assertEqual((p.returncode, p.stderr), (0, b''))
                 self.assertEqual(output.tell(), len(data) if utility == 'numfmt' else 3 * 100000)
+
+    def test_ptx_context_regions_are_bounded(self):
+        data = b'x ' * 5000 + b'\n'
+        def cap():
+            resource.setrlimit(resource.RLIMIT_AS, (48 * 1024 * 1024, 48 * 1024 * 1024))
+        before = cap if os.uname().sysname == 'Linux' else None
+        with tempfile.TemporaryFile() as output:
+            p = subprocess.run([BIN / 'ptx'], input=data, stdout=output,
+                               stderr=subprocess.PIPE, preexec_fn=before, timeout=120)
+            self.assertEqual((p.returncode, p.stderr), (0, b''))
+            output.seek(0)
+            self.assertEqual(sum(1 for _ in output), 5000)
+
+    def test_od_float_row_regions_are_bounded(self):
+        data = b'\x00\x00\x80\x3f' * 65536
+        def cap():
+            resource.setrlimit(resource.RLIMIT_AS, (48 * 1024 * 1024, 48 * 1024 * 1024))
+        before = cap if os.uname().sysname == 'Linux' else None
+        with tempfile.TemporaryFile() as output:
+            p = subprocess.run([BIN / 'od', '-tf4', '-v'], input=data, stdout=output,
+                               stderr=subprocess.PIPE, preexec_fn=before, timeout=120)
+            self.assertEqual((p.returncode, p.stderr), (0, b''))
+            output.seek(0)
+            rows = output.readlines()
+            self.assertEqual(len(rows), len(data) // 16 + 1)
+            self.assertTrue(all(row.split()[1:] == [b'1'] * 4 for row in rows[:-1]))
+            self.assertEqual(rows[-1], b'1000000\n')
 
 
 class BasencRefusals(unittest.TestCase):

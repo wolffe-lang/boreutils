@@ -436,6 +436,74 @@ fn sorted(mut entries: List[Entry], texts: List[Text], fold: bool) {
     }
 }
 
+fn output_entry(out: bore.Out, texts: List[Text], entry: Entry, o: Options, half: int, right_half: int, reference_width: int, references: bool) -> bool {
+    region record {
+        let f = layout(texts[entry.file], entry, o, half, right_half)
+        var line = List[byte]()
+        if o.style == 0 {
+            if references && !o.right {
+                add(mut line, entry.reference)
+                if o.auto { add(mut line, ":") }
+                pad(mut line, reference_width - entry.reference.len - (if o.auto then 2 else 0))
+            }
+            let left = if o.right {
+                half - o.gap
+            } else if references {
+                (o.width - reference_width) / 2 - o.gap
+            } else {
+                half
+            }
+            if f.tail.len > 0 {
+                if !o.right && !references { pad(mut line, o.gap) }
+                for b in f.tail { (mut line).push(b) }
+                pad(
+                    mut line,
+                    left - f.tail.len - f.before.len - (if o.right || references then 0 else o.gap),
+                )
+            } else {
+                pad(mut line, left - f.before.len)
+            }
+            for b in f.before { (mut line).push(b) }
+            pad(mut line, o.gap)
+            for b in f.after { (mut line).push(b) }
+            if f.head.len > 0 {
+                pad(mut line, right_half - f.after.len - f.head.len)
+                for b in f.head { (mut line).push(b) }
+            }
+            if references && o.right {
+                pad(mut line, o.width - line.len + o.gap)
+                add(mut line, entry.reference)
+            }
+        } else {
+            add(mut line, if o.style == 1 then ".{o.macro}" else "\\{o.macro} ")
+            var fields = [copy f.tail, copy f.before]
+            if o.style == 1 {
+                (mut fields).push(copy f.after)
+            } else {
+                (mut fields).push(copy f.key)
+                (mut fields).push(copy f.rest)
+            }
+            (mut fields).push(
+                if o.style == 2 && f.head_cut {
+                    bytes(f.head, o.flag.len, f.head.len)
+                } else {
+                    copy f.head
+                },
+            )
+            if references { (mut fields).push(entry.reference.bytes()) }
+            for value in fields {
+                if o.style == 1 { add(mut line, " \"") } else { add(mut line, "{{") }
+                for b in escaped(value, o.style == 2) { (mut line).push(b) }
+                add(mut line, if o.style == 1 then "\"" else "}}")
+            }
+        }
+        (mut line).push(10 as byte)
+        bore.write_direct(out, line) else |_| { bore.write_error(out, "ptx", "write error"); return false }
+        true
+
+    }
+}
+
 fn main() -> int {
     var spec = List[bore.Opt]()
     for pair in [
@@ -571,67 +639,7 @@ fn main() -> int {
     let half = o.width / 2 - reference_width
     let right_half = (o.width - reference_width) / 2
     for entry in entries {
-        let f = layout(texts[entry.file], entry, o, half, right_half)
-        var line = List[byte]()
-        if o.style == 0 {
-            if references && !o.right {
-                add(mut line, entry.reference)
-                if o.auto { add(mut line, ":") }
-                pad(mut line, reference_width - entry.reference.len - (if o.auto then 2 else 0))
-            }
-            let left = if o.right {
-                half - o.gap
-            } else if references {
-                (o.width - reference_width) / 2 - o.gap
-            } else {
-                half
-            }
-            if f.tail.len > 0 {
-                if !o.right && !references { pad(mut line, o.gap) }
-                for b in f.tail { (mut line).push(b) }
-                pad(
-                    mut line,
-                    left - f.tail.len - f.before.len - (if o.right || references then 0 else o.gap),
-                )
-            } else {
-                pad(mut line, left - f.before.len)
-            }
-            for b in f.before { (mut line).push(b) }
-            pad(mut line, o.gap)
-            for b in f.after { (mut line).push(b) }
-            if f.head.len > 0 {
-                pad(mut line, right_half - f.after.len - f.head.len)
-                for b in f.head { (mut line).push(b) }
-            }
-            if references && o.right {
-                pad(mut line, o.width - line.len + o.gap)
-                add(mut line, entry.reference)
-            }
-        } else {
-            add(mut line, if o.style == 1 then ".{o.macro}" else "\\{o.macro} ")
-            var fields = [copy f.tail, copy f.before]
-            if o.style == 1 {
-                (mut fields).push(copy f.after)
-            } else {
-                (mut fields).push(copy f.key)
-                (mut fields).push(copy f.rest)
-            }
-            (mut fields).push(
-                if o.style == 2 && f.head_cut {
-                    bytes(f.head, o.flag.len, f.head.len)
-                } else {
-                    copy f.head
-                },
-            )
-            if references { (mut fields).push(entry.reference.bytes()) }
-            for value in fields {
-                if o.style == 1 { add(mut line, " \"") } else { add(mut line, "{{") }
-                for b in escaped(value, o.style == 2) { (mut line).push(b) }
-                add(mut line, if o.style == 1 then "\"" else "}}")
-            }
-        }
-        bore.write_all(mut out, line) else |_| { return bore.finish(mut out, "ptx", 1) }
-        bore.put(mut out, "\n") else |_| { return bore.finish(mut out, "ptx", 1) }
+        if !output_entry(out, texts, entry, o, half, right_half, reference_width, references) { return 1 }
     }
     bore.finish(mut out, "ptx", 0)
 }

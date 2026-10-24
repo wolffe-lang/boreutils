@@ -431,3 +431,8 @@ stdout_closed = true
 [[case]]
 name = "common missing file"
 args = ["missing"]
+
+[[case]]
+name = "traditional format named refusal"
+args = ["-G"]
+skip = "POSIX/traditional ptx output is outside this GNU-mode implementation; tools/numbertest checks the named refusal"

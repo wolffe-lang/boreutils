@@ -240,6 +240,43 @@ fn gcd(a: int, b: int) -> int {
     x
 }
 
+fn dump_row(out: bore.Out, data: List[byte], formats: List[Type], o: Options, at: int, end: int, rowchars: int, addr: str) -> bool {
+    region row {
+        var writer = bore.Out { fd: out.fd, closed: out.closed, wrote: false, buf: List[byte]() }
+        for t_index in 0..formats.len {
+            let t = copy formats[t_index]
+            bore.put(mut writer, if t_index == 0 then addr else " ".repeat(addr.len)) else |_| {
+                let _ = bore.finish(mut writer, "od", 1); return false
+            }
+            let cell = rowchars / (o.width / t.size)
+            var pos = at, used = 0
+            while pos < end {
+                let text = value(raw(data, pos, t.size, end, o.big), t, o.big)
+                bore.put(mut writer, " " + fmt.pad_left(text, cell - 1)) else |_| {
+                    let _ = bore.finish(mut writer, "od", 1); return false
+                }
+                used += cell
+                pos += t.size
+            }
+            if t.ascii {
+                bore.put(mut writer, " ".repeat(rowchars - used) + "  >") else |_| {
+                    let _ = bore.finish(mut writer, "od", 1); return false
+                }
+                for k in at..end {
+                    let c = data[k] as int
+                    bore.put_byte(
+                        mut writer,
+                        if c >= 32 && c <= 126 then data[k] else 46 as byte,
+                    ) else |_| { let _ = bore.finish(mut writer, "od", 1); return false }
+                }
+                bore.put(mut writer, "<") else |_| { let _ = bore.finish(mut writer, "od", 1); return false }
+            }
+            bore.put(mut writer, "\n") else |_| { let _ = bore.finish(mut writer, "od", 1); return false }
+        }
+        bore.finish(mut writer, "od", 0) == 0
+    }
+}
+
 fn main() -> int {
     var spec = List[bore.Opt]()
     for pair in [
@@ -448,36 +485,8 @@ fn main() -> int {
         }
         suppressed = false
         let addr = address(o.skip + at, o)
-        for t_index in 0..formats.len {
-            let t = copy formats[t_index]
-            bore.put(mut out, if t_index == 0 then addr else " ".repeat(addr.len)) else |_| {
-                return bore.finish(mut out, "od", 1)
-            }
-            let cell = rowchars / (o.width / t.size)
-            var pos = at, used = 0
-            while pos < end {
-                let text = value(raw(data, pos, t.size, end, o.big), t, o.big)
-                bore.put(mut out, " " + fmt.pad_left(text, cell - 1)) else |_| {
-                    return bore.finish(mut out, "od", 1)
-                }
-                used += cell
-                pos += t.size
-            }
-            if t.ascii {
-                bore.put(mut out, " ".repeat(rowchars - used) + "  >") else |_| {
-                    return bore.finish(mut out, "od", 1)
-                }
-                for k in at..end {
-                    let c = data[k] as int
-                    bore.put_byte(
-                        mut out,
-                        if c >= 32 && c <= 126 then data[k] else 46 as byte,
-                    ) else |_| { return bore.finish(mut out, "od", 1) }
-                }
-                bore.put(mut out, "<") else |_| { return bore.finish(mut out, "od", 1) }
-            }
-            bore.put(mut out, "\n") else |_| { return bore.finish(mut out, "od", 1) }
-        }
+        bore.flush(mut out) else |_| { bore.write_error(out, "od", "write error"); return 1 }
+        if !dump_row(out, data, formats, o, at, end, rowchars, addr) { return 1 }
         previous = at
         at = end
     }
