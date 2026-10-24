@@ -95,6 +95,11 @@ with tempfile.TemporaryDirectory(prefix="bu34.") as raw:
             expected = tty_run(GNU / "nohup", mask, top)
             got = tty_run(bin / "nohup", mask, top)
             check(expected == got, f"{tier}: nohup tty descriptor mask {mask}: {expected!r} vs {got!r}")
+        with tempfile.TemporaryDirectory(dir=top) as cwd:
+            src, dst = Path(cwd) / "source", Path(cwd) / "dest"
+            src.write_bytes(b"install owner and group")
+            result = run([bin / "install", "-o", str(os.geteuid()), "-g", str(os.getegid()), src, dst])
+            check(result.returncode == 0 and dst.read_bytes() == src.read_bytes() and dst.stat().st_uid == os.geteuid() and dst.stat().st_gid == os.getegid(), tier + ": install explicit own uid and gid")
         f = top / "shred-me"
         f.write_bytes(b"secret" * 13)
         result = run([bin / "shred", "-xvz", "-n", "25", f])

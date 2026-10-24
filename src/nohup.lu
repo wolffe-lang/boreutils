@@ -57,6 +57,8 @@ fn main() -> int {
     let output_file = terminal_out || terminal_err && stdout_record.len == 0
     var destination = "nohup.out"
     if output_file {
+        let mask = os_umask(0) else -1
+        defer { if mask >= 0 { let _ = os_umask(mask) else -1 } }
         output = fs_open_perm(destination, 2, 384) else -1
         if output < 0 {
             let home = env_get("HOME") else ""

@@ -1,0 +1,21 @@
+# Draft input for the PAX lane; NOT a runnable/passing boreutils case.
+# Layout verified in pax README's px67 root-on-disk description.
+status = "blocked"
+blocker = "wolf-lang#686: no filesystem record at wolf 0.2.35"
+witness = "tests/gaps/bu34/statvfs/main.lu (E0301, compiler exit 2)"
+prerequisites = ["a released wolf filesystem-record surface", "a real boreutils df implementation", "PAX px67 root= disk image and its Linux control"]
+
+[[proposed_row]]
+name = "root disk and temporary filesystem"
+args = ["-P", "-T", "/", "/tmp"]
+root_source = "/dev/vda2"
+root_type = "ext2"
+root_mount = "/"
+temporary_type = "tmpfs"
+temporary_mount = "/tmp"
+checks = ["exit 0 and empty stderr", "two rows after the header", "sizes measured through statvfs, not inferred from stat", "used=blocks-bfree", "avail=bavail", "Use%=ceil(100*used/(used+avail))", "column widths and block rounding match GNU 9.11 on the identical fixture"]
+
+[[proposed_row]]
+name = "inode and selected-field view of root disk"
+args = ["-i", "--output=source,fstype,itotal,iused,iavail,ipcent,target", "/"]
+checks = ["ext2 root row", "iused=files-ffree", "iavail=favail", "no invented value for a missing record field"]
