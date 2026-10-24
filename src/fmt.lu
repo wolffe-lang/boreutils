@@ -28,7 +28,7 @@ fn prepare(bytes: List[byte], prefix: str) -> Row {
         for k in 0..prefix.len { if bytes[pos + k] != prefix.bytes()[k] { selected = false } }
         if selected { pos += prefix.len; indent += prefix.len; while pos < bytes.len && blank(bytes[pos]) { if bytes[pos] == 9 as byte { indent += 8 - indent % 8; tabs = true } else { indent += 1 }; pos += 1 } }
     }
-    Row { bytes: bytes, indent: indent, begin: pos, selected: selected, tabs: tabs }
+    Row { bytes: copy bytes, indent: indent, begin: pos, selected: selected, tabs: tabs }
 }
 
 fn putline(mut out: bore.Out, bs: List[byte], tabs: bool) -> bool {
@@ -50,20 +50,19 @@ fn putline(mut out: bore.Out, bs: List[byte], tabs: bool) -> bool {
 fn paragraph(mut out: bore.Out, rows: List[Row], a: int, z: int, o: Options) -> bool {
     var words = List[Word](), tabs = false
     for r in a..z {
-        let row = rows[r]
-        if row.tabs { tabs = true }
-        var k = row.begin, col = row.indent, gap = 1
-        while k < row.bytes.len {
+        if rows[r].tabs { tabs = true }
+        var k = rows[r].begin, col = rows[r].indent, gap = 1
+        while k < rows[r].bytes.len {
             let start = k
-            while k < row.bytes.len && !blank(row.bytes[k]) { k += 1; col += 1 }
-            let data = wordbytes(row.bytes, start, k)
+            while k < rows[r].bytes.len && !blank(rows[r].bytes[k]) { k += 1; col += 1 }
+            let data = wordbytes(rows[r].bytes, start, k)
             if data.len == 0 { break }
             (mut words).push(Word { bytes: data, gap: gap, sentence: false })
             let before = col
-            while k < row.bytes.len && blank(row.bytes[k]) { if row.bytes[k] == 9 as byte { col += 8 - col % 8; tabs = true } else { col += 1 }; k += 1 }
+            while k < rows[r].bytes.len && blank(rows[r].bytes[k]) { if rows[r].bytes[k] == 9 as byte { col += 8 - col % 8; tabs = true } else { col += 1 }; k += 1 }
             gap = col - before
             let last = words.len - 1
-            words[last].sentence = sentence(words[last].bytes) && (gap >= 2 || k == row.bytes.len)
+            words[last].sentence = sentence(words[last].bytes) && (gap >= 2 || k == rows[r].bytes.len)
             if o.uniform { gap = if words[last].sentence then 2 else 1 }
         }
         if r + 1 < z && words.len > 0 {
