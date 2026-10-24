@@ -446,6 +446,7 @@ fn main() -> int {
                 io => {
                     bore.input_error("od", path, bore.io_error())
                     read_failed = true
+                    if skipped < o.skip { skipped = o.skip }
                     status = 1
                     eof = true
                     List[byte]()
