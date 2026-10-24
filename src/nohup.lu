@@ -22,10 +22,10 @@ fn main() -> int {
     let terminal_in = os_isatty(0) else false
     let terminal_out = os_isatty(1) else false
     let terminal_err = os_isatty(2) else false
+    let stdout_record = fs_fstat_record(1) else |_| { List[int]() }
     var input = 0, output = 1
     if terminal_in { input = fs_open_mode("/dev/null", 2) else |_| { bore.warn("nohup", "failed to redirect standard input"); return fail } }
     defer { if input != 0 { fs_close(input) else |_| {} } }
-    let stdout_record = fs_fstat_record(1) else |_| { List[int]() }
     let output_file = terminal_out || terminal_err && stdout_record.len == 0
     var destination = "nohup.out"
     if output_file {
@@ -37,7 +37,7 @@ fn main() -> int {
             output = fs_open_perm(destination, 2, 384) else |_| { bore.warn("nohup", "failed to open {bore.quote_always(destination)}: {bore.io_error()}"); return fail }
         }
         bore.warn("nohup", "{if terminal_in then "ignoring input and appending" else "appending"} output to {bore.quote_always(destination)}")
-        if !terminal_out { bore.warn("nohup", "redirecting standard error to standard output") }
+        if !terminal_out { bore.warn("nohup", "{if terminal_in then "ignoring input and redirecting" else "redirecting"} standard error to standard output") }
     } else if terminal_err {
         bore.warn("nohup", "{if terminal_in then "ignoring input and redirecting" else "redirecting"} standard error to standard output")
     } else if terminal_in { bore.warn("nohup", "ignoring input") }
