@@ -3,8 +3,8 @@
 //! expr — token grammar, lazy Boolean operators and anchored BRE captures.
 //! References consulted: GNU coreutils 9.11 --help and binary probes;
 //! clean-room scent BRE engine at b6f63a4 plus our capture adapter.
-//! Integers outside 64-bit magnitude range are refused explicitly, including
-//! arithmetic results (wolf-std#100: no general bigint surface at this pin).
+//! Arithmetic operands/results beyond 64 magnitude bits are refused explicitly.
+//! String operations and decimal comparisons have no arithmetic bound (wolf-std#100: no general bigint surface at this pin).
 
 use bore
 use re
