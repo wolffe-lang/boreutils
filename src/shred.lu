@@ -40,7 +40,13 @@ fn pattern_text(pattern: int) -> str {
 fn overwrite(path: str, n: int, size: int, zero: bool, force: bool, remove: bool, verbose: bool, random: int) -> bool {
     var r = List[int]()
     if path == "-" { r = fs_fstat_record(1) else |_| { bore.warn("shred", "{path}: failed to open for writing: {bore.io_error()}"); return false } }
-    else { r = fs_stat(path) else |_| { bore.warn("shred", "{path}: failed to open for writing: {bore.io_error()}"); return false } }
+    else { r = fs_lstat(path) else |_| { bore.warn("shred", "{path}: failed to open for writing: {bore.io_error()}"); return false } }
+    if bore.rec_kind(r) == bore.kind_link() {
+        let opened = fs_open_mode(path, 19) else |_| { bore.warn("shred", "{path}: failed to open for writing: {bore.io_error()}"); return false }
+        fs_close(opened) else |_| {}
+        bore.warn("shred", "{path}: operand changed from a symbolic link; refusing to overwrite")
+        return false
+    }
     if bore.rec_kind(r) != bore.kind_file() {
         bore.warn("shred", "{path}: unsupported file type; only regular files are overwritten")
         return false
@@ -48,7 +54,7 @@ fn overwrite(path: str, n: int, size: int, zero: bool, force: bool, remove: bool
     var fd = 1
     if path != "-" {
         if force { fs_set_mode(path, bore.rec_mode(r) | 128) else |_| {} }
-        fd = fs_open_mode(path, 3) else |_| { bore.warn("shred", "{path}: failed to open for writing: {bore.io_error()}"); return false }
+        fd = fs_open_mode(path, 19) else |_| { bore.warn("shred", "{path}: failed to open for writing: {bore.io_error()}"); return false }
     }
     defer { if fd != 1 { fs_close(fd) else |_| {} } }
     let opened = fs_fstat_record(fd) else |_| { return false }

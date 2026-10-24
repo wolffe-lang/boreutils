@@ -103,3 +103,16 @@ scratch = { f = "secret" }
 name = "25 mixed passes then zero"
 args = ["-x", "-z", "-n", "25", "f"]
 scratch = { f = "secret" }
+
+[[case]]
+name = "final symbolic link never followed"
+args = ["-xzn0", "link"]
+scratch = { target = "keep" }
+scratch_links = { link = "target" }
+
+[[case]]
+name = "force never changes a symbolic link target"
+args = ["-xfzn0", "link"]
+scratch = { target = "keep" }
+scratch_modes = { target = 0o400 }
+scratch_links = { link = "target" }
