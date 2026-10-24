@@ -39,7 +39,10 @@ fn truth(bs: List[byte]) -> bool {
 
 fn bounded(mut p: Parser, bs: List[byte]) -> bool {
     let text = spelling(bs)
-    let _ = numcli.unsigned(if text.starts_with("-") then text[1..] else text) else |_| { gap(mut p); return false }
+    let _ = numcli.unsigned(if text.starts_with("-") then text[1..] else text) else |_| {
+        gap(mut p)
+        return false
+    }
     true
 }
 
@@ -160,11 +163,18 @@ fn integer_compare(a: List[byte], b: List[byte]) -> int {
     let negative_a = a[0] == 45 as byte && i < a.len, negative_b = b[0] == 45 as byte && j < b.len
     if negative_a != negative_b { return if negative_a then -1 else 1 }
     var result = 0
-    if a.len - i != b.len - j { result = if a.len - i < b.len - j then -1 else 1 } else {
-        while i < a.len { if a[i] != b[j] { result = if a[i] < b[j] then -1 else 1; break }; i += 1; j += 1 }
+    if a.len - i != b.len - j {
+        result = if a.len - i < b.len - j then -1 else 1
+    } else {
+        while i < a.len {
+            if a[i] != b[j] { result = if a[i] < b[j] then -1 else 1; break }
+            i += 1
+            j += 1
+        }
     }
     if negative_a then -result else result
 }
+
 fn binary(mut p: Parser, left: List[byte], op: str, right: List[byte], eval: bool) -> List[byte] {
     if !eval || p.status != 0 { return List[byte]() }
     if op == "|" {
@@ -228,7 +238,10 @@ struct Number { mag: wrapping[u64], neg: bool }
 fn number(bytes: List[byte]) -> Number {
     let text = spelling(bytes), neg = text.starts_with("-")
     let maximum: wrapping[u64] = 18446744073709551615
-    let mag = numcli.unsigned(if neg then text[1..] else text) else |e| match e { overflow => { maximum }, parse => { 0 as wrapping[u64] } }
+    let mag = numcli.unsigned(if neg then text[1..] else text) else |e| match e {
+        overflow => { maximum },
+        parse => { 0 as wrapping[u64] },
+    }
     Number { mag: mag, neg: neg && mag != 0 }
 }
 

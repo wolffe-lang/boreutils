@@ -425,7 +425,12 @@ fn main() -> int {
         o.width = multiple
     }
     if !width_given && o.width < multiple { o.width = multiple }
-    var data = List[byte](), skipped = 0, status = 0, done = false, opened = false, read_failed = false
+    var data = List[byte](),
+        skipped = 0,
+        status = 0,
+        done = false,
+        opened = false,
+        read_failed = false
     for path in paths {
         if done { break }
         let src = pieceio.input(path) else |_| {
@@ -463,7 +468,11 @@ fn main() -> int {
     }
     if !opened { return status }
     if data.len == 0 && read_failed {
-        if o.skip > 0 && o.base != 0 && o.strings == 0 { bore.put(mut out, address(o.skip, o) + "\n") else |_| { return bore.finish(mut out, "od", 1) } }
+        if o.skip > 0 && o.base != 0 && o.strings == 0 {
+            bore.put(mut out, address(o.skip, o) + "\n") else |_| {
+                return bore.finish(mut out, "od", 1)
+            }
+        }
         return bore.finish(mut out, "od", status)
     }
     if skipped < o.skip { bore.warn("od", "cannot skip past end of combined input"); return 1 }

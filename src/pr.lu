@@ -124,14 +124,25 @@ fn emit(mut out: bore.Out, bs: List[byte], barriers: List[int], o: Options) -> b
 fn date_text(civil: time.Local, format: str) -> str {
     var result = List[byte](), at = 0
     while at < format.len {
-        if format.bytes()[at] != 37 as byte { (mut result).push(format.bytes()[at]); at += 1; continue }
+        if format.bytes()[at] != 37 as byte {
+            (mut result).push(format.bytes()[at])
+            at += 1
+            continue
+        }
         let start = at
         at += 1
         while at < format.len {
             let c = format.bytes()[at] as int
-            if c == 45 || c == 95 || c == 48 || c == 94 || c == 35 || c >= 49 && c <= 57 { at += 1 } else { break }
+            if c == 45 || c == 95 || c == 48 || c == 94 || c == 35 || c >= 49 && c <= 57 {
+                at += 1
+            } else {
+                break
+            }
         }
-        if at < format.len && (format.bytes()[at] == 69 as byte || format.bytes()[at] == 79 as byte) { at += 1 }
+        if at < format.len &&
+            (format.bytes()[at] == 69 as byte || format.bytes()[at] == 79 as byte) {
+            at += 1
+        }
         if at < format.len { for c in format[at..].chars() { at += "{c}".len; break } }
         let directive = format[start..at]
         let value = time.format(civil, directive) else directive
@@ -139,9 +150,13 @@ fn date_text(civil: time.Local, format: str) -> str {
     }
     str_from_utf8(result) else format
 }
+
 fn header(mut out: bore.Out, file: File, page: int, o: Options) -> bool {
     let date = copy region date_memory {
-        let civil = time.local(file.stamp) else |_| { bore.warn("pr", "cannot resolve local time zone"); return false }
+        let civil = time.local(file.stamp) else |_| {
+            bore.warn("pr", "cannot resolve local time zone")
+            return false
+        }
         date_text(civil, o.date)
     }
     let title = if o.header_set then o.header else file.name
@@ -561,7 +576,11 @@ fn main() -> int {
                 }
             }
         }
-        let rec = if path == "-" then List[int]() else (fs_fstat_record(src.fd) else |_| { fs_stat(path) else |_| { List[int]() } })
+        let rec = if path == "-" {
+            List[int]()
+        } else {
+            fs_fstat_record(src.fd) else |_| { fs_stat(path) else |_| { List[int]() } }
+        }
         bore.close_input(src)
         if line.len > 0 { (mut rows).push(Row { bytes: line, page: false }) }
         let stamp = if rec.len > 0 then bore.rec_secs(rec, 0) else bore.instant_now().secs
