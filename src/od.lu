@@ -425,7 +425,7 @@ fn main() -> int {
         o.width = multiple
     }
     if !width_given && o.width < multiple { o.width = multiple }
-    var data = List[byte](), skipped = 0, status = 0, done = false, opened = false, read_failed = false, valid_read = false
+    var data = List[byte](), skipped = 0, status = 0, done = false, opened = false, read_failed = false
     for path in paths {
         if done { break }
         let src = pieceio.input(path) else |_| {
@@ -438,7 +438,6 @@ fn main() -> int {
         while !eof && !done {
             let needed = if skipped < o.skip then o.skip - skipped else o.count - data.len
             if needed == 0 { done = true; break }
-            var good_read = true
             let chunk = bore.read_chunk(
                 src,
                 if needed < 65536 then needed else 65536,
@@ -446,13 +445,12 @@ fn main() -> int {
                 eof => { eof = true; List[byte]() },
                 io => {
                     bore.input_error("od", path, bore.io_error())
-                    good_read = false; read_failed = true
+                    read_failed = true
                     status = 1
                     eof = true
                     List[byte]()
                 },
             }
-            if good_read { valid_read = true }
             if chunk.len == 0 { eof = true }
             if skipped < o.skip {
                 skipped += chunk.len
@@ -462,7 +460,11 @@ fn main() -> int {
         }
         bore.close_input(src)
     }
-    if !opened || data.len == 0 && read_failed && !valid_read { return status }
+    if !opened { return status }
+    if data.len == 0 && read_failed {
+        if o.skip > 0 && o.base != 0 && o.strings == 0 { bore.put(mut out, address(o.skip, o) + "\n") else |_| { return bore.finish(mut out, "od", 1) } }
+        return bore.finish(mut out, "od", status)
+    }
     if skipped < o.skip { bore.warn("od", "cannot skip past end of combined input"); return 1 }
     if o.strings > 0 {
         var start = 0

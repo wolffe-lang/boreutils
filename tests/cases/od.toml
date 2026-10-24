@@ -739,3 +739,14 @@ name = "directory read policy ['-j1', 'd']"
 args = ["-j1", "d"]
 scratch_dirs = ["d"]
 scratch = { "empty" = "" }
+
+[[case]]
+name = "skip after missing input"
+args = ["-j1", "missing"]
+scratch = {}
+
+[[case]]
+name = "skip continues after directory input"
+args = ["-j1", "-tx1", "d", "f"]
+scratch_dirs = ["d"]
+scratch = { "f" = "abc" }
