@@ -49,21 +49,21 @@ fn report(s: Stats, level: int, started: int) {
         eprint("{s.bytes} {if s.bytes == 1 then "byte" else "bytes"} copied, {seconds} s, {rate} B/s")
     }
 }
-fn write_block(mut w: Writer, bytes: List[byte], c: Config, mut s: Stats) -> bool {
+fn write_block(fd: int, mut sparse_end: bool, bytes: List[byte], c: Config, mut s: Stats) -> bool {
     var zeros = c.sparse
     if zeros { for b in bytes { if b as int != 0 { zeros = false; break } } }
     var moved = false
     if zeros {
-        let at = fs_tell(w.fd) else -1
-        if at >= 0 { let _ = fs_seek(w.fd, at + bytes.len, 0) else |_| { return false }; moved = true }
+        let at = fs_tell(fd) else -1
+        if at >= 0 { let _ = fs_seek(fd, at + bytes.len, 0) else |_| { return false }; moved = true }
     }
     if !moved {
-        fs_write_chunk(w.fd, bytes) else |_| {
+        fs_write_chunk(fd, bytes) else |_| {
             bore.warn("dd", "error writing {bore.quote_always(c.output)}: {bore.io_error()}")
             return false
         }
     }
-    w.sparse_end = moved
+    sparse_end = moved
     s.bytes += bytes.len
     if bytes.len == c.obs { s.wholeout += 1 } else { s.partialout += 1 }
     true
@@ -72,7 +72,7 @@ fn put(mut w: Writer, b: byte, c: Config, mut s: Stats) -> bool {
     w.buf[w.at] = b
     w.at += 1
     if w.at == c.obs {
-        if !write_block(mut w, w.buf, c, mut s) { return false }
+        if !write_block(w.fd, mut w.sparse_end, w.buf, c, mut s) { return false }
         w.at = 0
     }
     true
@@ -259,7 +259,7 @@ fn main() -> int {
         while record < c.cbs { if !put(mut w, 32 as byte, c, mut s) { status = 1; break }; record += 1 }
     }
     if c.unblock && record > 0 { if !put(mut w, 10 as byte, c, mut s) { status = 1 } }
-    if w.at > 0 { if !write_block(mut w, w.buf[..w.at], c, mut s) { status = 1 } }
+    if w.at > 0 { if !write_block(w.fd, mut w.sparse_end, w.buf[..w.at], c, mut s) { status = 1 } }
     if w.sparse_end || c.seek > 0 && !c.notrunc && c.output != "standard output" {
         let end = fs_tell(fd) else -1
         if end >= 0 { fs_truncate(fd, end) else |_| { status = 1 } }
