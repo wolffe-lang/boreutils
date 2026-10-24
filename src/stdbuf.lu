@@ -27,7 +27,7 @@ fn main() -> int {
             if bore.count_minus(count) { bore.warn("stdbuf", "invalid mode {bore.quote_always(v)}"); return 125 }
             mode = "{bore.count_value(count)}"
         }
-        env_set(if k == "input" then "_STDBUF_I" else if k == "output" then "_STDBUF_O" else "_STDBUF_E", mode)
+        env_set(if k == "input" then "_STDBUF_I" else if k == "output" then "_STDBUF_O" else "_STDBUF_E", mode) else |_| { bore.warn("stdbuf", "cannot set buffering environment"); return 125 }
         changed = true
         i += 1
     }
