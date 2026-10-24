@@ -31,12 +31,12 @@ fn render(bs: List[byte], o: Options) -> List[byte] {
     }
     out
 }
-fn emit(mut out: bore.Out, bs: List[byte], o: Options) -> bool {
+fn emit(mut out: bore.Out, bs: List[byte], barriers: List[int], o: Options) -> bool {
     var k = 0, col = 0
     while k < bs.len {
         if o.compress && bs[k] == 32 as byte {
             var end = k
-            while end < bs.len && bs[end] == 32 as byte { end += 1 }
+            while end < bs.len && bs[end] == 32 as byte { var boundary = false; if end > k { for v in barriers { if v == end { boundary = true } } }; if boundary { break }; end += 1 }
             while k < end { let n = o.outstop - col % o.outstop; if end - k >= n && (end - k > 1 || n > 1) { bore.put_byte(mut out, o.outchar as byte) else |_| { return false }; k += n; col += n } else { bore.put_byte(mut out, 32 as byte) else |_| { return false }; k += 1; col += 1 } }
         } else { bore.put_byte(mut out, bs[k]) else |_| { return false }; col += if bs[k] == 9 as byte then 8 - col % 8 else 1; k += 1 }
     }
@@ -82,7 +82,7 @@ fn print_files(mut out: bore.Out, files: List[File], o: Options) -> bool {
         if shown && !o.omit { if !header(mut out, files[0], page, o) { return false } }
         var printed = 0, consumed = 0, broke = false
         for r in 0..rows {
-            var line = List[byte]()
+            var line = List[byte](), barriers = List[int]()
             pad(mut line, o.margin)
             var outputcol = o.margin
             if o.number && o.merge { add(mut line, fmt.pad_left("{line_number}", o.digits)); if o.number_sep == "\t" { pad(mut line, 8 - o.digits % 8) } else { add(mut line, o.number_sep) }; outputcol += number_width }
@@ -100,14 +100,19 @@ fn print_files(mut out: bore.Out, files: List[File], o: Options) -> bool {
                     let sep = if o.sep_set then o.sep else if o.join then "\t" else " "
                     if !o.join && !o.sep_set {
                         let target = o.margin + (if o.merge then number_width else 0) + c * ((page_width + 1) / columns)
-                        pad(mut line, target - outputcol); outputcol = target
-                    } else if !o.join && o.truncate && !o.direct {
+                        pad(mut line, target - outputcol); if target > outputcol { outputcol = target }
+                    } else if !o.join && o.truncate {
                         let target = o.margin + c * ((o.width - (columns - 1) * sep.len) / columns + sep.len) - sep.len
-                        pad(mut line, target - outputcol); outputcol = target
+                        pad(mut line, target - outputcol); if target > outputcol { outputcol = target }
                         add(mut line, sep); outputcol += sep.len
                     } else { add(mut line, sep); outputcol += sep.len }
                 }
-                if o.number && !o.merge { add(mut line, fmt.pad_left("{line_number + index - cursors[0]}", o.digits)); if o.number_sep == "\t" && columns > 1 { pad(mut line, 8 - o.digits % 8) } else { add(mut line, o.number_sep) }; outputcol += number_width }
+                if o.number && !o.merge {
+                    (mut barriers).push(line.len)
+                    let desired = o.margin + c * ((o.width + 1) / columns)
+                    let digits = o.digits - (if outputcol > desired then outputcol - desired else 0)
+                    let label = fmt.pad_left("{line_number + index - cursors[0]}", if digits > 0 then digits else 0)
+                    add(mut line, label); if o.number_sep == "\t" && columns > 1 { pad(mut line, 8 - o.digits % 8) } else { add(mut line, o.number_sep) }; outputcol += label.len + number_width - o.digits }
                 let text = render(files[file].rows[index].bytes, o)
                 let sepwidth = if o.sep_set then o.sep.len else 1
                 var limit = (o.width - (columns - 1) * sepwidth) / columns
@@ -120,17 +125,17 @@ fn print_files(mut out: bore.Out, files: List[File], o: Options) -> bool {
                 }
             }
             if broke { consumed = r + 1; break }
-            if shown { if !emit(mut out, line, o) { return false }; if o.double { bore.put(mut out, "\n") else |_| { return false } } }
+            if shown { if !emit(mut out, line, barriers, o) { return false }; if o.double { bore.put(mut out, "\n") else |_| { return false } } }
             printed += if o.double then 2 else 1
             if o.merge { line_number += 1 }
         }
         if o.merge { for c in 0..files.len { cursors[c] += if broke then consumed else rows } } else { cursors[0] += if broke then consumed else count; line_number += if broke then consumed - 1 else count }
         if shown && !o.omit {
-            if o.formfeed { bore.put_byte(mut out, 12 as byte) else |_| { return false } } else { for _ in printed..o.length - 5 + (if o.double && capacity == 1 then 1 else 0) { bore.put(mut out, "\n") else |_| { return false } } }
+            if o.formfeed { bore.put_byte(mut out, 12 as byte) else |_| { return false } } else { for _ in printed..o.length - 5 + (if o.double && capacity == 1 then 1 else if o.double && capacity % 2 == 1 then -1 else 0) { bore.put(mut out, "\n") else |_| { return false } } }
         }
         page += 1
     }
-    if page <= o.firstpage { bore.warn("pr", "starting page number {o.firstpage} exceeds page count {page - 1}"); return false }
+    if page <= o.firstpage { bore.warn("pr", "starting page number {o.firstpage} exceeds page count {page - 1}"); return true }
     true
 }
 fn main() -> int {
