@@ -1,0 +1,150 @@
+//! member: false
+//! date — clock, calendar grammar and C-locale formatting in pure wolf.
+//! References consulted: GNU coreutils 9.11 installed manual (date and
+//! all Date input formats nodes), --help and black-box GNU 9.11 runs;
+//! POSIX date; RFC 8536/POSIX TZ via bore.clock. No GNU/gnulib source.
+//! Named limits: setting/resolution lack pinned builtins; --debug's GNU
+//! parser transcript and obsolescent ambiguous zone words are refused.
+//! Locale is LC_ALL=C, as the oracle pin specifies. Leap-second TZif
+//! tables (right/ zones) are not interpreted by bore.clock.
+
+use bore
+
+fn invalid_date(text: str, unread: bool) {
+    if unread { bore.warn("date", "--date: unsupported date grammar: {bore.quote_always(text)}") }
+    else { bore.warn("date", "invalid date {bore.quote_always(text)}") }
+}
+
+fn display(mut out: bore.Out, text: str, fmt: str, z: bore.Zone, now: bore.Instant) -> int {
+    let t = bore.date_read(text, z, now) else |e| match e {
+        invalid => { invalid_date(text, false); return 1 },
+        unread => { invalid_date(text, true); return 1 },
+    }
+    let result = bore.date_format(fmt, t, z) else |_| {
+        bore.warn("date", "+FORMAT: field width above 1000000 is unsupported")
+        return 1
+    }
+    bore.put(mut out, result + "\n") else |_| {}
+    0
+}
+
+fn main() -> int {
+    var out = bore.stdout()
+    var opts = List[bore.Opt]()
+    (mut opts).push(bore.takes("d", "date"))
+    (mut opts).push(bore.takes("f", "file"))
+    (mut opts).push(bore.takes("r", "reference"))
+    (mut opts).push(bore.takes("s", "set"))
+    (mut opts).push(bore.optional("I", "iso-8601"))
+    (mut opts).push(bore.flag("R", "rfc-email"))
+    (mut opts).push(bore.takes("", "rfc-3339"))
+    (mut opts).push(bore.flag("u", "utc"))
+    (mut opts).push(bore.flag("", "universal"))
+    (mut opts).push(bore.flag("", "debug"))
+    (mut opts).push(bore.flag("", "resolution"))
+    (mut opts).push(bore.flag("", "help"))
+    (mut opts).push(bore.flag("", "version"))
+    let p = bore.parse(opts, env_args(), bore.permute())
+    if !bore.ok(p) { return bore.usage_error("date", p.error) }
+    var mode = "", input = "", fmt = "%a %b %e %H:%M:%S %Z %Y"
+    var formats = 0
+    var debug = false
+    var utc = false
+    for i in 0..p.keys.len {
+        let key = p.keys[i]
+        if key == "help" {
+            bore.put(mut out, "Usage: date [OPTION]... [+FORMAT]\nPrint the clock or a parsed date. -d STRING, -f FILE, -r FILE, -u, -I[PRECISION], -R and --rfc-3339=PRECISION select inputs and representations.\n") else |_| {}
+            return bore.finish(mut out, "date", 0)
+        }
+        if key == "version" { bore.put(mut out, bore.version_text("date")) else |_| {}; return bore.finish(mut out, "date", 0) }
+        if key == "utc" || key == "universal" { utc = true }
+        if key == "debug" { debug = true }
+        if key == "date" || key == "file" || key == "reference" || key == "resolution" {
+            if mode != "" && mode != key {
+                bore.warn("date", "the options to specify dates for printing are mutually exclusive")
+                eprint("Try 'date --help' for more information.")
+                return 1
+            }
+            mode = key; input = p.values[i]
+        }
+        if key == "set" {
+            bore.warn("date", "--set: unsupported: wolf has no clock-setting surface")
+            return 1
+        }
+        if key == "iso-8601" || key == "rfc-3339" || key == "rfc-email" {
+            formats += 1
+            var precision = p.values[i]
+            if key == "rfc-email" { fmt = "%a, %d %b %Y %H:%M:%S %z"; continue }
+            if precision == "" { precision = "date" }
+            let choices = if key == "iso-8601" then ["date", "hours", "minutes", "seconds", "ns"] else ["date", "seconds", "ns"]
+            let meanings = if key == "iso-8601" then [0, 1, 2, 3, 4] else [0, 3, 4]
+            let pick = bore.argmatch(precision, choices, meanings)
+            if pick < 0 { bore.argmatch_error("date", precision, if key == "iso-8601" then "iso-8601" else "rfc-3339", choices, meanings, pick == -2); return 1 }
+            fmt = "%F"
+            if pick > 0 {
+                fmt += if key == "iso-8601" then "T%H" else " %H"
+                if pick >= 2 { fmt += ":%M" }
+                if pick >= 3 { fmt += ":%S" }
+                if pick == 4 { fmt += if key == "iso-8601" then ",%N" else ".%N" }
+                fmt += "%:z"
+            }
+        }
+    }
+    if formats > 1 { return bore.usage_error("date", "multiple output formats specified") }
+    if p.operands.len > 1 { return bore.usage_error("date", "extra operand {bore.quote_always(p.operands[1])}") }
+    if p.operands.len == 1 {
+        let op = p.operands[0]
+        if op.starts_with("+") {
+            if formats > 0 { return bore.usage_error("date", "multiple output formats specified") }
+            fmt = op[1..]
+        } else {
+            bore.warn("date", "setting a numeric date: unsupported: wolf has no clock-setting surface")
+            return 1
+        }
+    }
+    if debug { bore.warn("date", "--debug: GNU parser trace is not implemented"); return 1 }
+    if mode == "resolution" { bore.warn("date", "--resolution: unsupported: wolf has no clock-resolution surface"); return 1 }
+    let z = if utc then bore.utc() else bore.zone()
+    let ms = time_unix_ms()
+    let now = bore.Instant { secs: bore.date_floor(ms, 1000), nanos: (ms % 1000 + 1000) % 1000 * 1000000 }
+    if mode == "reference" {
+        let r = fs_stat(input) else |_| {
+            let reason = bore.io_error()
+            bore.warn("date", "{bore.quote_always(input)}: {reason}")
+            return 1
+        }
+        let t = bore.Instant { secs: r[14], nanos: r[15] }
+        let result = bore.date_format(fmt, t, z) else |_| { bore.warn("date", "+FORMAT: excessive field width"); return 1 }
+        bore.put(mut out, result + "\n") else |_| {}
+        return bore.finish(mut out, "date", 0)
+    }
+    if mode == "file" {
+        let fd = bore.open_input(input) else |_| {
+            bore.warn("date", "{bore.quote_always(input)}: {bore.io_error()}")
+            return 1
+        }
+        defer bore.close_input(fd)
+        var line = List[byte]()
+        var status = 0
+        loop {
+            region chunk {
+                let bytes = bore.read_chunk(fd, 65536) else |e| match e {
+                    eof => { break },
+                    io => { bore.warn("date", "{bore.quote_always(input)}: {bore.io_error()}"); return bore.finish(mut out, "date", 1) },
+                }
+                for b in bytes {
+                    if b as int == 10 {
+                        let text = str_from_utf8(line) else "\u{fffd}"
+                        if display(mut out, text, fmt, z, now) != 0 { status = 1 }
+                        while line.len > 0 { let _ = (mut line).pop() else 0 as byte }
+                    } else { (mut line).push(b) }
+                }
+            }
+        }
+        if line.len > 0 { let text = str_from_utf8(line) else "\u{fffd}"; if display(mut out, text, fmt, z, now) != 0 { status = 1 } }
+        return bore.finish(mut out, "date", status)
+    }
+    let value = if mode == "date" then input else "now"
+    let status = display(mut out, value, fmt, z, now)
+    bore.finish(mut out, "date", status)
+}

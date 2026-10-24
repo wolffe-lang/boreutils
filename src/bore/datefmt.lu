@@ -1,0 +1,174 @@
+//! datefmt — GNU date's C-locale output grammar, from the documented
+//! conversions and black-box GNU 9.11 runs. No implementation source.
+
+pub fn date_floor(a: int, b: int) -> int {
+    let q = a / b
+    if a % b < 0 { return q - 1 }
+    q
+}
+
+pub fn date_weekday(c: Civil) -> int {
+    let d = epoch_of(c.year, c.month, c.day, 0, 0, 0) / 86400
+    (d % 7 + 11) % 7
+}
+
+pub fn date_dayname(w: int, full: bool) -> str {
+    let short = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    let long = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+    if full { return long[w] }
+    short[w]
+}
+
+fn date_monthname(m: int, full: bool) -> str {
+    let names = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+    if full { return names[m - 1] }
+    month_name(m)
+}
+
+fn date_yday(c: Civil) -> int {
+    (epoch_of(c.year, c.month, c.day, 0, 0, 0) - epoch_of(c.year, 1, 1, 0, 0, 0)) / 86400 + 1
+}
+
+fn date_iso(c: Civil) -> (int, int) {
+    let w = (date_weekday(c) + 6) % 7
+    let thursday = epoch_of(c.year, c.month, c.day, 0, 0, 0) + (3 - w) * 86400
+    let t = civil(thursday, 0)
+    (t.year, (date_yday(t) - 1) / 7 + 1)
+}
+
+fn date_pad(s: str, width: int, pad: str) -> str {
+    if width <= s.len || pad == "" { return s }
+    let fill = pad.repeat(width - s.len)
+    if pad == "0" && (s.starts_with("-") || s.starts_with("+")) {
+        return s[0..1] + fill + s[1..]
+    }
+    fill + s
+}
+
+pub fn date_zone_text(offset: int, colons: int) -> str {
+    if colons == 0 { return offset_text(offset) }
+    let sign = if offset < 0 then "-" else "+"
+    let n = if offset < 0 then -offset else offset
+    var result = sign + zero_padded(n / 3600, 2)
+    if colons != 3 || n % 3600 != 0 {
+        result += ":" + zero_padded(n / 60 % 60, 2)
+        if colons == 2 || colons == 3 && n % 60 != 0 {
+            result += ":" + zero_padded(n % 60, 2)
+        }
+    }
+    result
+}
+
+/// Every specified directive, preserving unknown directives like strftime.
+/// Explicitly bound output widths to keep hostile formats bounded.
+pub fn date_format(fmt: str, t: Instant, z: Zone) -> str ! {unread} {
+    let c = civil_in(z, t.secs)
+    let w = date_weekday(c)
+    let yd = date_yday(c)
+    let (iy, iw) = date_iso(c)
+    var bytes = List[byte]()
+    var k = 0
+    while k < fmt.len {
+        if fmt.bytes()[k] as int != 37 {
+            (mut bytes).push(fmt.bytes()[k])
+            k += 1
+            continue
+        }
+        let start = k
+        k += 1
+        var pad = "?"
+        var upper = false
+        var opposite = false
+        var plus = false
+        while k < fmt.len {
+            let b = fmt.bytes()[k] as int
+            if b == 45 { pad = "" }
+            else if b == 95 { pad = " " }
+            else if b == 48 { pad = "0" }
+            else if b == 43 { pad = "0"; plus = true }
+            else if b == 94 { upper = true }
+            else if b == 35 { opposite = true }
+            else { break }
+            k += 1
+        }
+        var width = -1
+        while k < fmt.len && fmt.bytes()[k] as int >= 48 && fmt.bytes()[k] as int <= 57 {
+            if width < 0 { width = 0 }
+            width = width * 10 + fmt.bytes()[k] as int - 48
+            if width > 1000000 { return unread }
+            k += 1
+        }
+        var modifier = ""
+        if k < fmt.len && (fmt.bytes()[k] as int == 69 || fmt.bytes()[k] as int == 79) {
+            modifier = fmt[k..k + 1]
+            k += 1
+        }
+        var colons = 0
+        while k < fmt.len && fmt.bytes()[k] as int == 58 { colons += 1; k += 1 }
+        if k >= fmt.len {
+            for b in fmt[start..].bytes() { (mut bytes).push(b) }
+            break
+        }
+        let d = fmt[k..k + 1]
+        k += 1
+        var value = ""
+        var natural = 0
+        var zero = false
+        var numeric = true
+        let h12 = if c.hour % 12 == 0 then 12 else c.hour % 12
+        if d == "a" || d == "A" { value = date_dayname(w, d == "A"); numeric = false }
+        else if d == "b" || d == "B" || d == "h" { value = date_monthname(c.month, d == "B"); numeric = false }
+        else if d == "C" { value = "{date_floor(c.year, 100)}"; natural = 2; zero = true }
+        else if d == "d" || d == "e" { value = "{c.day}"; natural = 2; zero = d == "d" }
+        else if d == "H" || d == "k" { value = "{c.hour}"; natural = 2; zero = d == "H" }
+        else if d == "I" || d == "l" { value = "{h12}"; natural = 2; zero = d == "I" }
+        else if d == "j" { value = "{yd}"; natural = 3; zero = true }
+        else if d == "m" { value = "{c.month}"; natural = 2; zero = true }
+        else if d == "M" { value = "{c.minute}"; natural = 2; zero = true }
+        else if d == "S" { value = "{c.second}"; natural = 2; zero = true }
+        else if d == "q" { value = "{(c.month - 1) / 3 + 1}" }
+        else if d == "s" { value = "{t.secs}"; zero = true }
+        else if d == "u" { value = "{(w + 6) % 7 + 1}" }
+        else if d == "w" { value = "{w}" }
+        else if d == "U" { value = "{(yd + 6 - w) / 7}"; natural = 2; zero = true }
+        else if d == "W" { value = "{(yd + 6 - (w + 6) % 7) / 7}"; natural = 2; zero = true }
+        else if d == "V" { value = "{iw}"; natural = 2; zero = true }
+        else if d == "g" { value = "{(iy % 100 + 100) % 100}"; natural = 2; zero = true }
+        else if d == "G" { value = "{iy}"; zero = true }
+        else if d == "y" { value = "{(c.year % 100 + 100) % 100}"; natural = 2; zero = true }
+        else if d == "Y" { value = "{c.year}"; zero = true }
+        else if d == "N" {
+            let digits = zero_padded(t.nanos, 9)
+            let n = if width < 0 then 9 else width
+            value = if n < 9 then digits[0..n] else digits + "0".repeat(n - 9)
+            width = -1
+            numeric = false
+        }
+        else if d == "p" || d == "P" { value = if c.hour < 12 then "AM" else "PM"; if d == "P" { value = value.lower() }; numeric = false }
+        else if d == "z" && colons < 4 { value = date_zone_text(c.offset, colons); zero = true }
+        else if d == "Z" { value = zone_abbreviation(z, t.secs); numeric = false }
+        else if d == "F" { value = date_pad("{c.year}", 4, "0") + "-" + zero_padded(c.month, 2) + "-" + zero_padded(c.day, 2); numeric = false }
+        else if d == "D" || d == "x" { value = zero_padded(c.month, 2) + "/" + zero_padded(c.day, 2) + "/" + zero_padded((c.year % 100 + 100) % 100, 2); numeric = false }
+        else if d == "T" || d == "X" { value = time_text(c); numeric = false }
+        else if d == "R" { value = zero_padded(c.hour, 2) + ":" + zero_padded(c.minute, 2); numeric = false }
+        else if d == "r" { value = zero_padded(h12, 2) + ":" + zero_padded(c.minute, 2) + ":" + zero_padded(c.second, 2) + (if c.hour < 12 then " AM" else " PM"); numeric = false }
+        else if d == "c" { value = date_dayname(w, false) + " " + month_name(c.month) + " " + space_padded(c.day, 2) + " " + time_text(c) + " " + year_text(c.year); numeric = false }
+        else if d == "n" { value = "\n"; numeric = false }
+        else if d == "t" { value = "\t"; numeric = false }
+        else if d == "%" { value = "%"; numeric = false }
+        else { value = fmt[start..k]; numeric = false; width = -1 }
+        // E/O are identity in the C locale for their documented conversions.
+        if modifier == "E" && !"cCxXyY".contains(d) || modifier == "O" && !"deHImMSuUVwWy".contains(d) || colons > 0 && d != "z" {
+            value = fmt[start..k]; width = -1; natural = 0
+        }
+        if upper || opposite && (d == "a" || d == "A" || d == "b" || d == "B" || d == "h") { value = value.upper() }
+        if opposite && (d == "p" || d == "P" || d == "Z") { value = value.lower() }
+        if plus && (d == "Y" || d == "G") && c.year > 9999 { value = "+" + value }
+        var fill = pad
+        if fill == "?" { fill = if numeric && zero then "0" else " " }
+        let n = if width < 0 then natural else width
+        value = date_pad(value, n, fill)
+        for b in value.bytes() { (mut bytes).push(b) }
+    }
+    str_from_utf8(bytes) else ""
+}

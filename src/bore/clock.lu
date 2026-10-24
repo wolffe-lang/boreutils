@@ -19,8 +19,7 @@
 //!
 //! **What this does not do, named:** leap seconds (the `right/` zones:
 //! their table is skipped, so those zones read 27 seconds off), and a
-//! zone's abbreviation (`EST`), which neither `ls` nor `stat` prints —
-//! both print the numeric offset.
+//! zones' special leap-second timescale.
 //!
 //! References consulted: RFC 8536 (the TZif format); POSIX.1-2024 XBD
 //! 8.3 (the `TZ` variable); the days-from-civil arithmetic is the
@@ -55,6 +54,8 @@ struct Rule {
     std: int,
     dst: int,
     has_dst: bool,
+    standard_name: str,
+    daylight_name: str,
     start: Edge,
     end: Edge,
 }
@@ -64,6 +65,8 @@ struct Rule {
 pub struct Zone {
     times: List[int],
     offsets: List[int],
+    names: List[str],
+    first_name: str,
     first: int,
     rule: Rule,
 }
@@ -73,12 +76,12 @@ fn no_edge() -> Edge {
 }
 
 fn no_rule() -> Rule {
-    Rule { ok: false, std: 0, dst: 0, has_dst: false, start: no_edge(), end: no_edge() }
+    Rule { ok: false, std: 0, dst: 0, has_dst: false, standard_name: "UTC", daylight_name: "", start: no_edge(), end: no_edge() }
 }
 
 /// UTC: no change, no offset.
 pub fn utc() -> Zone {
-    Zone { times: List[int](), offsets: List[int](), first: 0, rule: no_rule() }
+    Zone { times: List[int](), offsets: List[int](), names: List[str](), first_name: "UTC", first: 0, rule: no_rule() }
 }
 
 /// Whether `TZ` is not in the environment at all.
@@ -132,6 +135,7 @@ fn zone_file(path: str, rule: str) -> Zone {
         z.rule = parse_rule(rule)
         if z.rule.ok {
             z.first = z.rule.std
+            z.first_name = z.rule.standard_name
         }
     }
     z
@@ -211,9 +215,11 @@ fn parse_tzif(mut z: Zone, b: List[byte]) -> bool {
             (mut z.times).push(be32(b, times_at + k * 4))
         }
         (mut z.offsets).push(be32(b, types_at + kind * 6))
+        (mut z.names).push(tzif_name(b, types_at + typecnt * 6, charcnt, b[types_at + kind * 6 + 5] as int))
         k += 1
     }
     z.first = be32(b, types_at)
+    z.first_name = tzif_name(b, types_at + typecnt * 6, charcnt, b[types_at + 5] as int)
     // The footer: a newline, a POSIX rule, a newline.
     if wide == 8 && tail < b.len && b[tail] as int == 10 {
         var end = tail + 1
@@ -224,6 +230,13 @@ fn parse_tzif(mut z: Zone, b: List[byte]) -> bool {
         z.rule = parse_rule(text)
     }
     true
+}
+
+fn tzif_name(b: List[byte], at: int, count: int, index: int) -> str {
+    if index >= count { return "" }
+    var end = index
+    while end < count && b[at + end] as int != 0 { end += 1 }
+    str_from_utf8(b[at + index..at + end]) else ""
 }
 
 /// A cursor over a rule's bytes.
@@ -355,6 +368,7 @@ fn parse_rule(text: str) -> Rule {
     let b = text.bytes()
     var s = Scan { at: 0, bad: false }
     skip_name(b, mut s)
+    r.standard_name = zone_label(text[0..s.at])
     if s.bad {
         return r
     }
@@ -366,7 +380,9 @@ fn parse_rule(text: str) -> Rule {
         r.ok = true
         return r
     }
+    let name_start = s.at
     skip_name(b, mut s)
+    r.daylight_name = zone_label(text[name_start..s.at])
     if s.bad {
         return r
     }
@@ -594,4 +610,37 @@ pub fn time_text(c: Civil) -> str {
 /// `ls --full-time` and `stat`'s `%x %y %z %w` print.
 pub fn full_stamp(c: Civil, nanos: int) -> str {
     "{date_text(c)} {time_text(c)}.{zero_padded(nanos, 9)} {offset_text(c.offset)}"
+}
+
+fn zone_label(text: str) -> str {
+    if text.starts_with("<") && text.ends_with(">") { return text[1..text.len - 1] }
+    text
+}
+
+/// C-locale zone abbreviation at an instant, from the same TZif or rule
+/// as its offset. References: RFC 8536 abbreviation table; POSIX TZ.
+pub fn zone_abbreviation(z: Zone, t: int) -> str {
+    let n = z.times.len
+    if z.rule.ok && (n == 0 || t >= z.times[n - 1]) {
+        if z.rule.has_dst && rule_offset(z.rule, t) == z.rule.dst { return z.rule.daylight_name }
+        return z.rule.standard_name
+    }
+    if n == 0 || t < z.times[0] { return z.first_name }
+    var lo = 0
+    var hi = n - 1
+    while lo < hi {
+        let mid = (lo + hi + 1) / 2
+        if z.times[mid] <= t { lo = mid } else { hi = mid - 1 }
+    }
+    z.names[lo]
+}
+
+/// A date input's TZ="RULE" without changing the output zone.
+pub fn zone_named(name: str) -> Zone {
+    if name == "" { return utc() }
+    if name.starts_with(":") { return zone_named(name[1..]) }
+    if name.starts_with("/") { return zone_file(name, name) }
+    var dir = "/usr/share/zoneinfo"
+    if built_for_linux() { dir = env_get("TZDIR") else dir }
+    zone_file("{dir}/{name}", name)
 }

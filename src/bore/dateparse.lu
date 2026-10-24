@@ -1,0 +1,309 @@
+//! dateparse — a new date grammar from the GNU 9.11 manual's entire
+//! Date input formats chapter, and black-box runs. Never parse-datetime
+//! or another implementation's source. Calendar arithmetic reuses clock.
+
+struct DateToken { text: str, number: bool }
+
+fn date_tokens(s: str) -> List[DateToken] ! {invalid} {
+    var result = List[DateToken]()
+    var k = 0
+    var depth = 0
+    while k < s.len {
+        let b = s.bytes()[k] as int
+        if b == 40 { depth += 1; k += 1; continue }
+        if b == 41 { if depth == 0 { return invalid }; depth -= 1; k += 1; continue }
+        if depth > 0 || b == 32 || b >= 9 && b <= 13 { k += 1; continue }
+        let start = k
+        let digit = b >= 48 && b <= 57
+        let alpha = b >= 97 && b <= 122
+        k += 1
+        if digit || alpha {
+            while k < s.len {
+                let c = s.bytes()[k] as int
+                if digit && c >= 48 && c <= 57 || alpha && c >= 97 && c <= 122 { k += 1 } else { break }
+            }
+        }
+        (mut result).push(DateToken { text: s[start..k], number: digit })
+    }
+    if depth != 0 { return invalid }
+    result
+}
+
+fn date_month(s: str) -> int {
+    let names = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"]
+    for i in 0..12 { if s == names[i] || s.len == 3 && s == names[i][0..3] || s == "sept" && i == 8 { return i + 1 } }
+    0
+}
+
+fn date_dow(s: str) -> int {
+    let names = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
+    for i in 0..7 { if s == names[i] || s.len == 3 && s == names[i][0..3] { return i } }
+    if s == "tues" { return 2 }
+    if s == "wednes" { return 3 }
+    if s == "thur" || s == "thurs" { return 4 }
+    -1
+}
+
+fn date_ordinal(s: str) -> int ! {none} {
+    let names = ["first", "next", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth", "eleventh", "twelfth"]
+    if s == "last" { return -1 }
+    if s == "this" { return 0 }
+    for i in 0..names.len { if s == names[i] { return if i < 2 then 1 else i + 1 } }
+    none
+}
+
+fn date_unit(s: str) -> int {
+    var word = s
+    if word.ends_with("s") { word = word[0..word.len - 1] }
+    if word == "year" { return -12 }
+    if word == "month" { return -1 }
+    if word == "fortnight" { return 1209600 }
+    if word == "week" { return 604800 }
+    if word == "day" { return 86400 }
+    if word == "hour" { return 3600 }
+    if word == "minute" || word == "min" { return 60 }
+    if word == "second" || word == "sec" { return 1 }
+    0
+}
+
+fn date_year(s: str) -> int ! {invalid} {
+    var n = s.to_int() else |_| { return invalid }
+    if n > 2000000000 { return invalid }
+    if s.len < 3 { n += if n <= 68 then 2000 else 1900 }
+    n
+}
+
+fn date_num(s: str) -> int ! {invalid} {
+    let n = s.to_int() else |_| { return invalid }
+    if n > 1000000000 { return invalid }
+    n
+}
+
+fn date_fraction(s: str) -> int {
+    var n = 0
+    var i = 0
+    while i < 9 { n = n * 10; if i < s.len { n += s.bytes()[i] as int - 48 }; i += 1 }
+    n
+}
+
+fn date_epoch(s: str) -> Instant ! {invalid, unread} {
+    var text = s
+    var negative = false
+    if text.starts_with("+") || text.starts_with("-") { negative = text.starts_with("-"); text = text[1..] }
+    var dot = text.find(".") else -1
+    if dot < 0 { dot = text.find(",") else -1 }
+    var whole = text
+    var frac = ""
+    if dot >= 0 { whole = text[0..dot]; frac = text[dot + 1..] }
+    if whole.len == 0 || dot >= 0 && frac.len == 0 { return invalid }
+    for b in (whole + frac).bytes() { if b as int < 48 || b as int > 57 { return invalid } }
+    let seconds = whole.to_int() else |_| { return unread }
+    // civil calendar output uses a signed 32-bit year, like GNU's tm_year.
+    if seconds > 63000000000000000 { return unread }
+    var ns = date_fraction(frac)
+    if negative {
+        // Discard excess precision toward minus infinity, not toward zero.
+        if frac.len > 9 {
+            for b in frac[9..].bytes() { if b as int != 48 { ns += 1; break } }
+        }
+        if ns == 0 { return Instant { secs: -seconds, nanos: 0 } }
+        return Instant { secs: -seconds - 1, nanos: 1000000000 - ns }
+    }
+    Instant { secs: seconds, nanos: ns }
+}
+
+/// Input parsing is independent of the clock: tests inject now explicitly.
+pub fn date_read(text: str, zone: Zone, now: Instant) -> Instant ! {invalid, unread} {
+    var s = text.trim()
+    var z = copy zone
+    if s.starts_with("TZ=\"") {
+        var k = 4
+        var label = ""
+        var closed = false
+        while k < s.len {
+            let b = s.bytes()[k] as int
+            if b == 34 { k += 1; closed = true; break }
+            if b == 92 { k += 1; if k >= s.len { return invalid } }
+            label += s[k..k + 1]
+            k += 1
+        }
+        if !closed { return invalid }
+        z = zone_named(label)
+        s = s[k..].trim()
+    }
+    if s.starts_with("@") { return date_epoch(s[1..]) }
+    let tok = date_tokens(s.lower())?
+    let n = tok.len
+    let current = civil_in(z, now.secs)
+    var year = current.year, month = current.month, day = current.day
+    var hour = current.hour, minute = current.minute, second = current.second
+    var nanos = now.nanos
+    var has_date = false, has_time = false, has_zone = false, has_week = false
+    var weekday = 0, ordinal = 0
+    var offset = 0
+    var relmonths: int = 0, reldays: int = 0, relsecs: int = 0
+    var relative = false
+    var k = 0
+    while k < n {
+        let word = tok[k].text
+        if word == "," || word == "." { k += 1; continue }
+        if word == "t" && has_date { k += 1; continue }
+        if word == "now" || word == "today" || word == "yesterday" || word == "tomorrow" {
+            relative = true
+            if word == "yesterday" { reldays -= 1 }
+            if word == "tomorrow" { reldays += 1 }
+            k += 1; continue
+        }
+        // A weekday, optionally preceded by an ordinal multiplier.
+        var dow = date_dow(word)
+        var ord = 0
+        var used = 1
+        if k + 1 < n && date_dow(tok[k + 1].text) >= 0 {
+            ord = date_ordinal(word) else |_| { if tok[k].number { date_num(word)? } else { return unread } }
+            dow = date_dow(tok[k + 1].text)
+            used = 2
+        }
+        if dow >= 0 {
+            if has_week { return invalid }
+            has_week = true; weekday = dow; ordinal = ord; k += used; continue
+        }
+        // Relative items; ago negates the accumulated relative displacement.
+        if word == "ago" { relmonths = -relmonths; reldays = -reldays; relsecs = -relsecs; k += 1; continue }
+        var unit = date_unit(word)
+        var multiplier: int = 1
+        used = 1
+        var at = k
+        var sign = 1
+        if word == "+" || word == "-" { sign = if word == "-" then -1 else 1; at += 1 }
+        if at < n && tok[at].number && at + 1 < n && date_unit(tok[at + 1].text) != 0 {
+            multiplier = date_num(tok[at].text)? * sign; unit = date_unit(tok[at + 1].text); used = at - k + 2
+        } else if k + 1 < n && date_unit(tok[k + 1].text) != 0 {
+            multiplier = date_ordinal(word) else |_| { return unread }; unit = date_unit(tok[k + 1].text); used = 2
+        }
+        if unit != 0 {
+            relative = true
+            if unit < 0 { relmonths += multiplier * -unit }
+            else if unit >= 86400 { reldays += multiplier * (unit / 86400) }
+            else { relsecs += multiplier * unit }
+            k += used; continue
+        }
+        // Numeric calendar dates: ISO, US slash, European dot.
+        if tok[k].number && k + 4 < n && tok[k + 2].number && tok[k + 4].number && (tok[k + 1].text == "-" || tok[k + 1].text == "/" || tok[k + 1].text == ".") && tok[k + 3].text == tok[k + 1].text {
+            if has_date { return invalid }
+            let sep = tok[k + 1].text
+            if sep == "-" { year = date_year(word)?; month = date_num(tok[k + 2].text)?; day = date_num(tok[k + 4].text)? }
+            else { year = date_year(tok[k + 4].text)?; month = date_num(if sep == "/" then word else tok[k + 2].text)?; day = date_num(if sep == "/" then tok[k + 2].text else word)? }
+            has_date = true; k += 5; continue
+        }
+        // Month names in either order, with an optional year and separators.
+        var m = date_month(word)
+        var d = 0
+        used = 0
+        if m > 0 {
+            at = k + 1
+            if at < n && tok[at].text == "." { at += 1 }
+            if at >= n || !tok[at].number { return invalid }
+            d = date_num(tok[at].text)?; used = at - k + 1
+        } else if tok[k].number {
+            at = k + 1
+            if at < n && tok[at].text == "-" { at += 1 }
+            if at < n { m = date_month(tok[at].text) }
+            if m > 0 { d = date_num(word)?; used = at - k + 1 }
+        }
+        if m > 0 {
+            if has_date { return invalid }
+            month = m; day = d; has_date = true; k += used
+            if k < n && tok[k].text == "." { k += 1 }
+            if k < n && (tok[k].text == "," || tok[k].text == "-") { k += 1 }
+            if k < n && tok[k].number && !(k + 1 < n && tok[k + 1].text == ":") {
+                year = date_year(tok[k].text)?; k += 1
+            }
+            continue
+        }
+        if tok[k].number && k + 2 < n && tok[k + 1].text == "/" && tok[k + 2].number {
+            if has_date { return invalid }
+            month = date_num(word)?; day = date_num(tok[k + 2].text)?; has_date = true; k += 3; continue
+        }
+        if tok[k].number && k + 3 < n && tok[k + 1].text == "." && tok[k + 2].number && tok[k + 3].text == "." {
+            if has_date { return invalid }
+            day = date_num(word)?; month = date_num(tok[k + 2].text)?; has_date = true; k += 4; continue
+        }
+        // Time of day, optionally seconds and a fractional second.
+        if tok[k].number && k + 1 < n && tok[k + 1].text == ":" {
+            if has_time || k + 2 >= n || !tok[k + 2].number { return invalid }
+            hour = date_num(word)?; minute = date_num(tok[k + 2].text)?; second = 0; nanos = 0
+            k += 3
+            if k < n && tok[k].text == ":" {
+                if k + 1 >= n || !tok[k + 1].number { return invalid }
+                second = date_num(tok[k + 1].text)?; k += 2
+                if k + 1 < n && (tok[k].text == "." || tok[k].text == ",") && tok[k + 1].number { nanos = date_fraction(tok[k + 1].text); k += 2 }
+            }
+            has_time = true
+            if k < n && (tok[k].text == "am" || tok[k].text == "pm") {
+                if hour < 1 || hour > 12 { return invalid }
+                hour = hour % 12 + (if tok[k].text == "pm" then 12 else 0); k += 1
+            }
+            continue
+        }
+        if tok[k].number && k + 1 < n && (tok[k + 1].text == "am" || tok[k + 1].text == "pm") {
+            if has_time { return invalid }
+            hour = date_num(word)?
+            if hour < 1 || hour > 12 { return invalid }
+            hour = hour % 12 + (if tok[k + 1].text == "pm" then 12 else 0)
+            minute = 0; second = 0; nanos = 0; has_time = true; k += 2; continue
+        }
+        // UTC/UT/GMT/Z; obsolescent ambiguous abbreviations refused by name.
+        if word == "utc" || word == "ut" || word == "gmt" || word == "z" {
+            if has_zone { return invalid }
+            has_zone = true; offset = 0; k += 1
+            continue
+        }
+        if word == "+" || word == "-" {
+            if k + 1 >= n || !tok[k + 1].number { return invalid }
+            let num = tok[k + 1].text
+            let value = date_num(num)?
+            var h = if num.len > 2 then value / 100 else value
+            var mi = if num.len > 2 then value % 100 else 0
+            k += 2
+            if k + 1 < n && tok[k].text == ":" && tok[k + 1].number { h = value; mi = date_num(tok[k + 1].text)?; k += 2 }
+            if h > 24 || mi > 59 || h == 24 && mi != 0 { return invalid }
+            offset += (if word == "-" then -1 else 1) * (h * 3600 + mi * 60)
+            has_zone = true; continue
+        }
+        if tok[k].number {
+            let num = date_num(word)?
+            if word.len >= 6 && !has_date {
+                year = date_year(word[0..word.len - 4])?; month = date_num(word[word.len - 4..word.len - 2])?; day = num % 100; has_date = true
+            } else if has_date && has_time && !relative { year = date_year(word)? }
+            else {
+                if has_time { return invalid }
+                hour = if word.len > 2 then num / 100 else num
+                minute = if word.len > 2 then num % 100 else 0
+                second = 0; nanos = 0; has_time = true
+            }
+            k += 1; continue
+        }
+        return unread
+    }
+    if !has_time && (has_date || has_week || !relative) { hour = 0; minute = 0; second = 0; nanos = 0 }
+    if month < 1 || month > 12 || day < 1 || day > 31 || hour > 23 || minute > 59 || second > 59 { return invalid }
+    let wall = epoch_of(year, month, day, hour, minute, second)
+    let check = civil(wall, 0)
+    if check.year != year || check.month != month || check.day != day { return invalid }
+    var local = wall
+    if has_week && !has_date {
+        let w = date_weekday(check)
+        var delta = (weekday - w + 7) % 7
+        if ordinal > 0 { delta += (ordinal - (if weekday != w then 1 else 0)) * 7 }
+        else if ordinal < 0 { delta += ordinal * 7 }
+        local += delta * 86400
+    }
+    let base = civil(local, 0)
+    let months = base.year * 12 + base.month - 1 + relmonths
+    let y = date_floor(months, 12), mo = (months % 12 + 12) % 12 + 1
+    local = epoch_of(y, mo, base.day, base.hour, base.minute, base.second) + reldays * 86400
+    let c = civil(local, 0)
+    var secs = local - offset
+    if !has_zone { secs = local_instant(z, c.year, c.month, c.day, c.hour, c.minute, c.second) else |_| { return invalid } }
+    Instant { secs: secs + relsecs, nanos: nanos }
+}
