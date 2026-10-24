@@ -46,3 +46,10 @@ env = { POSIXLY_CORRECT = "1" }
 name = "exec inherits a closed stdout without remapping it"
 args = ["/bin/true"]
 stdout_closed = true
+
+[[case]]
+name = "terminal output remains private under a restrictive mask"
+args = ["/bin/true"]
+scratch = { sentinel = "keep" }
+tty = 80
+umask = 0o777

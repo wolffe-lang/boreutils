@@ -126,12 +126,25 @@ fn overwrite(
             // then immediately remove it while the live fd remains writable.
             fs_set_mode(path, 384) else |_| {}
             fd = fs_open_mode(path, 3) else -1
-            fs_set_mode(path, 128) else |_| { bore.warn("shred", "{path}: cannot set force recovery permissions: {bore.io_error()}"); if fd >= 0 { fs_close(fd) else |_| {} }; return false }
+            fs_set_mode(path, 128) else |_| {
+                bore.warn(
+                    "shred",
+                    "{path}: cannot set force recovery permissions: {bore.io_error()}",
+                )
+                if fd >= 0 { fs_close(fd) else |_| {} }
+                return false
+            }
         }
         if fd < 0 && !force {
             var writable = true
             fs_access(path, 2) else |_| { writable = false }
-            if writable { bore.warn("shred", "{path}: unsupported write-only operand: no non-creating writable open without read access"); return false }
+            if writable {
+                bore.warn(
+                    "shred",
+                    "{path}: unsupported write-only operand: no non-creating writable open without read access",
+                )
+                return false
+            }
         }
         if fd < 0 {
             bore.warn("shred", "{path}: failed to open for writing: {bore.io_error()}")
