@@ -4,26 +4,59 @@
 //! and binary runs; proc_pid_stat(5)'s documented field 19. No source.
 //! No arithmetic stand-in for setpriority. An explicit -n 0 may exec.
 //! Witness tests/gaps/bu34/priority/main.lu: E0301 at wolf 0.2.35.
+
 use bore
 use processwrap
+
 fn main() -> int {
     var opts = List[bore.Opt]()
-    (mut opts).push(bore.takes("n", "adjustment")); (mut opts).push(bore.flag("", "help")); (mut opts).push(bore.flag("", "version"))
+    (mut opts).push(bore.takes("n", "adjustment"))
+    (mut opts).push(bore.flag("", "help"))
+    (mut opts).push(bore.flag("", "version"))
     let p = bore.parse(opts, env_args(), false)
     var out = bore.stdout()
     var adjustment = 10, explicit = false, i = 0
     while i < p.keys.len {
         let k = p.keys[i]
-        if k == "help" { bore.put(mut out, "Usage: nice [-n ADJUSTMENT] [COMMAND [ARG]...]\nRead Linux niceness, or exec with an explicit zero adjustment.\nOther adjustments require an unavailable setpriority surface.\n") else |_| {}; return bore.finish(mut out, "nice", 0) }
-        if k == "version" { bore.put(mut out, bore.version_text("nice")) else |_| {}; return bore.finish(mut out, "nice", 0) }
-        if k == "adjustment" { explicit = true; adjustment = p.values[i].to_int() else |_| { bore.warn("nice", "invalid adjustment {bore.quote_always(p.values[i])}"); return 125 } }
+        if k == "help" {
+            bore.put(
+                mut out,
+                "Usage: nice [-n ADJUSTMENT] [COMMAND [ARG]...]\nRead Linux niceness, or exec with an explicit zero adjustment.\nOther adjustments require an unavailable setpriority surface.\n",
+            ) else |_| {}
+            return bore.finish(mut out, "nice", 0)
+        }
+        if k == "version" {
+            bore.put(mut out, bore.version_text("nice")) else |_| {}
+            return bore.finish(mut out, "nice", 0)
+        }
+        if k == "adjustment" {
+            explicit = true
+            adjustment = p.values[i].to_int() else |_| {
+                bore.warn("nice", "invalid adjustment {bore.quote_always(p.values[i])}")
+                return 125
+            }
+        }
         i += 1
     }
-    if !bore.ok(p) { bore.warn("nice", p.error); eprint("Try 'nice --help' for more information."); return 125 }
+    if !bore.ok(p) {
+        bore.warn("nice", p.error)
+        eprint("Try 'nice --help' for more information.")
+        return 125
+    }
     if p.operands.len == 0 {
-        if explicit { bore.warn("nice", "a command must be given with an adjustment"); eprint("Try 'nice --help' for more information."); return 125 }
-        if !bore.built_for_linux() { bore.warn("nice", "unsupported operation: no getpriority surface on this host"); return 125 }
-        let bytes = fs_read_bytes("/proc/self/stat") else |_| { bore.warn("nice", "cannot read niceness: /proc/self/stat is unavailable"); return 125 }
+        if explicit {
+            bore.warn("nice", "a command must be given with an adjustment")
+            eprint("Try 'nice --help' for more information.")
+            return 125
+        }
+        if !bore.built_for_linux() {
+            bore.warn("nice", "unsupported operation: no getpriority surface on this host")
+            return 125
+        }
+        let bytes = fs_read_bytes("/proc/self/stat") else |_| {
+            bore.warn("nice", "cannot read niceness: /proc/self/stat is unavailable")
+            return 125
+        }
         let text = str_from_utf8(bytes) else |_| { return 125 }
         let at = text.rfind(") ") else -1
         if at < 0 { return 125 }
@@ -33,6 +66,9 @@ fn main() -> int {
         bore.put(mut out, "{n}\n") else |_| {}
         return bore.finish(mut out, "nice", 0)
     }
-    if adjustment != 0 { bore.warn("nice", "unsupported -n {adjustment}: no setpriority surface; command not run"); return 125 }
+    if adjustment != 0 {
+        bore.warn("nice", "unsupported -n {adjustment}: no setpriority surface; command not run")
+        return 125
+    }
     processwrap.run("nice", p.operands, List[int]())
 }

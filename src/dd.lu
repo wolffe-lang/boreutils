@@ -10,23 +10,61 @@ use bore
 use std.signal
 
 struct Config {
-    input: str, output: str, ibs: int, obs: int, cbs: int, count: int,
-    skip: int, seek: int, countbytes: bool, skipbytes: bool, seekbytes: bool,
-    full: bool, pad: bool, swab: bool, lower: bool, upper: bool,
-    block: bool, unblock: bool, sparse: bool, notrunc: bool, excl: bool,
-    nocreat: bool, noerror: bool, sync: bool, append: bool,
-    inf: int, outf: int, status: int, table: str,
+    input: str,
+    output: str,
+    ibs: int,
+    obs: int,
+    cbs: int,
+    count: int,
+    skip: int,
+    seek: int,
+    countbytes: bool,
+    skipbytes: bool,
+    seekbytes: bool,
+    full: bool,
+    pad: bool,
+    swab: bool,
+    lower: bool,
+    upper: bool,
+    block: bool,
+    unblock: bool,
+    sparse: bool,
+    notrunc: bool,
+    excl: bool,
+    nocreat: bool,
+    noerror: bool,
+    sync: bool,
+    append: bool,
+    inf: int,
+    outf: int,
+    status: int,
+    table: str,
 }
-struct Stats { wholein: int, partialin: int, wholeout: int, partialout: int, bytes: int, trunc: int }
+
+struct Stats {
+    wholein: int,
+    partialin: int,
+    wholeout: int,
+    partialout: int,
+    bytes: int,
+    trunc: int,
+}
+
 struct Writer { fd: int, buf: List[byte], at: int, sparse_end: bool }
 
-
 fn mapping(name: str) -> str {
-    if name == "ascii" { return "000102039c09867f978d8e0b0c0d0e0f101112139d8508871819928f1c1d1e1f80818283840a171b88898a8b8c050607909116939495960498999a9b14159e1a20a0a1a2a3a4a5a6a7a8d52e3c282b7c26a9aaabacadaeafb0b121242a293b7e2d2fb2b3b4b5b6b7b8b9cb2c255f3e3fbabbbcbdbebfc0c1c2603a2340273d22c3616263646566676869c4c5c6c7c8c9ca6a6b6c6d6e6f7071725ecccdcecfd0d1e5737475767778797ad2d3d45bd6d7d8d9dadbdcdddedfe0e1e2e3e45de6e77b414243444546474849e8e9eaebeced7d4a4b4c4d4e4f505152eeeff0f1f2f35c9f535455565758595af4f5f6f7f8f930313233343536373839fafbfcfdfeff" }
-    if name == "ebcdic" { return "00010203372d2e2f1605250b0c0d0e0f101112133c3d322618193f271c1d1e1f405a7f7b5b6c507d4d5d5c4e6b604b61f0f1f2f3f4f5f6f7f8f97a5e4c7e6e6f7cc1c2c3c4c5c6c7c8c9d1d2d3d4d5d6d7d8d9e2e3e4e5e6e7e8e9ade0bd9a6d79818283848586878889919293949596979899a2a3a4a5a6a7a8a9c04fd05f07202122232415061728292a2b2c090a1b30311a333435360838393a3b04143ee14142434445464748495152535455565758596263646566676869707172737475767778808a8b8c8d8e8f906a9b9c9d9e9fa0aaabac4aaeafb0b1b2b3b4b5b6b7b8b9babbbca1bebfcacbcccdcecfdadbdcdddedfeaebecedeeeffafbfcfdfeff" }
-    if name == "ibm" { return "00010203372d2e2f1605250b0c0d0e0f101112133c3d322618193f271c1d1e1f405a7f7b5b6c507d4d5d5c4e6b604b61f0f1f2f3f4f5f6f7f8f97a5e4c7e6e6f7cc1c2c3c4c5c6c7c8c9d1d2d3d4d5d6d7d8d9e2e3e4e5e6e7e8e9ade0bd5f6d79818283848586878889919293949596979899a2a3a4a5a6a7a8a9c04fd0a107202122232415061728292a2b2c090a1b30311a333435360838393a3b04143ee14142434445464748495152535455565758596263646566676869707172737475767778808a8b8c8d8e8f909a9b9c9d9e9fa0aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfcacbcccdcecfdadbdcdddedfeaebecedeeeffafbfcfdfeff" }
+    if name == "ascii" {
+        return "000102039c09867f978d8e0b0c0d0e0f101112139d8508871819928f1c1d1e1f80818283840a171b88898a8b8c050607909116939495960498999a9b14159e1a20a0a1a2a3a4a5a6a7a8d52e3c282b7c26a9aaabacadaeafb0b121242a293b7e2d2fb2b3b4b5b6b7b8b9cb2c255f3e3fbabbbcbdbebfc0c1c2603a2340273d22c3616263646566676869c4c5c6c7c8c9ca6a6b6c6d6e6f7071725ecccdcecfd0d1e5737475767778797ad2d3d45bd6d7d8d9dadbdcdddedfe0e1e2e3e45de6e77b414243444546474849e8e9eaebeced7d4a4b4c4d4e4f505152eeeff0f1f2f35c9f535455565758595af4f5f6f7f8f930313233343536373839fafbfcfdfeff"
+    }
+    if name == "ebcdic" {
+        return "00010203372d2e2f1605250b0c0d0e0f101112133c3d322618193f271c1d1e1f405a7f7b5b6c507d4d5d5c4e6b604b61f0f1f2f3f4f5f6f7f8f97a5e4c7e6e6f7cc1c2c3c4c5c6c7c8c9d1d2d3d4d5d6d7d8d9e2e3e4e5e6e7e8e9ade0bd9a6d79818283848586878889919293949596979899a2a3a4a5a6a7a8a9c04fd05f07202122232415061728292a2b2c090a1b30311a333435360838393a3b04143ee14142434445464748495152535455565758596263646566676869707172737475767778808a8b8c8d8e8f906a9b9c9d9e9fa0aaabac4aaeafb0b1b2b3b4b5b6b7b8b9babbbca1bebfcacbcccdcecfdadbdcdddedfeaebecedeeeffafbfcfdfeff"
+    }
+    if name == "ibm" {
+        return "00010203372d2e2f1605250b0c0d0e0f101112133c3d322618193f271c1d1e1f405a7f7b5b6c507d4d5d5c4e6b604b61f0f1f2f3f4f5f6f7f8f97a5e4c7e6e6f7cc1c2c3c4c5c6c7c8c9d1d2d3d4d5d6d7d8d9e2e3e4e5e6e7e8e9ade0bd5f6d79818283848586878889919293949596979899a2a3a4a5a6a7a8a9c04fd0a107202122232415061728292a2b2c090a1b30311a333435360838393a3b04143ee14142434445464748495152535455565758596263646566676869707172737475767778808a8b8c8d8e8f909a9b9c9d9e9fa0aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfcacbcccdcecfdadbdcdddedfeaebecedeeeffafbfcfdfeff"
+    }
     ""
 }
+
 fn mapped(table: str, n: int) -> int {
     let h = "0123456789abcdef"
     let high = h.find(table[n * 2..n * 2 + 1]) else 0
@@ -52,6 +90,7 @@ fn number(s: str) -> int ! {invalid} {
     if bore.count_minus(n) || bore.count_value(n) == bore.count_cap() { return invalid }
     bore.count_value(n)
 }
+
 fn report(s: Stats, level: int, started: int) {
     if level == 0 { return }
     eprint("{s.wholein}+{s.partialin} records in\n{s.wholeout}+{s.partialout} records out")
@@ -60,16 +99,22 @@ fn report(s: Stats, level: int, started: int) {
         let elapsed = os_clock_ns() - started
         let seconds = elapsed as f64 / 1000000000.0
         let rate = if elapsed > 0 then s.bytes as f64 / seconds else 0.0
-        eprint("{s.bytes} {if s.bytes == 1 then "byte" else "bytes"} copied, {seconds} s, {rate} B/s")
+        eprint(
+            "{s.bytes} {if s.bytes == 1 then "byte" else "bytes"} copied, {seconds} s, {rate} B/s",
+        )
     }
 }
+
 fn write_block(fd: int, mut sparse_end: bool, bytes: List[byte], c: Config, mut s: Stats) -> bool {
     var zeros = c.sparse
     if zeros { for b in bytes { if b as int != 0 { zeros = false; break } } }
     var moved = false
     if zeros {
         let at = fs_tell(fd) else -1
-        if at >= 0 { let _ = fs_seek(fd, at + bytes.len, 0) else |_| { return false }; moved = true }
+        if at >= 0 {
+            let _ = fs_seek(fd, at + bytes.len, 0) else |_| { return false }
+            moved = true
+        }
     }
     if !moved {
         fs_write_chunk(fd, bytes) else |_| {
@@ -82,6 +127,7 @@ fn write_block(fd: int, mut sparse_end: bool, bytes: List[byte], c: Config, mut 
     if bytes.len == c.obs { s.wholeout += 1 } else { s.partialout += 1 }
     true
 }
+
 fn put(mut w: Writer, b: byte, c: Config, mut s: Stats) -> bool {
     w.buf[w.at] = b
     w.at += 1
@@ -91,6 +137,7 @@ fn put(mut w: Writer, b: byte, c: Config, mut s: Stats) -> bool {
     }
     true
 }
+
 fn converted(b: int, c: Config, table: str) -> byte {
     var n = b
     if c.table == "ascii" { n = mapped(table, n) }
@@ -101,93 +148,206 @@ fn converted(b: int, c: Config, table: str) -> byte {
 }
 
 fn main() -> int {
-    var c = Config { input: "-", output: "standard output", ibs: 512, obs: 512, cbs: 0, count: -1, skip: 0, seek: 0, countbytes: false, skipbytes: false, seekbytes: false, full: false, pad: false, swab: false, lower: false, upper: false, block: false, unblock: false, sparse: false, notrunc: false, excl: false, nocreat: false, noerror: false, sync: false, append: false, inf: 0, outf: 0, status: 2, table: "" }
+    var c = Config {
+        input: "-",
+        output: "standard output",
+        ibs: 512,
+        obs: 512,
+        cbs: 0,
+        count: -1,
+        skip: 0,
+        seek: 0,
+        countbytes: false,
+        skipbytes: false,
+        seekbytes: false,
+        full: false,
+        pad: false,
+        swab: false,
+        lower: false,
+        upper: false,
+        block: false,
+        unblock: false,
+        sparse: false,
+        notrunc: false,
+        excl: false,
+        nocreat: false,
+        noerror: false,
+        sync: false,
+        append: false,
+        inf: 0,
+        outf: 0,
+        status: 2,
+        table: "",
+    }
     var bs = 0, bs_given = false
     for arg in env_args() {
         if arg == "--help" || arg == "--version" {
             var out = bore.stdout()
-            bore.put(mut out, if arg == "--help" then "Usage: dd [OPERAND]...\nCopy blocks with if=, of=, bs=, count= and explicit conversions.\nUnsupported open flags are refused by name.\n" else bore.version_text("dd")) else |_| {}
+            bore.put(
+                mut out,
+                if arg == "--help" {
+                    "Usage: dd [OPERAND]...\nCopy blocks with if=, of=, bs=, count= and explicit conversions.\nUnsupported open flags are refused by name.\n"
+                } else {
+                    bore.version_text("dd")
+                },
+            ) else |_| {}
             return bore.finish(mut out, "dd", 0)
         }
         let eq = arg.find("=") else -1
-        if eq < 0 { bore.warn("dd", "unrecognized operand {bore.quote_always(arg)}"); eprint("Try 'dd --help' for more information."); return 1 }
+        if eq < 0 {
+            bore.warn("dd", "unrecognized operand {bore.quote_always(arg)}")
+            eprint("Try 'dd --help' for more information.")
+            return 1
+        }
         let k = arg[..eq], v = arg[eq + 1..]
         if k == "if" { c.input = v; continue }
         if k == "of" { c.output = v; continue }
         if k == "status" {
-            if v == "none" { c.status = 0 } else if v == "noxfer" { c.status = 1 } else if v == "progress" { c.status = 3 }
-            else { bore.warn("dd", "invalid status level {bore.quote_always(v)}"); return 1 }
+            if v == "none" {
+                c.status = 0
+            } else if v == "noxfer" {
+                c.status = 1
+            } else if v == "progress" {
+                c.status = 3
+            } else {
+                bore.warn("dd", "invalid status level {bore.quote_always(v)}")
+                return 1
+            }
             continue
         }
         if k == "conv" || k == "iflag" || k == "oflag" {
             for word in v.split(",") {
                 var supported = true
                 if k == "conv" {
-                    if word == "notrunc" { c.notrunc = true }
-                    else if word == "excl" { c.excl = true }
-                    else if word == "nocreat" { c.nocreat = true }
-                    else if word == "noerror" { c.noerror = true }
-                    else if word == "sync" { c.pad = true }
-                    else if word == "swab" { c.swab = true }
-                    else if word == "lcase" { c.lower = true }
-                    else if word == "ucase" { c.upper = true }
-                    else if word == "sparse" { c.sparse = true }
-                    else if word == "block" { c.block = true }
-                    else if word == "unblock" { c.unblock = true }
-                    else if word == "fdatasync" || word == "fsync" { c.sync = true }
-                    else if word == "ascii" || word == "ebcdic" || word == "ibm" { if c.table.len > 0 && c.table != word { bore.warn("dd", "cannot combine any two of {{ascii,ebcdic,ibm}}"); return 1 }; c.table = word }
-                    else { supported = false }
+                    if word == "notrunc" {
+                        c.notrunc = true
+                    } else if word == "excl" {
+                        c.excl = true
+                    } else if word == "nocreat" {
+                        c.nocreat = true
+                    } else if word == "noerror" {
+                        c.noerror = true
+                    } else if word == "sync" {
+                        c.pad = true
+                    } else if word == "swab" {
+                        c.swab = true
+                    } else if word == "lcase" {
+                        c.lower = true
+                    } else if word == "ucase" {
+                        c.upper = true
+                    } else if word == "sparse" {
+                        c.sparse = true
+                    } else if word == "block" {
+                        c.block = true
+                    } else if word == "unblock" {
+                        c.unblock = true
+                    } else if word == "fdatasync" || word == "fsync" {
+                        c.sync = true
+                    } else if word == "ascii" || word == "ebcdic" || word == "ibm" {
+                        if c.table.len > 0 && c.table != word {
+                            bore.warn("dd", "cannot combine any two of {{ascii,ebcdic,ibm}}")
+                            return 1
+                        }
+                        c.table = word
+                    } else {
+                        supported = false
+                    }
+                } else if word == "fullblock" && k == "iflag" {
+                    c.full = true
+                } else if word == "count_bytes" && k == "iflag" {
+                    c.countbytes = true
+                } else if word == "skip_bytes" && k == "iflag" {
+                    c.skipbytes = true
+                } else if word == "seek_bytes" && k == "oflag" {
+                    c.seekbytes = true
+                } else if word == "append" && k == "oflag" {
+                    c.append = true
+                } else if word == "nofollow" {
+                    if k == "iflag" {
+                        c.inf += if c.inf / 16 % 2 == 0 then 16 else 0
+                    } else {
+                        c.outf = 16
+                    }
+                } else if word == "nonblock" && k == "iflag" {
+                    c.inf = 5 + c.inf / 16 * 16
                 } else {
-                    if word == "fullblock" && k == "iflag" { c.full = true }
-                    else if word == "count_bytes" && k == "iflag" { c.countbytes = true }
-                    else if word == "skip_bytes" && k == "iflag" { c.skipbytes = true }
-                    else if word == "seek_bytes" && k == "oflag" { c.seekbytes = true }
-                    else if word == "append" && k == "oflag" { c.append = true }
-                    else if word == "nofollow" { if k == "iflag" { c.inf += if c.inf / 16 % 2 == 0 then 16 else 0 } else { c.outf = 16 } }
-                    else if word == "nonblock" && k == "iflag" { c.inf = 5 + c.inf / 16 * 16 }
-                    else { supported = false }
+                    supported = false
                 }
                 if !supported { bore.warn("dd", "unsupported {k} flag: {word}"); return 1 }
             }
             continue
         }
         var text = v
-        if (k == "count" || k == "skip" || k == "iseek" || k == "seek" || k == "oseek") && v.ends_with("B") {
+        if (k == "count" || k == "skip" || k == "iseek" || k == "seek" || k == "oseek") &&
+            v.ends_with("B") {
             text = v[..^1]
             if k == "count" { c.countbytes = true }
             if k == "skip" || k == "iseek" { c.skipbytes = true }
             if k == "seek" || k == "oseek" { c.seekbytes = true }
         }
-        let n = number(text) else |_| { bore.warn("dd", "invalid number: {bore.quote_always(v)}"); return 1 }
-        if k == "bs" { bs = n; bs_given = true }
-        else if k == "ibs" { c.ibs = n }
-        else if k == "obs" { c.obs = n }
-        else if k == "cbs" { c.cbs = n }
-        else if k == "count" { c.count = n }
-        else if k == "skip" || k == "iseek" { c.skip = n }
-        else if k == "seek" || k == "oseek" { c.seek = n }
-        else { bore.warn("dd", "unrecognized operand {bore.quote_always(arg)}"); return 1 }
+        let n = number(text) else |_| {
+            bore.warn("dd", "invalid number: {bore.quote_always(v)}")
+            return 1
+        }
+        if k == "bs" {
+            bs = n
+            bs_given = true
+        } else if k == "ibs" {
+            c.ibs = n
+        } else if k == "obs" {
+            c.obs = n
+        } else if k == "cbs" {
+            c.cbs = n
+        } else if k == "count" {
+            c.count = n
+        } else if k == "skip" || k == "iseek" {
+            c.skip = n
+        } else if k == "seek" || k == "oseek" {
+            c.seek = n
+        } else {
+            bore.warn("dd", "unrecognized operand {bore.quote_always(arg)}")
+            return 1
+        }
     }
     if bs_given { c.ibs = bs; c.obs = bs }
     if c.ibs <= 0 || c.obs <= 0 || c.lower && c.upper || c.block && c.unblock {
-        bore.warn("dd", "invalid or conflicting block size or conversion"); return 1
+        bore.warn("dd", "invalid or conflicting block size or conversion")
+        return 1
     }
     if (c.block || c.unblock) && c.cbs == 0 { c.block = false; c.unblock = false }
     // The pinned allocator has no reusable byte buffer. Bound block requests
     // rather than let an adversarial operand exhaust the process's arena.
     if c.ibs > 16777216 || c.obs > 16777216 || c.cbs > 16777216 {
-        bore.warn("dd", "unsupported block size above 16 MiB"); return 1
+        bore.warn("dd", "unsupported block size above 16 MiB")
+        return 1
     }
-    if c.nocreat { bore.warn("dd", "unsupported conv flag: nocreat (no non-creating writable open)"); return 1 }
+    if c.nocreat {
+        bore.warn("dd", "unsupported conv flag: nocreat (no non-creating writable open)")
+        return 1
+    }
     if c.skip > bore.count_cap() / c.ibs || c.seek > bore.count_cap() / c.obs {
-        bore.warn("dd", "offset is too large"); return 1
+        bore.warn("dd", "offset is too large")
+        return 1
     }
-    let input = if c.input == "-" then 0 else (fs_open_mode(c.input, c.inf) else |_| { bore.warn("dd", "failed to open {bore.quote_always(c.input)}: {bore.io_error()}"); return 1 })
+    let input = if c.input == "-" {
+        0
+    } else {
+        fs_open_mode(c.input, c.inf) else |_| {
+            bore.warn("dd", "failed to open {bore.quote_always(c.input)}: {bore.io_error()}")
+            return 1
+        }
+    }
     defer { if input != 0 { fs_close(input) else |_| {} } }
     var fd = 1
     if c.output != "standard output" {
-        let mode = (if c.excl then 4 else if c.append then 2 else if c.notrunc || c.seek > 0 then 3 else 1) + c.outf
-        fd = fs_open_mode(c.output, mode) else |_| { bore.warn("dd", "failed to open {bore.quote_always(c.output)}: {bore.io_error()}"); return 1 }
+        let mode = (
+            if c.excl then 4 else if c.append then 2 else if c.notrunc || c.seek > 0 then 3 else 1
+        ) +
+            c.outf
+        fd = fs_open_mode(c.output, mode) else |_| {
+            bore.warn("dd", "failed to open {bore.quote_always(c.output)}: {bore.io_error()}")
+            return 1
+        }
     }
     defer { if fd != 1 { fs_close(fd) else |_| {} } }
     let skip = c.skip * if c.skipbytes then 1 else c.ibs
@@ -199,15 +359,26 @@ fn main() -> int {
             var left = skip
             while left > 0 {
                 region skipped {
-                    let bytes = fs_read_chunk(input, if left < 65536 then left else 65536) else |_| { break }
+                    let bytes = fs_read_chunk(
+                        input,
+                        if left < 65536 then left else 65536,
+                    ) else |_| { break }
                     left -= bytes.len
                 }
             }
-            if left > 0 && c.status != 0 { bore.warn("dd", "{bore.quote_always(if c.input == "-" then "standard input" else c.input)}: cannot skip to specified offset") }
+            if left > 0 && c.status != 0 {
+                bore.warn(
+                    "dd",
+                    "{bore.quote_always(if c.input == "-" then "standard input" else c.input)}: cannot skip to specified offset",
+                )
+            }
         }
     }
     if c.seek > 0 {
-        let _ = fs_seek(fd, c.seek * (if c.seekbytes then 1 else c.obs), 0) else |_| { bore.warn("dd", "{bore.quote_always(c.output)}: cannot seek: {bore.io_error()}"); return 1 }
+        let _ = fs_seek(fd, c.seek * (if c.seekbytes then 1 else c.obs), 0) else |_| {
+            bore.warn("dd", "{bore.quote_always(c.output)}: cannot seek: {bore.io_error()}")
+            return 1
+        }
     }
     let table = mapping(c.table)
     let started = os_clock_ns()
@@ -222,22 +393,42 @@ fn main() -> int {
     var status = 0, stop = false, over = false
     var partial_warning = false, short_previous = 0
     let input_record = fs_fstat_record(input) else |_| { List[int]() }
-    let piped = input_record.len > 0 && (bore.rec_kind(input_record) == bore.kind_fifo() || bore.rec_kind(input_record) == bore.kind_socket())
+    let piped = input_record.len > 0 &&
+        (
+            bore.rec_kind(input_record) == bore.kind_fifo() ||
+                bore.rec_kind(input_record) == bore.kind_socket()
+        )
     while !stop && (c.count < 0 || (if c.countbytes then consumed else blocks) < c.count) {
         var wanted = c.ibs
-        if c.countbytes && c.count >= 0 && c.count - consumed < wanted { wanted = c.count - consumed }
+        if c.countbytes && c.count >= 0 && c.count - consumed < wanted {
+            wanted = c.count - consumed
+        }
         region readblock {
-        var chunk = List[byte]()
+            var chunk = List[byte]()
             while chunk.len < wanted {
                 let part = fs_read_chunk(input, wanted - chunk.len) else |e| match e {
                     eof => { stop = true; break },
                     io => {
-                        bore.warn("dd", "error reading {bore.quote_always(c.input)}: {bore.io_error()}")
-                        if !c.noerror { status = 1; stop = true }
-                        else {
+                        bore.warn(
+                            "dd",
+                            "error reading {bore.quote_always(c.input)}: {bore.io_error()}",
+                        )
+                        if !c.noerror {
+                            status = 1
+                            stop = true
+                        } else {
                             let at = fs_tell(input) else -1
-                            if at < 0 { bore.warn("dd", "cannot continue noerror on an unseekable input"); status = 1; stop = true }
-                            else { let _ = fs_seek(input, at + wanted, 0) else |_| { status = 1; stop = true; 0 } }
+                            if at < 0 {
+                                bore.warn("dd", "cannot continue noerror on an unseekable input")
+                                status = 1
+                                stop = true
+                            } else {
+                                let _ = fs_seek(input, at + wanted, 0) else |_| {
+                                    status = 1
+                                    stop = true
+                                    0
+                                }
+                            }
                         }
                         break
                     },
@@ -245,56 +436,101 @@ fn main() -> int {
                 for b in part { (mut chunk).push(b) }
                 if !c.full { break }
             }
-        if chunk.len == 0 { break }
-        if short_previous > 0 && piped && !partial_warning && !c.countbytes && c.count >= 0 && c.status != 0 {
-            bore.warn("dd", "warning: partial read ({short_previous} bytes); suggest iflag=fullblock")
-            partial_warning = true
-        }
-        short_previous = if chunk.len < wanted then chunk.len else 0
-        consumed += chunk.len
-        blocks += 1
-        if chunk.len == c.ibs { s.wholein += 1 } else { s.partialin += 1 }
-        if c.pad {
-            while chunk.len < c.ibs { (mut chunk).push(if c.block || c.unblock then 32 as byte else 0 as byte) }
-        }
-        if c.swab {
-            var i = 0
-            while i + 1 < chunk.len { let b = chunk[i]; chunk[i] = chunk[i + 1]; chunk[i + 1] = b; i += 2 }
-        }
-        if bs_given && !c.block && !c.unblock && !c.lower && !c.upper && !c.swab && c.table.len == 0 {
-            var i = 0
-            while i < chunk.len { chunk[i] = converted(chunk[i] as int, c, table); i += 1 }
-            if !write_block(w.fd, mut w.sparse_end, chunk, c, mut s) { status = 1 }
-        } else {
-        for octet in chunk {
-            let b = converted(octet as int, c, table) as int
-            if c.block {
-                if b == 10 {
-                    while record < c.cbs { if !put(mut w, 32 as byte, c, mut s) { status = 1; break }; record += 1 }
-                    record = 0; over = false
-                } else if record < c.cbs {
-                    if !put(mut w, b as byte, c, mut s) { status = 1; break }
-                    record += 1
-                } else if !over { s.trunc += 1; over = true }
-            } else if c.unblock {
-                if b == 32 { spaces += 1 }
-                else {
-                    while spaces > 0 { if !put(mut w, 32 as byte, c, mut s) { status = 1; break }; spaces -= 1 }
-                    if !put(mut w, b as byte, c, mut s) { status = 1; break }
+            if chunk.len == 0 { break }
+            if short_previous > 0 &&
+                piped &&
+                !partial_warning &&
+                !c.countbytes &&
+                c.count >= 0 &&
+                c.status != 0 {
+                bore.warn(
+                    "dd",
+                    "warning: partial read ({short_previous} bytes); suggest iflag=fullblock",
+                )
+                partial_warning = true
+            }
+            short_previous = if chunk.len < wanted then chunk.len else 0
+            consumed += chunk.len
+            blocks += 1
+            if chunk.len == c.ibs { s.wholein += 1 } else { s.partialin += 1 }
+            if c.pad {
+                while chunk.len < c.ibs {
+                    (mut chunk).push(if c.block || c.unblock then 32 as byte else 0 as byte)
                 }
-                record += 1
-                if record == c.cbs { if !put(mut w, 10 as byte, c, mut s) { status = 1; break }; record = 0; spaces = 0 }
-            } else if !put(mut w, b as byte, c, mut s) { status = 1; break }
-        }
-        }
+            }
+            if c.swab {
+                var i = 0
+                while i + 1 < chunk.len {
+                    let b = chunk[i]
+                    chunk[i] = chunk[i + 1]
+                    chunk[i + 1] = b
+                    i += 2
+                }
+            }
+            if bs_given &&
+                !c.block &&
+                !c.unblock &&
+                !c.lower &&
+                !c.upper &&
+                !c.swab &&
+                c.table.len == 0 {
+                var i = 0
+                while i < chunk.len { chunk[i] = converted(chunk[i] as int, c, table); i += 1 }
+                if !write_block(w.fd, mut w.sparse_end, chunk, c, mut s) { status = 1 }
+            } else {
+                for octet in chunk {
+                    let b = converted(octet as int, c, table) as int
+                    if c.block {
+                        if b == 10 {
+                            while record < c.cbs {
+                                if !put(mut w, 32 as byte, c, mut s) { status = 1; break }
+                                record += 1
+                            }
+                            record = 0
+                            over = false
+                        } else if record < c.cbs {
+                            if !put(mut w, b as byte, c, mut s) { status = 1; break }
+                            record += 1
+                        } else if !over {
+                            s.trunc += 1
+                            over = true
+                        }
+                    } else if c.unblock {
+                        if b == 32 {
+                            spaces += 1
+                        } else {
+                            while spaces > 0 {
+                                if !put(mut w, 32 as byte, c, mut s) { status = 1; break }
+                                spaces -= 1
+                            }
+                            if !put(mut w, b as byte, c, mut s) { status = 1; break }
+                        }
+                        record += 1
+                        if record == c.cbs {
+                            if !put(mut w, 10 as byte, c, mut s) { status = 1; break }
+                            record = 0
+                            spaces = 0
+                        }
+                    } else if !put(mut w, b as byte, c, mut s) {
+                        status = 1
+                        break
+                    }
+                }
+            }
         }
         if status != 0 { break }
         let heard = os_signal_poll(signal.user()) else 0
         let now = os_clock_ns()
-        if heard != 0 || c.status == 3 && now - last >= 1000000000 { report(s, c.status, started); last = now }
+        if heard != 0 || c.status == 3 && now - last >= 1000000000 {
+            report(s, c.status, started)
+            last = now
+        }
     }
     if c.block && record > 0 {
-        while record < c.cbs { if !put(mut w, 32 as byte, c, mut s) { status = 1; break }; record += 1 }
+        while record < c.cbs {
+            if !put(mut w, 32 as byte, c, mut s) { status = 1; break }
+            record += 1
+        }
     }
     if c.unblock && record > 0 { if !put(mut w, 10 as byte, c, mut s) { status = 1 } }
     if w.at > 0 { if !write_block(w.fd, mut w.sparse_end, w.buf[..w.at], c, mut s) { status = 1 } }
@@ -302,10 +538,14 @@ fn main() -> int {
         let end = fs_tell(fd) else -1
         if end >= 0 {
             let r = fs_fstat_record(fd) else |_| { List[int]() }
-            if !c.notrunc || r.len == 0 || bore.rec_size(r) < end { fs_truncate(fd, end) else |_| { status = 1 } }
+            if !c.notrunc || r.len == 0 || bore.rec_size(r) < end {
+                fs_truncate(fd, end) else |_| { status = 1 }
+            }
         }
     }
-    if c.sync { fs_sync(fd) else |_| { bore.warn("dd", "fsync failed: {bore.io_error()}"); status = 1 } }
+    if c.sync {
+        fs_sync(fd) else |_| { bore.warn("dd", "fsync failed: {bore.io_error()}"); status = 1 }
+    }
     report(s, c.status, started)
     status
 }

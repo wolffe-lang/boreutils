@@ -58,11 +58,18 @@ fn main() -> int {
     }
     let node = p.operands[1]
     if node == "b" || node == "c" || node == "u" {
-        bore.warn("mknod", "unsupported device node type {node}: no fs_mknod surface (wolf-lang#705)")
+        bore.warn(
+            "mknod",
+            "unsupported device node type {node}: no fs_mknod surface (wolf-lang#705)",
+        )
         return 1
     }
-    if node != "p" { return bore.usage_error("mknod", "invalid device type {bore.quote_always(node)}") }
-    if p.operands.len > 2 { return bore.usage_error("mknod", "extra operand {bore.quote_always(p.operands[2])}") }
+    if node != "p" {
+        return bore.usage_error("mknod", "invalid device type {bore.quote_always(node)}")
+    }
+    if p.operands.len > 2 {
+        return bore.usage_error("mknod", "extra operand {bore.quote_always(p.operands[2])}")
+    }
     var status = 0
     for name in [p.operands[0]] {
         var mask = -1
@@ -71,10 +78,7 @@ fn main() -> int {
         fs_mkfifo(name, mode % 512) else |_| { code = bore.host_code() }
         if mask >= 0 { let _ = os_umask(mask) else 0 }
         if code != 0 {
-            bore.warn(
-                "mknod",
-                "{name}: {bore.reason_of(code)}",
-            )
+            bore.warn("mknod", "{name}: {bore.reason_of(code)}")
             status = 1
         } else if explicit && mode >= 512 {
             fs_set_mode(name, mode) else |_| {

@@ -3,19 +3,44 @@
 //! References consulted: GNU 9.11 documented invocation and binary runs.
 //! No implementation source. No chdir imitation is security-equivalent.
 //! Witness tests/gaps/bu34/chroot/main.lu: E0301 at wolf 0.2.35.
+
 use bore
+
 fn main() -> int {
     var opts = List[bore.Opt]()
-    (mut opts).push(bore.takes("", "userspec")); (mut opts).push(bore.takes("", "groups"))
-    (mut opts).push(bore.flag("", "skip-chdir")); (mut opts).push(bore.flag("", "help")); (mut opts).push(bore.flag("", "version"))
+    (mut opts).push(bore.takes("", "userspec"))
+    (mut opts).push(bore.takes("", "groups"))
+    (mut opts).push(bore.flag("", "skip-chdir"))
+    (mut opts).push(bore.flag("", "help"))
+    (mut opts).push(bore.flag("", "version"))
     let p = bore.parse(opts, env_args(), false)
     var out = bore.stdout()
     for k in p.keys {
-        if k == "help" { bore.put(mut out, "Usage: chroot [OPTION]... NEWROOT [COMMAND [ARG]...]\nA root-directory change requires the unavailable os_chroot surface.\n--userspec, --groups and --skip-chdir cannot run without it.\n") else |_| {}; return bore.finish(mut out, "chroot", 0) }
-        if k == "version" { bore.put(mut out, bore.version_text("chroot")) else |_| {}; return bore.finish(mut out, "chroot", 0) }
+        if k == "help" {
+            bore.put(
+                mut out,
+                "Usage: chroot [OPTION]... NEWROOT [COMMAND [ARG]...]\nA root-directory change requires the unavailable os_chroot surface.\n--userspec, --groups and --skip-chdir cannot run without it.\n",
+            ) else |_| {}
+            return bore.finish(mut out, "chroot", 0)
+        }
+        if k == "version" {
+            bore.put(mut out, bore.version_text("chroot")) else |_| {}
+            return bore.finish(mut out, "chroot", 0)
+        }
     }
-    if !bore.ok(p) { bore.warn("chroot", p.error); eprint("Try 'chroot --help' for more information."); return 125 }
-    if p.operands.len == 0 { bore.warn("chroot", "missing operand"); eprint("Try 'chroot --help' for more information."); return 125 }
-    bore.warn("chroot", "unsupported operation: no os_chroot surface; --userspec, --groups and --skip-chdir are not emulated")
+    if !bore.ok(p) {
+        bore.warn("chroot", p.error)
+        eprint("Try 'chroot --help' for more information.")
+        return 125
+    }
+    if p.operands.len == 0 {
+        bore.warn("chroot", "missing operand")
+        eprint("Try 'chroot --help' for more information.")
+        return 125
+    }
+    bore.warn(
+        "chroot",
+        "unsupported operation: no os_chroot surface; --userspec, --groups and --skip-chdir are not emulated",
+    )
     125
 }

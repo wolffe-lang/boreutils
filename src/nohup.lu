@@ -3,28 +3,56 @@
 //! References consulted: POSIX.1-2024 nohup; GNU coreutils 9.11 manual
 //! and black-box binary runs. No implementation source. Ignored SIGHUP
 //! survives exec; map the actual descriptors, never reopen stdout's path.
+
 use bore
 use processwrap
 use std.signal
+
 fn main() -> int {
     var opts = List[bore.Opt]()
-    (mut opts).push(bore.flag("", "help")); (mut opts).push(bore.flag("", "version"))
+    (mut opts).push(bore.flag("", "help"))
+    (mut opts).push(bore.flag("", "version"))
     let p = bore.parse(opts, env_args(), false)
     var out = bore.stdout()
     let fail = if (env_get("POSIXLY_CORRECT") else "").len > 0 then 127 else 125
     for k in p.keys {
-        if k == "help" { bore.put(mut out, "Usage: nohup COMMAND [ARG]...\nIgnore hangup signals and redirect terminal streams before exec.\nTerminal output appends to nohup.out, or $HOME/nohup.out.\n") else |_| {}; return bore.finish(mut out, "nohup", 0) }
-        if k == "version" { bore.put(mut out, bore.version_text("nohup")) else |_| {}; return bore.finish(mut out, "nohup", 0) }
+        if k == "help" {
+            bore.put(
+                mut out,
+                "Usage: nohup COMMAND [ARG]...\nIgnore hangup signals and redirect terminal streams before exec.\nTerminal output appends to nohup.out, or $HOME/nohup.out.\n",
+            ) else |_| {}
+            return bore.finish(mut out, "nohup", 0)
+        }
+        if k == "version" {
+            bore.put(mut out, bore.version_text("nohup")) else |_| {}
+            return bore.finish(mut out, "nohup", 0)
+        }
     }
-    if !bore.ok(p) { bore.warn("nohup", p.error); eprint("Try 'nohup --help' for more information."); return fail }
-    if p.operands.len == 0 { bore.warn("nohup", "missing operand"); eprint("Try 'nohup --help' for more information."); return fail }
-    os_signal_ignore_one(signal.reload()) else |_| { bore.warn("nohup", "cannot ignore hangup signal"); return fail }
+    if !bore.ok(p) {
+        bore.warn("nohup", p.error)
+        eprint("Try 'nohup --help' for more information.")
+        return fail
+    }
+    if p.operands.len == 0 {
+        bore.warn("nohup", "missing operand")
+        eprint("Try 'nohup --help' for more information.")
+        return fail
+    }
+    os_signal_ignore_one(signal.reload()) else |_| {
+        bore.warn("nohup", "cannot ignore hangup signal")
+        return fail
+    }
     let terminal_in = os_isatty(0) else false
     let terminal_out = os_isatty(1) else false
     let terminal_err = os_isatty(2) else false
     let stdout_record = fs_fstat_record(1) else |_| { List[int]() }
     var input = 0, output = 1
-    if terminal_in { input = fs_open_mode("/dev/null", 2) else |_| { bore.warn("nohup", "failed to redirect standard input"); return fail } }
+    if terminal_in {
+        input = fs_open_mode("/dev/null", 2) else |_| {
+            bore.warn("nohup", "failed to redirect standard input")
+            return fail
+        }
+    }
     defer { if input != 0 { fs_close(input) else |_| {} } }
     let output_file = terminal_out || terminal_err && stdout_record.len == 0
     var destination = "nohup.out"
@@ -32,15 +60,37 @@ fn main() -> int {
         output = fs_open_perm(destination, 2, 384) else -1
         if output < 0 {
             let home = env_get("HOME") else ""
-            if home.len == 0 { bore.warn("nohup", "failed to open 'nohup.out': {bore.io_error()}"); return fail }
+            if home.len == 0 {
+                bore.warn("nohup", "failed to open 'nohup.out': {bore.io_error()}")
+                return fail
+            }
             destination = "{home}/nohup.out"
-            output = fs_open_perm(destination, 2, 384) else |_| { bore.warn("nohup", "failed to open {bore.quote_always(destination)}: {bore.io_error()}"); return fail }
+            output = fs_open_perm(destination, 2, 384) else |_| {
+                bore.warn(
+                    "nohup",
+                    "failed to open {bore.quote_always(destination)}: {bore.io_error()}",
+                )
+                return fail
+            }
         }
-        bore.warn("nohup", "{if terminal_in then "ignoring input and appending" else "appending"} output to {bore.quote_always(destination)}")
-        if !terminal_out { bore.warn("nohup", "{if terminal_in then "ignoring input and redirecting" else "redirecting"} standard error to standard output") }
+        bore.warn(
+            "nohup",
+            "{if terminal_in then "ignoring input and appending" else "appending"} output to {bore.quote_always(destination)}",
+        )
+        if !terminal_out {
+            bore.warn(
+                "nohup",
+                "{if terminal_in then "ignoring input and redirecting" else "redirecting"} standard error to standard output",
+            )
+        }
     } else if terminal_err {
-        bore.warn("nohup", "{if terminal_in then "ignoring input and redirecting" else "redirecting"} standard error to standard output")
-    } else if terminal_in { bore.warn("nohup", "ignoring input") }
+        bore.warn(
+            "nohup",
+            "{if terminal_in then "ignoring input and redirecting" else "redirecting"} standard error to standard output",
+        )
+    } else if terminal_in {
+        bore.warn("nohup", "ignoring input")
+    }
     defer { if output != 1 { fs_close(output) else |_| {} } }
     var fds = List[int]()
     if terminal_in { (mut fds).push(0); (mut fds).push(input) }

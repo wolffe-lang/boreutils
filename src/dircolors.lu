@@ -199,63 +199,170 @@ fn database() -> str {
     .ucf-old 00;90
     """
 }
+
 fn matches(pat: str, text: str) -> bool {
     var p = 0, t = 0, star = -1, retry = 0
     while t < text.len {
-        if p < pat.len && pat.bytes()[p] as int == 42 { star = p; p += 1; retry = t }
-        else if p < pat.len && (pat.bytes()[p] as int == 63 || pat.bytes()[p] == text.bytes()[t]) { p += 1; t += 1 }
-        else if p < pat.len && pat[p..].starts_with("[0-9]") && text.bytes()[t] as int >= 48 && text.bytes()[t] as int <= 57 { p += 5; t += 1 }
-        else if star >= 0 { retry += 1; t = retry; p = star + 1 }
-        else { return false }
+        if p < pat.len && pat.bytes()[p] as int == 42 {
+            star = p
+            p += 1
+            retry = t
+        } else if p < pat.len &&
+            (pat.bytes()[p] as int == 63 || pat.bytes()[p] == text.bytes()[t]) {
+            p += 1
+            t += 1
+        } else if p < pat.len &&
+            pat[p..].starts_with("[0-9]") &&
+            text.bytes()[t] as int >= 48 &&
+            text.bytes()[t] as int <= 57 {
+            p += 5
+            t += 1
+        } else if star >= 0 {
+            retry += 1
+            t = retry
+            p = star + 1
+        } else {
+            return false
+        }
     }
     while p < pat.len && pat.bytes()[p] as int == 42 { p += 1 }
     p == pat.len
 }
+
 fn key(word: str) -> str {
-    let words = ["NORMAL", "NORM", "FILE", "DIR", "LINK", "LNK", "SYMLINK", "FIFO", "PIPE", "SOCK", "DOOR", "BLK", "BLOCK", "CHR", "CHAR", "ORPHAN", "MISSING", "EXEC", "SETUID", "SETGID", "STICKY_OTHER_WRITABLE", "OTHER_WRITABLE", "STICKY", "CAPABILITY", "MULTIHARDLINK", "LEFTCODE", "RIGHTCODE", "ENDCODE", "RESET"]
-    let keys = ["no", "no", "fi", "di", "ln", "ln", "ln", "pi", "pi", "so", "do", "bd", "bd", "cd", "cd", "or", "mi", "ex", "su", "sg", "tw", "ow", "st", "ca", "mh", "lc", "rc", "ec", "rs"]
+    let words = [
+        "NORMAL",
+        "NORM",
+        "FILE",
+        "DIR",
+        "LINK",
+        "LNK",
+        "SYMLINK",
+        "FIFO",
+        "PIPE",
+        "SOCK",
+        "DOOR",
+        "BLK",
+        "BLOCK",
+        "CHR",
+        "CHAR",
+        "ORPHAN",
+        "MISSING",
+        "EXEC",
+        "SETUID",
+        "SETGID",
+        "STICKY_OTHER_WRITABLE",
+        "OTHER_WRITABLE",
+        "STICKY",
+        "CAPABILITY",
+        "MULTIHARDLINK",
+        "LEFTCODE",
+        "RIGHTCODE",
+        "ENDCODE",
+        "RESET",
+    ]
+    let keys = [
+        "no",
+        "no",
+        "fi",
+        "di",
+        "ln",
+        "ln",
+        "ln",
+        "pi",
+        "pi",
+        "so",
+        "do",
+        "bd",
+        "bd",
+        "cd",
+        "cd",
+        "or",
+        "mi",
+        "ex",
+        "su",
+        "sg",
+        "tw",
+        "ow",
+        "st",
+        "ca",
+        "mh",
+        "lc",
+        "rc",
+        "ec",
+        "rs",
+    ]
     var i = 0
     while i < words.len { if word == words[i] { return keys[i] }; i += 1 }
     if word.starts_with(".") { return "*{word}" }
     if word.starts_with("*") { return word }
     ""
 }
+
 fn main() -> int {
     var opts = List[bore.Opt]()
-    (mut opts).push(bore.flag("b", "sh")); (mut opts).push(bore.flag("", "bourne-shell"))
-    (mut opts).push(bore.flag("c", "csh")); (mut opts).push(bore.flag("", "c-shell"))
-    (mut opts).push(bore.flag("p", "print-database")); (mut opts).push(bore.flag("", "print-ls-colors"))
-    (mut opts).push(bore.flag("", "help")); (mut opts).push(bore.flag("", "version"))
+    (mut opts).push(bore.flag("b", "sh"))
+    (mut opts).push(bore.flag("", "bourne-shell"))
+    (mut opts).push(bore.flag("c", "csh"))
+    (mut opts).push(bore.flag("", "c-shell"))
+    (mut opts).push(bore.flag("p", "print-database"))
+    (mut opts).push(bore.flag("", "print-ls-colors"))
+    (mut opts).push(bore.flag("", "help"))
+    (mut opts).push(bore.flag("", "version"))
     let p = bore.parse(opts, env_args(), bore.permute())
     var out = bore.stdout()
     var shell = 0, mode = 0
     for k in p.keys {
-        if k == "help" { bore.put(mut out, "Usage: dircolors [OPTION]... [FILE]\nEmit shell color assignments, raw display colors or a reusable database.\n-b selects Bourne shell; -c selects C shell; -p prints default rules.\n") else |_| {}; return bore.finish(mut out, "dircolors", 0) }
-        if k == "version" { bore.put(mut out, bore.version_text("dircolors")) else |_| {}; return bore.finish(mut out, "dircolors", 0) }
+        if k == "help" {
+            bore.put(
+                mut out,
+                "Usage: dircolors [OPTION]... [FILE]\nEmit shell color assignments, raw display colors or a reusable database.\n-b selects Bourne shell; -c selects C shell; -p prints default rules.\n",
+            ) else |_| {}
+            return bore.finish(mut out, "dircolors", 0)
+        }
+        if k == "version" {
+            bore.put(mut out, bore.version_text("dircolors")) else |_| {}
+            return bore.finish(mut out, "dircolors", 0)
+        }
         if k == "sh" || k == "bourne-shell" { shell = 1 }
         if k == "csh" || k == "c-shell" { shell = 2 }
         if k == "print-database" { mode = 1 }
         if k == "print-ls-colors" { mode = 2 }
     }
     if !bore.ok(p) { return bore.usage_error("dircolors", p.error) }
-    if p.operands.len > 1 { return bore.usage_error("dircolors", "extra operand {bore.quote_always(p.operands[1])}") }
+    if p.operands.len > 1 {
+        return bore.usage_error("dircolors", "extra operand {bore.quote_always(p.operands[1])}")
+    }
     if mode == 1 {
-        if p.operands.len != 0 { return bore.usage_error("dircolors", "extra operand {bore.quote_always(p.operands[0])}") }
+        if p.operands.len != 0 {
+            return bore.usage_error("dircolors", "extra operand {bore.quote_always(p.operands[0])}")
+        }
         bore.put(mut out, database()) else |_| {}
         return bore.finish(mut out, "dircolors", 0)
     }
     if shell == 0 && mode == 0 {
         let sh = env_get("SHELL") else ""
-        if sh.ends_with("csh") { shell = 2 }
-        else if sh.ends_with("sh") { shell = 1 }
-        else { bore.warn("dircolors", "no SHELL environment variable, and no shell type option given"); return 1 }
+        if sh.ends_with("csh") {
+            shell = 2
+        } else if sh.ends_with("sh") {
+            shell = 1
+        } else {
+            bore.warn("dircolors", "no SHELL environment variable, and no shell type option given")
+            return 1
+        }
     }
     var db = database()
     var file = ""
     if p.operands.len > 0 {
         file = p.operands[0]
-        let bytes = fs_read_bytes(file) else |_| { bore.warn("dircolors", "{file}: {bore.io_error()}"); return 1 }
-        db = str_from_utf8(bytes) else |_| { bore.warn("dircolors", "unsupported non-UTF-8 database"); return 1 }
+        let bytes = fs_read_bytes(file) else |_| {
+            bore.warn("dircolors", "{file}: {bore.io_error()}")
+            return 1
+        }
+        db = str_from_utf8(bytes) else |_| {
+            bore.warn("dircolors", "unsupported non-UTF-8 database")
+            return 1
+        }
     }
     let term = env_get("TERM") else ""
     let colorterm = env_get("COLORTERM") else ""
@@ -269,7 +376,10 @@ fn main() -> int {
         if clean.len == 0 { continue }
         let parts = clean.words()
         let word = parts[0]
-        if parts.len < 2 { bore.warn("dircolors", "{file}:{line_no}: invalid line;  missing second token"); return 1 }
+        if parts.len < 2 {
+            bore.warn("dircolors", "{file}:{line_no}: invalid line;  missing second token")
+            return 1
+        }
         let value = parts[1]
         if word == "TERM" || word == "COLORTERM" {
             if !conditions { active = false; conditions = true }
@@ -279,8 +389,18 @@ fn main() -> int {
         conditions = false
         if word == "EIGHTBIT" || word == "OPTIONS" || word == "COLOR" { continue }
         let code = key(word)
-        if code.len == 0 { bore.warn("dircolors", "{file}:{line_no}: unrecognized keyword {bore.quote_always(word)}"); return 1 }
-        if active { (mut keys).push(code); (mut values).push(value); encoded += "{code}={value}:" }
+        if code.len == 0 {
+            bore.warn(
+                "dircolors",
+                "{file}:{line_no}: unrecognized keyword {bore.quote_always(word)}",
+            )
+            return 1
+        }
+        if active {
+            (mut keys).push(code)
+            (mut values).push(value)
+            encoded += "{code}={value}:"
+        }
     }
     if mode == 2 {
         var i = 0
@@ -290,8 +410,11 @@ fn main() -> int {
         }
     } else {
         let quote = encoded.replace("'", "'\\''")
-        if shell == 1 { bore.put(mut out, "LS_COLORS='{quote}';\nexport LS_COLORS\n") else |_| {} }
-        else { bore.put(mut out, "setenv LS_COLORS '{quote}'\n") else |_| {} }
+        if shell == 1 {
+            bore.put(mut out, "LS_COLORS='{quote}';\nexport LS_COLORS\n") else |_| {}
+        } else {
+            bore.put(mut out, "setenv LS_COLORS '{quote}'\n") else |_| {}
+        }
     }
     bore.finish(mut out, "dircolors", 0)
 }

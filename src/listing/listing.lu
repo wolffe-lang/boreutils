@@ -367,7 +367,13 @@ pub fn command() -> int {
         all: 0,
         directory: false,
         recursive: false,
-        format: if program() == "dir" then vertical() else if program() == "vdir" then long_format() else one_per_line(),
+        format: if program() == "dir" {
+            vertical()
+        } else if program() == "vdir" {
+            long_format()
+        } else {
+            one_per_line()
+        },
         width: 80,
         width_given: false,
         tab: 8,
@@ -710,7 +716,14 @@ fn take_option(mut o: Opts, k: str, v: str, given: bool) -> int {
         } else {
             let m = bore.argmatch(v, when_words(), when_meanings())
             if m < 0 {
-                return bore.argmatch_error(program(), v, "color", when_words(), when_meanings(), m == -2)
+                return bore.argmatch_error(
+                    program(),
+                    v,
+                    "color",
+                    when_words(),
+                    when_meanings(),
+                    m == -2,
+                )
             }
             if m == 0 {
                 o.refused = "--color=always is not written yet"
@@ -822,7 +835,10 @@ fn columns() -> int {
     }
     let w = line_width(c)
     if w < 0 {
-        bore.warn(program(), "ignoring invalid width in environment variable COLUMNS: {bore.quote(c)}")
+        bore.warn(
+            program(),
+            "ignoring invalid width in environment variable COLUMNS: {bore.quote(c)}",
+        )
         return 80
     }
     w
@@ -947,7 +963,10 @@ fn list_here(
         }
         if here.len == 20 {
             if inside(here, ancestors) {
-                bore.warn(program(), "{bore.quote_name(path)}: not listing already-listed directory")
+                bore.warn(
+                    program(),
+                    "{bore.quote_name(path)}: not listing already-listed directory",
+                )
                 return 2
             }
             (mut mine).push(bore.rec_dev(here))
@@ -1022,15 +1041,24 @@ fn read_directory(mut d: Dir, path: str, o: Opts, mut status: int) -> bool {
         var plain = true
         let names = fs_read_dir(path) else |e| match e {
             denied => {
-                bore.warn(program(), "cannot open directory {quote_always(path)}: {bore.io_error()}")
+                bore.warn(
+                    program(),
+                    "cannot open directory {quote_always(path)}: {bore.io_error()}",
+                )
                 return false
             },
             not_found => {
-                bore.warn(program(), "cannot open directory {quote_always(path)}: {bore.io_error()}")
+                bore.warn(
+                    program(),
+                    "cannot open directory {quote_always(path)}: {bore.io_error()}",
+                )
                 return false
             },
             io => {
-                bore.warn(program(), "cannot open directory {quote_always(path)}: {bore.io_error()}")
+                bore.warn(
+                    program(),
+                    "cannot open directory {quote_always(path)}: {bore.io_error()}",
+                )
                 return false
             },
             utf8 => {
@@ -1288,7 +1316,10 @@ fn link_facts(mut d: Dir, at: int, o: Opts) -> int {
     if o.format == long_format() {
         var read = true
         let bytes = fs_read_link(path) else |_| {
-            bore.warn(program(), "cannot read symbolic link {quote_always(path)}: {bore.io_error()}")
+            bore.warn(
+                program(),
+                "cannot read symbolic link {quote_always(path)}: {bore.io_error()}",
+            )
             read = false
             status = 1
             List[byte]()
@@ -2551,17 +2582,30 @@ fn escaped(name: str) -> str {
     for b in name.bytes() {
         let n = b as int
         var piece = ""
-        if n == 32 { piece = "\\ " }
-        else if n == 92 { piece = "\\\\" }
-        else if n == 7 { piece = "\\a" }
-        else if n == 8 { piece = "\\b" }
-        else if n == 9 { piece = "\\t" }
-        else if n == 10 { piece = "\\n" }
-        else if n == 11 { piece = "\\v" }
-        else if n == 12 { piece = "\\f" }
-        else if n == 13 { piece = "\\r" }
-        else if n < 32 || n >= 127 { piece = "\\{n / 64}{n / 8 % 8}{n % 8}" }
-        else { (mut bytes).push(b); continue }
+        if n == 32 {
+            piece = "\\ "
+        } else if n == 92 {
+            piece = "\\\\"
+        } else if n == 7 {
+            piece = "\\a"
+        } else if n == 8 {
+            piece = "\\b"
+        } else if n == 9 {
+            piece = "\\t"
+        } else if n == 10 {
+            piece = "\\n"
+        } else if n == 11 {
+            piece = "\\v"
+        } else if n == 12 {
+            piece = "\\f"
+        } else if n == 13 {
+            piece = "\\r"
+        } else if n < 32 || n >= 127 {
+            piece = "\\{n / 64}{n / 8 % 8}{n % 8}"
+        } else {
+            (mut bytes).push(b)
+            continue
+        }
         for octet in piece.bytes() { (mut bytes).push(octet) }
     }
     str_from_utf8(bytes) else name

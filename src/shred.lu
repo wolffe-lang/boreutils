@@ -22,36 +22,97 @@ fn entropy(fd: int, amount: int) -> List[byte] ! {io} {
     }
     data
 }
+
 fn passes(n: int, random: int) -> List[int] ! {io} {
     var result = List[int]()
-    if n <= 3 { var i = 0; while i < n { (mut result).push(-1); i += 1 }; return result }
-    var pool = [0, 16777215, 5592405, 11184810, 9586980, 2396745, 4793490, 11983725, 14380470, 7190235, 1118481, 2236962, 3355443, 4473924, 6710886, 7829367, 8947848, 10066329, 12303291, 13421772, 14540253, 15658734]
+    if n <= 3 {
+        var i = 0
+        while i < n { (mut result).push(-1); i += 1 }
+        return result
+    }
+    var pool = [
+        0,
+        16777215,
+        5592405,
+        11184810,
+        9586980,
+        2396745,
+        4793490,
+        11983725,
+        14380470,
+        7190235,
+        1118481,
+        2236962,
+        3355443,
+        4473924,
+        6710886,
+        7829367,
+        8947848,
+        10066329,
+        12303291,
+        13421772,
+        14540253,
+        15658734,
+    ]
     let randoms = if n < 7 then 2 else 3
     let fixed = n - randoms
     var i = fixed - 1
     while i > 0 {
         let bytes = entropy(random, 4)?
-        let value = bytes[0] as int + bytes[1] as int * 256 + bytes[2] as int * 65536 + bytes[3] as int * 16777216
+        let value = bytes[0] as int +
+            bytes[1] as int * 256 +
+            bytes[2] as int * 65536 +
+            bytes[3] as int * 16777216
         let j = value % (i + 1)
-        let x = pool[i]; pool[i] = pool[j]; pool[j] = x
+        let x = pool[i]
+        pool[i] = pool[j]
+        pool[j] = x
         i -= 1
     }
     (mut result).push(-1)
     i = 0
-    while i < fixed { if randoms == 3 && i == fixed / 2 { (mut result).push(-1) }; (mut result).push(pool[i]); i += 1 }
+    while i < fixed {
+        if randoms == 3 && i == fixed / 2 { (mut result).push(-1) }
+        (mut result).push(pool[i])
+        i += 1
+    }
     (mut result).push(-1)
     result
 }
+
 fn pattern_text(pattern: int) -> str {
     let digits = "0123456789abcdef"
     var text = "", shift = 20
-    while shift >= 0 { let n = pattern >> shift & 15; text += digits[n..n + 1]; shift -= 4 }
+    while shift >= 0 {
+        let n = pattern >> shift & 15
+        text += digits[n..n + 1]
+        shift -= 4
+    }
     text
 }
-fn overwrite(path: str, n: int, size: int, zero: bool, force: bool, remove: bool, verbose: bool, random: int) -> bool {
+
+fn overwrite(
+    path: str,
+    n: int,
+    size: int,
+    zero: bool,
+    force: bool,
+    remove: bool,
+    verbose: bool,
+    random: int,
+) -> bool {
     var r = List[int]()
-    if path == "-" { r = fs_fstat_record(1) else |_| { bore.warn("shred", "{path}: failed to open for writing: {bore.io_error()}"); return false } }
-    else { r = fs_stat(path) else |_| { bore.warn("shred", "{path}: failed to open for writing: {bore.io_error()}"); return false } }
+    if path == "-" {
+        r = fs_fstat_record(1) else |_| {
+            bore.warn("shred", "{path}: failed to open for writing: {bore.io_error()}")
+            return false
+        }
+    } else {
+        r = fs_stat(path) else |_| {
+            bore.warn("shred", "{path}: failed to open for writing: {bore.io_error()}")
+            return false
+        }
+    }
     if bore.rec_kind(r) != bore.kind_file() {
         bore.warn("shred", "{path}: unsupported file type; only regular files are overwritten")
         return false
@@ -63,21 +124,38 @@ fn overwrite(path: str, n: int, size: int, zero: bool, force: bool, remove: bool
             fs_set_mode(path, bore.rec_mode(r) | 128) else |_| {}
             fd = fs_open_mode(path, 3) else -1
         }
-        if fd < 0 { bore.warn("shred", "{path}: failed to open for writing: {bore.io_error()}"); return false }
+        if fd < 0 {
+            bore.warn("shred", "{path}: failed to open for writing: {bore.io_error()}")
+            return false
+        }
     }
     defer { if fd != 1 { fs_close(fd) else |_| {} } }
     let opened = fs_fstat_record(fd) else |_| { return false }
-    if !bore.same_file(r, opened) { bore.warn("shred", "{path}: operand changed during open; refusing to overwrite"); return false }
+    if !bore.same_file(r, opened) {
+        bore.warn("shred", "{path}: operand changed during open; refusing to overwrite")
+        return false
+    }
     let bytes = if size >= 0 then size else bore.rec_size(r)
-    var schedule = passes(n, random) else |_| { bore.warn("shred", "random source exhausted"); return false }
+    var schedule = passes(n, random) else |_| {
+        bore.warn("shred", "random source exhausted")
+        return false
+    }
     if zero { (mut schedule).push(0) }
     let count = schedule.len
     var pass = 0
     while pass < count {
         let pattern = schedule[pass]
         let zeros = pattern >= 0
-        if verbose { bore.warn("shred", "{path}: pass {pass + 1}/{count} ({if zeros then pattern_text(pattern) else "random"})...") }
-        let _ = fs_seek(fd, 0, 0) else |_| { bore.warn("shred", "{path}: cannot seek: {bore.io_error()}"); return false }
+        if verbose {
+            bore.warn(
+                "shred",
+                "{path}: pass {pass + 1}/{count} ({if zeros then pattern_text(pattern) else "random"})...",
+            )
+        }
+        let _ = fs_seek(fd, 0, 0) else |_| {
+            bore.warn("shred", "{path}: cannot seek: {bore.io_error()}")
+            return false
+        }
         var left = bytes
         while left > 0 {
             region block {
@@ -85,34 +163,55 @@ fn overwrite(path: str, n: int, size: int, zero: bool, force: bool, remove: bool
                 var data = List[byte]()
                 if zeros {
                     var i = 0
-                    while i < amount { let shift = (2 - ((bytes - left + i) % 3)) * 8
-                    (mut data).push((pattern >> shift & 255) as byte); i += 1 }
+                    while i < amount {
+                        let shift = (2 - (bytes - left + i) % 3) * 8
+                        (mut data).push((pattern >> shift & 255) as byte)
+                        i += 1
+                    }
                 } else {
-                    data = entropy(random, amount) else |_| { bore.warn("shred", "random source exhausted"); return false }
+                    data = entropy(random, amount) else |_| {
+                        bore.warn("shred", "random source exhausted")
+                        return false
+                    }
                 }
-                fs_write_chunk(fd, data) else |_| { bore.warn("shred", "{path}: error writing: {bore.io_error()}"); return false }
+                fs_write_chunk(fd, data) else |_| {
+                    bore.warn("shred", "{path}: error writing: {bore.io_error()}")
+                    return false
+                }
                 left -= amount
             }
         }
-        fs_sync(fd) else |_| { bore.warn("shred", "{path}: fsync failed: {bore.io_error()}"); return false }
+        fs_sync(fd) else |_| {
+            bore.warn("shred", "{path}: fsync failed: {bore.io_error()}")
+            return false
+        }
         pass += 1
     }
     if remove && path != "-" {
         if verbose { bore.warn("shred", "{path}: removing") }
-        fs_truncate(fd, 0) else |_| { bore.warn("shred", "{path}: cannot truncate: {bore.io_error()}"); return false }
-        fs_remove(path) else |_| { bore.warn("shred", "{path}: cannot remove: {bore.io_error()}"); return false }
+        fs_truncate(fd, 0) else |_| {
+            bore.warn("shred", "{path}: cannot truncate: {bore.io_error()}")
+            return false
+        }
+        fs_remove(path) else |_| {
+            bore.warn("shred", "{path}: cannot remove: {bore.io_error()}")
+            return false
+        }
         if verbose { bore.warn("shred", "{path}: removed") }
     }
     true
 }
+
 fn main() -> int {
     var opts = List[bore.Opt]()
     for pair in ["f:force", "u:", "v:verbose", "x:exact", "z:zero", ":help", ":version"] {
         let at = pair.find(":") else 0
         (mut opts).push(bore.flag(pair[..at], pair[at + 1..]))
     }
-    (mut opts).push(bore.takes("n", "iterations")); (mut opts).push(bore.takes("s", "size"))
-    (mut opts).push(bore.takes("", "random-source")); (mut opts).push(bore.optional("", "remove"))
+    (mut opts).push(bore.takes("n", "iterations"))
+    (mut opts).push(bore.takes("s", "size"))
+    (mut opts).push(bore.takes("", "random-source"))
+    (mut opts).push(bore.optional("", "remove"))
     let p = bore.parse(opts, env_args(), bore.permute())
     var out = bore.stdout()
     var n = 3, size: int = -1, random_name = "", how = ""
@@ -120,12 +219,33 @@ fn main() -> int {
     var i = 0
     while i < p.keys.len {
         let k = p.keys[i], v = p.values[i]
-        if k == "help" { bore.put(mut out, "Usage: shred -x [OPTION]... FILE...\nOverwrite regular files with random passes, optionally finishing with zeros.\nNo physical-erasure guarantee on CoW, flash, snapshots or backups.\nDefault block rounding and name wiping need unavailable surfaces.\n") else |_| {}; return bore.finish(mut out, "shred", 0) }
-        if k == "version" { bore.put(mut out, bore.version_text("shred")) else |_| {}; return bore.finish(mut out, "shred", 0) }
-        if k == "iterations" { n = v.to_int() else -1; if n < 0 { bore.warn("shred", "invalid number of passes: {bore.quote_always(v)}"); return 1 } }
+        if k == "help" {
+            bore.put(
+                mut out,
+                "Usage: shred -x [OPTION]... FILE...\nOverwrite regular files with random passes, optionally finishing with zeros.\nNo physical-erasure guarantee on CoW, flash, snapshots or backups.\nDefault block rounding and name wiping need unavailable surfaces.\n",
+            ) else |_| {}
+            return bore.finish(mut out, "shred", 0)
+        }
+        if k == "version" {
+            bore.put(mut out, bore.version_text("shred")) else |_| {}
+            return bore.finish(mut out, "shred", 0)
+        }
+        if k == "iterations" {
+            n = v.to_int() else -1
+            if n < 0 {
+                bore.warn("shred", "invalid number of passes: {bore.quote_always(v)}")
+                return 1
+            }
+        }
         if k == "size" {
-            let count = bore.parse_count(v) else |_| { bore.warn("shred", "invalid file size: {bore.quote_always(v)}"); return 1 }
-            if bore.count_minus(count) { bore.warn("shred", "invalid file size: {bore.quote_always(v)}"); return 1 }
+            let count = bore.parse_count(v) else |_| {
+                bore.warn("shred", "invalid file size: {bore.quote_always(v)}")
+                return 1
+            }
+            if bore.count_minus(count) {
+                bore.warn("shred", "invalid file size: {bore.quote_always(v)}")
+                return 1
+            }
             size = bore.count_value(count)
         }
         if k == "exact" { exact = true }
@@ -138,13 +258,32 @@ fn main() -> int {
     }
     if !bore.ok(p) { return bore.usage_error("shred", p.error) }
     if p.operands.len == 0 { return bore.usage_error("shred", "missing file operand") }
-    if !exact { bore.warn("shred", "unsupported default block rounding: st_blksize absent (wolf-lang#684); use -x"); return 1 }
-    if n > 25 { bore.warn("shred", "unsupported --iterations above 25: longer schedules not implemented"); return 1 }
-    if how.len > 0 && how != "unlink" { bore.warn("shred", "unsupported --remove={how}: no non-replacing rename (wolf-lang#706)"); return 1 }
+    if !exact {
+        bore.warn(
+            "shred",
+            "unsupported default block rounding: st_blksize absent (wolf-lang#684); use -x",
+        )
+        return 1
+    }
+    if n > 25 {
+        bore.warn("shred", "unsupported --iterations above 25: longer schedules not implemented")
+        return 1
+    }
+    if how.len > 0 && how != "unlink" {
+        bore.warn("shred", "unsupported --remove={how}: no non-replacing rename (wolf-lang#706)")
+        return 1
+    }
     var random = -1
-    if random_name.len > 0 { random = fs_open(random_name) else |_| { bore.warn("shred", "{random_name}: {bore.io_error()}"); return 1 } }
+    if random_name.len > 0 {
+        random = fs_open(random_name) else |_| {
+            bore.warn("shred", "{random_name}: {bore.io_error()}")
+            return 1
+        }
+    }
     defer { if random >= 0 { fs_close(random) else |_| {} } }
     var status = 0
-    for name in p.operands { if !overwrite(name, n, size, zero, force, how == "unlink", verbose, random) { status = 1 } }
+    for name in p.operands {
+        if !overwrite(name, n, size, zero, force, how == "unlink", verbose, random) { status = 1 }
+    }
     bore.finish(mut out, "shred", status)
 }
