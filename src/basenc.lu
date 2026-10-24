@@ -38,7 +38,7 @@ fn encode(src: bore.In, out: bore.Out, kind: int, wrap: int) -> int {
                 for b in chunk { (mut pending).push(b) }
                 if pending.len == block || done {
                     if pending.len % 4 != 0 { bore.warn("basenc", "invalid input (length must be multiple of 4 characters)"); return 1 }
-                    block_z85(pending, mut output, wrap, mut column); pending = List[byte]()
+                    block_z85(pending, mut output, wrap, mut column); pending = copy List[byte]()
                 }
             } else {
                 for b in chunk {
