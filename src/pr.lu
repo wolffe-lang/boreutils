@@ -26,7 +26,7 @@ fn render(bs: List[byte], o: Options) -> List[byte] {
     for b in bs {
         let c = b as int
         if o.expand && c == o.inchar { let n = o.instop - col % o.instop; pad(mut out, n); col += n } else if (o.control || o.visible) && (c < 32 || c == 127 || c > 126) && c != 9 {
-            if o.control && (c < 32 || c == 127) { add(mut out, if c == 127 then "^?" else "^{char_from_u32((c + 64) as u32) else '?'}"); col += 2 } else { add(mut out, "\\{fmt.to_str_base(c, 8) else "0":03}"); col += 4 }
+            if o.control && (c < 32 || c == 127) { (mut out).push(94 as byte); (mut out).push((if c == 127 then 63 else c + 64) as byte); col += 2 } else { add(mut out, "\\{fmt.to_str_base(c, 8) else "0":03}"); col += 4 }
         } else { (mut out).push(b); col += if c == 9 then 8 - col % 8 else 1 }
     }
     out
