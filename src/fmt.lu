@@ -172,7 +172,6 @@ fn paragraph(mut out: bore.Out, rows: List[Row], a: int, z: int, o: Options) -> 
             if width > o.width && end > i { break }
             let distance = o.goal - width
             var cost = distance * distance + 400
-            if end + 1 < words.len { cost += 20 / words[end].bytes.len }
             if end == words.len - 1 {
                 cost = 0
             } else {
@@ -189,7 +188,9 @@ fn paragraph(mut out: bore.Out, rows: List[Row], a: int, z: int, o: Options) -> 
                     if j > end + 1 { following += words[j].gap }
                     following += words[j].bytes.len
                 }
-                rough += (width - following) * (width - following)
+                let variation = (width - following) * (width - following)
+                rough += variation
+                if next[end + 1] < words.len { cost += variation / 4 }
             }
             if cost < best || cost == best && rough < best_ragged {
                 best = cost
