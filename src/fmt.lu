@@ -48,6 +48,7 @@ fn prepare(bytes: List[byte], prefix: str) -> Row {
         if bytes[pos] == 9 as byte { indent += 8 - indent % 8; tabs = true } else { indent += 1 }
         pos += 1
     }
+    let prefix_indent = indent
     var selected = prefix.len == 0
     if prefix.len > 0 && pos + prefix.len <= bytes.len {
         selected = true
@@ -66,7 +67,7 @@ fn prepare(bytes: List[byte], prefix: str) -> Row {
             }
         }
     }
-    Row { bytes: copy bytes, indent: indent, begin: pos, selected: selected, tabs: tabs }
+    Row { bytes: copy bytes, indent: indent, prefix_indent: prefix_indent, begin: pos, selected: selected, tabs: tabs }
 }
 
 fn putline(mut out: bore.Out, bs: List[byte], tabs: bool) -> bool {
@@ -207,9 +208,10 @@ fn paragraph(mut out: bore.Out, rows: List[Row], a: int, z: int, o: Options) -> 
         if o.prefix.len == 0 {
             spaces(mut line, indent)
         } else {
-            spaces(mut line, indent - o.prefix.len - 1)
+            let leading = if rows[a].prefix_indent < indent - o.prefix.len then rows[a].prefix_indent else indent - o.prefix.len
+            spaces(mut line, leading)
             for b in o.prefix.bytes() { (mut line).push(b) }
-            (mut line).push(32 as byte)
+            spaces(mut line, indent - leading - o.prefix.len)
         }
         let stop = next[i]
         for j in i..stop {
@@ -256,6 +258,7 @@ fn main() -> int {
             tagged: false,
             uniform: false,
         }
+    var width_given = false
     for k in 0..p.keys.len {
         let key = p.keys[k], v = p.values[k]
         if key == "help" || key == "version" {
@@ -275,7 +278,7 @@ fn main() -> int {
                 bore.warn("fmt", "invalid width: {bore.quote_always(v)}")
                 return 1
             }
-            if key == "width" { o.width = n } else { o.goal = n }
+            if key == "width" { o.width = n; width_given = true } else { o.goal = n }
         }
         if key == "prefix" { o.prefix = v }
         if key == "split-only" { o.split = true }
@@ -284,6 +287,7 @@ fn main() -> int {
         if key == "uniform-spacing" { o.uniform = true }
     }
     if !bore.ok(p) { return bore.usage_error("fmt", p.error) }
+    if !width_given && o.goal > 0 { o.width = o.goal + 10 }
     if o.goal == 0 { o.goal = (o.width * 93 + 50) / 100 }
     var paths = copy p.operands
     if paths.len == 0 { (mut paths).push("-") }

@@ -1386,3 +1386,28 @@ stdout_closed = true
 [[case]]
 name = "common missing file"
 args = ["missing"]
+
+[[case]]
+name = "literal prefix // "
+args = ["-w20", "-p", "// "]
+stdin = "// first line has several words that should be wrapped\n// second line has more words\n"
+
+[[case]]
+name = "literal prefix TODO:"
+args = ["-w20", "-p", "TODO:"]
+stdin = "TODO:first line has several words that should be wrapped\nTODO:second line has more words\n"
+
+[[case]]
+name = "literal prefix ##"
+args = ["-w20", "-p", "##"]
+stdin = "##first line has several words that should be wrapped\n##second line has more words\n"
+
+[[case]]
+name = "literal prefix   >"
+args = ["-w20", "-p", "  >"]
+stdin = "  >first line has several words that should be wrapped\n  >second line has more words\n"
+
+[[case]]
+name = "goal alone determines maximum width"
+args = ["-g20"]
+stdin = "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen\n"

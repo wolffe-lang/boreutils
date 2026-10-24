@@ -1074,3 +1074,27 @@ scratch = {}
 name = "common missing file"
 args = ["missing"]
 scratch = {}
+
+[[case]]
+name = "full u64 byte quantity 8E"
+args = ["-b", "8E"]
+stdin = "abc\ndef\n"
+scratch = {}
+
+[[case]]
+name = "full u64 byte quantity 9E"
+args = ["-b", "9E"]
+stdin = "abc\ndef\n"
+scratch = {}
+
+[[case]]
+name = "full u64 byte quantity 18EB"
+args = ["-b", "18EB"]
+stdin = "abc\ndef\n"
+scratch = {}
+
+[[case]]
+name = "full u64 byte quantity 18446744073709551615"
+args = ["-b", "18446744073709551615"]
+stdin = "abc\ndef\n"
+scratch = {}

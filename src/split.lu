@@ -22,21 +22,21 @@ fn quantity(s: str) -> int {
     var end = 0
     while end < s.len && s.bytes()[end] >= 48 as byte && s.bytes()[end] <= 57 as byte { end += 1 }
     if end == 0 { return -1 }
-    let n = numcli.count(s[0..end], false) else |_| { return -1 }
-    if n.large { return -1 }
-    var v = n.value
+    var value = numcli.unsigned(s[0..end]) else |_| { return -1 }
     let suffix = s[end..]
-    if suffix.len == 0 { return v }
-    if suffix == "b" { if v > 9223372036854775807 / 512 { return -1 }; return v * 512 }
-    let letters = "KMGTPEZYRQ"
-    var power = 0
-    for k in 0..letters.len { if suffix.starts_with(letters[k..k + 1]) { power = k + 1 } }
-    if power == 0 { return -1 }
-    let rest = suffix[1..]
-    if rest != "" && rest != "B" && rest != "iB" { return -1 }
-    let base = if rest == "B" then 1000 else 1024
-    for _ in 0..power { if v > 9223372036854775807 / base { return -1 }; v *= base }
-    v
+    var base: wrapping[u64] = 1, power = 0
+    if suffix == "b" { base = 512; power = 1 } else if suffix.len > 0 {
+        let letters = "KMGTPEZYRQ"
+        for k in 0..letters.len { if suffix.starts_with(letters[k..k + 1]) { power = k + 1 } }
+        if power == 0 { return -1 }
+        let rest = suffix[1..]
+        if rest != "" && rest != "B" && rest != "iB" { return -1 }
+        base = if rest == "B" then 1000 else 1024
+    }
+    let maximum: wrapping[u64] = 18446744073709551615
+    for _ in 0..power { if value > maximum / base { return -1 }; value *= base }
+    if value > 9223372036854775807 { return 9223372036854775807 }
+    value as int
 }
 
 fn partname(mut o: Output) -> str {
