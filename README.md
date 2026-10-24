@@ -183,7 +183,7 @@ alphabet, object kind and private mode, never compared byte for byte.
 
 The newest tools are `split`, `csplit`, `fmt`, `pr`, `ptx`, `od`,
 `expr`, `numfmt`, `factor` and `basenc`. Their **2,140 registered cases**
-contain 2,103 GNU comparisons and 11 explicitly named exceptions.
+contain 2,129 GNU comparisons and 11 explicitly named exceptions.
 One factor case contains a separate deterministic corpus of **10,000
 full-range unsigned 64-bit integers**. The toolchain remains wolf **0.2.35** / lupin **0.1.56**, bundled
 std `2386522e`; the oracle remains **GNU coreutils 9.11**, `LC_ALL=C` and
@@ -204,7 +204,8 @@ context indexing and roff/TeX output, with `-G` explicitly refused.
 `od` covers character/integer formats and IEEE half, bfloat16, binary32,
 binary64 and x87 decimal output through the repository's own exact
 floating formatter. `numfmt` measures halfway rounding and host
-long-double arithmetic, including field delimiters and invalid-input modes.
+long-double arithmetic, including field delimiters, invalid-input modes,
+conversion/printing range boundaries and UTF-8 format literals.
 
 `factor` combines trial division, deterministic Miller–Rabin and an
 independent Montgomery/Brent–Pollard-rho design. `expr` evaluates the full

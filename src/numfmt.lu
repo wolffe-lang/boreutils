@@ -166,7 +166,11 @@ fn unit_size(word: str) -> floattext.Number ! {parse, overflow} {
         if k < word.len && word.bytes()[k] == 105 as byte { base = 1024; k += 1 }
         if k < word.len && word.bytes()[k] == 66 as byte { k += 1 }
         if k != word.len { return parse }
-        for _ in 0..power { if units > maximum / base as wrapping[u64] { return overflow }; units *= base as wrapping[u64]; value = floattext.product(value, floattext.integer(base)) }
+        for _ in 0..power {
+            if units > maximum / base as wrapping[u64] { return overflow }
+            units *= base as wrapping[u64]
+            value = floattext.product(value, floattext.integer(base))
+        }
     }
     value
 }
@@ -201,7 +205,12 @@ fn convert(word: str, o: Options, automatic_width: int) -> Conversion {
     var number = floattext.parse_number(s[0..k]) else |_| {
         return Conversion { text: word, error: "invalid number: {bore.quote_always(word.trim())}" }
     }
-    if floattext.compare_abs(number, o.max_input) >= 0 { return Conversion { text: word, error: "value too large to be converted: {bore.quote_always(word.trim())}" } }
+    if floattext.compare_abs(number, o.max_input) >= 0 {
+        return Conversion {
+            text: word,
+            error: "value too large to be converted: {bore.quote_always(word.trim())}",
+        }
+    }
     var suffix = s[k..], input_power = 0, base = if o.from == 2 || o.from == 3 then 1024 else 1000
     if o.unit_sep.len > 0 && suffix.starts_with(o.unit_sep) { suffix = suffix[o.unit_sep.len..] }
     if suffix.len > 0 {
@@ -245,8 +254,18 @@ fn convert(word: str, o: Options, automatic_width: int) -> Conversion {
         for _ in 0..input_power { number = floattext.product(number, floattext.integer(base)) }
     }
     number = floattext.quotient(floattext.product(number, o.from_unit), o.to_unit)
-    if o.to == 0 && floattext.compare_abs(number, o.max_output) >= 0 { return Conversion { text: word, error: "value too large to be printed: {bore.quote_always(floattext.general(number, 6))} (consider using --to)" } }
-    if o.to != 0 && floattext.compare_abs(number, o.max_input) >= 0 { return Conversion { text: word, error: "value too large to be printed: {bore.quote_always(floattext.general(number, 6))} (cannot handle values > 999Q)" } }
+    if o.to == 0 && floattext.compare_abs(number, o.max_output) >= 0 {
+        return Conversion {
+            text: word,
+            error: "value too large to be printed: {bore.quote_always(floattext.general(number, 6))} (consider using --to)",
+        }
+    }
+    if o.to != 0 && floattext.compare_abs(number, o.max_input) >= 0 {
+        return Conversion {
+            text: word,
+            error: "value too large to be printed: {bore.quote_always(floattext.general(number, 6))} (cannot handle values > 999Q)",
+        }
+    }
     var power = 0
     let output_base = if o.to == 1 then 1000 else 1024
     if o.to != 0 {
@@ -404,7 +423,9 @@ fn main() -> int {
     (mut spec).push(bore.flag("", "version"))
     let p = bore.parse(spec, env_args(), bore.permute())
     var out = bore.stdout()
-    let max_input = floattext.parse_number("1000000000000000000000000000000000") else |_| { return 1 }
+    let max_input = floattext.parse_number("1000000000000000000000000000000000") else |_| {
+        return 1
+    }
     let max_output = floattext.parse_number("10000000000000000000") else |_| { return 1 }
     var o = Options {
         from: 0,

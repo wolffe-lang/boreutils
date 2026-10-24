@@ -1215,6 +1215,7 @@ pub fn compare_abs(a: Number, b: Number) -> int {
     if a.e >= b.e { return bn_cmp(bn_shl(a.m, a.e - b.e), b.m) }
     bn_cmp(a.m, bn_shl(b.m, b.e - a.e))
 }
+
 /// C-locale general formatting for finite diagnostic values.
 pub fn general(v: Number, precision: int) -> str {
     let text = str_from_utf8(fmt_g(v, precision, false, false)) else "?"
