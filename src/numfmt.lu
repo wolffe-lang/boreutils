@@ -86,7 +86,7 @@ fn convert(word: str, o: Options, automatic_width: int) -> Conversion {
     var suffix = s[k..], input_power = 0, base = if o.from == 2 || o.from == 3 then 1024 else 1000
     if o.unit_sep.len > 0 && suffix.starts_with(o.unit_sep) { suffix = suffix[o.unit_sep.len..] }
     if suffix.len > 0 {
-        if o.from == 0 { return Conversion { text: word, error: "invalid suffix in input: {bore.quote_always(word.trim())}" } }
+        if o.from == 0 { return Conversion { text: word, error: if unit_power(suffix.bytes()[0] as int) > 0 then "rejecting suffix in input: {bore.quote_always(word.trim())} (consider using --from)" else "invalid suffix in input: {bore.quote_always(word.trim())}" } }
         input_power = unit_power(suffix.bytes()[0] as int)
         if input_power == 0 { return Conversion { text: word, error: "invalid suffix in input: {bore.quote_always(word.trim())}" } }
         var used = 1
@@ -100,8 +100,8 @@ fn convert(word: str, o: Options, automatic_width: int) -> Conversion {
     let output_base = if o.to == 1 then 1000 else 1024
     if o.to != 0 { while power < 10 && floattext.compare_integer(number, output_base) >= 0 { number = floattext.quotient(number, floattext.integer(output_base)); power += 1 } }
     var precision = if input_power > 0 then 0 else places
-    if o.to != 0 { precision = if floattext.compare_integer(number, 10) < 0 && !o.format_given then 1 else 0 }
-    if o.format.precision >= 0 && !(o.to != 0 && power == 0) { precision = o.format.precision }
+    if o.to != 0 { precision = if floattext.compare_integer(number, 10) < 0 then 1 else 0 }
+    if o.format.precision >= 0 { precision = if o.to != 0 && power == 0 then 0 else o.format.precision }
     var mode = o.mode
     var result = floattext.fixed(number, precision, mode)
     if o.to != 0 && power < 10 {
@@ -117,11 +117,12 @@ fn convert(word: str, o: Options, automatic_width: int) -> Conversion {
         result = floattext.fixed(rounded, if o.format.precision >= 0 then o.format.precision else 0, 5)
     }
     if o.format.plus && !result.starts_with("-") { result = "+" + result }
+    let numerical_width = result.len
     if power > 0 { let letters = if o.to == 1 then "kMGTPEZYRQ" else "KMGTPEZYRQ"; result += o.unit_sep + letters[power - 1..power]; if o.to == 3 { result += "i" } }
     result += o.suffix
     var width = automatic_width
     if o.pad_given { width = o.padding }
-    if o.format.width != 0 { width = if o.format.left then -o.format.width else o.format.width }
+    if o.format.width != 0 { width = if o.format.left then -o.format.width else o.format.width + (if o.format.zero then result.len - numerical_width else 0) }
     if width > result.len {
         let fill = if o.format.zero && !o.format.left then "0" else " "
         if fill == "0" && (result.starts_with("-") || result.starts_with("+")) { result = result[0..1] + fill.repeat(width - result.len) + result[1..] } else { result = fill.repeat(width - result.len) + result }
@@ -140,6 +141,10 @@ fn row(mut out: bore.Out, bs: List[byte], o: Options, line: int) -> Outcome {
             if start == bs.len && bs.len > 0 { break }
         } else { while end < bs.len && bs[end] as int != o.delimiter { end += 1 } }
         if selected(o, field) {
+            if o.delimiter < 0 && (o.pad_given || o.format.width != 0) {
+                let keep = if field > 1 then 1 else 0
+                if gap > keep { for _ in keep..gap { let _ = (mut result).pop() } }
+            }
             let original = text(bs, start, end)
             let answer = convert(original, o, if gap > 0 && o.delimiter < 0 then end - start else 0)
             if answer.error.len > 0 {
@@ -164,6 +169,7 @@ fn main() -> int {
     let p = bore.parse(spec, env_args(), bore.permute())
     var out = bore.stdout()
     var o = Options { from: 0, to: 0, from_unit: floattext.integer(1), to_unit: floattext.integer(1), mode: 0, suffix: "", unit_sep: "", padding: 0, pad_given: false, format: Format { before: "", after: "", width: 0, precision: -1, zero: false, left: false, plus: false }, format_given: false, fields: [Range { first: 1, last: 1 }], delimiter: -1, record: 10, header: 0, invalid: 0 }
+    var grouping = false
     for k in 0..p.keys.len {
         let key = p.keys[k], v = p.values[k]
         if key == "help" || key == "version" { bore.put(mut out, if key == "version" then bore.version_text("numfmt") else "Usage: numfmt [OPTION]... [NUMBER]...\nScale numbers and selected input fields.\n") else |_| {}; return bore.finish(mut out, "numfmt", 0) }
@@ -181,11 +187,13 @@ fn main() -> int {
         if key == "format" { o.format = format_spec(v) else |_| { bore.warn("numfmt", "invalid format {bore.quote_always(v)}"); return 1 }; o.format_given = true }
         if key == "padding" { o.padding = v.to_int() else 9223372036854775807; if o.padding > 100000 || o.padding < -100000 { bore.warn("numfmt", "invalid padding value {bore.quote_always(v)}"); return 1 }; o.pad_given = true }
         if key == "delimiter" { if v.len > 1 { bore.warn("numfmt", "the delimiter must be a single character"); return 1 }; o.delimiter = if v.len == 0 then 0 else v.bytes()[0] as int }
+        if key == "grouping" { grouping = true }
         if key == "suffix" { o.suffix = v }; if key == "unit-separator" { o.unit_sep = v }
         if key == "zero-terminated" { o.record = 0 }
         if key == "header" { o.header = if p.given[k] then (v.to_int() else -1) else 1; if o.header < 0 { bore.warn("numfmt", "invalid header value {bore.quote_always(v)}"); return 1 } }
     }
     if !bore.ok(p) { return bore.usage_error("numfmt", p.error) }
+    if grouping && o.to != 0 { bore.warn("numfmt", "grouping cannot be combined with --to"); return 1 }
     var status = 0, line = 0
     if p.operands.len > 0 {
         for word in p.operands { let answer = row(mut out, word.bytes(), o, line); if answer.status != 0 { status = answer.status }; if answer.stop { return bore.finish(mut out, "numfmt", status) }; line += 1 }
