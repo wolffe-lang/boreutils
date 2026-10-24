@@ -290,7 +290,7 @@ fn main() -> int {
     var status = 0
     for path in paths {
         let src = bore.open_input(path) else |_| {
-            bore.input_error("fmt", path, bore.reason_of(bore.host_code()))
+            bore.warn("fmt", "cannot open {bore.quote_always(path)} for reading: {bore.reason_of(bore.host_code())}")
             status = 1
             continue
         }
