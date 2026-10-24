@@ -105,13 +105,13 @@ args = ["-x", "-z", "-n", "25", "f"]
 scratch = { f = "secret" }
 
 [[case]]
-name = "final symbolic link never followed"
+name = "GNU follows an explicit symbolic link"
 args = ["-xzn0", "link"]
 scratch = { target = "keep" }
 scratch_links = { link = "target" }
 
 [[case]]
-name = "force never changes a symbolic link target"
+name = "force does not change mode when open already succeeds"
 args = ["-xfzn0", "link"]
 scratch = { target = "keep" }
 scratch_modes = { target = 0o400 }

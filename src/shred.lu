@@ -3,6 +3,8 @@
 //! References consulted: GNU coreutils 9.11 manual's shred invocation and
 //! sources-of-random-data nodes, and black-box runs. No implementation source.
 //! This never promises physical erasure on CoW, flash, snapshots or backups.
+//! Like GNU 9.11, an explicitly named symbolic link follows its target.
+//! -f changes the mode only after a failed writable open, not preemptively.
 //! -x is required: st_blksize is absent (wolf-lang#684). Name wiping is
 //! refused: a non-replacing rename is absent (#706); --remove=unlink works.
 //! Up to 25 passes use the measured pattern families: multiples of 0x11,
@@ -40,21 +42,19 @@ fn pattern_text(pattern: int) -> str {
 fn overwrite(path: str, n: int, size: int, zero: bool, force: bool, remove: bool, verbose: bool, random: int) -> bool {
     var r = List[int]()
     if path == "-" { r = fs_fstat_record(1) else |_| { bore.warn("shred", "{path}: failed to open for writing: {bore.io_error()}"); return false } }
-    else { r = fs_lstat(path) else |_| { bore.warn("shred", "{path}: failed to open for writing: {bore.io_error()}"); return false } }
-    if bore.rec_kind(r) == bore.kind_link() {
-        let opened = fs_open_mode(path, 19) else |_| { bore.warn("shred", "{path}: failed to open for writing: {bore.io_error()}"); return false }
-        fs_close(opened) else |_| {}
-        bore.warn("shred", "{path}: operand changed from a symbolic link; refusing to overwrite")
-        return false
-    }
+    else { r = fs_stat(path) else |_| { bore.warn("shred", "{path}: failed to open for writing: {bore.io_error()}"); return false } }
     if bore.rec_kind(r) != bore.kind_file() {
         bore.warn("shred", "{path}: unsupported file type; only regular files are overwritten")
         return false
     }
     var fd = 1
     if path != "-" {
-        if force { fs_set_mode(path, bore.rec_mode(r) | 128) else |_| {} }
-        fd = fs_open_mode(path, 19) else |_| { bore.warn("shred", "{path}: failed to open for writing: {bore.io_error()}"); return false }
+        fd = fs_open_mode(path, 3) else -1
+        if fd < 0 && force {
+            fs_set_mode(path, bore.rec_mode(r) | 128) else |_| {}
+            fd = fs_open_mode(path, 3) else -1
+        }
+        if fd < 0 { bore.warn("shred", "{path}: failed to open for writing: {bore.io_error()}"); return false }
     }
     defer { if fd != 1 { fs_close(fd) else |_| {} } }
     let opened = fs_fstat_record(fd) else |_| { return false }
