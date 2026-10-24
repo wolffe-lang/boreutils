@@ -1179,3 +1179,15 @@ name = "input inode collision symlink"
 args = ["-l1", "f"]
 scratch = { "f" = "1\n2\n3\n" }
 scratch_links = { "xaa" = "f" }
+
+[[case]]
+name = "round robin filter []"
+args = ["-u", "-n", "r/5", "--filter=cat > \"$FILE\""]
+stdin = "a\nb\n"
+scratch = {}
+
+[[case]]
+name = "round robin filter ['-e']"
+args = ["-u", "-n", "r/5", "--filter=cat > \"$FILE\"", "-e"]
+stdin = "a\nb\n"
+scratch = {}
