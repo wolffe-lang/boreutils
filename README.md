@@ -163,7 +163,7 @@ derives no boreutils code from GPL source.
 
 Every shipped utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus, except where a case says otherwise and is
-skipped with its reason. The combined corpus holds **12,784 cases across 92 case files**; `kill` has
+skipped with its reason. The combined corpus holds **12,811 cases across 92 case files**; `kill` has
 365 more that SEND, each run in a container of its own (`tests/kill/`,
 `tools/killtest`: **365 passed, 0 failed** on hasu at bu30, groups,
 `kill 0` and `kill -1` among them), `timeout` 163 more that run a
@@ -182,8 +182,8 @@ alphabet, object kind and private mode, never compared byte for byte.
 `tty` has standard-input pty cases, separate from standard-output ptys.
 
 The newest tools are `split`, `csplit`, `fmt`, `pr`, `ptx`, `od`,
-`expr`, `numfmt`, `factor` and `basenc`. Their **2,087 registered cases**
-contain 2,076 GNU comparisons and 11 explicitly named exceptions.
+`expr`, `numfmt`, `factor` and `basenc`. Their **2,114 registered cases**
+contain 2,103 GNU comparisons and 11 explicitly named exceptions.
 One factor case contains a separate deterministic corpus of **10,000
 full-range unsigned 64-bit integers**. The toolchain remains wolf **0.2.35** / lupin **0.1.56**, bundled
 std `2386522e`; the oracle remains **GNU coreutils 9.11**, `LC_ALL=C` and
@@ -194,8 +194,8 @@ partitions, automatic alphabetic/numeric/hex suffix growth, and shell
 filters. Its two named GNU divergences are documented below and checked
 independently. `csplit` uses the vendored clean-room BRE engine, preserves
 unterminated input, and compares both byte counts and resulting files.
-Both splitters refuse output paths that resolve to the input inode before
-truncation; GNU csplit instead loses its input in the collision described
+For files they create themselves, both splitters refuse paths that resolve
+to the input inode before truncation; GNU csplit instead loses its input in the collision described
 below.
 `fmt` has indentation, prefix, sentence and fresh generated word-length
 corpora; `pr` fixes input mtimes for header comparisons and checks form
@@ -209,8 +209,10 @@ long-double arithmetic, including field delimiters and invalid-input modes.
 `factor` combines trial division, deterministic Miller–Rabin and an
 independent Montgomery/Brent–Pollard-rho design. `expr` evaluates the full
 token grammar with lazy Boolean operations and anchored first captures;
-its integers have up to 64 magnitude bits, with a separate sign. Both
-programs refuse larger integers by name rather than wrap or truncate
+its arithmetic operands and results have up to 64 magnitude bits, with a
+separate sign. Pure string operations and decimal comparisons do not have
+that arithmetic limit. Unsupported arithmetic and larger factor inputs
+are refused by name rather than wrapped or truncated
 ([wolf-std#100](https://github.com/wolffe-lang/wolf-std/issues/100)).
 `basenc` shares the existing base64/base32 codec and adds the URL/hex
 alphabets, hexadecimal, both bit orders and Z85. GNU 9.11's additional
@@ -1524,16 +1526,16 @@ table answers it per utility, from the evidence and from nothing else.
 | `nice` | scoped above | 9 / 1 | not benched (hasu) | not yet |
 | `nohup` | scoped above | 12 / 0 | not benched (hasu) | drop-in |
 | `stdbuf` | scoped above | 9 / 0 | not benched (hasu) | not yet |
-| `split` | 15 / 15 | 195 / 3 | not benched (hasu) | documented correct behavior at the two named GNU defects below; other measured modes compare directly |
-| `csplit` | 9 / 9 | 114 / 3 | not benched (hasu) | refuses input-inode collisions without losing data, unlike GNU; other measured modes compare directly |
-| `fmt` | 9 / 9 | 328 / 0 | not benched (hasu) | drop-in under LC_ALL=C |
-| `pr` | 26 / 26 | 139 / 0 | not benched (hasu) | drop-in under LC_ALL=C |
-| `ptx` | 18 / 19 | 86 / 1 | not benched (hasu) | drop-in for GNU mode; `-G` refused by name |
-| `od` | 21 / 21 | 144 / 0 | not benched (hasu) | drop-in on the measured native type layouts under LC_ALL=C |
-| `expr` | 2 / 2, plus expression grammar | 425 / 1 | not benched (hasu) | drop-in for integers whose magnitude and arithmetic results fit 64 bits; larger values refused by name |
+| `split` | 15 / 15 | 196 / 3 | not benched (hasu) | documented correct behavior at the two named GNU defects below; other measured modes compare directly |
+| `csplit` | 9 / 9 | 118 / 3 | not benched (hasu) | refuses input-inode collisions without losing data, unlike GNU; other measured modes compare directly |
+| `fmt` | 9 / 9 | 329 / 0 | not benched (hasu) | drop-in under LC_ALL=C |
+| `pr` | 26 / 26 | 144 / 0 | not benched (hasu) | drop-in under LC_ALL=C |
+| `ptx` | 18 / 19 | 87 / 1 | not benched (hasu) | drop-in for GNU mode; `-G` refused by name |
+| `od` | 21 / 21 | 150 / 0 | not benched (hasu) | drop-in on the measured native type layouts under LC_ALL=C |
+| `expr` | 2 / 2, plus expression grammar | 433 / 1 | not benched (hasu) | drop-in for arithmetic operands/results through 64 magnitude bits; strings and comparisons are unrestricted, unsupported arithmetic is refused by name |
 | `numfmt` | 17 / 18 | 183 / 1 | not benched (hasu) | drop-in under LC_ALL=C for scripts that avoid `--debug`, refused by name |
 | `factor` | 3 / 3 | 59 / 1, including 10,000 random u64 values | not benched (hasu) | drop-in through 2^64−1; larger integers refused by name |
-| `basenc` | 13 / 14, eight encodings | 403 / 1 | not benched (hasu) | drop-in for scripts that avoid `--base58`, refused by name |
+| `basenc` | 13 / 14, eight encodings | 404 / 1 | not benched (hasu) | drop-in for scripts that avoid `--base58`, refused by name |
 
 **32 drop-in, 57 drop-in for scripts that avoid a named thing, 3 not yet** (command rows, not the manual's grouped utility units; new checksum
 rows explicitly require UTF-8 names). (bu28: `kill`'s two named things became one, and `timeout`'s four
