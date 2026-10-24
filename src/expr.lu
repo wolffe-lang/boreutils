@@ -37,15 +37,10 @@ fn truth(bs: List[byte]) -> bool {
     false
 }
 
-fn checked(mut p: Parser, bs: List[byte], eval: bool) -> List[byte] {
-    if eval && numeric(bs) {
-        let text = spelling(bs)
-        let _ = numcli.unsigned(if text.starts_with("-") then text[1..] else text) else |_| {
-            gap(mut p)
-            return List[byte]()
-        }
-    }
-    copy bs
+fn bounded(mut p: Parser, bs: List[byte]) -> bool {
+    let text = spelling(bs)
+    let _ = numcli.unsigned(if text.starts_with("-") then text[1..] else text) else |_| { gap(mut p); return false }
+    true
 }
 
 fn precedence(op: str) -> int {
@@ -104,7 +99,7 @@ fn primary(mut p: Parser, eval: bool) -> List[byte] {
         }
         let value = p.args[p.at].bytes()
         p.at += 1
-        return checked(mut p, value, eval)
+        return value
     }
     if token == "length" { let value = primary(mut p, eval); return "{value.len}".bytes() }
     if token == "index" {
@@ -143,7 +138,7 @@ fn primary(mut p: Parser, eval: bool) -> List[byte] {
         let text = primary(mut p, eval), pattern = primary(mut p, eval)
         return regex(mut p, text, pattern, eval)
     }
-    checked(mut p, token.bytes(), eval)
+    token.bytes()
 }
 
 fn compare(a: List[byte], b: List[byte]) -> int {
@@ -158,6 +153,18 @@ fn compare(a: List[byte], b: List[byte]) -> int {
     0
 }
 
+fn integer_compare(a: List[byte], b: List[byte]) -> int {
+    var i = if a[0] == 45 as byte then 1 else 0, j = if b[0] == 45 as byte then 1 else 0
+    while i < a.len && a[i] == 48 as byte { i += 1 }
+    while j < b.len && b[j] == 48 as byte { j += 1 }
+    let negative_a = a[0] == 45 as byte && i < a.len, negative_b = b[0] == 45 as byte && j < b.len
+    if negative_a != negative_b { return if negative_a then -1 else 1 }
+    var result = 0
+    if a.len - i != b.len - j { result = if a.len - i < b.len - j then -1 else 1 } else {
+        while i < a.len { if a[i] != b[j] { result = if a[i] < b[j] then -1 else 1; break }; i += 1; j += 1 }
+    }
+    if negative_a then -result else result
+}
 fn binary(mut p: Parser, left: List[byte], op: str, right: List[byte], eval: bool) -> List[byte] {
     if !eval || p.status != 0 { return List[byte]() }
     if op == "|" {
@@ -168,20 +175,7 @@ fn binary(mut p: Parser, left: List[byte], op: str, right: List[byte], eval: boo
     let nums = numeric(left) && numeric(right)
     if precedence(op) == 3 {
         var c = 0
-        if nums {
-            let a = number(left), b = number(right)
-            c = if a.neg != b.neg {
-                (if a.neg then -1 else 1)
-            } else if a.mag == b.mag {
-                0
-            } else if (a.mag < b.mag) != a.neg {
-                -1
-            } else {
-                1
-            }
-        } else {
-            c = compare(left, right)
-        }
+        if nums { c = integer_compare(left, right) } else { c = compare(left, right) }
         let yes = if op == "=" {
             c == 0
         } else if op == "!=" {
@@ -198,6 +192,7 @@ fn binary(mut p: Parser, left: List[byte], op: str, right: List[byte], eval: boo
         return (if yes then "1" else "0").bytes()
     }
     if !nums { fail(mut p, "non-integer argument"); return List[byte]() }
+    if !bounded(mut p, left) || !bounded(mut p, right) { return List[byte]() }
     let a = number(left)
     var b = number(right)
     let maximum: wrapping[u64] = 18446744073709551615
@@ -232,7 +227,7 @@ struct Number { mag: wrapping[u64], neg: bool }
 
 fn number(bytes: List[byte]) -> Number {
     let text = spelling(bytes), neg = text.starts_with("-")
-    let mag = numcli.unsigned(if neg then text[1..] else text) else |_| { 0 as wrapping[u64] }
+    let mag = numcli.unsigned(if neg then text[1..] else text) else |e| match e { overflow => { 18446744073709551615 as wrapping[u64] }, parse => { 0 as wrapping[u64] } }
     Number { mag: mag, neg: neg && mag != 0 }
 }
 

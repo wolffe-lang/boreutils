@@ -1707,6 +1707,38 @@ args = ["--version"]
 stdout_closed = true
 
 [[case]]
-name = "integer magnitude exceeds u64"
+name = "large literal requires no arithmetic surface"
 args = ["18446744073709551616"]
-skip = "wolf-std#100: named >64-bit refusal, checked independently by tools/numbertest"
+
+[[case]]
+name = "unbounded numeric string ['length', '18446744073709551616']"
+args = ["length", "18446744073709551616"]
+
+[[case]]
+name = "unbounded numeric string ['+', '18446744073709551616']"
+args = ["+", "18446744073709551616"]
+
+[[case]]
+name = "unbounded numeric string ['18446744073709551616', '>', '18446744073709551615']"
+args = ["18446744073709551616", ">", "18446744073709551615"]
+
+[[case]]
+name = "unbounded numeric string ['substr', 'abc', '1', '18446744073709551616']"
+args = ["substr", "abc", "1", "18446744073709551616"]
+
+[[case]]
+name = "unbounded numeric string ['0', '|', '18446744073709551616']"
+args = ["0", "|", "18446744073709551616"]
+
+[[case]]
+name = "unbounded numeric string ['1', '|', '18446744073709551616', '*', '18446744073709551616']"
+args = ["1", "|", "18446744073709551616", "*", "18446744073709551616"]
+
+[[case]]
+name = "unbounded numeric string ['-18446744073709551616', '<', '-18446744073709551615']"
+args = ["-18446744073709551616", "<", "-18446744073709551615"]
+
+[[case]]
+name = "arithmetic beyond 64 magnitude bits is named"
+args = ["18446744073709551615", "+", "1"]
+skip = "wolf-std#100: named arithmetic range refusal, checked independently by tools/numbertest"

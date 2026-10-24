@@ -14,10 +14,10 @@ BIN = ROOT / 'target' / TIER
 
 class NumberRefusals(unittest.TestCase):
     def test_expr_larger_than_64_bits_is_named(self):
-        for args in [['18446744073709551616'],
+        for args in [['18446744073709551616', '+', '0'],
                      ['18446744073709551615', '+', '1'],
                      ['18446744073709551615', '*', '2'],
-                     ['--', '-18446744073709551616']]:
+                     ['--', '-18446744073709551616', '/', '1']]:
             with self.subTest(args=args):
                 p = subprocess.run([BIN / 'expr'] + args, capture_output=True, timeout=5)
                 self.assertEqual((p.returncode, p.stdout), (2, b''))
