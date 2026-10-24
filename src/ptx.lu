@@ -110,7 +110,7 @@ fn prefix_end(bs: List[byte], limit: int) -> int {
     if bs.len <= limit { return bs.len }
     var z = if limit > 0 then limit else 0
     while z > 0 && !space(bs[z]) { z -= 1 }
-    if z == 0 { z = if limit < bs.len then limit else bs.len }
+    if z == 0 { return 0 }
     while z > 0 && space(bs[z - 1]) { z -= 1 }
     z
 }
@@ -123,17 +123,19 @@ fn suffix_begin(bs: List[byte], limit: int) -> int {
 }
 fn layout(text: Text, entry: Entry, o: Options, half: int) -> Fields {
     let before = trim(bytes(text.bytes, entry.first, entry.lo)), after = trim(bytes(text.bytes, entry.lo, entry.last))
-    let limit = if entry.last - entry.first <= half then half else half - o.gap
-    let a = suffix_begin(before, limit), z = prefix_end(after, limit)
+    let leftlimit = if half - o.gap - o.flag.len - 1 > 0 then half - o.gap - o.flag.len - 1 else 0
+    let rightlimit = if half - o.flag.len - 1 > 0 then half - o.flag.len - 1 else 0
+    let a = suffix_begin(before, leftlimit), z = prefix_end(after, rightlimit)
     var f = Fields { tail: List[byte](), before: bytes(before, a, before.len), after: bytes(after, 0, z), head: List[byte](), key: bytes(text.bytes, entry.lo, entry.hi), rest: List[byte]() }
     let overflow_after = trim(bytes(after, z, after.len)), overflow_before = trim(bytes(before, 0, a))
-    if overflow_after.len > 0 && limit - f.before.len - o.gap > 0 {
-        let tail_end = prefix_end(overflow_after, limit - f.before.len - o.gap)
+    if overflow_after.len > 0 && leftlimit - f.before.len - o.gap > 0 {
+        let tail_end = prefix_end(overflow_after, leftlimit - f.before.len - o.gap)
         f.tail = bytes(overflow_after, 0, tail_end)
-        if tail_end < overflow_after.len { add(mut f.tail, o.flag) }
+        if tail_end > 0 && tail_end < overflow_after.len { add(mut f.tail, o.flag) }
+        if tail_end == 0 { add(mut f.after, o.flag) }
     } else if z < after.len { add(mut f.after, o.flag) }
-    if overflow_before.len > 0 && limit - f.after.len - o.gap > 0 {
-        let start = suffix_begin(overflow_before, limit - f.after.len - o.gap)
+    if overflow_before.len > 0 && rightlimit - f.after.len - o.gap > 0 {
+        let start = suffix_begin(overflow_before, rightlimit - f.after.len - o.gap)
         if start > 0 { add(mut f.head, o.flag) }
         for b in bytes(overflow_before, start, overflow_before.len) { (mut f.head).push(b) }
     } else if a > 0 { var marked = o.flag.bytes(); for b in f.before { (mut marked).push(b) }; f.before = marked }
@@ -215,16 +217,16 @@ fn main() -> int {
     for entry in entries { if entry.reference.len > refwidth { refwidth = entry.reference.len } }
     let references = o.auto || o.refs
     let reference_width = if references && !o.right then refwidth + o.gap + (if o.auto && o.style == 0 then 1 else 0) else 0
-    let half = (o.width - reference_width) / 2
+    let half = o.width / 2 - reference_width
     for entry in entries {
         let f = layout(texts[entry.file], entry, o, half)
         var line = List[byte]()
         if o.style == 0 {
             if references && !o.right { add(mut line, entry.reference); if o.auto { add(mut line, ":") }; pad(mut line, reference_width - entry.reference.len - (if o.auto then 1 else 0)) }
-            let left = if o.right then half - o.gap else half
+            let left = if o.right then half - o.gap else half - (if references && o.auto then 1 else 0)
             if f.tail.len > 0 { if !o.right { pad(mut line, o.gap) }; for b in f.tail { (mut line).push(b) }; pad(mut line, left - f.tail.len - f.before.len - (if o.right then 0 else o.gap)) } else { pad(mut line, left - f.before.len) }
             for b in f.before { (mut line).push(b) }; pad(mut line, o.gap); for b in f.after { (mut line).push(b) }
-            if f.head.len > 0 { pad(mut line, half - o.gap - f.after.len - f.head.len); for b in f.head { (mut line).push(b) } }
+            if f.head.len > 0 { pad(mut line, half - f.after.len - f.head.len); for b in f.head { (mut line).push(b) } }
             if references && o.right { pad(mut line, o.width - line.len + o.gap); add(mut line, entry.reference) }
         } else {
             add(mut line, if o.style == 1 then ".{o.macro}" else "\\{o.macro} ")
