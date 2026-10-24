@@ -156,8 +156,22 @@ with tempfile.TemporaryDirectory(prefix="bu34.") as raw:
                 status = Path(f"/proc/{child.pid}/status").read_text()
                 print("signal witness", tier, name, re.findall(r"Sig(?:Blk|Ign):\s+[0-9a-f]+", status), flush=True)
                 os.kill(child.pid, signal.SIGUSR1)
+                # Do not resume input until the interim report is visible.
+                # First output proves initialization; the readiness wait handles
+                # both already-pending and newly arriving signals without a sleep.
+                interim = b""
+                deadline = time.monotonic() + 3
+                while b"records out\n" not in interim and time.monotonic() < deadline:
+                    ready = select.select([child.stderr], [], [], max(0, deadline - time.monotonic()))[0]
+                    if not ready: break
+                    part = os.read(child.stderr.fileno(), 4096)
+                    if not part: break
+                    interim += part
+                check(child.poll() is None and interim == b"1+0 records in\n1+0 records out\n",
+                      tier + ": USR1 report arrives before blocked input resumes " + str(name))
                 child.stdin.write(b"b"); child.stdin.flush(); child.stdin.close(); child.stdin = None
                 stdout, stderr = child.communicate(timeout=10)
+                stderr = interim + stderr
                 check(child.returncode == 0 and stderr.count(b"records in") == 2 and stderr.count(b"records out") == 2,
                       tier + ": USR1 reports while copying " + str(name))
             finally:

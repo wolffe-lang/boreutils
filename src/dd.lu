@@ -448,6 +448,19 @@ fn main() -> int {
             var chunk = List[byte]()
             var read_failed = false
             while chunk.len < wanted {
+                if piped && c.inf % 16 != 5 {
+                    let ready = os_signal_wait_fd(input, signal.user()) else |_| {
+                        bore.warn("dd", "cannot wait for input or USR1")
+                        status = 1
+                        stop = true
+                        break
+                    }
+                    if ready != 0 {
+                        report(s, c.status, started)
+                        last = os_clock_ns()
+                        continue
+                    }
+                }
                 let part = fs_read_chunk(input, wanted - chunk.len) else |e| match e {
                     eof => { stop = true; break },
                     io => {
