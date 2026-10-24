@@ -230,10 +230,7 @@ fn main() -> int {
     var out = bore.stdout()
     var shell = 0, mode = 0
     for k in p.keys {
-        if k == "help" { bore.put(mut out, "Usage: dircolors [OPTION]... [FILE]
-Emit shell color assignments, raw display colors or a reusable database.
--b selects Bourne shell; -c selects C shell; -p prints default rules.
-") else |_| {}; return bore.finish(mut out, "dircolors", 0) }
+        if k == "help" { bore.put(mut out, "Usage: dircolors [OPTION]... [FILE]\nEmit shell color assignments, raw display colors or a reusable database.\n-b selects Bourne shell; -c selects C shell; -p prints default rules.\n") else |_| {}; return bore.finish(mut out, "dircolors", 0) }
         if k == "version" { bore.put(mut out, bore.version_text("dircolors")) else |_| {}; return bore.finish(mut out, "dircolors", 0) }
         if k == "sh" || k == "bourne-shell" { shell = 1 }
         if k == "csh" || k == "c-shell" { shell = 2 }
