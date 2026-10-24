@@ -121,6 +121,16 @@ fn suffix_begin(bs: List[byte], limit: int, o: Options) -> int {
     while a < bs.len && space(bs[a]) { a += 1 }
     a
 }
+fn head_begin(bs: List[byte], limit: int, o: Options) -> int {
+    if limit <= 0 { return bs.len }
+    if bs.len <= limit { return 0 }
+    var a = bs.len - limit
+    // A wrapped head extends back to the start of a straddling keyword;
+    // the primary before field instead advances past such a keyword.
+    while a > 0 && constituent(bs[a], o.breaks, o.custom_breaks) && constituent(bs[a - 1], o.breaks, o.custom_breaks) { a -= 1 }
+    while a < bs.len && space(bs[a]) { a += 1 }
+    a
+}
 fn layout(text: Text, entry: Entry, o: Options, half: int) -> Fields {
     let before = trim(bytes(text.bytes, entry.first, entry.lo)), after = trim(bytes(text.bytes, entry.lo, entry.last))
     let leftlimit = if half - o.gap - 2 * o.flag.len > 0 then half - o.gap - 2 * o.flag.len else 0
@@ -135,7 +145,9 @@ fn layout(text: Text, entry: Entry, o: Options, half: int) -> Fields {
         if tail_end == 0 { add(mut f.after, o.flag) }
     } else if z < after.len { add(mut f.after, o.flag) }
     if overflow_before.len > 0 && rightlimit - f.after.len - o.gap > 0 {
-        let start = suffix_begin(overflow_before, rightlimit - f.after.len - o.gap - o.flag.len, o)
+        let spare = half - f.before.len - o.gap + entry.hi - entry.lo
+        let available = rightlimit - f.after.len - o.gap
+        let start = head_begin(overflow_before, if spare < available then spare else available, o)
         if start < overflow_before.len { if start > 0 { add(mut f.head, o.flag) }; for b in bytes(overflow_before, start, overflow_before.len) { (mut f.head).push(b) } } else if a > 0 { var marked = o.flag.bytes(); for b in f.before { (mut marked).push(b) }; f.before = marked }
     } else if a > 0 { var marked = o.flag.bytes(); for b in f.before { (mut marked).push(b) }; f.before = marked }
     let keylen = entry.hi - entry.lo
@@ -222,7 +234,7 @@ fn main() -> int {
         var line = List[byte]()
         if o.style == 0 {
             if references && !o.right { add(mut line, entry.reference); if o.auto { add(mut line, ":") }; pad(mut line, reference_width - entry.reference.len - (if o.auto then 1 else 0)) }
-            let left = if o.right then half - o.gap else half - (if references && o.auto then 1 else 0)
+            let left = if o.right then half - o.gap else if references then (o.width - reference_width) / 2 - o.gap - (if o.auto then 1 else 0) else half
             if f.tail.len > 0 { if !o.right { pad(mut line, o.gap) }; for b in f.tail { (mut line).push(b) }; pad(mut line, left - f.tail.len - f.before.len - (if o.right then 0 else o.gap)) } else { pad(mut line, left - f.before.len) }
             for b in f.before { (mut line).push(b) }; pad(mut line, o.gap); for b in f.after { (mut line).push(b) }
             if f.head.len > 0 { pad(mut line, half - f.after.len - f.head.len); for b in f.head { (mut line).push(b) } }
