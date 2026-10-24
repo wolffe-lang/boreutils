@@ -438,6 +438,7 @@ fn main() -> int {
         while !eof && !done {
             let needed = if skipped < o.skip then o.skip - skipped else o.count - data.len
             if needed == 0 { done = true; break }
+            var good_read = true
             let chunk = bore.read_chunk(
                 src,
                 if needed < 65536 then needed else 65536,

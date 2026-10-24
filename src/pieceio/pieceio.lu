@@ -66,7 +66,9 @@ pub fn open(prog: str, name: str, source: Identity, truncate: bool) -> int {
 
 /// Open a native input without rejecting directories before a read is
 /// attempted. This preserves GNU's read-error and zero-byte-limit behavior.
-pub fn input(path: str) -> bore.In ! {not_found, denied, io} {
+pub error InputFailed = {not_found, denied, io}
+
+pub fn input(path: str) -> bore.In ! InputFailed {
     if path == "-" { return bore.In { fd: 0, name: "-" } }
     let fd = fs_open(path)?
     bore.In { fd: fd, name: path }
