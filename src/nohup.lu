@@ -36,8 +36,8 @@ fn main() -> int {
             destination = "{home}/nohup.out"
             output = fs_open_perm(destination, 2, 384) else |_| { bore.warn("nohup", "failed to open {bore.quote_always(destination)}: {bore.io_error()}"); return fail }
         }
-        if terminal_out { bore.warn("nohup", "{if terminal_in then "ignoring input and appending" else "appending"} output to {bore.quote_always(destination)}") }
-        else { bore.warn("nohup", "{if terminal_in then "ignoring input and redirecting" else "redirecting"} standard error to {bore.quote_always(destination)}") }
+        bore.warn("nohup", "{if terminal_in then "ignoring input and appending" else "appending"} output to {bore.quote_always(destination)}")
+        if !terminal_out { bore.warn("nohup", "redirecting standard error to standard output") }
     } else if terminal_err {
         bore.warn("nohup", "{if terminal_in then "ignoring input and redirecting" else "redirecting"} standard error to standard output")
     } else if terminal_in { bore.warn("nohup", "ignoring input") }

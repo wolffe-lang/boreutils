@@ -34,7 +34,7 @@ def tty_run(name, mask, top):
     with tempfile.TemporaryDirectory(dir=top) as cwd:
         master, slave = pty.openpty()
         try:
-            closed = mask == 8
+            closed = mask >= 8
             child = sp.Popen([str(name), "/bin/sh", "-c", "printf out; printf err >&2"], cwd=cwd,
                              stdin=slave if mask & 1 else sp.DEVNULL,
                              stdout=slave if mask & 2 else sp.PIPE,
@@ -89,7 +89,7 @@ with tempfile.TemporaryDirectory(prefix="bu34.") as raw:
                           f"{tier} {name}: HOME fallback")
                 finally:
                     os.close(master); os.close(slave)
-        for mask in range(9):
+        for mask in range(10):
             expected = tty_run(GNU / "nohup", mask, top)
             got = tty_run(bin / "nohup", mask, top)
             check(expected == got, f"{tier}: nohup tty descriptor mask {mask}: {expected!r} vs {got!r}")
