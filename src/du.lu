@@ -1,0 +1,242 @@
+//! member: false
+//! du — count file allocation, apparent bytes or inodes with one identity set.
+//! References consulted: POSIX.1-2024 du; GNU coreutils 9.11 documented
+//! invocation and black-box runs in Ubuntu 24.04, LC_ALL=C. No source.
+//! Directory order comes from fs_read_dir_entries; hard links use dev+ino.
+//! Non-UTF-8 paths require wolf-lang#687. Custom time directives beyond
+//! the explicitly implemented set are refused, never silently printed.
+
+use bore
+
+struct Config {
+    all: bool, apparent: bool, inodes: bool, links: bool, follow: int,
+    separate: bool, onefs: bool, depth: int, block: int, human: int,
+    threshold: int, nul: bool, time: int, style: str, excludes: List[str],
+}
+struct State {
+    seen: Map[str, bool], active: Map[str, bool], total: int,
+    secs: int, nanos: int, status: int,
+}
+struct Amount { size: int, secs: int, nanos: int }
+
+fn glob(pattern: str, text: str) -> bool {
+    var p = 0, t = 0, star = -1, retry = 0
+    while t < text.len {
+        if p < pattern.len && pattern.bytes()[p] as int == 42 {
+            star = p
+            p += 1
+            retry = t
+        } else if p < pattern.len &&
+            (pattern.bytes()[p] as int == 63 || pattern.bytes()[p] == text.bytes()[t]) {
+            p += 1
+            t += 1
+        } else if star >= 0 {
+            retry += 1
+            t = retry
+            p = star + 1
+        } else { return false }
+    }
+    while p < pattern.len && pattern.bytes()[p] as int == 42 { p += 1 }
+    p == pattern.len
+}
+fn excluded(path: str, c: Config) -> bool {
+    var base = path
+    let slash = path.rfind("/") else -1
+    if slash >= 0 { base = path[slash + 1..] }
+    for pat in c.excludes {
+        if glob(pat, path) || glob(pat, base) { return true }
+    }
+    false
+}
+fn sized(text: str) -> int ! {invalid} {
+    var s = text
+    if s.len > 0 && s.bytes()[0] as int >= 65 { s = "1{s}" }
+    let n = bore.parse_count(s)?
+    let v = bore.count_value(n)
+    if bore.count_minus(n) { return -v }
+    v
+}
+fn time_text(c: Config, secs: int, nanos: int) -> str {
+    let civil = bore.civil_in(bore.zone(), secs)
+    let date = bore.date_text(civil)
+    let clock = bore.time_text(civil)
+    if c.style == "full-iso" { return bore.full_stamp(civil, nanos) }
+    if c.style == "iso" { return date }
+    if c.style == "long-iso" { return "{date} {clock[0..5]}" }
+    var text = ""
+    var i = 1
+    while i < c.style.len {
+        if c.style.bytes()[i] as int != 37 {
+            text += c.style[i..i + 1]
+            i += 1
+            continue
+        }
+        i += 1
+        let k = c.style[i..i + 1]
+        if k == "F" { text += date }
+        if k == "T" { text += clock }
+        if k == "Y" { text += bore.year_text(civil.year) }
+        if k == "m" { text += bore.zero_padded(civil.month, 2) }
+        if k == "d" { text += bore.zero_padded(civil.day, 2) }
+        if k == "H" { text += bore.zero_padded(civil.hour, 2) }
+        if k == "M" { text += bore.zero_padded(civil.minute, 2) }
+        if k == "S" { text += bore.zero_padded(civil.second, 2) }
+        if k == "s" { text += "{secs}" }
+        if k == "%" { text += "%" }
+        i += 1
+    }
+    text
+}
+fn style_ok(s: str) -> bool {
+    if s == "full-iso" || s == "long-iso" || s == "iso" { return true }
+    if !s.starts_with("+") { return false }
+    var i = 1
+    while i < s.len {
+        if s.bytes()[i] as int == 37 {
+            i += 1
+            if i >= s.len || !"FTYmdHMSs%".contains(s[i..i + 1]) { return false }
+        }
+        i += 1
+    }
+    true
+}
+fn emit(mut out: bore.Out, path: str, a: Amount, c: Config) {
+    if c.threshold > 0 && a.size < c.threshold || c.threshold < 0 && a.size > -c.threshold { return }
+    var n = "{a.size}"
+    if !c.inodes {
+        if c.human != 0 { n = bore.human(a.size, c.human == 2) }
+        else { n = "{a.size / c.block + if a.size % c.block != 0 then 1 else 0}" }
+    }
+    bore.put(mut out, "{n}\t") else |_| {}
+    if c.time >= 0 { bore.put(mut out, "{time_text(c, a.secs, a.nanos)}\t") else |_| {} }
+    bore.put(mut out, path) else |_| {}
+    bore.put_byte(mut out, if c.nul then 0 as byte else 10 as byte) else |_| {}
+}
+fn newer(a: Amount, b: Amount) -> bool {
+    a.secs > b.secs || a.secs == b.secs && a.nanos > b.nanos
+}
+fn walk(path: str, depth: int, device: int, c: Config, mut s: State, mut out: bore.Out) -> Amount {
+    var answer = Amount { size: 0, secs: -9223372036854775807, nanos: 0 }
+    if excluded(path, c) { return answer }
+    let follow = c.follow == 2 || c.follow == 1 && depth == 0
+    let r = (if follow then fs_stat(path) else fs_lstat(path)) else |_| {
+        bore.warn("du", "cannot access {bore.quote_always(path)}: {bore.io_error()}")
+        s.status = 1
+        return answer
+    }
+    let dir = bore.rec_kind(r) == bore.kind_dir()
+    if c.onefs && depth > 0 && dir && bore.rec_dev(r) != device { return answer }
+    let key = "{bore.rec_dev(r)}:{bore.rec_ino(r)}"
+    if (s.active[key] else false) {
+        bore.warn("du", "WARNING: Circular directory structure.\nThis almost certainly means that you have a corrupted file system.\nNOTIFY YOUR SYSTEM MANAGER.\nThe following directory is part of the cycle:\n  {bore.quote_always(path)}\n")
+        s.status = 1
+        return answer
+    }
+    if !c.links && (s.seen[key] else false) { return answer }
+    s.seen[key] = true
+    answer.size = if c.inodes then 1 else if c.apparent then bore.rec_size(r) else bore.rec_blocks(r) * 512
+    let which = if c.time < 0 then 0 else c.time
+    answer.secs = bore.rec_secs(r, which)
+    answer.nanos = bore.rec_nanos(r, which)
+    s.total += answer.size
+    if answer.secs > s.secs || answer.secs == s.secs && answer.nanos > s.nanos {
+        s.secs = answer.secs
+        s.nanos = answer.nanos
+    }
+    if dir {
+        s.active[key] = true
+        let entries = fs_read_dir_entries(path) else |_| {
+            bore.warn("du", "cannot read directory {bore.quote_always(path)}: {bore.io_error()}")
+            s.status = 1
+            List[List[byte]]()
+        }
+        for raw in entries {
+            let name = str_from_utf8(raw[1..]) else |_| {
+                bore.warn("du", "unsupported non-UTF-8 path (wolf-lang#687)")
+                s.status = 1
+                continue
+            }
+            let child = if path.ends_with("/") then "{path}{name}" else "{path}/{name}"
+            let a = walk(child, depth + 1, bore.rec_dev(r), c, mut s, mut out)
+            if !c.separate || raw[0] as int != bore.kind_dir() { answer.size += a.size }
+            if newer(a, answer) { answer.secs = a.secs; answer.nanos = a.nanos }
+        }
+        s.active[key] = false
+    }
+    if depth <= c.depth && (dir || c.all || depth == 0) { emit(mut out, path, answer, c) }
+    answer
+}
+fn main() -> int {
+    var opts = List[bore.Opt]()
+    for pair in ["0:null", "a:all", "A:apparent-size", "b:bytes", "c:total", "D:dereference-args", "H:", "h:human-readable", "k:", "L:dereference", "l:count-links", "m:", "P:no-dereference", "S:separate-dirs", "s:summarize", "x:one-file-system", ":inodes", ":si", ":help", ":version"] {
+        let at = pair.find(":") else 0
+        (mut opts).push(bore.flag(pair[..at], pair[at + 1..]))
+    }
+    for pair in ["B:block-size", "d:max-depth", "t:threshold", "X:exclude-from", ":exclude", ":time-style", ":files0-from"] {
+        let at = pair.find(":") else 0
+        (mut opts).push(bore.takes(pair[..at], pair[at + 1..]))
+    }
+    (mut opts).push(bore.optional("", "time"))
+    let p = bore.parse(opts, env_args(), bore.permute())
+    var out = bore.stdout()
+    var c = Config { all: false, apparent: false, inodes: false, links: false, follow: 0, separate: false, onefs: false, depth: 2147483647, block: 1024, human: 0, threshold: 0, nul: false, time: -1, style: env_get("TIME_STYLE") else "long-iso", excludes: List[str]() }
+    let blockenv = env_get("DU_BLOCK_SIZE") else (env_get("BLOCK_SIZE") else (env_get("BLOCKSIZE") else ""))
+    if blockenv.len > 0 { c.block = sized(blockenv) else 1024 }
+    else if (env_get("POSIXLY_CORRECT") else "").len > 0 { c.block = 512 }
+    var total = false, summary = false
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i], v = p.values[i]
+        if k == "help" { bore.put(mut out, "Usage: du [OPTION]... [FILE]...\nCount allocated blocks, apparent bytes or inodes.\n") else |_| {}; return bore.finish(mut out, "du", 0) }
+        if k == "version" { bore.put(mut out, bore.version_text("du")) else |_| {}; return bore.finish(mut out, "du", 0) }
+        if k == "all" { c.all = true }
+        if k == "apparent-size" { c.apparent = true }
+        if k == "bytes" { c.apparent = true; c.block = 1; c.human = 0 }
+        if k == "total" { total = true }
+        if k == "dereference-args" || k == "H" { c.follow = 1 }
+        if k == "dereference" { c.follow = 2 }
+        if k == "no-dereference" { c.follow = 0 }
+        if k == "count-links" { c.links = true }
+        if k == "inodes" { c.inodes = true }
+        if k == "human-readable" { c.human = 1 }
+        if k == "si" { c.human = 2 }
+        if k == "k" { c.block = 1024; c.human = 0 }
+        if k == "m" { c.block = 1048576; c.human = 0 }
+        if k == "separate-dirs" { c.separate = true }
+        if k == "one-file-system" { c.onefs = true }
+        if k == "null" { c.nul = true }
+        if k == "summarize" { summary = true; c.depth = 0 }
+        if k == "max-depth" {
+            c.depth = v.to_int() else -1
+            if c.depth < 0 { bore.warn("du", "invalid maximum depth {bore.quote_always(v)}"); return 1 }
+        }
+        if k == "block-size" || k == "threshold" {
+            let n = sized(v) else |_| { bore.warn("du", "invalid {if k == "threshold" then "threshold" else "--block-size argument"} {bore.quote_always(v)}"); return 1 }
+            if k == "threshold" { c.threshold = n }
+            else { if n <= 0 { bore.warn("du", "invalid block size"); return 1 }; c.block = n; c.human = 0 }
+        }
+        if k == "exclude" { (mut c.excludes).push(v) }
+        if k == "exclude-from" {
+            let text = fs_read(v) else |_| { bore.warn("du", "{v}: {bore.io_error()}"); return 1 }
+            for line in text.lines() { (mut c.excludes).push(line) }
+        }
+        if k == "files0-from" { bore.warn("du", "unsupported option: --files0-from"); return 1 }
+        if k == "time-style" { c.style = v }
+        if k == "time" {
+            c.time = 0
+            if v == "atime" || v == "access" || v == "use" { c.time = 1 }
+            else if v == "ctime" || v == "status" { c.time = 2 }
+            else if v.len != 0 { bore.warn("du", "unsupported --time value {bore.quote_always(v)}"); return 1 }
+        }
+        i += 1
+    }
+    if !bore.ok(p) { return bore.usage_error("du", p.error) }
+    if summary && c.all { return bore.usage_error("du", "cannot both summarize and show all entries") }
+    if c.time >= 0 && !style_ok(c.style) { bore.warn("du", "unsupported --time-style directive or style {bore.quote_always(c.style)}"); return 1 }
+    var s = State { seen: Map[str, bool](), active: Map[str, bool](), total: 0, secs: -9223372036854775807, nanos: 0, status: 0 }
+    var paths = copy p.operands
+    if paths.len == 0 { (mut paths).push(".") }
+    for path in paths { let _ = walk(path, 0, -1, c, mut s, mut out) }
+    if total { emit(mut out, "total", Amount { size: s.total, secs: s.secs, nanos: s.nanos }, c) }
+    bore.finish(mut out, "du", s.status)
+}

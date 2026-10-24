@@ -1,0 +1,342 @@
+# GNU 9.11, fixture traversal order preserved; allocated sizes measured locally.
+[tree.links]
+scratch = { a = "abc", "d/b" = "xy", empty = "" }
+scratch_dirs = ["d", "d/sub"]
+scratch_hardlinks = { h = "a" }
+scratch_links = { sym = "a" }
+scratch_times = { a = 1000000000, "d/b" = 1000000001, d = 1000000002, "d/sub" = 1000000003, h = 1000000000, sym = 1000000000, empty = 1000000000 }
+scratch_time_all = 1000000000
+
+[[case]]
+name = "help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "version"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "tree []"
+args = ["."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['-a']"
+args = ["-a", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['-b']"
+args = ["-b", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['-ab']"
+args = ["-ab", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['-bk']"
+args = ["-bk", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['-m']"
+args = ["-m", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['-h']"
+args = ["-h", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['--si']"
+args = ["--si", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['--inodes']"
+args = ["--inodes", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['--inodes', '-a']"
+args = ["--inodes", "-a", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['-l']"
+args = ["-l", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['-al']"
+args = ["-al", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['-s']"
+args = ["-s", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['-sc']"
+args = ["-sc", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['-S']"
+args = ["-S", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['-bS']"
+args = ["-bS", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['-bSc']"
+args = ["-bSc", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['-d', '0']"
+args = ["-d", "0", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['-d', '1']"
+args = ["-d", "1", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['-d', '2']"
+args = ["-d", "2", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['-b', '-t', '3']"
+args = ["-b", "-t", "3", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['-b', '-t', '-3']"
+args = ["-b", "-t", "-3", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['-0']"
+args = ["-0", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['-a0']"
+args = ["-a0", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['-L']"
+args = ["-L", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['-P']"
+args = ["-P", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['-H']"
+args = ["-H", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['-x']"
+args = ["-x", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['-B', '1']"
+args = ["-B", "1", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['-B', '512']"
+args = ["-B", "512", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['-B', '1K']"
+args = ["-B", "1K", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['-B', 'KB']"
+args = ["-B", "KB", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['--apparent-size']"
+args = ["--apparent-size", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['--exclude', 'a']"
+args = ["--exclude", "a", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['--exclude', '*b']"
+args = ["--exclude", "*b", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['--exclude', 'd']"
+args = ["--exclude", "d", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['--exclude', 's?m']"
+args = ["--exclude", "s?m", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['--time']"
+args = ["--time", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['--time', '--time-style=iso']"
+args = ["--time", "--time-style=iso", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['--time', '--time-style=full-iso']"
+args = ["--time", "--time-style=full-iso", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['--time', '--time-style=+%F %T']"
+args = ["--time", "--time-style=+%F %T", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['--time=atime']"
+args = ["--time=atime", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "tree ['--time=ctime']"
+args = ["--time=ctime", "."]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "operands ['a', 'h']"
+args = ["a", "h"]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "operands ['h', 'a']"
+args = ["h", "a"]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "operands ['a', 'a']"
+args = ["a", "a"]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "operands ['-l', 'a', 'h']"
+args = ["-l", "a", "h"]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "operands ['-b', 'a', 'sym']"
+args = ["-b", "a", "sym"]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "operands ['-bL', 'a', 'sym']"
+args = ["-bL", "a", "sym"]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "operands ['-c', 'a', 'd']"
+args = ["-c", "a", "d"]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "operands ['empty']"
+args = ["empty"]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "operands ['sym']"
+args = ["sym"]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "operands ['-L', 'sym']"
+args = ["-L", "sym"]
+tree = "links"
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "operands ['-s', 'd']"
+args = ["-s", "d"]
+tree = "links"
+env = { TZ = "UTC0" }
