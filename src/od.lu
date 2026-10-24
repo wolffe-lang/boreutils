@@ -170,10 +170,11 @@ fn main() -> int {
     for t in formats { multiple = multiple / gcd(multiple, t.size) * t.size }
     if o.width <= 0 || o.width % multiple != 0 { bore.warn("od", "warning: invalid width {o.width}; using {multiple} instead"); o.width = multiple }
     if !width_given && o.width < multiple { o.width = multiple }
-    var data = List[byte](), skipped = 0, status = 0, done = false
+    var data = List[byte](), skipped = 0, status = 0, done = false, opened = false
     for path in paths {
         if done { break }
         let src = bore.open_input(path) else |_| { bore.input_error("od", path, bore.reason_of(bore.host_code())); status = 1; continue }
+        opened = true
         var eof = false
         while !eof && !done {
             let needed = if skipped < o.skip then o.skip - skipped else o.count - data.len
@@ -184,6 +185,7 @@ fn main() -> int {
         }
         bore.close_input(src)
     }
+    if !opened { return status }
     if skipped < o.skip { bore.warn("od", "cannot skip past end of combined input"); return 1 }
     if o.strings > 0 {
         var start = 0
