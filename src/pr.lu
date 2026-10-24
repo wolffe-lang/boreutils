@@ -1,0 +1,188 @@
+//! member: false
+//! pr — paginate and columnate byte records. References consulted:
+//! GNU coreutils 9.11 --help and binary probes (fixed file mtimes).
+//! Header dates use pinned std.time's C-locale strftime, not a guessed clock.
+//! No foreign implementation consulted.
+
+use bore
+use std.time
+use std.fmt
+
+struct Row { bytes: List[byte], page: bool }
+struct File { rows: List[Row], name: str, stamp: int }
+struct Options { cols: int, across: bool, merge: bool, length: int, width: int, truncate: bool, omit: bool, no_pages: bool, formfeed: bool, double: bool, header: str, header_set: bool, date: str, number: bool, digits: int, number_sep: str, first: int, margin: int, sep: str, sep_set: bool, join: bool, control: bool, visible: bool, expand: bool, inchar: int, instop: int, compress: bool, outchar: int, outstop: int, quiet: bool, firstpage: int, lastpage: int }
+
+fn pad(mut bs: List[byte], n: int) { for _ in 0..n { (mut bs).push(32 as byte) } }
+fn add(mut bs: List[byte], s: str) { for b in s.bytes() { (mut bs).push(b) } }
+fn tabarg(v: str) -> (int, int) {
+    if v.len == 0 { return (9, 8) }
+    var ch = 9, at = 0
+    if v.bytes()[0] < 48 as byte || v.bytes()[0] > 57 as byte { ch = v.bytes()[0] as int; at = 1 }
+    let n = if at == v.len then 8 else (v[at..].to_int() else 0)
+    (ch, n)
+}
+fn render(bs: List[byte], o: Options) -> List[byte] {
+    var out = List[byte](), col = 0
+    for b in bs {
+        let c = b as int
+        if o.expand && c == o.inchar { let n = o.instop - col % o.instop; pad(mut out, n); col += n } else if (o.control || o.visible) && (c < 32 || c == 127 || c > 126) && c != 9 {
+            if o.control && (c < 32 || c == 127) { add(mut out, if c == 127 then "^?" else "^{char_from_u32((c + 64) as u32) else '?'}"); col += 2 } else { add(mut out, "\\{fmt.to_str_base(c, 8) else "0":03}"); col += 4 }
+        } else { (mut out).push(b); col += if c == 9 then 8 - col % 8 else 1 }
+    }
+    out
+}
+fn emit(mut out: bore.Out, bs: List[byte], o: Options) -> bool {
+    var k = 0, col = 0
+    while k < bs.len {
+        if o.compress && bs[k] == 32 as byte {
+            var end = k
+            while end < bs.len && bs[end] == 32 as byte { end += 1 }
+            while k < end { let n = o.outstop - col % o.outstop; if n > 1 && end - k >= n { bore.put_byte(mut out, o.outchar as byte) else |_| { return false }; k += n; col += n } else { bore.put_byte(mut out, 32 as byte) else |_| { return false }; k += 1; col += 1 } }
+        } else { bore.put_byte(mut out, bs[k]) else |_| { return false }; col += if bs[k] == 9 as byte then 8 - col % 8 else 1; k += 1 }
+    }
+    bore.put_byte(mut out, 10 as byte) else |_| { return false }
+    true
+}
+fn header(mut out: bore.Out, file: File, page: int, o: Options) -> bool {
+    let civil = time.local(file.stamp) else |_| { bore.warn("pr", "cannot resolve local time zone"); return false }
+    let date = time.format(civil, o.date) else |_| { bore.warn("pr", "invalid date format: {bore.quote_always(o.date)}"); return false }
+    let title = if o.header_set then o.header else file.name
+    let right = "Page {page}"
+    var width = o.width
+    let least = date.len + title.len + right.len + 2
+    if width < least { width = least }
+    let gap = width - date.len - title.len - right.len
+    var line = List[byte]()
+    pad(mut line, o.margin); add(mut line, date); pad(mut line, gap / 2); add(mut line, title); pad(mut line, gap - gap / 2); add(mut line, right)
+    bore.put(mut out, "\n\n") else |_| { return false }
+    // Header uses spaces even when text columns use output tabs.
+    for b in line { bore.put_byte(mut out, b) else |_| { return false } }
+    bore.put(mut out, "\n\n\n") else |_| { return false }
+    true
+}
+fn print_files(mut out: bore.Out, files: List[File], o: Options) -> bool {
+    var cursors = List[int]()
+    for _ in files { (mut cursors).push(0) }
+    var page = 1, line_number = o.first
+    let capacity = if o.omit then o.length else o.length - 10
+    let slots = if o.double then (capacity + 1) / 2 else capacity
+    var done = false
+    while !done {
+        var available = 0
+        if o.merge { for c in 0..files.len { let left = files[c].rows.len - cursors[c]; if left > available { available = left } } } else { available = files[0].rows.len - cursors[0] }
+        if available <= 0 { break }
+        var columns = o.cols
+        if o.merge { columns = files.len }
+        let count = if o.merge then (if available < slots then available else slots) else (if available < slots * columns then available else slots * columns)
+        let rows = if o.merge then count else (count + columns - 1) / columns
+        let shown = page >= o.firstpage && page <= o.lastpage
+        if page > o.lastpage { break }
+        if shown && !o.omit { if !header(mut out, files[0], page, o) { return false } }
+        var printed = 0, consumed = 0, broke = false
+        for r in 0..rows {
+            var line = List[byte]()
+            pad(mut line, o.margin)
+            var outputcol = o.margin
+            if o.number && o.merge { add(mut line, fmt.pad_left("{line_number}", o.digits)); add(mut line, o.number_sep); outputcol += o.digits + o.number_sep.len }
+            for c in 0..columns {
+                var index = 0, file = 0, exists = true
+                if o.merge { file = c; index = cursors[c] + r; exists = index < files[c].rows.len } else if o.across { index = cursors[0] + r * columns + c; exists = r * columns + c < count } else {
+                    let short = count / columns, extra = count % columns
+                    let before = c * short + if c < extra then c else extra
+                    let height = short + if c < extra then 1 else 0
+                    index = cursors[0] + before + r; exists = r < height
+                }
+                if !exists { continue }
+                if files[file].rows[index].page { broke = true; if !o.no_pages { break }; continue }
+                if c > 0 {
+                    let sep = if o.sep_set then o.sep else if o.join then "\t" else " "
+                    if !o.join && !o.sep_set {
+                        let target = o.margin + c * ((o.width + 1) / columns)
+                        pad(mut line, target - outputcol); outputcol = target
+                    } else if !o.join && o.truncate {
+                        let target = o.margin + c * ((o.width - (columns - 1) * sep.len) / columns + sep.len) - sep.len
+                        pad(mut line, target - outputcol); outputcol = target
+                        add(mut line, sep); outputcol += sep.len
+                    } else { add(mut line, sep); outputcol += sep.len }
+                }
+                if o.number && !o.merge { add(mut line, fmt.pad_left("{line_number + index - cursors[0]}", o.digits)); add(mut line, o.number_sep); outputcol += o.digits + o.number_sep.len }
+                let text = render(files[file].rows[index].bytes, o)
+                let sepwidth = if o.sep_set then o.sep.len else 1
+                var limit = (o.width - (columns - 1) * sepwidth) / columns
+                if o.number { limit -= o.digits + if o.number_sep == "\t" then 8 - o.digits % 8 else o.number_sep.len }
+                var used = 0
+                for b in text {
+                    let n = if b == 9 as byte then 8 - used % 8 else 1
+                    if o.truncate && !o.join && used + n > limit { break }
+                    (mut line).push(b); used += n; outputcol += n
+                }
+            }
+            if broke { consumed = r + 1; break }
+            if shown { if !emit(mut out, line, o) { return false }; if o.double { bore.put(mut out, "\n") else |_| { return false } } }
+            printed += if o.double then 2 else 1
+            if o.merge { line_number += 1 }
+        }
+        if o.merge { for c in 0..files.len { cursors[c] += if broke then consumed else rows } } else { cursors[0] += if broke then consumed else count; line_number += if broke then consumed - 1 else count }
+        if shown && !o.omit {
+            if o.formfeed { bore.put_byte(mut out, 12 as byte) else |_| { return false } } else { for _ in printed..o.length - 5 { bore.put(mut out, "\n") else |_| { return false } } }
+        }
+        page += 1
+    }
+    true
+}
+fn main() -> int {
+    var spec = List[bore.Opt]()
+    for pair in [["a", "across"], ["c", "show-control-chars"], ["d", "double-space"], ["f", "form-feed"], ["F", ""], ["J", "join-lines"], ["m", "merge"], ["r", "no-file-warnings"], ["t", "omit-header"], ["T", "omit-pagination"], ["v", "show-nonprinting"]] { (mut spec).push(bore.flag(pair[0], pair[1])) }
+    for pair in [["", "columns"], ["D", "date-format"], ["h", "header"], ["l", "length"], ["N", "first-line-number"], ["o", "indent"], ["w", "width"], ["W", "page-width"], ["", "pages"]] { (mut spec).push(bore.takes(pair[0], pair[1])) }
+    for pair in [["e", "expand-tabs"], ["i", "output-tabs"], ["n", "number-lines"], ["s", "separator"], ["S", "sep-string"]] { (mut spec).push(bore.optional(pair[0], pair[1])) }
+    (mut spec).push(bore.flag("", "help")); (mut spec).push(bore.flag("", "version"))
+    var args = List[str]()
+    for a in env_args() { if a.len > 1 && a.bytes()[0] == 45 as byte && a.bytes()[1] >= 48 as byte && a.bytes()[1] <= 57 as byte { (mut args).push("--columns={a[1..]}") } else if a.starts_with("+") { (mut args).push("--pages={a[1..]}") } else { (mut args).push(a) } }
+    let p = bore.parse(spec, args, bore.permute())
+    var out = bore.stdout()
+    var o = Options { cols: 1, across: false, merge: false, length: 66, width: 72, truncate: false, omit: false, no_pages: false, formfeed: false, double: false, header: "", header_set: false, date: "%Y-%m-%d %H:%M", number: false, digits: 5, number_sep: "\t", first: 1, margin: 0, sep: "", sep_set: false, join: false, control: false, visible: false, expand: false, inchar: 9, instop: 8, compress: false, outchar: 9, outstop: 8, quiet: false, firstpage: 1, lastpage: 9223372036854775807 }
+    var width_given = false
+    for k in 0..p.keys.len {
+        let key = p.keys[k], v = p.values[k]
+        if key == "help" || key == "version" { bore.put(mut out, if key == "version" then bore.version_text("pr") else "Usage: pr [OPTION]... [FILE]...\nPaginate or columnate files for printing.\n") else |_| {}; return bore.finish(mut out, "pr", 0) }
+        if key == "across" { o.across = true }; if key == "merge" { o.merge = true }
+        if key == "double-space" { o.double = true }; if key == "show-control-chars" { o.control = true }; if key == "show-nonprinting" { o.visible = true }
+        if key == "form-feed" || key == "F" { o.formfeed = true }
+        if key == "no-file-warnings" { o.quiet = true }
+        if key == "omit-header" || key == "omit-pagination" { o.omit = true }; if key == "omit-pagination" { o.no_pages = true }
+        if key == "join-lines" { o.join = true }
+        if key == "date-format" { o.date = v }; if key == "header" { o.header = v; o.header_set = true }
+        if key == "columns" || key == "length" || key == "width" || key == "page-width" || key == "indent" || key == "first-line-number" {
+            let n = v.to_int() else -1
+            if n < 0 || n == 0 && key != "indent" && key != "first-line-number" || n > 1000000 { bore.warn("pr", "invalid {key} argument: {bore.quote_always(v)}"); return 1 }
+            if key == "columns" { o.cols = n }; if key == "length" { o.length = n }; if key == "width" || key == "page-width" { o.width = n; width_given = true; o.truncate = true }; if key == "indent" { o.margin = n }; if key == "first-line-number" { o.first = n }
+        }
+        if key == "separator" || key == "sep-string" { o.sep_set = true; o.sep = if p.given[k] then v else if key == "separator" then "\t" else ""; if key == "separator" && !width_given { o.truncate = false; o.join = true } }
+        if key == "expand-tabs" || key == "output-tabs" { let (ch, n) = tabarg(v); if n <= 0 { bore.warn("pr", "invalid tab width"); return 1 }; if key == "expand-tabs" { o.expand = true; o.inchar = ch; o.instop = n } else { o.compress = true; o.outchar = ch; o.outstop = n } }
+        if key == "number-lines" { o.number = true; if v.len > 0 { var at = 0; if v.bytes()[0] < 48 as byte || v.bytes()[0] > 57 as byte { o.number_sep = v[0..1]; at = 1 }; if at < v.len { o.digits = v[at..].to_int() else -1; if o.digits <= 0 || o.digits > 10000 { return 1 } } } }
+        if key == "pages" { let parts = v.split(":"); o.firstpage = parts[0].to_int() else 0; if parts.len > 1 { o.lastpage = parts[1].to_int() else 0 }; if o.firstpage <= 0 || o.lastpage < o.firstpage { bore.warn("pr", "invalid page range {bore.quote_always(v)}"); return 1 } }
+    }
+    if !bore.ok(p) { return bore.usage_error("pr", p.error) }
+    if o.length <= 10 { o.omit = true }
+    if o.cols > 1 || o.merge { o.expand = true; o.compress = true; if !o.sep_set { o.truncate = true } }
+    if o.number { o.compress = true }
+    var paths = copy p.operands
+    if paths.len == 0 { (mut paths).push("-") }
+    var files = List[File](), status = 0
+    for path in paths {
+        let src = bore.open_input(path) else |_| { if !o.quiet { bore.input_error("pr", path, bore.reason_of(bore.host_code())) }; status = 1; continue }
+        var rows = List[Row](), line = List[byte](), done = false
+        while !done {
+            let chunk = bore.read_chunk(src, 65536) else |e| match e { eof => { done = true; List[byte]() }, io => { status = 1; done = true; List[byte]() } }
+            if chunk.len == 0 { done = true }
+            for b in chunk { if b == 10 as byte { (mut rows).push(Row { bytes: line, page: false }); line = List[byte]() } else if b == 12 as byte { if line.len > 0 { (mut rows).push(Row { bytes: line, page: false }); line = List[byte]() }; if !o.no_pages { (mut rows).push(Row { bytes: List[byte](), page: true }) } } else { (mut line).push(b) } }
+        }
+        bore.close_input(src)
+        if line.len > 0 { (mut rows).push(Row { bytes: line, page: false }) }
+        let rec = if path == "-" then List[int]() else (fs_stat(path) else |_| { List[int]() })
+        let stamp = if rec.len > 0 then bore.rec_secs(rec, 0) else bore.instant_now().secs
+        (mut files).push(File { rows: rows, name: if path == "-" then "" else path, stamp: stamp })
+    }
+    if o.merge { if files.len > 0 && !print_files(mut out, files, o) { status = 1 } } else { for f in files { if !print_files(mut out, [f], o) { status = 1 } } }
+    bore.finish(mut out, "pr", status)
+}
