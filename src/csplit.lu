@@ -8,23 +8,49 @@ use bore
 use re
 use std.fmt
 
-struct Sink { prefix: str, format: str, digits: int, serial: int, quiet: bool, elide: bool, names: List[str] }
+struct Sink {
+    prefix: str,
+    format: str,
+    digits: int,
+    serial: int,
+    quiet: bool,
+    elide: bool,
+    names: List[str],
+}
 
 fn filename(s: Sink) -> str {
     if s.format.len == 0 { return s.prefix + fmt.pad_left_with("{s.serial}", s.digits, "0") }
     let f = s.format
     var result = "", k = 0
     while k < f.len {
-        if f.bytes()[k] != 37 as byte { result += f[k..k + 1]; k += 1; continue }
+        if f.bytes()[k] != 37 as byte {
+            result += f[k..k + 1]
+            k += 1
+            continue
+        }
         k += 1
-        if k < f.len && f.bytes()[k] == 37 as byte { result += "%"; k += 1; continue }
+        if k < f.len && f.bytes()[k] == 37 as byte {
+            result += "%"
+            k += 1
+            continue
+        }
         var zero = false, width = 0
         if k < f.len && f.bytes()[k] == 48 as byte { zero = true }
-        while k < f.len && f.bytes()[k] >= 48 as byte && f.bytes()[k] <= 57 as byte { width = width * 10 + f.bytes()[k] as int - 48; k += 1; if width > 10000 { return "" } }
+        while k < f.len && f.bytes()[k] >= 48 as byte && f.bytes()[k] <= 57 as byte {
+            width = width * 10 + f.bytes()[k] as int - 48
+            k += 1
+            if width > 10000 { return "" }
+        }
         if k >= f.len { return "" }
         let c = f[k..k + 1]
         var base = 10
-        if c == "x" || c == "X" { base = 16 } else if c == "o" { base = 8 } else if c != "d" && c != "i" && c != "u" { return "" }
+        if c == "x" || c == "X" {
+            base = 16
+        } else if c == "o" {
+            base = 8
+        } else if c != "d" && c != "i" && c != "u" {
+            return ""
+        }
         var v = fmt.to_str_base(s.serial, base) else ""
         if c == "X" { v = v.upper() }
         result += fmt.pad_left_with(v, width, if zero then "0" else " ")
@@ -37,12 +63,19 @@ fn write_piece(mut out: bore.Out, mut s: Sink, bytes: List[byte], a: int, z: int
     if s.elide && a == z { return true }
     let name = filename(s)
     if name.len == 0 { bore.warn("csplit", "invalid suffix format"); return false }
-    let fd = fs_open_mode(name, 1) else |_| { bore.warn("csplit", "{bore.quote_name(name)}: {bore.reason_of(bore.host_code())}"); return false }
-    (mut s.names).push(name); s.serial += 1
+    let fd = fs_open_mode(name, 1) else |_| {
+        bore.warn("csplit", "{bore.quote_name(name)}: {bore.reason_of(bore.host_code())}")
+        return false
+    }
+    (mut s.names).push(name)
+    s.serial += 1
     var chunk = List[byte]()
     for k in a..z { (mut chunk).push(bytes[k]) }
     var good = true
-    fs_write_chunk(fd, chunk) else |_| { bore.warn("csplit", "write error: {bore.io_error()}"); good = false }
+    fs_write_chunk(fd, chunk) else |_| {
+        bore.warn("csplit", "write error: {bore.io_error()}")
+        good = false
+    }
     fs_close(fd) else |_| { good = false }
     if !s.quiet { bore.put(mut out, "{z - a}\n") else |_| { good = false } }
     good
@@ -62,39 +95,84 @@ fn main() -> int {
     (mut spec).push(bore.flag("", "version"))
     let p = bore.parse(spec, env_args(), bore.permute())
     var out = bore.stdout()
-    var sink = Sink { prefix: "xx", format: "", digits: 2, serial: 0, quiet: false, elide: false, names: List[str]() }
+    var sink = Sink {
+        prefix: "xx",
+        format: "",
+        digits: 2,
+        serial: 0,
+        quiet: false,
+        elide: false,
+        names: List[str](),
+    }
     var keep = false, suppress = false
     for k in 0..p.keys.len {
         let key = p.keys[k], v = p.values[k]
         if key == "help" || key == "version" {
-            bore.put(mut out, if key == "version" then bore.version_text("csplit") else "Usage: csplit [OPTION]... FILE PATTERN...\nSplit at line numbers or BRE patterns.\n") else |_| {}
+            bore.put(
+                mut out,
+                if key == "version" {
+                    bore.version_text("csplit")
+                } else {
+                    "Usage: csplit [OPTION]... FILE PATTERN...\nSplit at line numbers or BRE patterns.\n"
+                },
+            ) else |_| {}
             return bore.finish(mut out, "csplit", 0)
         }
         if key == "prefix" { sink.prefix = v }
         if key == "suffix-format" { sink.format = v }
-        if key == "digits" { sink.digits = v.to_int() else -1; if sink.digits < 0 || sink.digits > 10000 { bore.warn("csplit", "invalid number of digits: {bore.quote_always(v)}"); return 1 } }
+        if key == "digits" {
+            sink.digits = v.to_int() else -1
+            if sink.digits < 0 || sink.digits > 10000 {
+                bore.warn("csplit", "invalid number of digits: {bore.quote_always(v)}")
+                return 1
+            }
+        }
         if key == "keep-files" { keep = true }
         if key == "quiet" || key == "silent" { sink.quiet = true }
         if key == "elide-empty-files" { sink.elide = true }
         if key == "suppress-matched" { suppress = true }
     }
     if !bore.ok(p) { return bore.usage_error("csplit", p.error) }
-    if p.operands.len < 2 { return bore.usage_error("csplit", if p.operands.len == 0 then "missing operand" else "missing operand after {bore.quote(p.operands[0])}") }
+    if p.operands.len < 2 {
+        return bore.usage_error(
+            "csplit",
+            if p.operands.len == 0 {
+                "missing operand"
+            } else {
+                "missing operand after {bore.quote(p.operands[0])}"
+            },
+        )
+    }
     var prior = 0
     for j in 1..p.operands.len {
         let value = p.operands[j].to_int() else -1
         if value >= 0 {
-            if value == 0 { bore.warn("csplit", "{p.operands[j]}: line number must be greater than zero"); return 1 }
-            if value < prior { bore.warn("csplit", "line number {bore.quote_always(p.operands[j])} is smaller than preceding line number, {prior}"); return 1 }
+            if value == 0 {
+                bore.warn("csplit", "{p.operands[j]}: line number must be greater than zero")
+                return 1
+            }
+            if value < prior {
+                bore.warn(
+                    "csplit",
+                    "line number {bore.quote_always(p.operands[j])} is smaller than preceding line number, {prior}",
+                )
+                return 1
+            }
             prior = value
         }
     }
     let path = p.operands[0]
-    let src = bore.open_input(path) else |_| { bore.input_error("csplit", path, bore.reason_of(bore.host_code())); return 1 }
+    let src = bore.open_input(path) else |_| {
+        bore.input_error("csplit", path, bore.reason_of(bore.host_code()))
+        return 1
+    }
     defer bore.close_input(src)
     var bytes = List[byte](), done = false
     while !done {
-        let chunk = bore.read_chunk(src, 65536) else |e| match e { eof => { done = true; List[byte]() }, io => { bore.warn("csplit", "read error: {bore.io_error()}"); return 1 } }
+        let chunk = bore.read_chunk(src, 65536) else |e| match e {
+            eof => { done = true; List[byte]() },
+            io => { bore.warn("csplit", "read error: {bore.io_error()}"); return 1 },
+        }
         if chunk.len == 0 { done = true }
         for b in chunk { (mut bytes).push(b) }
     }
@@ -108,29 +186,81 @@ fn main() -> int {
         arg += 1
         var repetitions = 0, forever = false
         if arg < p.operands.len && p.operands[arg].starts_with("{{") {
-            let word = p.operands[arg]; arg += 1
-            if word == "{{*}}" { forever = true } else if word.ends_with("}}") { repetitions = word[1..word.len - 1].to_int() else -1 } else { repetitions = -1 }
-            if repetitions < 0 { bore.warn("csplit", "{bore.quote_always(word)}: integer required between '{{' and '}}'"); status = 1; break }
+            let word = p.operands[arg]
+            arg += 1
+            if word == "{{*}}" {
+                forever = true
+            } else if word.ends_with("}}") {
+                repetitions = word[1..word.len - 1].to_int() else -1
+            } else {
+                repetitions = -1
+            }
+            if repetitions < 0 {
+                bore.warn(
+                    "csplit",
+                    "{bore.quote_always(word)}: integer required between '{{' and '}}'",
+                )
+                status = 1
+                break
+            }
         }
-        var is_regex = pattern.starts_with("/") || pattern.starts_with("%"), discard = pattern.starts_with("%")
+        var is_regex = pattern.starts_with("/") || pattern.starts_with("%"),
+            discard = pattern.starts_with("%")
         var expression = "", offset = 0, number = 0
         if is_regex {
             var end = pattern.len - 1
             while end > 0 && pattern.bytes()[end] != pattern.bytes()[0] { end -= 1 }
-            if end == 0 { bore.warn("csplit", "{bore.quote_always(pattern)}: closing delimiter missing"); status = 1; break }
+            if end == 0 {
+                bore.warn("csplit", "{bore.quote_always(pattern)}: closing delimiter missing")
+                status = 1
+                break
+            }
             expression = pattern[1..end]
-            if end + 1 < pattern.len { offset = pattern[end + 1..].to_int() else 9223372036854775807 }
-            if offset == 9223372036854775807 { bore.warn("csplit", "{bore.quote_always(pattern)}: integer expected after delimiter"); status = 1; break }
+            if end + 1 < pattern.len {
+                offset = pattern[end + 1..].to_int() else 9223372036854775807
+            }
+            if offset == 9223372036854775807 {
+                bore.warn(
+                    "csplit",
+                    "{bore.quote_always(pattern)}: integer expected after delimiter",
+                )
+                status = 1
+                break
+            }
         } else {
             number = pattern.to_int() else -1
-            if number <= 0 { bore.warn("csplit", "{pattern}: line number must be greater than zero"); status = 1; break }
-            if number < previous { bore.warn("csplit", "line number {bore.quote_always(pattern)} is smaller than preceding line number, {previous}"); status = 1; break }
+            if number <= 0 {
+                bore.warn("csplit", "{pattern}: line number must be greater than zero")
+                status = 1
+                break
+            }
+            if number < previous {
+                bore.warn(
+                    "csplit",
+                    "line number {bore.quote_always(pattern)} is smaller than preceding line number, {previous}",
+                )
+                status = 1
+                break
+            }
             previous = number
         }
         var diag = re.diagnostics_new()
-        let regex = re.compile([expression.bytes()], re.Options { extended: false, icase: false, word: false, whole: false, terminator: 10 as byte }, mut diag) else |_| {
-            for d in diag.items { bore.warn("csplit", str_from_utf8(d.text) else "invalid regular expression") }
-            status = 1; break
+        let regex = re.compile(
+            [expression.bytes()],
+            re.Options {
+                extended: false,
+                icase: false,
+                word: false,
+                whole: false,
+                terminator: 10 as byte,
+            },
+            mut diag,
+        ) else |_| {
+            for d in diag.items {
+                bore.warn("csplit", str_from_utf8(d.text) else "invalid regular expression")
+            }
+            status = 1
+            break
         }
         var ws = re.workspace_new(regex), repeat = 0, boundary = number - 1
         while status == 0 && (forever || repeat <= repetitions) {
@@ -140,27 +270,54 @@ fn main() -> int {
                 while k < lines {
                     var end = starts[k + 1]
                     if end > starts[k] && bytes[end - 1] == 10 as byte { end -= 1 }
-                    if re.line_matches(regex, mut ws, bytes, starts[k], end) { target = k + offset; search_from = k + 1; found = true; break }
+                    if re.line_matches(regex, mut ws, bytes, starts[k], end) {
+                        target = k + offset
+                        search_from = k + 1
+                        found = true
+                        break
+                    }
                     k += 1
                 }
             }
             if !found || target < current || target > lines || !is_regex && target >= lines {
-                if !discard { if !write_piece(mut out, mut sink, bytes, starts[current], if found && target < current then starts[current] else bytes.len) { status = 1; break } }
+                if !discard {
+                    if !write_piece(
+                        mut out,
+                        mut sink,
+                        bytes,
+                        starts[current],
+                        if found && target < current then starts[current] else bytes.len,
+                    ) {
+                        status = 1
+                        break
+                    }
+                }
                 current = lines + 1
                 if forever && is_regex && !found { break }
                 var suffix = ""
                 if repeat > 0 { suffix = " on repetition {repeat}" }
-                bore.warn("csplit", "{bore.quote_always(pattern)}: {if !found then "match not found" else "line number out of range"}{suffix}")
-                status = 1; break
+                bore.warn(
+                    "csplit",
+                    "{bore.quote_always(pattern)}: {if !found then "match not found" else "line number out of range"}{suffix}",
+                )
+                status = 1
+                break
             }
-            if !discard { if !write_piece(mut out, mut sink, bytes, starts[current], starts[target]) { status = 1; break } }
+            if !discard {
+                if !write_piece(mut out, mut sink, bytes, starts[current], starts[target]) {
+                    status = 1
+                    break
+                }
+            }
             current = target
             if suppress && is_regex && current < lines { current += 1 }
             boundary += number
             repeat += 1
         }
     }
-    if status == 0 && current <= lines { if !write_piece(mut out, mut sink, bytes, starts[current], bytes.len) { status = 1 } }
+    if status == 0 && current <= lines {
+        if !write_piece(mut out, mut sink, bytes, starts[current], bytes.len) { status = 1 }
+    }
     if status != 0 && !keep { for name in sink.names { fs_remove(name) else |_| {} } }
     bore.finish(mut out, "csplit", status)
 }
