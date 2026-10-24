@@ -245,7 +245,8 @@ fn main() -> int {
         ["", "endian"],
     ] { (mut spec).push(bore.takes(pair[0], pair[1])) }
     (mut spec).push(bore.optional("w", "width"))
-    (mut spec).push(bore.optional("S", "strings"))
+    (mut spec).push(bore.takes("S", ""))
+    (mut spec).push(bore.optional("", "strings"))
     (mut spec).push(bore.flag("v", "output-duplicates"))
     (mut spec).push(bore.flag("", "traditional"))
     for key in ["a", "b", "c", "d", "f", "i", "l", "o", "s", "x"] {
@@ -267,7 +268,8 @@ fn main() -> int {
     }
     var traditional = false, width_given = false, modern = false
     for k in 0..p.keys.len {
-        let key = p.keys[k], v = p.values[k]
+        let key = if p.keys[k] == "S" then "strings" else p.keys[k]
+        let v = p.values[k]
         if key == "format" ||
             key == "address-radix" ||
             key == "skip-bytes" ||

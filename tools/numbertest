@@ -24,6 +24,11 @@ class NumberRefusals(unittest.TestCase):
                 self.assertIn(b'unsupported integer', p.stderr)
                 self.assertIn(b'wolf-std#100', p.stderr)
 
+    def test_numfmt_debug_is_named(self):
+        p = subprocess.run([BIN / 'numfmt', '--debug', '1'], capture_output=True, timeout=5)
+        self.assertEqual((p.returncode, p.stdout), (1, b''))
+        self.assertIn(b'unsupported option: --debug', p.stderr)
+
     def test_factor_larger_than_64_bits_is_named(self):
         p = subprocess.run([BIN / 'factor', '-h', '18446744073709551616'],
                            capture_output=True, timeout=5)

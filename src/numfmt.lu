@@ -484,6 +484,7 @@ fn main() -> int {
             }
             o.delimiter = if v.len == 0 then 0 else v.bytes()[0] as int
         }
+        if key == "debug" { bore.warn("numfmt", "unsupported option: --debug (not implemented)"); return 1 }
         if key == "grouping" { grouping = true }
         if key == "suffix" { o.suffix = v }
         if key == "unit-separator" { o.unit_sep = v }

@@ -691,3 +691,8 @@ stdout_closed = true
 [[case]]
 name = "common missing file"
 args = ["missing"]
+
+[[case]]
+name = "separate short strings length"
+args = ["-S", "3"]
+stdin = "abc\u0000defgh\u0000"

@@ -609,3 +609,75 @@ scratch = {}
 name = "common missing file"
 args = ["missing", "2"]
 scratch = {}
+
+[[case]]
+name = "suffix format %d"
+args = ["-b", "%d", "-", "3"]
+stdin = "1\n2\n3\n4\n"
+scratch = {}
+
+[[case]]
+name = "suffix format %03u"
+args = ["-b", "%03u", "-", "3"]
+stdin = "1\n2\n3\n4\n"
+scratch = {}
+
+[[case]]
+name = "suffix format %#x"
+args = ["-b", "%#x", "-", "3"]
+stdin = "1\n2\n3\n4\n"
+scratch = {}
+
+[[case]]
+name = "suffix format %#04x"
+args = ["-b", "%#04x", "-", "3"]
+stdin = "1\n2\n3\n4\n"
+scratch = {}
+
+[[case]]
+name = "suffix format %#o"
+args = ["-b", "%#o", "-", "3"]
+stdin = "1\n2\n3\n4\n"
+scratch = {}
+
+[[case]]
+name = "suffix format %+04d"
+args = ["-b", "%+04d", "-", "3"]
+stdin = "1\n2\n3\n4\n"
+scratch = {}
+
+[[case]]
+name = "suffix format %-4d"
+args = ["-b", "%-4d", "-", "3"]
+stdin = "1\n2\n3\n4\n"
+scratch = {}
+
+[[case]]
+name = "suffix format % 3d"
+args = ["-b", "% 3d", "-", "3"]
+stdin = "1\n2\n3\n4\n"
+scratch = {}
+
+[[case]]
+name = "suffix format %.3d"
+args = ["-b", "%.3d", "-", "3"]
+stdin = "1\n2\n3\n4\n"
+scratch = {}
+
+[[case]]
+name = "suffix format %.0d"
+args = ["-b", "%.0d", "-", "3"]
+stdin = "1\n2\n3\n4\n"
+scratch = {}
+
+[[case]]
+name = "suffix format %#.0o"
+args = ["-b", "%#.0o", "-", "3"]
+stdin = "1\n2\n3\n4\n"
+scratch = {}
+
+[[case]]
+name = "suffix format \u03b2%03d.txt"
+args = ["-b", "\u03b2%03d.txt", "-", "3"]
+stdin = "1\n2\n3\n4\n"
+scratch = {}

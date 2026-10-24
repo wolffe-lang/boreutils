@@ -13,9 +13,9 @@ fn test_exact_rounding_modes() {
 }
 
 fn test_ieee_float_spelling() {
-    let single: List[byte] = [0, 0, 128, 63]
-    let negative_zero: List[byte] = [0, 0, 0, 128]
-    let subnormal: List[byte] = [1, 0, 0, 0]
+    let single: List[byte] = [0 as byte, 0 as byte, 128 as byte, 63 as byte]
+    let negative_zero: List[byte] = [0 as byte, 0 as byte, 0 as byte, 128 as byte]
+    let subnormal: List[byte] = [1 as byte, 0 as byte, 0 as byte, 0 as byte]
     assert(shortest(single, 4, false) == "1", "binary32 one")
     assert(shortest(negative_zero, 4, false) == "-0", "od preserves zero sign")
     assert(shortest(subnormal, 4, false) == "1e-45", "shortest subnormal")
