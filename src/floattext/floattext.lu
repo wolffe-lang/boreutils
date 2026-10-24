@@ -1140,6 +1140,7 @@ pub fn product(a: Number, b: Number) -> Number {
 
 /// Host-rounded quotient. The caller supplies a nonzero finite divisor.
 pub fn quotient(a: Number, b: Number) -> Number {
+    if a.kind != 0 { return Number { kind: a.kind, neg: a.neg != b.neg, m: List[int](), e: 0 } }
     let h = arithmetic_host()
     if a.m.len == 0 { return Number { kind: 0, neg: a.neg != b.neg, m: List[int](), e: 0 } }
     var e = bn_bitlen(a.m) - bn_bitlen(b.m) + a.e - b.e - h.mant + 1

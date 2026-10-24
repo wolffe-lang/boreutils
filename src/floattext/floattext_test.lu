@@ -20,3 +20,14 @@ fn test_ieee_float_spelling() {
     assert(shortest(negative_zero, 4, false) == "-0", "od preserves zero sign")
     assert(shortest(subnormal, 4, false) == "1e-45", "shortest subnormal")
 }
+
+fn test_range_and_diagnostic_controls() {
+    let limit = parse_number("10000000000000000000") else { assert(false, "limit parse"); return }
+    let below = parse_number("999999999999999999") else { assert(false, "finite parse"); return }
+    assert(compare_abs(below, limit) < 0, "absolute bound")
+    assert(general(limit, 6) == "1e+19", "range diagnostic spelling")
+    let huge = Number { kind: 0, neg: false, m: [1], e: 20000 }
+    let overflow = product(huge, integer(2))
+    assert(overflow.kind == 1, "host overflow")
+    assert(quotient(overflow, integer(1)).kind == 1, "overflow cannot collapse to zero")
+}

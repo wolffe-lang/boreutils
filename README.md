@@ -163,7 +163,7 @@ derives no boreutils code from GPL source.
 
 Every shipped utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus, except where a case says otherwise and is
-skipped with its reason. The combined corpus holds **12,811 cases across 92 case files**; `kill` has
+skipped with its reason. The combined corpus holds **12,837 cases across 92 case files**; `kill` has
 365 more that SEND, each run in a container of its own (`tests/kill/`,
 `tools/killtest`: **365 passed, 0 failed** on hasu at bu30, groups,
 `kill 0` and `kill -1` among them), `timeout` 163 more that run a
@@ -182,7 +182,7 @@ alphabet, object kind and private mode, never compared byte for byte.
 `tty` has standard-input pty cases, separate from standard-output ptys.
 
 The newest tools are `split`, `csplit`, `fmt`, `pr`, `ptx`, `od`,
-`expr`, `numfmt`, `factor` and `basenc`. Their **2,114 registered cases**
+`expr`, `numfmt`, `factor` and `basenc`. Their **2,140 registered cases**
 contain 2,103 GNU comparisons and 11 explicitly named exceptions.
 One factor case contains a separate deterministic corpus of **10,000
 full-range unsigned 64-bit integers**. The toolchain remains wolf **0.2.35** / lupin **0.1.56**, bundled
@@ -1533,7 +1533,7 @@ table answers it per utility, from the evidence and from nothing else.
 | `ptx` | 18 / 19 | 87 / 1 | not benched (hasu) | drop-in for GNU mode; `-G` refused by name |
 | `od` | 21 / 21 | 150 / 0 | not benched (hasu) | drop-in on the measured native type layouts under LC_ALL=C |
 | `expr` | 2 / 2, plus expression grammar | 433 / 1 | not benched (hasu) | drop-in for arithmetic operands/results through 64 magnitude bits; strings and comparisons are unrestricted, unsupported arithmetic is refused by name |
-| `numfmt` | 17 / 18 | 183 / 1 | not benched (hasu) | drop-in under LC_ALL=C for scripts that avoid `--debug`, refused by name |
+| `numfmt` | 17 / 18 | 209 / 1 | not benched (hasu) | drop-in under LC_ALL=C for scripts that avoid `--debug`, refused by name |
 | `factor` | 3 / 3 | 59 / 1, including 10,000 random u64 values | not benched (hasu) | drop-in through 2^64−1; larger integers refused by name |
 | `basenc` | 13 / 14, eight encodings | 404 / 1 | not benched (hasu) | drop-in for scripts that avoid `--base58`, refused by name |
 
