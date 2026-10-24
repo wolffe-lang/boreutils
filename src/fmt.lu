@@ -101,7 +101,7 @@ fn paragraph(mut out: bore.Out, rows: List[Row], a: int, z: int, o: Options) -> 
             var cost = distance * distance + 400
             if end == words.len - 1 { cost = 0 } else {
                 if words[end].sentence { cost -= 200 }
-                if end + 1 < words.len && words[end + 1].sentence { cost += 40 }
+                if end + 1 < words.len && words[end + 1].sentence { cost += 160 / words[end + 1].bytes.len }
             }
             cost += costs[end + 1]
             if cost < best { best = cost; next[i] = end + 1 }
@@ -149,7 +149,7 @@ fn main() -> int {
         if key == "uniform-spacing" { o.uniform = true }
     }
     if !bore.ok(p) { return bore.usage_error("fmt", p.error) }
-    if o.goal == 0 { o.goal = o.width * 93 / 100 }
+    if o.goal == 0 { o.goal = (o.width * 93 + 50) / 100 }
     var paths = copy p.operands
     if paths.len == 0 { (mut paths).push("-") }
     var status = 0
