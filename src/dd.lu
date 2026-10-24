@@ -224,10 +224,6 @@ fn main() -> int {
     let input_record = fs_fstat_record(input) else |_| { List[int]() }
     let piped = input_record.len > 0 && (bore.rec_kind(input_record) == bore.kind_fifo() || bore.rec_kind(input_record) == bore.kind_socket())
     while !stop && (c.count < 0 || (if c.countbytes then consumed else blocks) < c.count) {
-        if short_previous > 0 && piped && !partial_warning && !c.countbytes && c.count >= 0 && c.status != 0 {
-            bore.warn("dd", "warning: partial read ({short_previous} bytes); suggest iflag=fullblock")
-            partial_warning = true
-        }
         var wanted = c.ibs
         if c.countbytes && c.count >= 0 && c.count - consumed < wanted { wanted = c.count - consumed }
         region readblock {
@@ -250,6 +246,10 @@ fn main() -> int {
                 if !c.full { break }
             }
         if chunk.len == 0 { break }
+        if short_previous > 0 && piped && !partial_warning && !c.countbytes && c.count >= 0 && c.status != 0 {
+            bore.warn("dd", "warning: partial read ({short_previous} bytes); suggest iflag=fullblock")
+            partial_warning = true
+        }
         short_previous = if chunk.len < wanted then chunk.len else 0
         consumed += chunk.len
         blocks += 1
