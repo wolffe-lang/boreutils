@@ -6,7 +6,7 @@
 
 use bore
 
-struct Row { bytes: List[byte], indent: int, begin: int, selected: bool, tabs: bool }
+struct Row { bytes: List[byte], indent: int, prefix_indent: int, begin: int, selected: bool, tabs: bool }
 
 struct Word { bytes: List[byte], gap: int, sentence: bool }
 
