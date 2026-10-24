@@ -23,18 +23,26 @@ struct Sink {
 fn suffix_error(word: str) -> str {
     var k = 0, conversions = 0
     while k < word.len {
-        if word.bytes()[k] != 37 as byte { k += 1; continue }; k += 1
+        if word.bytes()[k] != 37 as byte { k += 1; continue }
+        k += 1
         if k < word.len && word.bytes()[k] == 37 as byte { k += 1; continue }
         conversions += 1
         if conversions > 1 { return "too many conversion specifications in suffix" }
-        while k < word.len { let c = word.bytes()[k] as int; if c == 35 || c == 45 || c == 46 || c >= 48 && c <= 57 { k += 1 } else { break } }
+        while k < word.len {
+            let c = word.bytes()[k] as int
+            if c == 35 || c == 45 || c == 46 || c >= 48 && c <= 57 { k += 1 } else { break }
+        }
         if k == word.len { return "missing conversion specifier in suffix" }
         let c = word[k..k + 1]
-        if c != "d" && c != "i" && c != "o" && c != "u" && c != "x" && c != "X" { return "invalid conversion specifier in suffix: {c}" }
+        if c != "d" && c != "i" && c != "o" && c != "u" && c != "x" && c != "X" {
+            return "invalid conversion specifier in suffix: {c}"
+        }
         k += 1
     }
-    if conversions == 0 { return "missing conversion specifier in suffix" }; ""
+    if conversions == 0 { return "missing conversion specifier in suffix" }
+    ""
 }
+
 fn filename(s: Sink) -> str {
     if !s.format_given { return s.prefix + fmt.pad_left_with("{s.serial}", s.digits, "0") }
     let f = s.format
@@ -47,17 +55,50 @@ fn filename(s: Sink) -> str {
             continue
         }
         k += 1
-        if k < f.len && f.bytes()[k] == 37 as byte { result += "%"; k += 1; continue }
-        if converted { return "" }; converted = true
-        var zero = false, left = false, plus = false, blank = false, alternate = false, width = 0, precision = -1
+        if k < f.len && f.bytes()[k] == 37 as byte {
+            result += "%"
+            k += 1
+            continue
+        }
+        if converted { return "" }
+        converted = true
+        var zero = false,
+            left = false,
+            plus = false,
+            blank = false,
+            alternate = false,
+            width = 0,
+            precision = -1
         while k < f.len {
             let c = f.bytes()[k] as int
-            if c == 48 { zero = true } else if c == 45 { left = true } else if c == 43 { plus = true } else if c == 32 { blank = true } else if c == 35 { alternate = true } else { break }; k += 1
+            if c == 48 {
+                zero = true
+            } else if c == 45 {
+                left = true
+            } else if c == 43 {
+                plus = true
+            } else if c == 32 {
+                blank = true
+            } else if c == 35 {
+                alternate = true
+            } else {
+                break
+            }
+            k += 1
         }
-        while k < f.len && f.bytes()[k] >= 48 as byte && f.bytes()[k] <= 57 as byte { width = width * 10 + f.bytes()[k] as int - 48; k += 1; if width > 10000 { return "" } }
+        while k < f.len && f.bytes()[k] >= 48 as byte && f.bytes()[k] <= 57 as byte {
+            width = width * 10 + f.bytes()[k] as int - 48
+            k += 1
+            if width > 10000 { return "" }
+        }
         if k < f.len && f.bytes()[k] == 46 as byte {
-            k += 1; precision = 0
-            while k < f.len && f.bytes()[k] >= 48 as byte && f.bytes()[k] <= 57 as byte { precision = precision * 10 + f.bytes()[k] as int - 48; k += 1; if precision > 10000 { return "" } }
+            k += 1
+            precision = 0
+            while k < f.len && f.bytes()[k] >= 48 as byte && f.bytes()[k] <= 57 as byte {
+                precision = precision * 10 + f.bytes()[k] as int - 48
+                k += 1
+                if precision > 10000 { return "" }
+            }
         }
         if k >= f.len { return "" }
         let c = f[k..k + 1]
@@ -75,11 +116,19 @@ fn filename(s: Sink) -> str {
         if precision > v.len { v = "0".repeat(precision - v.len) + v }
         var prefix = ""
         if c == "d" || c == "i" { if plus { prefix = "+" } else if blank { prefix = " " } }
-        if alternate && (c == "x" || c == "X") && s.serial != 0 { prefix = if c == "x" then "0x" else "0X" }
+        if alternate && (c == "x" || c == "X") && s.serial != 0 {
+            prefix = if c == "x" then "0x" else "0X"
+        }
         if alternate && c == "o" && !v.starts_with("0") { prefix = "0" }
-        if zero && !left && precision < 0 && width > prefix.len + v.len { v = "0".repeat(width - prefix.len - v.len) + v }
+        if zero && !left && precision < 0 && width > prefix.len + v.len {
+            v = "0".repeat(width - prefix.len - v.len) + v
+        }
         let value = prefix + v
-        if left { result += value + " ".repeat(if width > value.len then width - value.len else 0) } else { result += " ".repeat(if width > value.len then width - value.len else 0) + value }
+        if left {
+            result += value + " ".repeat(if width > value.len then width - value.len else 0)
+        } else {
+            result += " ".repeat(if width > value.len then width - value.len else 0) + value
+        }
         k += 1
     }
     if !converted { return "" }

@@ -56,7 +56,10 @@ fn old_offset(s: str) -> int {
     var word = s
     if word.starts_with("+") { word = word[1..] }
     var scale = 1
-    if word.ends_with("b") && !word.starts_with("0x") && !word.starts_with("0X") { word = word[0..word.len - 1]; scale = 512 }
+    if word.ends_with("b") && !word.starts_with("0x") && !word.starts_with("0X") {
+        word = word[0..word.len - 1]
+        scale = 512
+    }
     var base = 8
     if word.ends_with(".") { base = 10; word = word[0..word.len - 1] }
     if word.starts_with("0x") || word.starts_with("0X") { base = 16; word = word[2..] }

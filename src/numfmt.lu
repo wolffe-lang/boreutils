@@ -310,7 +310,10 @@ fn row_impl(out: bore.Out, bs: List[byte], o: Options, line: int) -> Outcome {
     if line < o.header {
         var payload = copy bs
         (mut payload).push(o.record as byte)
-        bore.write_direct(out, payload) else |_| { bore.write_error(out, "numfmt", "write error"); return Outcome { status: 1, stop: true } }
+        bore.write_direct(out, payload) else |_| {
+            bore.write_error(out, "numfmt", "write error")
+            return Outcome { status: 1, stop: true }
+        }
         return Outcome { status: 0, stop: false }
     }
     var result = List[byte](), at = 0, field = 1, status = 0
@@ -339,7 +342,10 @@ fn row_impl(out: bore.Out, bs: List[byte], o: Options, line: int) -> Outcome {
                 if o.invalid != 3 { bore.warn("numfmt", answer.error) }
                 if o.invalid <= 1 { status = 2 }
                 if o.invalid == 0 {
-                    bore.write_direct(out, result) else |_| { bore.write_error(out, "numfmt", "write error"); return Outcome { status: 1, stop: true } }
+                    bore.write_direct(out, result) else |_| {
+                        bore.write_error(out, "numfmt", "write error")
+                        return Outcome { status: 1, stop: true }
+                    }
                     return Outcome { status: status, stop: true }
                 }
                 for k in start..end { (mut result).push(bs[k]) }
@@ -354,7 +360,10 @@ fn row_impl(out: bore.Out, bs: List[byte], o: Options, line: int) -> Outcome {
         if o.delimiter >= 0 { (mut result).push(bs[end]); at = end + 1 } else { at = end }
     }
     (mut result).push(o.record as byte)
-    bore.write_direct(out, result) else |_| { bore.write_error(out, "numfmt", "write error"); return Outcome { status: 1, stop: true } }
+    bore.write_direct(out, result) else |_| {
+        bore.write_error(out, "numfmt", "write error")
+        return Outcome { status: 1, stop: true }
+    }
     Outcome { status: status, stop: false }
 }
 
@@ -485,7 +494,10 @@ fn main() -> int {
             }
             o.delimiter = if v.len == 0 then 0 else v.bytes()[0] as int
         }
-        if key == "debug" { bore.warn("numfmt", "unsupported option: --debug (not implemented)"); return 1 }
+        if key == "debug" {
+            bore.warn("numfmt", "unsupported option: --debug (not implemented)")
+            return 1
+        }
         if key == "grouping" { grouping = true }
         if key == "suffix" { o.suffix = v }
         if key == "unit-separator" { o.unit_sep = v }
@@ -520,22 +532,22 @@ fn main() -> int {
         var bytes = List[byte](), done = false
         while !done {
             region pass {
-            let chunk = bore.read_chunk(src, 65536) else |e| match e {
-                eof => { done = true; List[byte]() },
-                io => { bore.warn("numfmt", "read error: {bore.io_error()}"); return 1 },
-            }
-            if chunk.len == 0 { done = true }
-            for b in chunk {
-                if b as int == o.record {
-                    let answer = row(out, bytes, o, line)
-                    if answer.status != 0 { status = answer.status }
-                    if answer.stop { return status }
-                    (mut bytes).clear()
-                    line += 1
-                } else {
-                    (mut bytes).push(b)
+                let chunk = bore.read_chunk(src, 65536) else |e| match e {
+                    eof => { done = true; List[byte]() },
+                    io => { bore.warn("numfmt", "read error: {bore.io_error()}"); return 1 },
                 }
-            }
+                if chunk.len == 0 { done = true }
+                for b in chunk {
+                    if b as int == o.record {
+                        let answer = row(out, bytes, o, line)
+                        if answer.status != 0 { status = answer.status }
+                        if answer.stop { return status }
+                        (mut bytes).clear()
+                        line += 1
+                    } else {
+                        (mut bytes).push(b)
+                    }
+                }
             }
         }
         if bytes.len > 0 {

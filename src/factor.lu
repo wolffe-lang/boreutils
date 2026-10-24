@@ -118,29 +118,33 @@ fn main() -> int {
         var token = List[byte](), done = false
         while !done {
             region pass {
-            let chunk = bore.read_chunk(src, 65536) else |e| match e {
-                eof => { done = true; List[byte]() },
-                io => {
-                    bore.warn("factor", "read error: {bore.io_error()}")
-                    status = 1
-                    done = true
-                    List[byte]()
-                },
-            }
-            if chunk.len == 0 { done = true }
-            for b in chunk {
-                let c = b as int
-                if c == 32 || c == 9 || c == 10 {
-                    if token.len > 0 {
-                        let code = number(out, str_from_utf8(token) else "<non-UTF-8>", exponents)
-                        if code < 0 { return 1 }
-                        if code != 0 { status = 1 }
-                        (mut token).clear()
-                    }
-                } else {
-                    (mut token).push(b)
+                let chunk = bore.read_chunk(src, 65536) else |e| match e {
+                    eof => { done = true; List[byte]() },
+                    io => {
+                        bore.warn("factor", "read error: {bore.io_error()}")
+                        status = 1
+                        done = true
+                        List[byte]()
+                    },
                 }
-            }
+                if chunk.len == 0 { done = true }
+                for b in chunk {
+                    let c = b as int
+                    if c == 32 || c == 9 || c == 10 {
+                        if token.len > 0 {
+                            let code = number(
+                                out,
+                                str_from_utf8(token) else "<non-UTF-8>",
+                                exponents,
+                            )
+                            if code < 0 { return 1 }
+                            if code != 0 { status = 1 }
+                            (mut token).clear()
+                        }
+                    } else {
+                        (mut token).push(b)
+                    }
+                }
             }
         }
         if token.len > 0 {

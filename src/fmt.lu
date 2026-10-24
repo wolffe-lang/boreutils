@@ -6,7 +6,14 @@
 
 use bore
 
-struct Row { bytes: List[byte], indent: int, prefix_indent: int, begin: int, selected: bool, tabs: bool }
+struct Row {
+    bytes: List[byte],
+    indent: int,
+    prefix_indent: int,
+    begin: int,
+    selected: bool,
+    tabs: bool,
+}
 
 struct Word { bytes: List[byte], gap: int, sentence: bool }
 
@@ -67,7 +74,14 @@ fn prepare(bytes: List[byte], prefix: str) -> Row {
             }
         }
     }
-    Row { bytes: copy bytes, indent: indent, prefix_indent: prefix_indent, begin: pos, selected: selected, tabs: tabs }
+    Row {
+        bytes: copy bytes,
+        indent: indent,
+        prefix_indent: prefix_indent,
+        begin: pos,
+        selected: selected,
+        tabs: tabs,
+    }
 }
 
 fn putline(mut out: bore.Out, bs: List[byte], tabs: bool) -> bool {
@@ -210,7 +224,11 @@ fn paragraph(mut out: bore.Out, rows: List[Row], a: int, z: int, o: Options) -> 
         if o.prefix.len == 0 {
             spaces(mut line, indent)
         } else {
-            let leading = if rows[a].prefix_indent < indent - o.prefix.len then rows[a].prefix_indent else indent - o.prefix.len
+            let leading = if rows[a].prefix_indent < indent - o.prefix.len {
+                rows[a].prefix_indent
+            } else {
+                indent - o.prefix.len
+            }
             spaces(mut line, leading)
             for b in o.prefix.bytes() { (mut line).push(b) }
             spaces(mut line, indent - leading - o.prefix.len)
@@ -282,7 +300,11 @@ fn main() -> int {
             }
             if key == "width" { o.width = n; width_given = true } else { o.goal = n }
         }
-        if key == "prefix" { var start = 0; while start < v.len && blank(v.bytes()[start]) { start += 1 }; o.prefix = v[start..] }
+        if key == "prefix" {
+            var start = 0
+            while start < v.len && blank(v.bytes()[start]) { start += 1 }
+            o.prefix = v[start..]
+        }
         if key == "split-only" { o.split = true }
         if key == "crown-margin" { o.crown = true }
         if key == "tagged-paragraph" { o.tagged = true }
