@@ -1,0 +1,208 @@
+//! member: false
+//! numfmt — field-aware human-readable decimal scaling.
+//! References consulted: GNU coreutils 9.11 help and black-box probes,
+//! including signed halfway values. Exact host-long-double arithmetic
+//! reuses our own printf-derived floattext; no foreign source consulted.
+//! C-locale grouping has no thousands separator, as in GNU's C locale.
+
+use bore
+use floattext
+use std.fmt
+
+struct Range { first: int, last: int }
+struct Format { before: str, after: str, width: int, precision: int, zero: bool, left: bool, plus: bool }
+struct Options { from: int, to: int, from_unit: floattext.Number, to_unit: floattext.Number, mode: int, suffix: str, unit_sep: str, padding: int, pad_given: bool, format: Format, format_given: bool, fields: List[Range], delimiter: int, record: int, header: int, invalid: int }
+struct Conversion { text: str, error: str }
+struct Outcome { status: int, stop: bool }
+fn space(b: byte) -> bool { let n = b as int; n == 32 || n >= 9 && n <= 13 }
+fn text(bs: List[byte], a: int, z: int) -> str { var result = List[byte](); for k in a..z { (mut result).push(bs[k]) }; str_from_utf8(result) else "<non-UTF-8>" }
+fn add(mut bs: List[byte], s: str) { for b in s.bytes() { (mut bs).push(b) } }
+fn selected(o: Options, n: int) -> bool { for r in o.fields { if n >= r.first && n <= r.last { return true } }; false }
+fn field_ranges(word: str) -> List[Range] ! {parse} {
+    var result = List[Range]()
+    for part in word.split(",") {
+        let hyphen = part.find("-") else -1
+        var a = 0, z = 0
+        if hyphen < 0 { a = part.to_int() else 0; z = a } else {
+            a = if hyphen == 0 then 1 else (part[0..hyphen].to_int() else 0)
+            z = if hyphen + 1 == part.len then 9223372036854775807 else (part[hyphen + 1..].to_int() else 0)
+        }
+        if a <= 0 || z < a { return parse }
+        (mut result).push(Range { first: a, last: z })
+    }
+    result
+}
+fn format_spec(word: str) -> Format ! {parse} {
+    var f = Format { before: "", after: "", width: 0, precision: -1, zero: false, left: false, plus: false }
+    var k = 0, found = false
+    while k < word.len {
+        if word.bytes()[k] != 37 as byte { if found { f.after += word[k..k + 1] } else { f.before += word[k..k + 1] }; k += 1; continue }
+        k += 1
+        if k < word.len && word.bytes()[k] == 37 as byte { if found { f.after += "%" } else { f.before += "%" }; k += 1; continue }
+        if found { return parse }; found = true
+        while k < word.len {
+            let c = word.bytes()[k] as int
+            if c == 48 { f.zero = true } else if c == 45 { f.left = true } else if c == 43 { f.plus = true } else if c != 39 { break }; k += 1
+        }
+        while k < word.len && word.bytes()[k] >= 48 as byte && word.bytes()[k] <= 57 as byte { f.width = f.width * 10 + word.bytes()[k] as int - 48; k += 1; if f.width > 100000 { return parse } }
+        if k < word.len && word.bytes()[k] == 46 as byte {
+            k += 1; f.precision = 0
+            while k < word.len && word.bytes()[k] >= 48 as byte && word.bytes()[k] <= 57 as byte { f.precision = f.precision * 10 + word.bytes()[k] as int - 48; k += 1; if f.precision > 1000 { return parse } }
+        }
+        if k >= word.len || word.bytes()[k] != 102 as byte { return parse }; k += 1
+    }
+    if !found { return parse }; f
+}
+fn unit_power(c: int) -> int {
+    if c == 107 { return 1 }
+    let letters = "KMGTPEZYRQ"
+    for k in 0..letters.len { if c == letters.bytes()[k] as int { return k + 1 } }; 0
+}
+fn unit_size(word: str) -> floattext.Number ! {parse} {
+    var k = 0
+    while k < word.len && word.bytes()[k] >= 48 as byte && word.bytes()[k] <= 57 as byte { k += 1 }
+    if k == 0 { return parse }
+    var value = floattext.parse_number(word[0..k]) else |_| { return parse }
+    if floattext.compare_integer(value, 0) == 0 { return parse }
+    if k < word.len {
+        let power = unit_power(word.bytes()[k] as int); k += 1
+        if power == 0 { return parse }
+        var base = 1000
+        if k < word.len && word.bytes()[k] == 105 as byte { base = 1024; k += 1 }
+        if k < word.len && word.bytes()[k] == 66 as byte { k += 1 }
+        if k != word.len { return parse }
+        for _ in 0..power { value = floattext.product(value, floattext.integer(base)) }
+    }
+    value
+}
+fn convert(word: str, o: Options, automatic_width: int) -> Conversion {
+    var s = word.trim()
+    if o.suffix.len > 0 && s.ends_with(o.suffix) { s = s[0..s.len - o.suffix.len] }
+    var k = 0, digits = 0, places = 0
+    if s.starts_with("-") { k = 1 }
+    while k < s.len && s.bytes()[k] >= 48 as byte && s.bytes()[k] <= 57 as byte { digits += 1; k += 1 }
+    if k < s.len && s.bytes()[k] == 46 as byte { k += 1; let start = k; while k < s.len && s.bytes()[k] >= 48 as byte && s.bytes()[k] <= 57 as byte { digits += 1; places += 1; k += 1 }; if k == start { return Conversion { text: word, error: "invalid number: {bore.quote_always(word.trim())}" } } }
+    if digits == 0 { return Conversion { text: word, error: "invalid number: {bore.quote_always(word.trim())}" } }
+    var number = floattext.parse_number(s[0..k]) else |_| { return Conversion { text: word, error: "invalid number: {bore.quote_always(word.trim())}" } }
+    var suffix = s[k..], input_power = 0, base = if o.from == 2 || o.from == 3 then 1024 else 1000
+    if o.unit_sep.len > 0 && suffix.starts_with(o.unit_sep) { suffix = suffix[o.unit_sep.len..] }
+    if suffix.len > 0 {
+        if o.from == 0 { return Conversion { text: word, error: "invalid suffix in input: {bore.quote_always(word.trim())}" } }
+        input_power = unit_power(suffix.bytes()[0] as int)
+        if input_power == 0 { return Conversion { text: word, error: "invalid suffix in input: {bore.quote_always(word.trim())}" } }
+        var used = 1
+        if o.from == 4 && suffix.len > 1 && suffix.bytes()[1] == 105 as byte { base = 1024; used = 2 }
+        if o.from == 3 { if suffix.len < 2 || suffix.bytes()[1] != 105 as byte { return Conversion { text: word, error: "missing 'i' suffix in input: {bore.quote_always(word.trim())} (e.g Ki/Mi/Gi)" } }; used = 2 }
+        if used < suffix.len { return Conversion { text: word, error: "invalid suffix in input {bore.quote_always(word.trim())}: {bore.quote_always(suffix[used..])}" } }
+        for _ in 0..input_power { number = floattext.product(number, floattext.integer(base)) }
+    }
+    number = floattext.quotient(floattext.product(number, o.from_unit), o.to_unit)
+    var power = 0
+    let output_base = if o.to == 1 then 1000 else 1024
+    if o.to != 0 { while power < 10 && floattext.compare_integer(number, output_base) >= 0 { number = floattext.quotient(number, floattext.integer(output_base)); power += 1 } }
+    var precision = if input_power > 0 then 0 else places
+    if o.to != 0 { precision = if power > 0 && floattext.compare_integer(number, 10) < 0 then 1 else 0 }
+    if o.format.precision >= 0 && !(o.to != 0 && power == 0) { precision = o.format.precision }
+    var mode = o.mode
+    if o.to != 0 && power == 0 && !o.format_given { mode = 5 }
+    var result = floattext.fixed(number, precision, mode)
+    if o.to != 0 && power < 10 {
+        let rounded = floattext.parse_number(result) else |_| { number }
+        if floattext.compare_integer(rounded, output_base) >= 0 {
+            number = floattext.quotient(number, floattext.integer(output_base)); power += 1
+            precision = if o.format.precision >= 0 then o.format.precision else if floattext.compare_integer(number, 10) < 0 then 1 else 0
+            result = floattext.fixed(number, precision, o.mode)
+        }
+    }
+    if o.to != 0 && power == 0 && o.format.precision > 0 {
+        let rounded = floattext.parse_number(result) else |_| { number }
+        result = floattext.fixed(rounded, o.format.precision, 5)
+    }
+    if o.format.plus && !result.starts_with("-") { result = "+" + result }
+    if power > 0 { let letters = if o.to == 1 then "kMGTPEZYRQ" else "KMGTPEZYRQ"; result += o.unit_sep + letters[power - 1..power]; if o.to == 3 { result += "i" } }
+    result += o.suffix
+    var width = automatic_width
+    if o.pad_given { width = o.padding }
+    if o.format.width != 0 { width = if o.format.left then -o.format.width else o.format.width }
+    if width > result.len {
+        let fill = if o.format.zero && !o.format.left then "0" else " "
+        if fill == "0" && (result.starts_with("-") || result.starts_with("+")) { result = result[0..1] + fill.repeat(width - result.len) + result[1..] } else { result = fill.repeat(width - result.len) + result }
+    } else if width < 0 && -width > result.len { result += " ".repeat(-width - result.len) }
+    Conversion { text: o.format.before + result + o.format.after, error: "" }
+}
+fn row(mut out: bore.Out, bs: List[byte], o: Options, line: int) -> Outcome {
+    if line < o.header { bore.write_all(mut out, bs) else |_| { return Outcome { status: 1, stop: true } }; bore.put_byte(mut out, o.record as byte) else |_| { return Outcome { status: 1, stop: true } }; return Outcome { status: 0, stop: false } }
+    var result = List[byte](), at = 0, field = 1, status = 0
+    while at <= bs.len {
+        var start = at, end = at, gap = 0
+        if o.delimiter < 0 {
+            while start < bs.len && space(bs[start]) { (mut result).push(bs[start]); start += 1; gap += 1 }
+            end = start
+            while end < bs.len && !space(bs[end]) { end += 1 }
+            if start == bs.len && bs.len > 0 { break }
+        } else { while end < bs.len && bs[end] as int != o.delimiter { end += 1 } }
+        if selected(o, field) {
+            let original = text(bs, start, end)
+            let answer = convert(original, o, if gap > 0 && o.delimiter < 0 then end - start else 0)
+            if answer.error.len > 0 {
+                if o.invalid != 3 { bore.warn("numfmt", answer.error) }
+                if o.invalid <= 1 { status = 2 }
+                if o.invalid == 0 { bore.write_all(mut out, result) else |_| { return Outcome { status: 1, stop: true } }; return Outcome { status: status, stop: true } }
+                for k in start..end { (mut result).push(bs[k]) }
+            } else { add(mut result, answer.text) }
+        } else { for k in start..end { (mut result).push(bs[k]) } }
+        field += 1
+        if end == bs.len { break }
+        if o.delimiter >= 0 { (mut result).push(bs[end]); at = end + 1 } else { at = end }
+    }
+    bore.write_all(mut out, result) else |_| { return Outcome { status: 1, stop: true } }
+    bore.put_byte(mut out, o.record as byte) else |_| { return Outcome { status: 1, stop: true } }
+    Outcome { status: status, stop: false }
+}
+fn main() -> int {
+    var spec = List[bore.Opt]()
+    for pair in [["d", "delimiter"], ["", "field"], ["", "format"], ["", "from"], ["", "to"], ["", "from-unit"], ["", "to-unit"], ["", "invalid"], ["", "padding"], ["", "round"], ["", "suffix"], ["", "unit-separator"]] { (mut spec).push(bore.takes(pair[0], pair[1])) }
+    (mut spec).push(bore.optional("", "header")); (mut spec).push(bore.flag("", "grouping")); (mut spec).push(bore.flag("z", "zero-terminated")); (mut spec).push(bore.flag("", "debug")); (mut spec).push(bore.flag("", "help")); (mut spec).push(bore.flag("", "version"))
+    let p = bore.parse(spec, env_args(), bore.permute())
+    var out = bore.stdout()
+    var o = Options { from: 0, to: 0, from_unit: floattext.integer(1), to_unit: floattext.integer(1), mode: 0, suffix: "", unit_sep: "", padding: 0, pad_given: false, format: Format { before: "", after: "", width: 0, precision: -1, zero: false, left: false, plus: false }, format_given: false, fields: [Range { first: 1, last: 1 }], delimiter: -1, record: 10, header: 0, invalid: 0 }
+    for k in 0..p.keys.len {
+        let key = p.keys[k], v = p.values[k]
+        if key == "help" || key == "version" { bore.put(mut out, if key == "version" then bore.version_text("numfmt") else "Usage: numfmt [OPTION]... [NUMBER]...\nScale numbers and selected input fields.\n") else |_| {}; return bore.finish(mut out, "numfmt", 0) }
+        if key == "from" || key == "to" {
+            let choices = if key == "from" then ["none", "si", "iec", "iec-i", "auto"] else ["none", "si", "iec", "iec-i"]
+            let values = if key == "from" then [0, 1, 2, 3, 4] else [0, 1, 2, 3]
+            let n = bore.argmatch(v, choices, values)
+            if n < 0 { return bore.argmatch_error("numfmt", v, key, choices, values, n == -2) }
+            if key == "from" { o.from = n } else { o.to = n }
+        }
+        if key == "round" { let choices = ["from-zero", "towards-zero", "up", "down", "nearest"], values = [0, 1, 2, 3, 4]; let n = bore.argmatch(v, choices, values); if n < 0 { return bore.argmatch_error("numfmt", v, key, choices, values, n == -2) }; o.mode = n }
+        if key == "invalid" { let choices = ["abort", "fail", "warn", "ignore"], values = [0, 1, 2, 3]; let n = bore.argmatch(v, choices, values); if n < 0 { return bore.argmatch_error("numfmt", v, key, choices, values, n == -2) }; o.invalid = n }
+        if key == "from-unit" || key == "to-unit" { let n = unit_size(v) else |_| { bore.warn("numfmt", "invalid unit size: {bore.quote_always(v)}"); return 1 }; if key == "from-unit" { o.from_unit = n } else { o.to_unit = n } }
+        if key == "field" { o.fields = field_ranges(v) else |_| { bore.warn("numfmt", "invalid field range {bore.quote_always(v)}"); return 1 } }
+        if key == "format" { o.format = format_spec(v) else |_| { bore.warn("numfmt", "invalid format {bore.quote_always(v)}"); return 1 }; o.format_given = true }
+        if key == "padding" { o.padding = v.to_int() else 9223372036854775807; if o.padding > 100000 || o.padding < -100000 { bore.warn("numfmt", "invalid padding value {bore.quote_always(v)}"); return 1 }; o.pad_given = true }
+        if key == "delimiter" { if v.len > 1 { bore.warn("numfmt", "the delimiter must be a single character"); return 1 }; o.delimiter = if v.len == 0 then 0 else v.bytes()[0] as int }
+        if key == "suffix" { o.suffix = v }; if key == "unit-separator" { o.unit_sep = v }
+        if key == "zero-terminated" { o.record = 0 }
+        if key == "header" { o.header = if p.given[k] then (v.to_int() else -1) else 1; if o.header < 0 { bore.warn("numfmt", "invalid header value {bore.quote_always(v)}"); return 1 } }
+    }
+    if !bore.ok(p) { return bore.usage_error("numfmt", p.error) }
+    var status = 0, line = 0
+    if p.operands.len > 0 {
+        for word in p.operands { let answer = row(mut out, word.bytes(), o, line); if answer.status != 0 { status = answer.status }; if answer.stop { return bore.finish(mut out, "numfmt", status) }; line += 1 }
+    } else {
+        let src = bore.open_input("-") else |_| { bore.warn("numfmt", "read error: {bore.io_error()}"); return 1 }
+        defer bore.close_input(src)
+        var bytes = List[byte](), done = false
+        while !done {
+            let chunk = bore.read_chunk(src, 65536) else |e| match e { eof => { done = true; List[byte]() }, io => { bore.warn("numfmt", "read error: {bore.io_error()}"); return 1 } }
+            if chunk.len == 0 { done = true }
+            for b in chunk {
+                if b as int == o.record { let answer = row(mut out, bytes, o, line); if answer.status != 0 { status = answer.status }; if answer.stop { return bore.finish(mut out, "numfmt", status) }; bytes = List[byte](); line += 1 } else { (mut bytes).push(b) }
+            }
+        }
+        if bytes.len > 0 { let answer = row(mut out, bytes, o, line); if answer.status != 0 { status = answer.status } }
+    }
+    bore.finish(mut out, "numfmt", status)
+}
