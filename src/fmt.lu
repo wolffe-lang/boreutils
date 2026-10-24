@@ -1,0 +1,183 @@
+//! member: false
+//! fmt — paragraph formatting. References consulted: GNU coreutils 9.11
+//! --help and binary probes of indentation, paragraphs and sentence spacing.
+//! Clean-room dynamic programming over candidate word boundaries; no
+//! formatter implementation consulted. C-locale byte columns.
+
+use bore
+
+struct Row { bytes: List[byte], indent: int, begin: int, selected: bool, tabs: bool }
+struct Word { bytes: List[byte], gap: int, sentence: bool }
+struct Options { width: int, goal: int, prefix: str, split: bool, crown: bool, tagged: bool, uniform: bool }
+
+fn blank(b: byte) -> bool { b == 32 as byte || b == 9 as byte }
+fn spaces(mut bs: List[byte], n: int) { for _ in 0..n { (mut bs).push(32 as byte) } }
+fn sentence(bs: List[byte]) -> bool {
+    var end = bs.len
+    while end > 0 && (bs[end - 1] == 34 as byte || bs[end - 1] == 39 as byte || bs[end - 1] == 41 as byte || bs[end - 1] == 93 as byte) { end -= 1 }
+    end > 0 && (bs[end - 1] == 46 as byte || bs[end - 1] == 33 as byte || bs[end - 1] == 63 as byte)
+}
+fn wordbytes(bs: List[byte], a: int, z: int) -> List[byte] { var v = List[byte](); for k in a..z { (mut v).push(bs[k]) }; v }
+
+fn prepare(bytes: List[byte], prefix: str) -> Row {
+    var pos = 0, indent = 0, tabs = false
+    while pos < bytes.len && blank(bytes[pos]) { if bytes[pos] == 9 as byte { indent += 8 - indent % 8; tabs = true } else { indent += 1 }; pos += 1 }
+    var selected = prefix.len == 0
+    if prefix.len > 0 && pos + prefix.len <= bytes.len {
+        selected = true
+        for k in 0..prefix.len { if bytes[pos + k] != prefix.bytes()[k] { selected = false } }
+        if selected { pos += prefix.len; indent += prefix.len; while pos < bytes.len && blank(bytes[pos]) { if bytes[pos] == 9 as byte { indent += 8 - indent % 8; tabs = true } else { indent += 1 }; pos += 1 } }
+    }
+    Row { bytes: bytes, indent: indent, begin: pos, selected: selected, tabs: tabs }
+}
+
+fn putline(mut out: bore.Out, bs: List[byte], tabs: bool) -> bool {
+    var pos = 0, col = 0
+    while pos < bs.len {
+        if tabs && bs[pos] == 32 as byte {
+            var end = pos
+            while end < bs.len && bs[end] == 32 as byte { end += 1 }
+            while pos < end {
+                let step = 8 - col % 8
+                if step > 1 && end - pos >= step { bore.put_byte(mut out, 9 as byte) else |_| { return false }; pos += step; col += step } else { bore.put_byte(mut out, 32 as byte) else |_| { return false }; pos += 1; col += 1 }
+            }
+        } else { bore.put_byte(mut out, bs[pos]) else |_| { return false }; pos += 1; col += 1 }
+    }
+    bore.put_byte(mut out, 10 as byte) else |_| { return false }
+    true
+}
+
+fn paragraph(mut out: bore.Out, rows: List[Row], a: int, z: int, o: Options) -> bool {
+    var words = List[Word](), tabs = false
+    for r in a..z {
+        let row = rows[r]
+        if row.tabs { tabs = true }
+        var k = row.begin, col = row.indent, gap = 1
+        while k < row.bytes.len {
+            let start = k
+            while k < row.bytes.len && !blank(row.bytes[k]) { k += 1; col += 1 }
+            let data = wordbytes(row.bytes, start, k)
+            if data.len == 0 { break }
+            (mut words).push(Word { bytes: data, gap: gap, sentence: false })
+            let before = col
+            while k < row.bytes.len && blank(row.bytes[k]) { if row.bytes[k] == 9 as byte { col += 8 - col % 8; tabs = true } else { col += 1 }; k += 1 }
+            gap = col - before
+            let last = words.len - 1
+            words[last].sentence = sentence(words[last].bytes) && (gap >= 2 || k == row.bytes.len)
+            if o.uniform { gap = if words[last].sentence then 2 else 1 }
+        }
+        if r + 1 < z && words.len > 0 {
+            let last = words.len - 1
+            // A physical newline supplies one separator, two after a sentence.
+            words[last].sentence = sentence(words[last].bytes)
+        }
+    }
+    if words.len == 0 { return putline(mut out, rows[a].bytes, false) }
+    // Reconstruct spacing across physical line joins.
+    var word_index = 0
+    for r in a..z {
+        var k = rows[r].begin, first = true
+        while k < rows[r].bytes.len {
+            if first && word_index > 0 { words[word_index].gap = if words[word_index - 1].sentence then 2 else 1 }
+            first = false
+            while k < rows[r].bytes.len && !blank(rows[r].bytes[k]) { k += 1 }
+            while k < rows[r].bytes.len && blank(rows[r].bytes[k]) { k += 1 }
+            word_index += 1
+        }
+    }
+    var first_indent = rows[a].indent, rest_indent = first_indent
+    if (o.crown || o.tagged) && z > a + 1 { rest_indent = rows[a + 1].indent } else if o.tagged { rest_indent += 3 }
+    var costs = List[int](), next = List[int]()
+    for _ in 0..words.len + 1 { (mut costs).push(0); (mut next).push(words.len) }
+    var i = words.len - 1
+    while i >= 0 {
+        let indent = if i == 0 then first_indent else rest_indent
+        var width = indent, best: int = 9223372036854775807, end = i
+        while end < words.len {
+            if end > i { width += words[end].gap }
+            width += words[end].bytes.len
+            if width > o.width && end > i { break }
+            let distance = o.goal - width
+            var cost = distance * distance
+            if end == words.len - 1 { cost /= 4; if end == i && i > 0 { cost += 20 } } else {
+                if words[end].sentence { cost -= 200 }
+                if end + 1 < words.len && sentence(words[end + 1].bytes) { cost += 20 }
+            }
+            cost += costs[end + 1]
+            if cost < best { best = cost; next[i] = end + 1 }
+            end += 1
+        }
+        costs[i] = best
+        i -= 1
+    }
+    i = 0
+    while i < words.len {
+        var line = List[byte]()
+        let indent = if i == 0 then first_indent else rest_indent
+        if o.prefix.len == 0 { spaces(mut line, indent) } else {
+            spaces(mut line, indent - o.prefix.len - 1)
+            for b in o.prefix.bytes() { (mut line).push(b) }
+            (mut line).push(32 as byte)
+        }
+        let stop = next[i]
+        for j in i..stop { if j > i { spaces(mut line, words[j].gap) }; for b in words[j].bytes { (mut line).push(b) } }
+        if !putline(mut out, line, tabs && !o.uniform) { return false }
+        i = stop
+    }
+    true
+}
+
+fn main() -> int {
+    var spec = List[bore.Opt]()
+    (mut spec).push(bore.takes("w", "width")); (mut spec).push(bore.takes("g", "goal")); (mut spec).push(bore.takes("p", "prefix"))
+    (mut spec).push(bore.flag("s", "split-only")); (mut spec).push(bore.flag("c", "crown-margin")); (mut spec).push(bore.flag("t", "tagged-paragraph")); (mut spec).push(bore.flag("u", "uniform-spacing"))
+    (mut spec).push(bore.flag("", "help")); (mut spec).push(bore.flag("", "version"))
+    var args = List[str]()
+    for arg in env_args() {
+        if arg.len > 1 && arg.bytes()[0] == 45 as byte && arg.bytes()[1] >= 48 as byte && arg.bytes()[1] <= 57 as byte { (mut args).push("-w"); (mut args).push(arg[1..]) } else { (mut args).push(arg) }
+    }
+    let p = bore.parse(spec, args, bore.permute())
+    var out = bore.stdout(), o = Options { width: 75, goal: 0, prefix: "", split: false, crown: false, tagged: false, uniform: false }
+    for k in 0..p.keys.len {
+        let key = p.keys[k], v = p.values[k]
+        if key == "help" || key == "version" { bore.put(mut out, if key == "version" then bore.version_text("fmt") else "Usage: fmt [-WIDTH] [OPTION]... [FILE]...\nReformat paragraphs.\n") else |_| {}; return bore.finish(mut out, "fmt", 0) }
+        if key == "width" || key == "goal" { let n = v.to_int() else -1; if n <= 0 || n > 100000 { bore.warn("fmt", "invalid width: {bore.quote_always(v)}"); return 1 }; if key == "width" { o.width = n } else { o.goal = n } }
+        if key == "prefix" { o.prefix = v }
+        if key == "split-only" { o.split = true }
+        if key == "crown-margin" { o.crown = true }
+        if key == "tagged-paragraph" { o.tagged = true }
+        if key == "uniform-spacing" { o.uniform = true }
+    }
+    if !bore.ok(p) { return bore.usage_error("fmt", p.error) }
+    if o.goal == 0 { o.goal = o.width * 93 / 100 }
+    var paths = copy p.operands
+    if paths.len == 0 { (mut paths).push("-") }
+    var status = 0
+    for path in paths {
+        let src = bore.open_input(path) else |_| { bore.input_error("fmt", path, bore.reason_of(bore.host_code())); status = 1; continue }
+        var rows = List[Row](), line = List[byte](), done = false
+        while !done {
+            let chunk = bore.read_chunk(src, 65536) else |e| match e { eof => { done = true; List[byte]() }, io => { bore.warn("fmt", "read error: {bore.io_error()}"); status = 1; done = true; List[byte]() } }
+            if chunk.len == 0 { done = true }
+            for b in chunk { if b == 10 as byte { (mut rows).push(prepare(line, o.prefix)); line = List[byte]() } else { (mut line).push(b) } }
+        }
+        bore.close_input(src)
+        if line.len > 0 { (mut rows).push(prepare(line, o.prefix)) }
+        var start = 0
+        while start < rows.len {
+            if !rows[start].selected || rows[start].begin == rows[start].bytes.len {
+                if !putline(mut out, rows[start].bytes, false) { return bore.finish(mut out, "fmt", 1) }; start += 1; continue
+            }
+            var end = start + 1
+            if !o.split {
+                while end < rows.len && rows[end].selected && rows[end].begin < rows[end].bytes.len {
+                    if o.crown || o.tagged { if end > start + 1 && rows[end].indent != rows[start + 1].indent { break }; if o.tagged && end == start + 1 && rows[end].indent == rows[start].indent { break } } else if rows[end].indent != rows[start].indent { break }
+                    end += 1
+                }
+            }
+            if !paragraph(mut out, rows, start, end, o) { return bore.finish(mut out, "fmt", 1) }
+            start = end
+        }
+    }
+    bore.finish(mut out, "fmt", status)
+}
