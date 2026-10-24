@@ -121,7 +121,7 @@ fn main() -> int {
         if key == "numeric-suffixes" || key == "hex-suffixes" {
             if p.given[k] { o.next = quantity(v); o.fixed = true; if o.next < 0 { bore.warn("split", "invalid suffix start value: {bore.quote_always(v)}"); return 1 } }
         }
-        if key == "additional-suffix" { o.extra = v; if v.find("/") else -1 >= 0 { bore.warn("split", "invalid suffix {bore.quote_always(v)}, contains directory separator"); return 1 } }
+        if key == "additional-suffix" { o.extra = v; if (v.find("/") else -1) >= 0 { bore.warn("split", "invalid suffix {bore.quote_always(v)}, contains directory separator"); return 1 } }
         if key == "verbose" { o.verbose = true }
         if key == "filter" { o.filter = v }
         if key == "elide-empty-files" { elide = true }
