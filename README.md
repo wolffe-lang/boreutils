@@ -162,7 +162,7 @@ derives no boreutils code from GPL source.
 
 Every shipped utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus, except where a case says otherwise and is
-skipped with its reason. The corpus holds **8,162 cases**; `kill` has
+skipped with its reason. The combined corpus holds **10,696 cases**; `kill` has
 365 more that SEND, each run in a container of its own (`tests/kill/`,
 `tools/killtest`: **365 passed, 0 failed** on hasu at bu30, groups,
 `kill 0` and `kill -1` among them), `timeout` 163 more that run a
@@ -180,7 +180,7 @@ release and dev (before: 7,020 / 0 / 130). Six utilities add 1,012 cases:
 alphabet, object kind and private mode, never compared byte for byte.
 `tty` has standard-input pty cases, separate from standard-output ptys.
 
-The newest tools are `base64`, `base32`, `comm`, `join`, `tsort` and
+The preceding text-tool pass added `base64`, `base32`, `comm`, `join`, `tsort` and
 `shuf`. Both codecs stream in bounded chunks, including malformed padding
 and decode groups split across reads. `comm` supports suppressed columns,
 custom delimiters, order diagnostics and totals; `join` supports selected
@@ -199,11 +199,11 @@ one live outgoing edge per node; complex cyclic components and cycles
 with outgoing tails are refused by name. The measured GNU answers and
 those refusals are retained in `notes/bu31/refusals.jsonl`.
 
-The combined tree has **10,380 differential cases** across **70 case files**,
+Before the disk/process pass, the combined tree had **10,380 differential cases** across **70 case files**,
 counted directly from the checked-in TOML records. All six text tools and
 the checksum family are included. The checksum pass adds nine command binaries and **2,218 cases**: 2,213
-passed and five named skips on both native tiers. The whole differential
-combined corpus is **10,218 passed, 0 failed, 162 skipped** in the hasu B Ubuntu
+passed and five named skips on both native tiers. That earlier whole differential
+combined corpus was **10,218 passed, 0 failed, 162 skipped** in the hasu B Ubuntu
 24.04 container. The new commands are `cksum`, `sum`, `md5sum`, `sha1sum`,
 `sha224sum`, `sha256sum`, `sha384sum`, `sha512sum` and `b2sum`. Their
 algorithms are written from POSIX's CRC definition, RFC 1321, FIPS 180-4
@@ -215,6 +215,42 @@ cover encoded manifests, escaped names, malformed bytes and bounded RSS.
 A separate `--large` test independently hashes a sparse input of
 4,295,032,833 bytes and compares all seven digest commands on both tiers;
 the two CRCs and BSD/SysV sums compare with GNU on that input too.
+
+The disk/process pass adds `du`, `dd`, `install`, `mknod`, `shred`,
+`dir`, `vdir`, `dircolors`, `chroot`, `nice`, `nohup` and `stdbuf`:
+**316 new differential cases**, with 19 named surface/implementation skips.
+`ls`, `dir` and `vdir` share one listing engine; the latter two default to
+`-C -b` and `-l -b`. The color database is emitted with original comments;
+a separate semantic check feeds it to GNU and verifies identical color rules.
+The container-only integration suite (`python3 -I tests/disk-process/check.py`,
+with `BORE_DISK_CONTAINER=1`) tests tty descriptors, hangup survival, injected
+read failures, short records, EBCDIC compositions, overwrite pass shapes,
+random sources and dynamic/static/wolf buffering witnesses. Run it only in a
+throwaway Ubuntu container, with both tiers built.
+
+`df` is **blocked**, not shipped: wolf 0.2.35 has no `statfs`/`statvfs`
+record (wolf-lang#686), despite PAX implementing those Linux calls. The
+compiler witness is `tests/gaps/bu34/statvfs/main.lu`; a blocked PAX row for
+its ext2 `/dev/vda2` root and tmpfs `/tmp` is drafted in
+`tests/gaps/bu34/pax-df.toml`, not run here. `chroot` likewise refuses its
+central operation, because `os_chroot` does not exist. `nice` reads Linux
+niceness from `/proc/self/stat` and can execute an explicit `-n 0`; other
+adjustments refuse rather than silently executing unchanged. `stdbuf`
+requires an explicit `BORE_STDBUF_AWARE=1` opt-in from children honoring
+`_STDBUF_*`; it does not claim to affect arbitrary libc or wolf programs.
+GNU's preload affects dynamic libc streams but not static libc or raw wolf IO.
+
+Named limits remain: `du --files0-from` and custom time directives outside
+`%F %T %Y %m %d %H %M %S %s %%`; `dd`'s unavailable open flags,
+`conv=nocreat`, and buffers above 16 MiB; `install`'s strip/SELinux/debug
+options; `mknod b/c/u` (wolf-lang#705); `shred`'s default block rounding
+(no `st_blksize`, #684), name wiping (#706), schedules above 25 passes,
+and write-only operands without `-f` (no non-creating writable open without
+read access). Use `shred -x` and `--remove=unlink` for its supported shape.
+`shred -f` changes permissions only after open failure; the pinned O_RDWR
+surface temporarily needs owner read/write, then the GNU recovery mode 0200
+is immediately restored on the live descriptor. No overwrite utility promises
+physical erasure on flash, CoW, snapshots or backups.
 
 The pin alone preserved **6,668 / 0 / 120** on both tiers, as at
 0.2.34 (bu29, `notes/bu29-the-pin-0234.md`). The container-suite
@@ -1269,6 +1305,19 @@ new security-sensitive designs.
 | `sha512sum` | FIPS 180-4 SHA-512; the checksum command modes, UTF-8 names | 0.40x (hasu) |
 | `b2sum` | RFC 7693 BLAKE2b, variable digest lengths and the checksum command modes, UTF-8 names | 0.24x (hasu) |
 | `uname` | blocked on the listed surface: raw kernel fields; `os_name` and `os_arch` are normalized lowercase words, and node/release/version have no call | — |
+| `df` | blocked by wolf-lang#686; compiler witness and proposed PAX row retained | — |
+| `du` | allocation/apparent/inode traversal; named files0/time-format limits | not benched |
+| `dd` | bounded block copies, conversions, EIO recovery and signal reports; named open limits | not benched |
+| `install` | modes, owners, parents, compare and backups; strip/SELinux/debug refused | not benched |
+| `mknod` | FIFO nodes; device nodes blocked by #705 | not benched |
+| `shred` | exact-size overwrite through 25 passes; rounding/name-wipe/open limits | not benched |
+| `dir` | shared ls engine, default -C -b | not benched |
+| `vdir` | shared ls engine, default -l -b | not benched |
+| `dircolors` | shell assignments and functional database; original database comments | not benched |
+| `chroot` | not yet: central operation refuses, no os_chroot | not benched |
+| `nice` | not yet: Linux reader and explicit -n 0; priority changes refuse | not benched |
+| `nohup` | hangup ignored across exec; terminal streams and HOME fallback | not benched |
+| `stdbuf` | not yet for arbitrary children; explicit environment-aware opt-in only | not benched |
 
 ## Differences from GNU
 
@@ -1360,7 +1409,7 @@ table answers it per utility, from the evidence and from nothing else.
 | `pwd` | 4 / 4 | 44 / 1 | start-up 0.80x | drop-in for scripts that avoid `-L` with a `$PWD` naming a same-time twin of the working directory (wolf-lang#536) |
 | `sleep` | 2 / 2 | 61 / 0 | start-up 0.88x, `sleep 0.1` 1.00x | drop-in |
 | `nproc` | 4 / 4 | 78 / 0 | start-up 0.80x | drop-in outside a fractional cgroup cpu quota (wolf-lang#537) |
-| `ls` | 46 / 60 | 694 / 16 | 0.60x to 1.99x; the long format 1.22x beside a GNU that also asks for each name's ACL | drop-in for scripts that avoid `-v`, the quoting styles but `-N`, `--author`, `--block-size`, `--time-style=+FORMAT`, `-Z`, the colour and filtering options (each refused by name), do not list files with ACLs in the long format (no `+`, wolf-lang#685), and do not need `.` and `..` placed by `-f` on ext4 (#692); owners named from `/etc/passwd` and `/etc/group` only; on a terminal, one 80 wide or reporting no size (#643) |
+| `ls` | 47 / 60 | 694 / 16 | 0.60x to 1.99x; the long format 1.22x beside a GNU that also asks for each name's ACL | drop-in for scripts that avoid `-v`, the quoting styles but `-N`, `--author`, `--block-size`, `--time-style=+FORMAT`, `-Z`, the colour and filtering options (each refused by name), do not list files with ACLs in the long format (no `+`, wolf-lang#685), and do not need `.` and `..` placed by `-f` on ext4 (#692); owners named from `/etc/passwd` and `/etc/group` only; on a terminal, one 80 wide or reporting no size (#643) |
 | `stat` | 7 / 8 | 152 / 8 | start-up 0.77x; 0.69x to 0.75x over many operands | drop-in for scripts that avoid `-f` (wolf-lang#686), `-` (#536), `%C`, and `%o` or the default format's `IO Block:` field, which prints `?` (#684) |
 | `readlink` | 10 / 10 | 100 / 0 | start-up 0.77x | drop-in |
 | `env` | 8 / 14 | 90 / 13 | `env true` 0.78x | drop-in for scripts that avoid `-S`, `-v` and the signal options (each refused by name), and do not read the ORDER of the environment they did not start from `-i` (wolf-lang#535) |
@@ -1404,9 +1453,20 @@ table answers it per utility, from the evidence and from nothing else.
 | `sha384sum` | 12 / 12 | 248 / 0 | 0.40x (hasu) | drop-in for UTF-8 file names |
 | `sha512sum` | 12 / 12 | 248 / 0 | 0.40x (hasu) | drop-in for UTF-8 file names |
 | `b2sum` | 13 / 13 | 279 / 0 | 0.24x (hasu) | drop-in for UTF-8 file names |
+| `du` | scoped above | 65 / 0 | not benched (hasu) | drop-in for scripts that avoid the named limits above |
+| `dd` | scoped above | 71 / 8 | not benched (hasu) | drop-in for scripts that avoid the named limits above |
+| `install` | scoped above | 33 / 4 | not benched (hasu) | drop-in for scripts that avoid the named limits above |
+| `mknod` | scoped above | 12 / 3 | not benched (hasu) | drop-in for scripts that avoid the named limits above |
+| `shred` | scoped above | 21 / 2 | not benched (hasu) | drop-in for scripts that avoid the named limits above |
+| `dir` | scoped above | 18 / 0 | not benched (hasu) | drop-in for scripts that avoid the named limits above |
+| `vdir` | scoped above | 18 / 0 | not benched (hasu) | drop-in for scripts that avoid the named limits above |
+| `dircolors` | scoped above | 27 / 0 | not benched (hasu) | drop-in for scripts that avoid the named limits above |
+| `chroot` | scoped above | 3 / 1 | not benched (hasu) | not yet |
+| `nice` | scoped above | 9 / 1 | not benched (hasu) | not yet |
+| `nohup` | scoped above | 11 / 0 | not benched (hasu) | drop-in |
+| `stdbuf` | scoped above | 9 / 0 | not benched (hasu) | not yet |
 
-**28 drop-in, 42 drop-in for scripts that avoid a named thing, none shipped not
-yet** (command rows, not the manual's grouped utility units; new checksum
+**29 drop-in, 50 drop-in for scripts that avoid a named thing, 3 not yet** (command rows, not the manual's grouped utility units; new checksum
 rows explicitly require UTF-8 names). (bu28: `kill`'s two named things became one, and `timeout`'s four
 became three narrower ones; bu27: `timeout` arrived with named things, and `kill`'s three
 became two narrower ones; bu24: the six identity tools arrived with a named thing each —
@@ -1425,10 +1485,13 @@ evidence, with an upstream issue where one is already filed.
 sums counted as one and `[` as `test`; Arch's build installs 102
 binaries and leaves out `arch`, `chcon`, `runcon`, `hostname`, `kill`
 and `uptime`; `kill` is built only when asked for, which the oracle of
-record now does). boreutils ships **70 command binaries**, representing
-**67 of those 103 utility units (65%)**: the four SHA-2 binaries occupy
+record now does). boreutils builds **82 command binaries**, representing
+**79 of those 103 utility units (77%)** in the source tree. Three entries
+(`chroot`, priority-changing `nice`, and arbitrary-child `stdbuf`) still
+lack their central operation; excluding them leaves **76 implemented
+utility units (74%)**. `df` is not counted. The four SHA-2 binaries occupy
 one unit in that denominator. Effort is not what
-blocks many of the other 36: some need missing wolf surfaces. Existing
+blocks many of the other 24: some need missing wolf surfaces. Existing
 issues carry witnesses; newly measured gaps below are listed for upstream. The OS surface lane's first cut, s199's
 wolf-lang#426 and #424 (seek, tell, the positional read, and the
 standard descriptors), shipped in 0.2.22, and `tail`, `head` and `wc`
@@ -1484,12 +1547,11 @@ use it (bu15).
   when the output was opened for append or stands past the input
   (bu22, boreutils#28).
 - **#426** (wolf 0.2.22): seek, tell and the positional read exist;
-  `tail`, `head` and `wc` use them (bu15). `tac` does not yet; `dd
-  skip=`/`seek=` could; `truncate` and `shred` need a truncate call
-  that does not exist.
+  `tail`, `head` and `wc` use them (bu15). `tac` does not yet; `dd skip=`/`seek=` and `truncate` now use them; `shred` uses
+  `fs_truncate` when removing a file.
 - **#534** (closed, wolf 0.2.27): `os_exec` and `env_unset`; `env`
-  runs its command by them (bu20). `nice`, `nohup`, `timeout`,
-  `chroot` and `stdbuf` each need one more call than an exec.
+  runs its command by them (bu20). `nohup` now preserves ignored SIGHUP across exec. `nice`, `chroot`
+  and arbitrary-child `stdbuf` still name their additional surface gaps.
 - **#535**, the environment listed only sorted: `printenv` and `env`.
 - **#536**, file identity: by PATH it is `fs_stat`'s device and inode
   since 0.2.27 (`ls -i`, `ls -RL`'s loops, `stat`); from an open HANDLE
@@ -1501,10 +1563,9 @@ use it (bu15).
 - **#625** and **#626** (answered by wolf 0.2.27's s218): `fs_stat`,
   `fs_lstat`, `fs_read_link`, `fs_read_dir_entries`. `ls -l` and its
   family, `stat` and `readlink` are written on them (bu20), and `ls -R`
-  went from 0.27x to level with GNU. `realpath` now uses the walk too (bu30); `du`, `test -h` and a
-  `find`-shaped walk can be.
+  went from 0.27x to level with GNU. `realpath` now uses the walk too (bu30); `du` now walks those records; `test -h` and a `find`-shaped walk can too.
 - **#684**, the record has no I/O block size: `stat`'s `%o` and
-  `IO Block:`.
+  `IO Block:`, and `shred`'s default block rounding.
 - **#685**, no extended attribute: the `+` and `.` `ls -l` prints after
   a mode, `ls -Z`, `stat %C`; `getfacl`, `cp -a`'s attributes beyond.
 - **#686**, no file-system record: `stat -f`, `df`.
@@ -1524,7 +1585,8 @@ use it (bu15).
   #714, which `touch -` waits on; a `mv` to another file system could
   now keep a mode and the times and does not yet.
 - **#701**, no call changes an owner: `chown`, `chgrp`, `cp -p`'s
-  owner (refused by name), `install -o`.
+  owner (refused by name in that older pass). `install -o` now uses
+  `fs_set_owner`, as the identity tools do.
 - **#702** (closed, wolf 0.2.28): `fs_truncate` sets a handle's length;
   `truncate` is written on it (bu30), with `-o` still blocked by #684.
 - **#703**, a hole can be written and not found, and a clone cannot be
