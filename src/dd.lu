@@ -91,6 +91,11 @@ fn number(s: str) -> int ! {invalid} {
     bore.count_value(n)
 }
 
+fn rounded(n: f64) -> int {
+    let whole = n as int
+    let fraction = n - whole as f64
+    whole + if fraction > 0.5 || fraction == 0.5 && whole % 2 == 1 then 1 else 0
+}
 fn quantity(n: int, binary: bool) -> str {
     let base = if binary then 1024 else 1000
     if n < base { return "{n} B" }
@@ -101,9 +106,9 @@ fn quantity(n: int, binary: bool) -> str {
     let value = n as f64 / div as f64
     var text = ""
     if value < 10.0 {
-        let tenths = (value * 10.0 + 0.5) as int
+        let tenths = rounded(value * 10.0)
         if tenths >= 100 { text = "10" } else { text = "{tenths / 10}.{tenths % 10}" }
-    } else { text = "{(value + 0.5) as int}" }
+    } else { text = "{rounded(value)}" }
     "{text} {units[power..power + 1]}{if binary then "iB" else "B"}"
 }
 fn report(s: Stats, level: int, started: int) {
