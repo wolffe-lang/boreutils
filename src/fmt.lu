@@ -190,7 +190,7 @@ fn paragraph(mut out: bore.Out, rows: List[Row], a: int, z: int, o: Options) -> 
                 }
                 let variation = (width - following) * (width - following)
                 rough += variation
-                if next[end + 1] < words.len { cost += variation / 4 }
+                if next[end + 1] < words.len { cost += variation / 2 }
             }
             if cost < best || cost == best && rough < best_ragged {
                 best = cost
