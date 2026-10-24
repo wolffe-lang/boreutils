@@ -638,3 +638,33 @@ stdin = "abc\n\u0000"
 name = "strings 'abc\\tdef\\x00'"
 args = ["-S3"]
 stdin = "abc\tdef\u0000"
+
+[[case]]
+name = "traditional ['-b'] +2"
+args = ["-b", "+2"]
+stdin_file = "bu33-od-bytes"
+
+[[case]]
+name = "traditional ['--traditional', '-tx1'] +2"
+args = ["--traditional", "-tx1", "+2"]
+stdin_file = "bu33-od-bytes"
+
+[[case]]
+name = "traditional ['-b'] +10."
+args = ["-b", "+10."]
+stdin_file = "bu33-od-bytes"
+
+[[case]]
+name = "traditional ['--traditional', '-tx1'] +10."
+args = ["--traditional", "-tx1", "+10."]
+stdin_file = "bu33-od-bytes"
+
+[[case]]
+name = "traditional ['-b'] +0x10"
+args = ["-b", "+0x10"]
+stdin_file = "bu33-od-bytes"
+
+[[case]]
+name = "traditional ['--traditional', '-tx1'] +0x10"
+args = ["--traditional", "-tx1", "+0x10"]
+stdin_file = "bu33-od-bytes"

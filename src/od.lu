@@ -130,9 +130,10 @@ fn main() -> int {
     let p = bore.parse(spec, env_args(), bore.permute())
     var out = bore.stdout(), formats = List[Type]()
     var o = Options { base: 8, skip: 0, count: 9223372036854775807, width: 16, all: false, big: false, strings: 0, label: -1 }
-    var traditional = false, width_given = false
+    var traditional = false, width_given = false, modern = false
     for k in 0..p.keys.len {
         let key = p.keys[k], v = p.values[k]
+        if key == "format" || key == "address-radix" || key == "skip-bytes" || key == "read-bytes" || key == "strings" { modern = true }
         if key == "help" || key == "version" { bore.put(mut out, if key == "version" then bore.version_text("od") else "Usage: od [OPTION]... [FILE]...\nDump bytes in character and numeric formats.\n") else |_| {}; return bore.finish(mut out, "od", 0) }
         if key == "format" { if !types(mut formats, v) { return 1 } }
         if key.len == 1 {
@@ -156,7 +157,7 @@ fn main() -> int {
         let last = paths[paths.len - 1]
         var old = last.starts_with("+") || paths.len == 2 && last.len > 0 && last.bytes()[0] >= 48 as byte && last.bytes()[0] <= 57 as byte
         if traditional { old = old || old_offset(last) >= 0 }
-        if old {
+        if old && (!modern || traditional) {
             let n = old_offset(last)
             if n < 0 { bore.warn("od", "invalid offset: {bore.quote_always(last)}"); return 1 }
             let _ = (mut paths).pop()

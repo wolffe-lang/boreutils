@@ -1045,7 +1045,8 @@ pub fn shortest(raw: List[byte], kind: int, big: bool) -> str {
     let exact = Lex { kind: 0, neg: negative, m: mantissa(fraction), e: shift, hex: true, ndig: 0, start: 0, end: 0 }
     let v = to_host(exact, h).v
     let maxdigits = if kind == 16 then 21 else if kind == 8 then 17 else 9
-    for p in 1..maxdigits + 1 {
+    let firstdigits = if kind == 16 then 18 else if kind == 8 then 15 else 6
+    for p in firstdigits..maxdigits + 1 {
         var candidate = fmt_g(v, p, false, false)
         if negative { var signed = "-".bytes(); for b in candidate { (mut signed).push(b) }; candidate = signed }
         let converted = to_host(lex_float(candidate), h).v
