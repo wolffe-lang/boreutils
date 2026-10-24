@@ -1,0 +1,90 @@
+
+[[case]]
+name = "['--help']"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "['--version']"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "['-x', '-n', '0', 'f']"
+args = ["-x", "-n", "0", "f"]
+scratch = { f = "secret", g = "more" }
+
+[[case]]
+name = "['-xzn0', 'f']"
+args = ["-xzn0", "f"]
+scratch = { f = "secret", g = "more" }
+
+[[case]]
+name = "['-xvzn0', 'f']"
+args = ["-xvzn0", "f"]
+scratch = { f = "secret", g = "more" }
+
+[[case]]
+name = "['-xzn0', '-s', '1', 'f']"
+args = ["-xzn0", "-s", "1", "f"]
+scratch = { f = "secret", g = "more" }
+
+[[case]]
+name = "['-xzn0', '-s', '7', 'f']"
+args = ["-xzn0", "-s", "7", "f"]
+scratch = { f = "secret", g = "more" }
+
+[[case]]
+name = "['-xzn0', '-s', '0', 'f']"
+args = ["-xzn0", "-s", "0", "f"]
+scratch = { f = "secret", g = "more" }
+
+[[case]]
+name = "['-xzn0', '-s', '1K', 'f']"
+args = ["-xzn0", "-s", "1K", "f"]
+scratch = { f = "secret", g = "more" }
+
+[[case]]
+name = "['-xzn0', '--remove=unlink', 'f']"
+args = ["-xzn0", "--remove=unlink", "f"]
+scratch = { f = "secret", g = "more" }
+
+[[case]]
+name = "['-xvzn0', '--remove=unlink', 'f']"
+args = ["-xvzn0", "--remove=unlink", "f"]
+scratch = { f = "secret", g = "more" }
+
+[[case]]
+name = "['-xzn0', '--remove=unlink', 'f', 'g']"
+args = ["-xzn0", "--remove=unlink", "f", "g"]
+scratch = { f = "secret", g = "more" }
+
+[[case]]
+name = "['-xfzn0', 'f']"
+args = ["-xfzn0", "f"]
+scratch = { f = "secret", g = "more" }
+
+[[case]]
+name = "['-xzn1', 'f']"
+args = ["-xzn1", "f"]
+scratch = { f = "secret", g = "more" }
+
+[[case]]
+name = "['-xvzn3', 'f']"
+args = ["-xvzn3", "f"]
+scratch = { f = "secret", g = "more" }
+
+[[case]]
+name = "default block rounding needs st_blksize #684"
+args = ["f"]
+skip = "default block rounding needs st_blksize #684"
+
+[[case]]
+name = "mixed pattern scheduling not implemented"
+args = ["-x", "-n", "25", "f"]
+skip = "mixed pattern scheduling not implemented"
+
+[[case]]
+name = "name wipe needs non-replacing rename #706"
+args = ["-x", "-u", "f"]
+skip = "name wipe needs non-replacing rename #706"

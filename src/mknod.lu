@@ -68,7 +68,7 @@ fn main() -> int {
         var mask = -1
         if explicit { mask = os_umask(0) else -1 }
         var code = 0
-        fs_mknod(name, mode % 512) else |_| { code = bore.host_code() }
+        fs_mkfifo(name, mode % 512) else |_| { code = bore.host_code() }
         if mask >= 0 { let _ = os_umask(mask) else 0 }
         if code != 0 {
             bore.warn(
