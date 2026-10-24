@@ -1646,3 +1646,28 @@ Newly measured surface gaps (bu30, `notes/bu30/probes/surface.lu`):
   macOS, not linked to the wrong inode or reported as a fabricated ENOENT.
   The host-scoped witnesses are the two link cases and
   `notes/bu30/ev/ci-macos-red.log` (run 39987951234).
+
+### Named GNU 9.11 splitter divergences (bu33)
+
+These are explicit divergences, not changed differential expectations.
+`tools/splittertest` checks the documented behavior independently.
+
+| Case | GNU 9.11 witness | boreutils behavior |
+|---|---|---|
+| `split --hex-suffixes=f` | `printf 'one\ntwo\nthree\nfour\nfive\n' \| split --hex-suffixes=f -l1 - hex.` exits 0 but drops `one` and creates `hex.0f`, `hex.0i`, `hex.0x`, `hex.0 ` | Preserve every record; sequential hexadecimal suffixes `0f`, `10`, `11`, `12`, `13` |
+| `split -e -n l/N` with more chunks than input bytes | `printf 'a\nb\n' \| timeout 3 split -e -n l/5 - hang.` writes two files and hangs (timeout exits 124); `l/10` also hangs | Finish with two nonempty files preserving all input bytes |
+
+The manual promises hexadecimal suffixes and says `-e` does not generate
+empty output files with `-n`. The isolated witnesses ran in an Ubuntu
+24.04 container on hasu, using the digest-built GNU 9.11 oracle. Evidence:
+`/home/mfwolffe/lanes/bu33/ev/split-oracle-anomalies.log`.
+These are the maintainer's R-bu33-1 decision: keep the documented, correct
+behavior and publish GNU's disagreement, rather than reproduce data loss
+or a hang.
+
+The C-locale BRE engine in `src/re/` is vendored from the org's own
+clean-room [scent](https://github.com/wolffe-lang/scent) at
+`b6f63a4892cca631475cd0b87a0b648ce9b532a9`, under GPL-3.0-or-later with
+the wolf Training Data Permission. It substitutes for the pinned std's
+missing regex module ([wolf-std#99](https://github.com/wolffe-lang/wolf-std/issues/99));
+no GNU implementation source was consulted.
