@@ -87,12 +87,12 @@ fn paragraph(mut out: bore.Out, rows: List[Row], a: int, z: int, o: Options) -> 
     words[words.len - 1].sentence = true
     var first_indent = rows[a].indent, rest_indent = first_indent
     if (o.crown || o.tagged) && z > a + 1 { rest_indent = rows[a + 1].indent } else if o.tagged { rest_indent = if first_indent == 0 then 3 else 0 }
-    var costs = List[int](), next = List[int]()
-    for _ in 0..words.len + 1 { (mut costs).push(0); (mut next).push(words.len) }
+    var costs = List[int](), next = List[int](), ragged = List[int]()
+    for _ in 0..words.len + 1 { (mut costs).push(0); (mut next).push(words.len); (mut ragged).push(0) }
     var i = words.len - 1
     while i >= 0 {
         let indent = if i == 0 then first_indent else rest_indent
-        var width = indent, best: int = 9223372036854775807, end = i
+        var width = indent, best: int = 9223372036854775807, best_ragged: int = 9223372036854775807, end = i
         while end < words.len {
             if end > i { width += words[end].gap }
             width += words[end].bytes.len
@@ -104,10 +104,17 @@ fn paragraph(mut out: bore.Out, rows: List[Row], a: int, z: int, o: Options) -> 
                 if end + 1 < words.len && words[end + 1].sentence { cost += 160 / words[end + 1].bytes.len }
             }
             cost += costs[end + 1]
-            if cost <= best { best = cost; next[i] = end + 1 }
+            var rough = ragged[end + 1]
+            if end + 1 < words.len {
+                var following = rest_indent
+                for j in end + 1..next[end + 1] { if j > end + 1 { following += words[j].gap }; following += words[j].bytes.len }
+                rough += (width - following) * (width - following)
+            }
+            if cost < best || cost == best && rough < best_ragged { best = cost; best_ragged = rough; next[i] = end + 1 }
             end += 1
         }
         costs[i] = best
+        ragged[i] = best_ragged
         i -= 1
     }
     i = 0
