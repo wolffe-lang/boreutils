@@ -1,0 +1,11 @@
+//! member: false
+//! vdir — GNU listing front end through the shared listing machinery.
+//! References consulted: GNU coreutils 9.11 documented vdir invocation,
+//! POSIX.1-2024 ls and black-box binary runs. No implementation source.
+//! dir defaults to -C -b, vdir to -l -b; see listing/listing.lu for gaps.
+
+use listing
+
+fn main() -> int {
+    listing.command()
+}

@@ -1,0 +1,2568 @@
+//!
+//! ls — list directory contents.
+//!
+//! References consulted: POSIX.1-2024 `ls`; GNU coreutils 9.11
+//! `ls --help`, the info manual's `ls invocation` node and its
+//! sub-nodes, and black-box runs of the GNU binary (the staged 9.11 on
+//! linux x86-64, Homebrew's `gls` 9.11 on macOS arm64) under
+//! `LC_ALL=C`; uutils' and toybox's `ls` as design references only.
+//! Never GNU source. The probes behind every rule below are kasumi
+//! `~/lanes/bu18/probe*.sh`, `~/lanes/bu20/probe*.sh`, `notes/bu18-ls.md`
+//! and `notes/bu20-the-long-format.md`.
+//!
+//! **Into a pipe or a file**, where scripts read it: one name per line
+//! unless `-C`, `-x`, `-m` or `-l` asks, names printed as they are
+//! unless `-q` asks.
+//!
+//! **On a terminal** (`os_isatty(1)`, wolf 0.2.26, s215; bu19), GNU's
+//! terminal defaults, measured through a pseudo-terminal against 9.11:
+//! columns unless a format was asked for; the shell-escape quoting style
+//! (`'with space'`, `'new'$'\n''line'`, `''$'\303\251'`), with one
+//! leading space before every unquoted name of a `-C`/`-x` listing that
+//! holds a quoted one, and quoted directory headers; and under `-N`
+//! (`--literal`) `?` for an unprintable byte unless
+//! `--show-control-chars`. The width is `-w`, then `COLUMNS`, then 80:
+//! GNU asks the terminal its own width before `COLUMNS`, and wolf cannot
+//! (wolf-lang#643), so the two agree on a terminal 80 wide or one that
+//! reports no size.
+//!
+//! GNU's rules, each measured against 9.11:
+//!
+//! - Operands: none means `.`. Files first, as one listing; then each
+//!   directory, under a `NAME:` header when there was more than one
+//!   operand (a failed one counts) or `-R`, a blank line before every
+//!   header that follows output. `-d` lists the operands themselves.
+//! - The last of `-1 -C -x -m -l` (and `--format`) wins, except that
+//!   `-1` after `-l` leaves the long format; so does the last of
+//!   `-a`/`-A`, and of `-S`/`-t`/`-X`/`-U`/`--sort`.
+//! - Sorting is by byte (the C locale); `-S` is largest first, `-t`
+//!   newest first, `-X` by the text after the last `.`; every tie falls
+//!   to the name, and `-r` reverses the whole order. `-U` and
+//!   `--sort=none` keep the directory's own order
+//!   (`fs_read_dir_entries`, wolf 0.2.27), and `-f` is `-a -U`. That
+//!   call leaves `.` and `..` out, so under `-a` they are put FIRST,
+//!   which is where btrfs, tmpfs and APFS have them and not always
+//!   where ext4 does (wolf-lang#692).
+//!   `--group-directories-first` puts directories (a link to one
+//!   included) first, and `-r` does not move them.
+//! - **The long format** (`-l`, and `-g`, `-n`, `-o`, `--full-time`,
+//!   which imply it): the mode's ten characters, the link count, the
+//!   owner and the group (`-g` drops the owner, `-o` and `-G` the group,
+//!   `-n` prints both as numbers), the size — a device file's major and
+//!   minor numbers instead — the time, the name, and ` -> TARGET` after
+//!   a link. Every column is as wide as its widest entry IN THAT
+//!   LISTING: numbers to the right, names to the left. A listing of a
+//!   directory starts with `total N`, the blocks its entries hold.
+//! - **The time** is the modification time, or with `-u`/`--time=atime`
+//!   the access time, `-c`/`--time=ctime` the status change,
+//!   `--time=birth` the creation. In the long format it prints as
+//!   `Sep 13 12:26` when it is within the last six months (15,778,476
+//!   seconds) and not in the future, else `Sep 13  2020`;
+//!   `--full-time` and `--time-style` (and `TIME_STYLE`) choose the ISO
+//!   forms. A time option WITHOUT the long format sorts by that time,
+//!   unless a sort was asked for. Times are local: `bore/clock.lu`
+//!   reads the zone `TZ` names.
+//! - `-s` puts each entry's allocated blocks before it and `-i` its
+//!   inode number, in every format, right-aligned in the listing's
+//!   widest. Blocks are 1024 bytes (512 under `POSIXLY_CORRECT`, unless
+//!   `-k`); `-h` and `--si` print sizes and blocks in units, rounded up.
+//! - `-F` appends `/` to a directory, `@` to a link, `*` to a regular
+//!   file with an execute bit, `|` to a pipe and `=` to a socket;
+//!   `--file-type` the same less the `*`; `-p` the `/` only. In the long
+//!   format the link's NAME is unmarked and, under `-F` and
+//!   `--file-type`, its target carries the mark of what it resolves to.
+//!   `-q` prints every byte outside printable ASCII as `?`.
+//! - **Links.** A link is itself, never its target, except: a
+//!   command-line link to a directory is followed (listed as the
+//!   directory) unless `-l`, `-d` or `-F` asked; `-H` follows every
+//!   command-line link; `-L` follows every link, and a link it cannot
+//!   follow is a diagnostic, status 1, and a row of `?`. `-R` under
+//!   `-L` does not list a directory it is already inside (same device
+//!   and inode), and says so, status 2.
+//! - Statuses: 2 for an operand that cannot be reached or a directory
+//!   operand that cannot be opened, and for a usage error; 1 for an
+//!   entry that cannot be read, a directory `-R` meets and cannot open,
+//!   and for a `--sort`/`--time`/`--format` word GNU's argmatch
+//!   refuses; otherwise 0.
+//!
+//! **What wolf cannot see, and what that costs** (each a stated skip in
+//! `tests/cases/ls.toml`, or a refusal by name, never an imitation):
+//!
+//! - **Owner and group NAMES** come from `/etc/passwd` and `/etc/group`
+//!   (`bore/ids.lu`); an account kept anywhere else (LDAP, systemd's
+//!   dynamic users, macOS's directory service) prints as its number.
+//! - **The `+` and `.` after a mode**, GNU's marks for an ACL and a
+//!   security context: wolf reads no extended attribute
+//!   (wolf-lang#685), so neither is ever printed.
+//! - **A name that is not UTF-8** is listed by the directory but cannot
+//!   be named to any path call (ruling #60: a byte-path family is a
+//!   later lane; wolf-lang#687), and this program holds names as `str`:
+//!   such a name is
+//!   reported and skipped, status 1, where bu18 failed the whole
+//!   directory.
+//! - `-v`, `--sort=width`, the quoting styles but `-N` (`-b -Q
+//!   --quoting-style`, and the `QUOTING_STYLE` variable is not read),
+//!   `-I --ignore --hide -B`, `-D`, `-Z`, `--author`,
+//!   `--color=always`, `--hyperlink`, `--zero`, `--block-size` (and the
+//!   `LS_BLOCK_SIZE`, `BLOCK_SIZE` and `BLOCKSIZE` variables are not
+//!   read) and `--time-style=+FORMAT` are not written yet, and are
+//!   refused by name (status 2) rather than ignored.
+
+use bore
+
+/// What the command line asked for.
+struct Opts {
+    all: int,
+    directory: bool,
+    recursive: bool,
+    format: int,
+    width: int,
+    width_given: bool,
+    tab: int,
+    sort: int,
+    sort_given: bool,
+    time_given: bool,
+    time_kind: int,
+    time_style: int,
+    style_word: str,
+    reverse: bool,
+    indicator: int,
+    hide: bool,
+    hide_given: bool,
+    quote: bool,
+    literal: bool,
+    escape: bool,
+    format_given: bool,
+    deref: int,
+    deref_given: bool,
+    group_dirs: bool,
+    blocks: bool,
+    inode: bool,
+    owner: bool,
+    group: bool,
+    numeric: bool,
+    human: int,
+    kibi: bool,
+    refused: str,
+}
+
+/// What a long listing needs beside the entries: the account tables,
+/// the time zone, and the instant the six-month rule is measured from.
+/// Read once, before any listing's region.
+struct Ctx {
+    names: bore.Names,
+    zone: bore.Zone,
+    now: int,
+    now_nanos: int,
+    posix: bool,
+    linux: bool,
+}
+
+/// One name to list: what it is called, the directory it was listed
+/// in (`""` for an operand, whose name is its path), and what the
+/// directory said it is. The path is built only when a stat or a
+/// diagnostic needs it, so a plain listing allocates none.
+///
+/// `kind` is `[os.fs.stat]`'s code, -1 while nothing has said; `state`
+/// holds three bits (`known`: a stat was tried; `typed`: `kind` can be
+/// trusted for a mark, being the directory entry's own type or a
+/// stat's; `arrow`: `target` is where this link points). `slot` is
+/// where its stat record sits in the listing's `recs`, -1 when it has
+/// none.
+///
+/// Small on purpose. A listing that needs records reads the directory
+/// in ITS order, so the sort then does all n log n comparisons, each
+/// reaching for two entries; with the record held in the entry (bu20's
+/// first cut, 150 bytes an entry) `ls -S` of 100,000 names spent 67% of
+/// its time in `compare`. The records moved to `Dir.recs` and the sort
+/// to `Keys`, and it is 14%.
+struct Entry {
+    name: str,
+    dir: str,
+    kind: int,
+    state: int,
+    slot: int,
+    target: str,
+}
+
+/// One listing: its entries, and flat beside them what a stat said of
+/// each, `slot_words()` words a slot — the twenty of `[os.fs.stat]`,
+/// then for a link what it resolves to: the kind (-1 for nothing, or
+/// never asked) and the mode.
+///
+/// `in_order` says the entries already stand in name order: they came
+/// from `fs_read_dir`, which sorts by byte as this program does.
+struct Dir {
+    es: List[Entry],
+    recs: List[int],
+    in_order: bool,
+}
+
+fn slot_words() -> int {
+    22
+}
+
+fn new_dir() -> Dir {
+    Dir { es: List[Entry](), recs: List[int](), in_order: false }
+}
+
+// The bits of an entry's `state`.
+fn known() -> int {
+    1
+}
+
+fn typed() -> int {
+    2
+}
+
+fn arrow() -> int {
+    4
+}
+
+fn has(state: int, bit: int) -> bool {
+    state / bit % 2 == 1
+}
+
+/// An entry not stat'ed yet, of a kind the directory gave (or -1; 2 is
+/// the directory saying it does not know).
+fn entry(name: str, dir: str, kind: int) -> Entry {
+    Entry {
+        name: name,
+        dir: dir,
+        kind: kind,
+        state: if kind >= 0 && kind != 2 then typed() else 0,
+        slot: -1,
+        target: "",
+    }
+}
+
+/// Word `i` of entry `at`'s record, which it must have.
+fn word(d: Dir, at: int, i: int) -> int {
+    d.recs[d.es[at].slot * slot_words() + i]
+}
+
+/// The path that reaches the entry `name` listed in `dir`.
+fn joined_path(dir: str, name: str) -> str {
+    if dir.len == 0 {
+        return name
+    }
+    joined(dir, name)
+}
+
+// The words for `format`, `sort`, `indicator`, `deref` and the times.
+fn one_per_line() -> int {
+    0
+}
+
+fn vertical() -> int {
+    1
+}
+
+fn across() -> int {
+    2
+}
+
+fn with_commas() -> int {
+    3
+}
+
+fn long_format() -> int {
+    4
+}
+
+fn by_name() -> int {
+    0
+}
+
+fn by_size() -> int {
+    1
+}
+
+fn by_time() -> int {
+    2
+}
+
+fn by_extension() -> int {
+    3
+}
+
+fn unsorted() -> int {
+    4
+}
+
+fn by_version() -> int {
+    5
+}
+
+fn by_width() -> int {
+    6
+}
+
+fn no_indicator() -> int {
+    0
+}
+
+fn slash() -> int {
+    1
+}
+
+fn classify() -> int {
+    2
+}
+
+fn file_type() -> int {
+    3
+}
+
+fn follow_dir_operands() -> int {
+    0
+}
+
+fn follow_operands() -> int {
+    1
+}
+
+fn follow_always() -> int {
+    2
+}
+
+fn follow_never() -> int {
+    3
+}
+
+/// `--time-style`: the C locale's two forms, or an ISO one.
+fn style_locale() -> int {
+    0
+}
+
+fn style_long_iso() -> int {
+    1
+}
+
+fn style_iso() -> int {
+    2
+}
+
+fn style_full_iso() -> int {
+    3
+}
+
+/// Six months, as GNU counts them: half a mean Gregorian year.
+fn six_months() -> int {
+    15778476
+}
+
+fn program() -> str {
+    let path = os_exe() else "ls"
+    let name = bore.last_name(path)
+    if name == "dir" || name == "vdir" { return name }
+    "ls"
+}
+
+/// Shared entry: dir defaults to -C -b, vdir to -l -b, ls is unchanged.
+pub fn command() -> int {
+    let p = bore.parse(options(), env_args(), bore.permute())
+    var out = bore.stdout()
+    var o = Opts {
+        all: 0,
+        directory: false,
+        recursive: false,
+        format: if program() == "dir" then vertical() else if program() == "vdir" then long_format() else one_per_line(),
+        width: 80,
+        width_given: false,
+        tab: 8,
+        sort: by_name(),
+        sort_given: false,
+        time_given: false,
+        time_kind: 0,
+        time_style: -1,
+        style_word: "",
+        reverse: false,
+        indicator: no_indicator(),
+        hide: false,
+        hide_given: false,
+        quote: false,
+        literal: program() != "ls",
+        escape: program() != "ls",
+        format_given: program() != "ls",
+        deref: follow_dir_operands(),
+        deref_given: false,
+        group_dirs: false,
+        blocks: false,
+        inode: false,
+        owner: true,
+        group: true,
+        numeric: false,
+        human: 0,
+        kibi: false,
+        refused: "",
+    }
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i]
+        let v = p.values[i]
+        if k == "help" {
+            bore.put(mut out, help()) else |_| {}
+            return done(mut out, 0)
+        }
+        if k == "version" {
+            bore.put(mut out, bore.version_text(program())) else |_| {}
+            return done(mut out, 0)
+        }
+        let status = take_option(mut o, k, v, p.given[i])
+        if status != 0 {
+            return status
+        }
+        i += 1
+    }
+    if !bore.ok(p) {
+        eprint("{program()}: {p.error}\nTry '{program()} --help' for more information.")
+        return 2
+    }
+    if o.sort == by_version() && o.refused.len == 0 {
+        o.refused = "-v and --sort=version are not written yet"
+    }
+    if o.sort == by_width() && o.refused.len == 0 {
+        o.refused = "--sort=width is not written yet"
+    }
+    if o.refused.len > 0 {
+        bore.warn(program(), o.refused)
+        return 2
+    }
+    // Measured: a time option sorts by that time only where it has no
+    // column to show it in.
+    if o.time_given && !o.sort_given && o.format != long_format() {
+        o.sort = by_time()
+    }
+    // `TIME_STYLE` stands in for a `--time-style` nobody gave; a word in
+    // it GNU would refuse is refused the same way.
+    if o.time_style < 0 {
+        var asked = o.time_style == -2
+        if !asked && is_set("TIME_STYLE") {
+            // Measured: set and empty is a word like any other, and
+            // ambiguous.
+            asked = true
+            o.style_word = env_get("TIME_STYLE") else ""
+        }
+        o.time_style = style_locale()
+        if o.format == long_format() && asked {
+            let status = take_time_style(mut o, o.style_word)
+            if status != 0 {
+                return status
+            }
+            if o.refused.len > 0 {
+                bore.warn(program(), o.refused)
+                return 2
+            }
+        }
+    }
+    // A command-line link to a directory is followed unless the listing
+    // is about the link itself (measured: -l, -d and -F proper; -p and
+    // --file-type still follow).
+    if !o.deref_given {
+        if o.format == long_format() || o.directory || o.indicator == classify() {
+            o.deref = follow_never()
+        }
+    }
+    // On a terminal GNU's defaults change (measured through a
+    // pseudo-terminal, 9.11): columns, `?` for an unprintable byte, and
+    // the shell-escape quoting style, unless the command line chose. A
+    // closed descriptor 1 is not a terminal.
+    let tty = os_isatty(1) else false
+    if tty {
+        if !o.format_given {
+            o.format = vertical()
+        }
+        if !o.hide_given {
+            o.hide = true
+        }
+        if !o.literal {
+            o.quote = true
+        }
+    }
+    if o.format == vertical() || o.format == across() || o.format == with_commas() {
+        if !o.width_given {
+            o.width = columns()
+        }
+    }
+    // The tables and the zone a long listing reads, once, out here:
+    // every listing below runs in a region of its own.
+    var cx = Ctx {
+        names: bore.no_names(),
+        zone: bore.utc(),
+        now: 0,
+        now_nanos: 0,
+        posix: false,
+        linux: bore.built_for_linux(),
+    }
+    if o.format == long_format() {
+        if !o.numeric {
+            cx.names = bore.read_names()
+        }
+        cx.zone = bore.zone()
+        let ms = time_unix_ms()
+        cx.now = ms / 1000
+        // The clock answers in milliseconds, and a file made in this
+        // one must not read as made in the future: the end of it.
+        cx.now_nanos = ms % 1000 * 1000000 + 999999
+    }
+    cx.posix = !bore.permute()
+    var operands = copy p.operands
+    if operands.len == 0 {
+        (mut operands).push(".")
+    }
+    var failed = false
+    let status = list_operands(mut out, o, cx, operands, mut failed)
+    if failed {
+        bore.write_error(out, program(), "write error")
+        return 2
+    }
+    done(mut out, status)
+}
+
+/// `bore.finish`, but a failed write is status 2: measured for `ls >&-`
+/// and `ls > /dev/full`, where the utilities `bore.finish` was measured
+/// on say 1.
+fn done(mut out: bore.Out, status: int) -> int {
+    bore.flush(mut out) else |_| {
+        bore.write_error(out, program(), "write error")
+        return 2
+    }
+    status
+}
+
+/// Apply one option, in command-line order, so the last of a set wins
+/// as it does in GNU's. Answers a status to exit with at once (a word
+/// GNU refuses there and then), or 0.
+fn take_option(mut o: Opts, k: str, v: str, given: bool) -> int {
+    if k == "all" {
+        o.all = 2
+    } else if k == "almost-all" {
+        o.all = 1
+    } else if k == "directory" {
+        o.directory = true
+    } else if k == "recursive" {
+        o.recursive = true
+    } else if k == "1" {
+        // Measured: `-l -1` stays long, where `--format=single-column`
+        // does not.
+        if o.format != long_format() {
+            o.format = one_per_line()
+        }
+        o.format_given = true
+    } else if k == "C" {
+        o.format = vertical()
+        o.format_given = true
+    } else if k == "x" {
+        o.format = across()
+        o.format_given = true
+    } else if k == "m" {
+        o.format = with_commas()
+        o.format_given = true
+    } else if k == "l" {
+        o.format = long_format()
+        o.format_given = true
+    } else if k == "g" {
+        o.format = long_format()
+        o.format_given = true
+        o.owner = false
+    } else if k == "o" {
+        o.format = long_format()
+        o.format_given = true
+        o.group = false
+    } else if k == "numeric-uid-gid" {
+        o.format = long_format()
+        o.format_given = true
+        o.numeric = true
+    } else if k == "full-time" {
+        o.format = long_format()
+        o.format_given = true
+        o.time_style = style_full_iso()
+    } else if k == "no-group" {
+        o.group = false
+    } else if k == "time-style" {
+        // Measured: the word is read only when a long listing is
+        // printed, so `ls --time-style=bogus` lists and exits 0.
+        o.style_word = v
+        o.time_style = -2
+    } else if k == "escape" {
+        o.escape = true
+        o.literal = true
+        o.hide = false
+    } else if k == "literal" {
+        o.escape = false
+        o.literal = true
+    } else if k == "format" {
+        let m = bore.argmatch(v, format_words(), format_meanings())
+        if m < 0 {
+            return bore.argmatch_error(
+                program(),
+                v,
+                "format",
+                format_words(),
+                format_meanings(),
+                m == -2,
+            )
+        }
+        o.format = m
+        o.format_given = true
+    } else if k == "S" {
+        o.sort = by_size()
+        o.sort_given = true
+    } else if k == "t" {
+        o.sort = by_time()
+        o.sort_given = true
+    } else if k == "X" {
+        o.sort = by_extension()
+        o.sort_given = true
+    } else if k == "U" {
+        o.sort = unsorted()
+        o.sort_given = true
+    } else if k == "f" {
+        o.sort = unsorted()
+        o.sort_given = true
+        o.all = 2
+    } else if k == "v" {
+        o.sort = by_version()
+        o.sort_given = true
+    } else if k == "sort" {
+        let m = bore.argmatch(v, sort_words(), sort_meanings())
+        if m < 0 {
+            return bore.argmatch_error(program(), v, "sort", sort_words(), sort_meanings(), m == -2)
+        }
+        o.sort = m
+        o.sort_given = true
+    } else if k == "time" {
+        let m = bore.argmatch(v, time_words(), time_meanings())
+        if m < 0 {
+            return bore.argmatch_error(program(), v, "time", time_words(), time_meanings(), m == -2)
+        }
+        o.time_kind = m
+        o.time_given = true
+    } else if k == "u" {
+        o.time_kind = 1
+        o.time_given = true
+    } else if k == "c" {
+        o.time_kind = 2
+        o.time_given = true
+    } else if k == "reverse" {
+        o.reverse = true
+    } else if k == "F" {
+        o.indicator = classify()
+    } else if k == "p" {
+        o.indicator = slash()
+    } else if k == "file-type" {
+        o.indicator = file_type()
+    } else if k == "classify" {
+        if !given {
+            o.indicator = classify()
+        } else {
+            let m = bore.argmatch(v, when_words(), when_meanings())
+            if m < 0 {
+                return bore.argmatch_error(
+                    program(),
+                    v,
+                    "classify",
+                    when_words(),
+                    when_meanings(),
+                    m == -2,
+                )
+            }
+            // Measured: `--classify=never` and `=auto` (off a terminal)
+            // change nothing, not even an earlier -F or -p.
+            if m == 0 {
+                o.indicator = classify()
+            }
+        }
+    } else if k == "indicator-style" {
+        let m = bore.argmatch(v, indicator_words(), indicator_meanings())
+        if m < 0 {
+            return bore.argmatch_error(
+                program(),
+                v,
+                "indicator-style",
+                indicator_words(),
+                indicator_meanings(),
+                m == -2,
+            )
+        }
+        o.indicator = m
+    } else if k == "hide-control-chars" {
+        o.hide = true
+        o.hide_given = true
+    } else if k == "show-control-chars" {
+        o.hide = false
+        o.hide_given = true
+    } else if k == "dereference-command-line" {
+        o.deref = follow_operands()
+        o.deref_given = true
+    } else if k == "dereference" {
+        o.deref = follow_always()
+        o.deref_given = true
+    } else if k == "dereference-command-line-symlink-to-dir" {
+        o.deref = follow_dir_operands()
+        o.deref_given = true
+    } else if k == "group-directories-first" {
+        o.group_dirs = true
+    } else if k == "color" {
+        if !given {
+            o.refused = "--color=always is not written yet"
+        } else {
+            let m = bore.argmatch(v, when_words(), when_meanings())
+            if m < 0 {
+                return bore.argmatch_error(program(), v, "color", when_words(), when_meanings(), m == -2)
+            }
+            if m == 0 {
+                o.refused = "--color=always is not written yet"
+            }
+        }
+    } else if k == "width" {
+        let w = line_width(v)
+        if w < 0 {
+            bore.warn(program(), "invalid line width: {bore.quote(v)}")
+            return 2
+        }
+        o.width = w
+        o.width_given = true
+    } else if k == "tabsize" {
+        let t = line_width(v)
+        if t < 0 {
+            bore.warn(program(), "invalid tab size: {bore.quote(v)}")
+            return 2
+        }
+        o.tab = t
+    } else if k == "inode" {
+        o.inode = true
+    } else if k == "size" {
+        o.blocks = true
+    } else if k == "human-readable" {
+        o.human = 1
+    } else if k == "si" {
+        o.human = 2
+    } else if k == "kibibytes" {
+        o.kibi = true
+    } else if o.refused.len == 0 {
+        o.refused = "option '{shown_option(k)}' is not written yet"
+    }
+    0
+}
+
+/// Whether the environment holds `name` at all, empty or not.
+fn is_set(name: str) -> bool {
+    let _ = env_get(name) else |e| match e {
+        missing => { return false },
+        utf8 => { return true },
+    }
+    true
+}
+
+/// `--time-style=WORD` (and `TIME_STYLE`): the four named styles.
+/// `posix-` in front means "only outside the POSIX locale", and this
+/// program lists in the C locale alone, so such a word is the locale's
+/// style whatever follows (measured: `posix-` by itself is accepted).
+/// `+FORMAT` is refused by name; any other word is GNU's diagnostic,
+/// whose list is its own shape and not argmatch's.
+fn take_time_style(mut o: Opts, word: str) -> int {
+    let w = word
+    if w.starts_with("posix-") {
+        o.time_style = style_locale()
+        return 0
+    }
+    if w.starts_with("+") {
+        if o.refused.len == 0 {
+            o.refused = "--time-style=+FORMAT is not written yet"
+        }
+        return 0
+    }
+    let m = bore.argmatch(w, style_words(), style_meanings())
+    if m < 0 {
+        let what = if m == -2 then "ambiguous" else "invalid"
+        eprint(
+            "{program()}: {what} argument {bore.quote(word)} for 'time style'\nValid arguments are:\n  - [posix-]full-iso\n  - [posix-]long-iso\n  - [posix-]iso\n  - [posix-]locale\n  - +FORMAT (e.g., +%H:%M) for a 'date'-style format\nTry '{program()} --help' for more information.",
+        )
+        return 2
+    }
+    o.time_style = m
+    0
+}
+
+/// How an option key reads on a command line, for a refusal.
+fn shown_option(k: str) -> str {
+    if k.len == 1 {
+        return "-{k}"
+    }
+    "--{k}"
+}
+
+/// A `-w`/`-T` value: a decimal count, as many digits as given (a
+/// count too large for an `int` is no limit, as GNU's is). -1 for a
+/// value GNU refuses.
+fn line_width(v: str) -> int {
+    if v.len == 0 {
+        return -1
+    }
+    for b in v.bytes() {
+        let n = b as int
+        if n < 48 || n > 57 {
+            return -1
+        }
+    }
+    v.to_int() else 0
+}
+
+/// The line width `-C`, `-x` and `-m` use without `-w`: `COLUMNS` when
+/// it is a count (0 is no limit), else 80, warning about a bad one as
+/// GNU does — only when a format that uses the width asked.
+fn columns() -> int {
+    let c = env_get("COLUMNS") else |_| {
+        return 80
+    }
+    if c.len == 0 {
+        return 80
+    }
+    let w = line_width(c)
+    if w < 0 {
+        bore.warn(program(), "ignoring invalid width in environment variable COLUMNS: {bore.quote(c)}")
+        return 80
+    }
+    w
+}
+
+// ---------------------------------------------------------- the listing
+
+/// List every operand, files first, then the directories; answer the
+/// status. `failed` comes back true when a write failed: the listing
+/// goes on (GNU reports every operand it cannot reach, and the write
+/// error once, at the end) but writes nothing more.
+fn list_operands(
+    mut out: bore.Out,
+    o: Opts,
+    cx: Ctx,
+    operands: List[str],
+    mut failed: bool,
+) -> int {
+    var status = 0
+    var ops = new_dir()
+    var file_at = List[int]()
+    var dir_at = List[int]()
+    for name in operands {
+        let at = ops.es.len
+        (mut ops.es).push(entry(name, "", -1))
+        let code = stat_operand(mut ops, at, o, mut status)
+        if code != 0 {
+            bore.warn(program(), "cannot access {quote_always(name)}: {reason(code)}")
+            status = 2
+        } else if ops.es[at].kind == bore.kind_dir() && !o.directory {
+            (mut dir_at).push(at)
+        } else {
+            (mut file_at).push(at)
+        }
+    }
+    let headers = operands.len > 1 || o.recursive
+    var printed = false
+    if file_at.len > 0 {
+        let file_order = sorted(ops, o, file_at)
+        var bytes = List[byte]()
+        // Measured: the columns of the files' listing are as wide as
+        // the widest OPERAND needs, a directory among them included,
+        // though its row is not printed here (`ls -l a .`).
+        print_entries(mut bytes, ops, file_order, o, cx, false, dir_at)
+        bore.write_all(mut out, bytes) else |_| {
+            failed = true
+        }
+        printed = true
+    }
+    // What is buffered goes out before the first directory, which each
+    // write straight out of their own region.
+    bore.flush(mut out) else |_| {
+        failed = true
+    }
+    let dir_order = sorted(ops, o, dir_at)
+    let ancestors = List[int]()
+    for at in dir_order {
+        let s = list_directory(
+            out,
+            o,
+            cx,
+            ops.es[at].name,
+            headers,
+            mut printed,
+            true,
+            ancestors,
+            mut failed,
+        )
+        if s > status {
+            status = s
+        }
+    }
+    status
+}
+
+/// List the directory `path`, and with `-R` everything under it, each
+/// directory in a region of its own: what one listing allocates dies
+/// with it, so `-R` holds the directories it is inside and no more.
+/// `printed` says whether anything has been written yet, which decides
+/// the blank line before a header; `operand` says whether a failure to
+/// open it is an operand's (status 2) or a subdirectory's (1);
+/// `ancestors` is the device and inode of every directory this walk is
+/// inside, in pairs.
+fn list_directory(
+    out: bore.Out,
+    o: Opts,
+    cx: Ctx,
+    path: str,
+    headers: bool,
+    mut printed: bool,
+    operand: bool,
+    ancestors: List[int],
+    mut failed: bool,
+) -> int {
+    var status = 0
+    region listing {
+        status = list_here(out, o, cx, path, headers, mut printed, operand, ancestors, mut failed)
+    }
+    status
+}
+
+fn list_here(
+    out: bore.Out,
+    o: Opts,
+    cx: Ctx,
+    path: str,
+    headers: bool,
+    mut printed: bool,
+    operand: bool,
+    ancestors: List[int],
+    mut failed: bool,
+) -> int {
+    var d = new_dir()
+    var status = 0
+    // A walk remembers the directories it is inside by device and
+    // inode, and does not list one twice: under -L a link can lead back
+    // up (measured: GNU says so as it would open it, status 2).
+    var mine = copy ancestors
+    if o.recursive {
+        let here = fs_stat(path) else |_| {
+            List[int]()
+        }
+        if here.len == 20 {
+            if inside(here, ancestors) {
+                bore.warn(program(), "{bore.quote_name(path)}: not listing already-listed directory")
+                return 2
+            }
+            (mut mine).push(bore.rec_dev(here))
+            (mut mine).push(bore.rec_ino(here))
+        }
+    }
+    let opened = read_directory(mut d, path, o, mut status)
+    if !opened {
+        return if operand then 2 else 1
+    }
+    var bytes = List[byte]()
+    if headers {
+        if printed {
+            (mut bytes).push(10 as byte)
+        }
+        push_text(mut bytes, label(path, o))
+        push_text(mut bytes, ":\n")
+    }
+    printed = true
+    let s0 = stat_all(mut d, o)
+    if s0 > status {
+        status = s0
+    }
+    var every = List[int]()
+    var k = 0
+    while k < d.es.len {
+        (mut every).push(k)
+        k += 1
+    }
+    let order = sorted(d, o, every)
+    let nothing = List[int]()
+    print_entries(mut bytes, d, order, o, cx, true, nothing)
+    if !failed && bytes.len > 0 {
+        bore.write_direct(out, bytes) else |_| {
+            failed = true
+        }
+    }
+    if !o.recursive {
+        return status
+    }
+    for at in order {
+        if d.es[at].kind != bore.kind_dir() {
+            continue
+        }
+        if d.es[at].name == "." || d.es[at].name == ".." {
+            continue
+        }
+        let sub = descended(path, d.es[at].name)
+        let s2 = list_directory(out, o, cx, sub, true, mut printed, false, mine, mut failed)
+        if s2 > status {
+            status = s2
+        }
+    }
+    status
+}
+
+/// Read the names of `path` into `d`, filtered by `-a`/`-A`. Answers
+/// false, having said why, when the directory cannot be opened.
+///
+/// Two routes. A listing that needs nothing but names, sorted, takes
+/// `fs_read_dir`'s sorted `str`s. Anything that asks about an entry —
+/// its type, its record — or wants the directory's own order takes
+/// `fs_read_dir_entries` (wolf 0.2.27): the host's order, and each
+/// entry's type without a stat, which is also the order GNU reports the
+/// entries it cannot reach in.
+fn read_directory(mut d: Dir, path: str, o: Opts, mut status: int) -> bool {
+    if o.all == 2 {
+        (mut d.es).push(entry(".", path, bore.kind_dir()))
+        (mut d.es).push(entry("..", path, bore.kind_dir()))
+    }
+    if o.sort != unsorted() && !needs_kind(o) && !needs_record(o) {
+        var plain = true
+        let names = fs_read_dir(path) else |e| match e {
+            denied => {
+                bore.warn(program(), "cannot open directory {quote_always(path)}: {bore.io_error()}")
+                return false
+            },
+            not_found => {
+                bore.warn(program(), "cannot open directory {quote_always(path)}: {bore.io_error()}")
+                return false
+            },
+            io => {
+                bore.warn(program(), "cannot open directory {quote_always(path)}: {bore.io_error()}")
+                return false
+            },
+            utf8 => {
+                plain = false
+                List[str]()
+            },
+        }
+        if plain {
+            for n in names {
+                if o.all == 0 && n.starts_with(".") {
+                    continue
+                }
+                (mut d.es).push(entry(n, path, -1))
+            }
+            // `.` and `..` were put in front by hand, and a name may
+            // sort before them (`+x`), so only a listing without them is
+            // known to be in order.
+            d.in_order = o.all != 2
+            return true
+        }
+    }
+    let raw = fs_read_dir_entries(path) else |_| {
+        bore.warn(program(), "cannot open directory {quote_always(path)}: {bore.io_error()}")
+        return false
+    }
+    for r in raw {
+        if o.all == 0 && r.len > 1 && r[1] as int == 46 {
+            continue
+        }
+        let n = str_from_utf8(r[1..]) else |_| {
+            bore.warn(
+                program(),
+                "{quote_always(path)}: a name here is not UTF-8, which no path call can name yet (wolf-lang#687)",
+            )
+            status = 1
+            continue
+        }
+        (mut d.es).push(entry(n, path, r[0] as int))
+    }
+    true
+}
+
+fn push_text(mut bytes: List[byte], s: str) {
+    for b in s.bytes() {
+        (mut bytes).push(b)
+    }
+}
+
+/// `k` spaces.
+fn push_spaces(mut bytes: List[byte], k: int) {
+    var n = k
+    while n > 0 {
+        (mut bytes).push(32 as byte)
+        n -= 1
+    }
+}
+
+/// `s`, right-aligned in `width` columns.
+fn push_right(mut bytes: List[byte], s: str, width: int) {
+    push_spaces(mut bytes, width - s.len)
+    push_text(mut bytes, s)
+}
+
+/// `s`, left-aligned in `width` columns.
+fn push_left(mut bytes: List[byte], s: str, width: int) {
+    push_text(mut bytes, s)
+    push_spaces(mut bytes, width - s.len)
+}
+
+/// How many columns `n` takes in decimal.
+fn digits(n: int) -> int {
+    if n < 0 {
+        return count_text(n).len
+    }
+    var d = 1
+    var v = n
+    while v >= 10 {
+        v = v / 10
+        d += 1
+    }
+    d
+}
+
+/// `n` in decimal, right-aligned in `width` columns, a digit at a time:
+/// a long listing of 100,000 names prints half a million numbers, and
+/// a `str` for each is half a million allocations.
+fn push_count(mut bytes: List[byte], n: int, width: int) {
+    if n < 0 {
+        push_right(mut bytes, count_text(n), width)
+        return
+    }
+    let d = digits(n)
+    push_spaces(mut bytes, width - d)
+    var div: int = 1
+    var k = 1
+    while k < d {
+        div *= 10
+        k += 1
+    }
+    while div > 0 {
+        (mut bytes).push((48 + n / div % 10) as byte)
+        div = div / 10
+    }
+}
+
+/// `n` in two columns, filled with the byte `fill`.
+fn push_two(mut bytes: List[byte], n: int, fill: int) {
+    if n < 10 {
+        (mut bytes).push(fill as byte)
+        (mut bytes).push((48 + n) as byte)
+        return
+    }
+    (mut bytes).push((48 + n / 10 % 10) as byte)
+    (mut bytes).push((48 + n % 10) as byte)
+}
+
+/// The path of `name` inside `dir` as a stat needs it: GNU names an
+/// entry of `.` by its bare name in a diagnostic.
+fn joined(dir: str, name: str) -> str {
+    if dir == "." {
+        return name
+    }
+    descended(dir, name)
+}
+
+/// The path of `name` inside `dir` as `-R` prints it: `./sub`, `d/sub`,
+/// and `d/sub` again for an operand written `d/`.
+fn descended(dir: str, name: str) -> str {
+    if dir.ends_with("/") {
+        return dir + name
+    }
+    "{dir}/{name}"
+}
+
+/// Whether the directory `rec` describes is one this walk is already
+/// inside: the same device and inode as an ancestor.
+fn inside(rec: List[int], ancestors: List[int]) -> bool {
+    var k = 0
+    while k + 1 < ancestors.len {
+        if ancestors[k] == bore.rec_dev(rec) && ancestors[k + 1] == bore.rec_ino(rec) {
+            return true
+        }
+        k += 2
+    }
+    false
+}
+
+// ------------------------------------------------------------ the stats
+
+/// The host's words for the number `load` answered (-1: it left none).
+fn reason(code: int) -> str {
+    bore.reason_of(if code < 0 then 0 else code)
+}
+
+/// The record of `path`, following a final link or not; an empty list
+/// when the host refuses.
+fn record(path: str, follow: bool) -> List[int] {
+    if follow {
+        let followed = fs_stat(path) else |_| {
+            List[int]()
+        }
+        return followed
+    }
+    let own = fs_lstat(path) else |_| {
+        List[int]()
+    }
+    own
+}
+
+/// Read `path`'s record into `d` as entry `at`'s, following a final
+/// link or not. Answers 0, or why the host refused: its error number,
+/// or -1 when it left none.
+fn load(mut d: Dir, at: int, path: str, follow: bool) -> int {
+    var code = 0
+    var rec = List[int]()
+    if follow {
+        rec = fs_stat(path) else |_| {
+            code = bore.host_code()
+            List[int]()
+        }
+    } else {
+        rec = fs_lstat(path) else |_| {
+            code = bore.host_code()
+            List[int]()
+        }
+    }
+    if rec.len != 20 {
+        return if code == 0 then -1 else code
+    }
+    if d.es[at].slot < 0 {
+        // A new slot: the twenty words, then "resolves to nothing".
+        d.es[at].slot = d.recs.len / slot_words()
+        for w in rec {
+            (mut d.recs).push(w)
+        }
+        (mut d.recs).push(-1)
+        (mut d.recs).push(0)
+    } else {
+        // The entry is read again (a link, followed): over its slot.
+        let base = d.es[at].slot * slot_words()
+        var k = 0
+        while k < 20 {
+            d.recs[base + k] = rec[k]
+            k += 1
+        }
+        d.recs[base + 20] = -1
+        d.recs[base + 21] = 0
+    }
+    d.es[at].kind = rec[0]
+    if !has(d.es[at].state, typed()) {
+        d.es[at].state += typed()
+    }
+    0
+}
+
+/// What an operand is. Answers 0, or `load`'s reason when nothing
+/// reaches it. `-H` and `-L` follow a command-line link (a dangling one
+/// is then unreachable, as GNU has it); by default only a link to a
+/// DIRECTORY is followed, and with `-l`, `-d` or `-F` none is. `status`
+/// becomes 1 when it is a link whose target could not be read.
+fn stat_operand(mut d: Dir, at: int, o: Opts, mut status: int) -> int {
+    d.es[at].state += known()
+    let name = d.es[at].name
+    let follow = o.deref == follow_always() || o.deref == follow_operands()
+    let code = load(mut d, at, name, follow)
+    if code != 0 {
+        return code
+    }
+    if !follow && o.deref == follow_dir_operands() && d.es[at].kind == bore.kind_link() {
+        let to = record(name, true)
+        if to.len == 20 && bore.rec_kind(to) == bore.kind_dir() {
+            if load(mut d, at, name, true) == 0 {
+                return 0
+            }
+        }
+    }
+    let s = link_facts(mut d, at, o)
+    if s > status {
+        status = s
+    }
+    0
+}
+
+/// When entry `at` is a link, what the listing needs to know about
+/// where it points: its target's text for the long format, and what it
+/// resolves to where that decides a mark or the grouping. Answers 1,
+/// having said why, when the link cannot be read: its row then has no
+/// arrow.
+fn link_facts(mut d: Dir, at: int, o: Opts) -> int {
+    if d.es[at].kind != bore.kind_link() {
+        return 0
+    }
+    let path = joined_path(d.es[at].dir, d.es[at].name)
+    var status = 0
+    if o.format == long_format() {
+        var read = true
+        let bytes = fs_read_link(path) else |_| {
+            bore.warn(program(), "cannot read symbolic link {quote_always(path)}: {bore.io_error()}")
+            read = false
+            status = 1
+            List[byte]()
+        }
+        d.es[at].target = text_of(bytes)
+        if read && !has(d.es[at].state, arrow()) {
+            d.es[at].state += arrow()
+        }
+    }
+    // Where the link leads decides its target's mark in the long format
+    // and whether --group-directories-first counts it as a directory.
+    let marks = o.format == long_format() &&
+        (o.indicator == classify() || o.indicator == file_type())
+    if marks || o.group_dirs {
+        let to = record(path, true)
+        if to.len == 20 {
+            let base = d.es[at].slot * slot_words()
+            d.recs[base + 20] = bore.rec_kind(to)
+            d.recs[base + 21] = bore.rec_mode(to)
+        }
+    }
+    status
+}
+
+/// A link's target as text: its bytes when they are UTF-8, else with
+/// every byte outside ASCII shown as `?` (a `str` cannot hold them; the
+/// byte-path lane ruling #60 names will, wolf-lang#687).
+fn text_of(bytes: List[byte]) -> str {
+    str_from_utf8(bytes) else |_| {
+        var plain = List[byte]()
+        for b in bytes {
+            if b as int < 128 {
+                (mut plain).push(b)
+            } else {
+                (mut plain).push(63 as byte)
+            }
+        }
+        str_from_utf8(plain) else "?"
+    }
+}
+
+/// Read the record of an entry a directory listed, when the listing
+/// needs one. Answers 1, having said why, when the host refuses: the
+/// entry is then printed from what the directory said of it, as GNU
+/// prints it. Under `-L` a link that cannot be followed is such an
+/// entry.
+fn stat_listed(mut d: Dir, at: int, o: Opts) -> int {
+    d.es[at].state += known()
+    // A listing that prints no record asks the host only what the
+    // directory's own word for the entry leaves open, and GNU does the
+    // same (`ls -F` of a directory that cannot be searched complains
+    // about its files and not its subdirectories): whether a regular
+    // file can be executed (-F), where a link leads (-L), and the type
+    // of an entry the directory did not type.
+    let record_wanted = needs_record(o)
+    let was_typed = has(d.es[at].state, typed())
+    let dirent_kind = d.es[at].kind
+    if !record_wanted && was_typed {
+        let exec = o.indicator == classify() && dirent_kind == bore.kind_file()
+        let lead = o.deref == follow_always() && dirent_kind == bore.kind_link()
+        if !exec && !lead {
+            return 0
+        }
+    }
+    let path = joined_path(d.es[at].dir, d.es[at].name)
+    let follow = o.deref == follow_always()
+    let code = load(mut d, at, path, follow)
+    if code != 0 {
+        bore.warn(program(), "cannot access {quote_always(path)}: {reason(code)}")
+        if follow && !was_typed {
+            // What the link itself is, for the row's first character.
+            let own = record(path, false)
+            if own.len == 20 {
+                d.es[at].kind = bore.rec_kind(own)
+                d.es[at].state += typed()
+            }
+        }
+        return 1
+    }
+    if record_wanted {
+        return link_facts(mut d, at, o)
+    }
+    0
+}
+
+/// Whether listing `o`'s way must know what kind each entry is: to put
+/// directories first, to mark them, or to descend into them.
+fn needs_kind(o: Opts) -> bool {
+    o.group_dirs || o.indicator != no_indicator() || o.recursive
+}
+
+/// Whether listing `o`'s way needs every entry's stat record: to print
+/// it, to sort by it, or to see through a link for
+/// `--group-directories-first`.
+fn needs_record(o: Opts) -> bool {
+    if o.format == long_format() || o.blocks || o.inode || o.group_dirs {
+        return true
+    }
+    o.sort == by_size() || o.sort == by_time()
+}
+
+/// Stat every entry of a directory's listing that the listing needs
+/// stat'ed, in the directory's own order. Answers 1 when the host
+/// refused one.
+fn stat_all(mut d: Dir, o: Opts) -> int {
+    var status = 0
+    if !needs_record(o) && !needs_kind(o) {
+        return 0
+    }
+    var k = 0
+    while k < d.es.len {
+        if !has(d.es[k].state, known()) {
+            let s = stat_listed(mut d, k, o)
+            if s > status {
+                status = s
+            }
+        }
+        k += 1
+    }
+    status
+}
+
+// -------------------------------------------------------------- sorting
+
+/// What a sort compares, read out of the entries ONCE, one value an
+/// entry, so that the merge walks flat lists of numbers and reaches for
+/// a name only on a tie: `first` and `second` are the size or the time
+/// `-S` and `-t` sort by, `front` whether the entry is a directory for
+/// `--group-directories-first`, and `lead` the name's first seven bytes
+/// as one number, which orders as the bytes do.
+struct Keys {
+    first: List[int],
+    second: List[int],
+    front: List[bool],
+    lead: List[int],
+}
+
+/// The first seven bytes of `name` as a number (zero-filled): two names
+/// compare as these do unless these are equal.
+fn lead_of(name: str) -> int {
+    var n: int = 0
+    var k = 0
+    for b in name.bytes() {
+        if k == 7 {
+            break
+        }
+        n = n * 256 + b as int
+        k += 1
+    }
+    while k < 7 {
+        n = n * 256
+        k += 1
+    }
+    n
+}
+
+/// The entries `subset` names, in the order to print them.
+fn sorted(d: Dir, o: Opts, subset: List[int]) -> List[int] {
+    let n = subset.len
+    var one = copy subset
+    if o.sort == unsorted() {
+        return one
+    }
+    // Names the runtime already sorted need no second sort.
+    if d.in_order && o.sort == by_name() && !o.group_dirs && n == d.es.len {
+        if !o.reverse {
+            return one
+        }
+        var back = List[int]()
+        var k = n
+        while k > 0 {
+            k -= 1
+            (mut back).push(subset[k])
+        }
+        return back
+    }
+    var two = copy subset
+    var keys = Keys {
+        first: List[int](),
+        second: List[int](),
+        front: List[bool](),
+        lead: List[int](),
+    }
+    if o.sort != by_extension() {
+        var k = 0
+        while k < d.es.len {
+            (mut keys.lead).push(lead_of(d.es[k].name))
+            k += 1
+        }
+    }
+    if o.sort == by_size() || o.sort == by_time() {
+        var k = 0
+        while k < d.es.len {
+            if d.es[k].slot < 0 {
+                // Nothing reached it: it sorts as empty, and as oldest.
+                (mut keys.first).push(if o.sort == by_size() then 0 else -4611686018427387904)
+                (mut keys.second).push(0)
+            } else if o.sort == by_size() {
+                (mut keys.first).push(word(d, k, 1))
+                (mut keys.second).push(0)
+            } else {
+                (mut keys.first).push(word(d, k, bore.time_at(o.time_kind)))
+                (mut keys.second).push(word(d, k, bore.time_at(o.time_kind) + 1))
+            }
+            k += 1
+        }
+    }
+    if o.group_dirs {
+        var k = 0
+        while k < d.es.len {
+            var is_dir = d.es[k].kind == bore.kind_dir()
+            if d.es[k].kind == bore.kind_link() && d.es[k].slot >= 0 {
+                is_dir = word(d, k, 20) == bore.kind_dir()
+            }
+            (mut keys.front).push(is_dir)
+            k += 1
+        }
+    }
+    // A merge sort between two index lists made once, so that sorting
+    // n names allocates 2n words however many passes it takes.
+    var run = 1
+    var in_one = true
+    while run < n {
+        if in_one {
+            merge_pass(d, o, keys, one, mut two, run)
+        } else {
+            merge_pass(d, o, keys, two, mut one, run)
+        }
+        in_one = !in_one
+        run *= 2
+    }
+    if in_one {
+        return one
+    }
+    two
+}
+
+/// One pass of the merge: every pair of runs of `run` in `src`, merged
+/// into `dst`. Stable, so equal entries keep their order.
+fn merge_pass(d: Dir, o: Opts, keys: Keys, src: List[int], mut dst: List[int], run: int) {
+    let n = src.len
+    var at = 0
+    var lo = 0
+    while lo < n {
+        let mid = if lo + run < n then lo + run else n
+        let hi = if lo + 2 * run < n then lo + 2 * run else n
+        var a = lo
+        var b = mid
+        while a < mid && b < hi {
+            if compare(d, o, keys, src[b], src[a]) < 0 {
+                dst[at] = src[b]
+                b += 1
+            } else {
+                dst[at] = src[a]
+                a += 1
+            }
+            at += 1
+        }
+        while a < mid {
+            dst[at] = src[a]
+            a += 1
+            at += 1
+        }
+        while b < hi {
+            dst[at] = src[b]
+            b += 1
+            at += 1
+        }
+        lo = hi
+    }
+}
+
+/// Negative when entry `i` lists before entry `j`.
+fn compare(d: Dir, o: Opts, keys: Keys, i: int, j: int) -> int {
+    if o.group_dirs {
+        let di = keys.front[i]
+        let dj = keys.front[j]
+        if di && !dj {
+            return -1
+        }
+        if dj && !di {
+            return 1
+        }
+    }
+    var c = 0
+    if o.sort == by_size() || o.sort == by_time() {
+        c = against(keys.first[j], keys.first[i])
+        if c == 0 {
+            c = against(keys.second[j], keys.second[i])
+        }
+    } else if o.sort == by_extension() {
+        c = text_order(extension(d.es[i].name), extension(d.es[j].name))
+        if c == 0 {
+            c = text_order(d.es[i].name, d.es[j].name)
+        }
+    }
+    if c == 0 && o.sort != by_extension() {
+        c = against(keys.lead[i], keys.lead[j])
+        if c == 0 {
+            c = text_order(d.es[i].name, d.es[j].name)
+        }
+    }
+    if o.reverse {
+        return -c
+    }
+    c
+}
+
+fn against(a: int, b: int) -> int {
+    if a < b {
+        return -1
+    }
+    if a > b {
+        return 1
+    }
+    0
+}
+
+/// Byte order, which is the C locale's (GNU's collation in any other
+/// locale is not written: the oracle runs under `LC_ALL=C`).
+fn text_order(a: str, b: str) -> int {
+    if a < b {
+        return -1
+    }
+    if a > b {
+        return 1
+    }
+    0
+}
+
+/// What `-X` sorts by: the text after the last `.`, or nothing.
+fn extension(name: str) -> str {
+    let dot = name.rfind(".") else -1
+    if dot < 0 {
+        return ""
+    }
+    name[dot + 1..]
+}
+
+// ------------------------------------------------------------- printing
+
+/// The decimal digits of `n` (an id, a count or a size: never negative
+/// in a record the host answered, but an inode or a device is the
+/// host's unsigned word and may be).
+fn count_text(n: int) -> str {
+    if n >= 0 {
+        return "{n}"
+    }
+    bore.u64_text(n as wrapping[u64])
+}
+
+/// An entry's allocated blocks as `-s` and `total` print them: in
+/// 1024-byte units (512 under `POSIXLY_CORRECT` without `-k`), rounded
+/// up, or in `-h`/`--si` units.
+fn blocks_text(blocks: int, o: Opts, cx: Ctx) -> str {
+    if o.human == 1 {
+        return bore.human(blocks * 512, false)
+    }
+    if o.human == 2 {
+        return bore.human(blocks * 512, true)
+    }
+    "{blocks_units(blocks, o, cx)}"
+}
+
+/// The blocks in the unit `-s` counts in when no `-h` asked.
+fn blocks_units(blocks: int, o: Opts, cx: Ctx) -> int {
+    if cx.posix && !o.kibi {
+        return blocks
+    }
+    (blocks + 1) / 2
+}
+
+/// How wide entry `at`'s blocks print.
+fn blocks_width(d: Dir, at: int, o: Opts, cx: Ctx) -> int {
+    if o.human != 0 {
+        return blocks_text(word(d, at, 8), o, cx).len
+    }
+    digits(blocks_units(word(d, at, 8), o, cx))
+}
+
+/// Entry `at`'s inode and blocks, each right-aligned in the listing's
+/// widest and followed by a space: what `-i` and `-s` put before a
+/// name, and before a long row. An entry nothing reached shows `?`.
+fn push_prefix(mut bytes: List[byte], d: Dir, at: int, o: Opts, cx: Ctx, ino_w: int, blk_w: int) {
+    let reached = d.es[at].slot >= 0
+    if o.inode {
+        if reached {
+            push_count(mut bytes, word(d, at, 10), ino_w)
+        } else {
+            push_right(mut bytes, "?", ino_w)
+        }
+        (mut bytes).push(32 as byte)
+    }
+    if o.blocks {
+        if !reached {
+            push_right(mut bytes, "?", blk_w)
+        } else if o.human != 0 {
+            push_right(mut bytes, blocks_text(word(d, at, 8), o, cx), blk_w)
+        } else {
+            push_count(mut bytes, blocks_units(word(d, at, 8), o, cx), blk_w)
+        }
+        (mut bytes).push(32 as byte)
+    }
+}
+
+/// One listing (the files among the operands, or one directory) in the
+/// chosen format, onto `bytes`. `total` says it is a directory's, which
+/// a long or `-s` listing heads with the blocks it holds; `also` names
+/// entries that are not printed here but whose columns count (the
+/// directories among the operands).
+fn print_entries(
+    mut bytes: List[byte],
+    d: Dir,
+    order: List[int],
+    o: Opts,
+    cx: Ctx,
+    total: bool,
+    also: List[int],
+) {
+    var ino_w = 0
+    var blk_w = 0
+    var sum: int = 0
+    let long = o.format == long_format()
+    if o.inode || o.blocks || total && long {
+        for at in order {
+            if d.es[at].slot < 0 {
+                if ino_w < 1 {
+                    ino_w = 1
+                }
+                if blk_w < 1 {
+                    blk_w = 1
+                }
+                continue
+            }
+            if o.inode {
+                let w = digits(word(d, at, 10))
+                if w > ino_w {
+                    ino_w = w
+                }
+            }
+            if o.blocks {
+                let w = blocks_width(d, at, o, cx)
+                if w > blk_w {
+                    blk_w = w
+                }
+            }
+            sum += word(d, at, 8)
+        }
+        for at in also {
+            if d.es[at].slot < 0 {
+                continue
+            }
+            if o.inode {
+                let w = digits(word(d, at, 10))
+                if w > ino_w {
+                    ino_w = w
+                }
+            }
+            if o.blocks {
+                let w = blocks_width(d, at, o, cx)
+                if w > blk_w {
+                    blk_w = w
+                }
+            }
+        }
+    }
+    if total && (long || o.blocks) {
+        push_text(mut bytes, "total {blocks_text(sum, o, cx)}\n")
+    }
+    if long {
+        print_long(mut bytes, d, order, o, cx, ino_w, blk_w, also)
+        return
+    }
+    if o.format == one_per_line() {
+        // Straight onto the bytes: no list of items to lay out.
+        for at in order {
+            push_prefix(mut bytes, d, at, o, cx, ino_w, blk_w)
+            push_text(mut bytes, label(d.es[at].name, o))
+            push_text(mut bytes, indicator(d, at, o))
+            (mut bytes).push(10 as byte)
+        }
+        return
+    }
+    var items = List[str]()
+    var widths = List[int]()
+    // In columns, when any name in the listing is quoted, every name that
+    // is not gains one leading space, so the names line up past the
+    // quote (measured, 9.11 on a terminal: `'x y'   z`); `-1` and `-m`
+    // do not pad.
+    var pad = false
+    if o.quote && (o.format == vertical() || o.format == across()) {
+        for at in order {
+            if bore.quote_name(d.es[at].name) != d.es[at].name {
+                pad = true
+            }
+        }
+    }
+    for at in order {
+        let name = d.es[at].name
+        var text = label(name, o)
+        var w = label_width(name, o)
+        if pad && text == name {
+            text = " {text}"
+            w += 1
+        }
+        let mark = indicator(d, at, o)
+        if mark.len > 0 {
+            text += mark
+            w += 1
+        }
+        if o.inode || o.blocks {
+            var before = List[byte]()
+            push_prefix(mut before, d, at, o, cx, ino_w, blk_w)
+            w += before.len
+            text = (str_from_utf8(before) else "") + text
+        }
+        (mut items).push(text)
+        (mut widths).push(w)
+    }
+    if o.format == vertical() || o.format == across() {
+        for b in bore.grid(items, widths, o.width, o.format == across(), o.tab) {
+            (mut bytes).push(b)
+        }
+    } else {
+        for b in bore.commas(items, widths, o.width) {
+            (mut bytes).push(b)
+        }
+    }
+}
+
+/// The owner column's text: the name, or the number under `-n` and for
+/// an id no account carries.
+fn owner_text(uid: int, o: Opts, cx: Ctx) -> str {
+    if !o.numeric {
+        let name = bore.user_name(cx.names, uid)
+        if name.len > 0 {
+            return name
+        }
+    }
+    count_text(uid)
+}
+
+fn group_text(gid: int, o: Opts, cx: Ctx) -> str {
+    if !o.numeric {
+        let name = bore.group_name(cx.names, gid)
+        if name.len > 0 {
+            return name
+        }
+    }
+    count_text(gid)
+}
+
+/// Whether an owner or a group prints as a number: under `-n`, or when
+/// no account carries the id. Measured: a NAME sits to the left of its
+/// column and a NUMBER to the right.
+fn is_number(text: str) -> bool {
+    for b in text.bytes() {
+        if b as int < 48 || b as int > 57 {
+            return false
+        }
+    }
+    true
+}
+
+/// A file's size as the long format prints it under `-h` or `--si`.
+fn human_size(n: int, o: Opts) -> str {
+    bore.human(n, o.human == 2)
+}
+
+/// The time column of a row in a style that is not the locale's two
+/// forms.
+fn styled_time(secs: int, nanos: int, o: Opts, cx: Ctx) -> str {
+    let c = bore.civil_in(cx.zone, secs)
+    if o.time_style == style_full_iso() {
+        return bore.full_stamp(c, nanos)
+    }
+    let clock = "{bore.zero_padded(c.hour, 2)}:{bore.zero_padded(c.minute, 2)}"
+    if o.time_style == style_long_iso() {
+        return "{bore.date_text(c)} {clock}"
+    }
+    if recent(secs, nanos, cx) {
+        return "{bore.zero_padded(c.month, 2)}-{bore.zero_padded(c.day, 2)} {clock}"
+    }
+    "{bore.date_text(c)} "
+}
+
+/// Recent: within the last six months and not in the future.
+fn recent(secs: int, nanos: int, cx: Ctx) -> bool {
+    let floor = cx.now - six_months()
+    let after = secs > floor || secs == floor && nanos > cx.now_nanos
+    let before = secs < cx.now || secs == cx.now && nanos <= cx.now_nanos
+    after && before
+}
+
+/// The time column: `Sep 13 12:26` for a recent time, `Sep 13  2020`
+/// otherwise, pushed a byte at a time; the ISO styles through
+/// `styled_time`.
+fn push_time(mut bytes: List[byte], secs: int, nanos: int, o: Opts, cx: Ctx) {
+    if o.time_style != style_locale() {
+        push_text(mut bytes, styled_time(secs, nanos, o, cx))
+        return
+    }
+    let c = bore.civil_in(cx.zone, secs)
+    push_text(mut bytes, bore.month_name(c.month))
+    (mut bytes).push(32 as byte)
+    push_two(mut bytes, c.day, 32)
+    (mut bytes).push(32 as byte)
+    if recent(secs, nanos, cx) {
+        push_two(mut bytes, c.hour, 48)
+        (mut bytes).push(58 as byte)
+        push_two(mut bytes, c.minute, 48)
+        return
+    }
+    (mut bytes).push(32 as byte)
+    if c.year >= 0 {
+        push_count(mut bytes, c.year, 0)
+    } else {
+        push_text(mut bytes, "{c.year}")
+    }
+}
+
+/// How wide a `?` time is: GNU pads it to the style's usual width.
+fn time_width(o: Opts) -> int {
+    if o.time_style == style_full_iso() {
+        return 35
+    }
+    if o.time_style == style_long_iso() {
+        return 16
+    }
+    if o.time_style == style_iso() {
+        return 11
+    }
+    12
+}
+
+/// The long format: one row per entry, each column as wide as its
+/// widest entry in this listing (and in `also`).
+fn print_long(
+    mut bytes: List[byte],
+    d: Dir,
+    order: List[int],
+    o: Opts,
+    cx: Ctx,
+    ino_w: int,
+    blk_w: int,
+    also: List[int],
+) {
+    var nlink_w = 1
+    var owner_w = 1
+    var group_w = 1
+    var size_w = 1
+    var major_w = 0
+    var minor_w = 0
+    // Most entries of a listing share one owner and one group, so the
+    // last name looked up is kept.
+    var uid: int = -1
+    var user = ""
+    var gid: int = -1
+    var group = ""
+    var pass = 0
+    while pass < 2 {
+        let n = if pass == 0 then order.len else also.len
+        var k = 0
+        while k < n {
+            let at = if pass == 0 then order[k] else also[k]
+            k += 1
+            if d.es[at].slot < 0 {
+                continue
+            }
+            let base = d.es[at].slot * slot_words()
+            let w = digits(d.recs[base + 5])
+            if w > nlink_w {
+                nlink_w = w
+            }
+            if o.owner {
+                if d.recs[base + 6] != uid {
+                    uid = d.recs[base + 6]
+                    user = owner_text(uid, o, cx)
+                }
+                if user.len > owner_w {
+                    owner_w = user.len
+                }
+            }
+            if o.group {
+                if d.recs[base + 7] != gid {
+                    gid = d.recs[base + 7]
+                    group = group_text(gid, o, cx)
+                }
+                if group.len > group_w {
+                    group_w = group.len
+                }
+            }
+            let kind = d.recs[base]
+            if kind == bore.kind_char() || kind == bore.kind_block() {
+                let ma = digits(bore.dev_major(d.recs[base + 11], cx.linux))
+                let mi = digits(bore.dev_minor(d.recs[base + 11], cx.linux))
+                if ma > major_w {
+                    major_w = ma
+                }
+                if mi > minor_w {
+                    minor_w = mi
+                }
+            } else {
+                let sw = if o.human != 0 {
+                    human_size(d.recs[base + 1], o).len
+                } else {
+                    digits(d.recs[base + 1])
+                }
+                if sw > size_w {
+                    size_w = sw
+                }
+            }
+        }
+        pass += 1
+    }
+    if major_w > 0 && major_w + 2 + minor_w > size_w {
+        size_w = major_w + 2 + minor_w
+    }
+    // On a terminal, as in columns: when any name of the listing is
+    // quoted, every name that is not gains a leading space (measured).
+    var pad = false
+    if o.quote {
+        for at in order {
+            if bore.quote_name(d.es[at].name) != d.es[at].name {
+                pad = true
+            }
+        }
+    }
+    let which = bore.time_at(o.time_kind)
+    for at in order {
+        push_prefix(mut bytes, d, at, o, cx, ino_w, blk_w)
+        if d.es[at].slot < 0 {
+            // Nothing reached it: the directory's word for its type, and
+            // `?` in every column.
+            let shown_kind = d.es[at].kind
+            push_text(mut bytes, bore.kind_letter(if shown_kind < 0 then 2 else shown_kind))
+            push_text(mut bytes, "?????????")
+            (mut bytes).push(32 as byte)
+            push_right(mut bytes, "?", nlink_w)
+            if o.owner {
+                (mut bytes).push(32 as byte)
+                push_left(mut bytes, "?", owner_w)
+            }
+            if o.group {
+                (mut bytes).push(32 as byte)
+                push_left(mut bytes, "?", group_w)
+            }
+            (mut bytes).push(32 as byte)
+            push_right(mut bytes, "?", size_w)
+            (mut bytes).push(32 as byte)
+            push_right(mut bytes, "?", time_width(o))
+            (mut bytes).push(32 as byte)
+            push_name(mut bytes, d.es[at].name, o, pad)
+            push_text(mut bytes, mark_of(shown_kind, 0, o.indicator, true))
+            (mut bytes).push(10 as byte)
+            continue
+        }
+        let base = d.es[at].slot * slot_words()
+        let kind = d.recs[base]
+        bore.push_mode(mut bytes, kind, d.recs[base + 4])
+        (mut bytes).push(32 as byte)
+        push_count(mut bytes, d.recs[base + 5], nlink_w)
+        if o.owner {
+            (mut bytes).push(32 as byte)
+            if d.recs[base + 6] != uid {
+                uid = d.recs[base + 6]
+                user = owner_text(uid, o, cx)
+            }
+            if is_number(user) {
+                push_right(mut bytes, user, owner_w)
+            } else {
+                push_left(mut bytes, user, owner_w)
+            }
+        }
+        if o.group {
+            (mut bytes).push(32 as byte)
+            if d.recs[base + 7] != gid {
+                gid = d.recs[base + 7]
+                group = group_text(gid, o, cx)
+            }
+            if is_number(group) {
+                push_right(mut bytes, group, group_w)
+            } else {
+                push_left(mut bytes, group, group_w)
+            }
+        }
+        (mut bytes).push(32 as byte)
+        if kind == bore.kind_char() || kind == bore.kind_block() {
+            push_spaces(mut bytes, size_w - (major_w + 2 + minor_w))
+            push_count(mut bytes, bore.dev_major(d.recs[base + 11], cx.linux), major_w)
+            push_text(mut bytes, ", ")
+            push_count(mut bytes, bore.dev_minor(d.recs[base + 11], cx.linux), minor_w)
+        } else if o.human != 0 {
+            push_right(mut bytes, human_size(d.recs[base + 1], o), size_w)
+        } else {
+            push_count(mut bytes, d.recs[base + 1], size_w)
+        }
+        (mut bytes).push(32 as byte)
+        if bore.mask_has(d.recs[base + 3], which) {
+            push_time(mut bytes, d.recs[base + which], d.recs[base + which + 1], o, cx)
+        } else {
+            // A time the host does not keep (a birth time, on some
+            // filesystems).
+            push_right(mut bytes, "?", time_width(o))
+        }
+        (mut bytes).push(32 as byte)
+        push_name(mut bytes, d.es[at].name, o, pad)
+        if kind == bore.kind_link() {
+            if has(d.es[at].state, arrow()) {
+                push_text(mut bytes, " -> ")
+                push_text(mut bytes, label(d.es[at].target, o))
+                if o.indicator == classify() || o.indicator == file_type() {
+                    push_text(
+                        mut bytes,
+                        mark_of(d.recs[base + 20], d.recs[base + 21], o.indicator, true),
+                    )
+                }
+            }
+        } else {
+            push_text(mut bytes, mark_of(kind, d.recs[base + 4], o.indicator, true))
+        }
+        (mut bytes).push(10 as byte)
+    }
+}
+
+/// A row's name: as `label` prints it, after one space when the
+/// listing pads its unquoted names and this is one.
+fn push_name(mut bytes: List[byte], name: str, o: Opts, pad: bool) {
+    let text = label(name, o)
+    if pad && text == name {
+        (mut bytes).push(32 as byte)
+    }
+    push_text(mut bytes, text)
+}
+
+/// The mark after a name of this `kind` and `mode` under indicator
+/// `style`: `/` after a directory (every style), and under
+/// `--file-type` and `-F` `@` after a link (never in the long format,
+/// where the arrow says it), `|` after a pipe, `=` after a socket; `-F`
+/// alone adds `*` after a regular file anyone may execute.
+fn mark_of(kind: int, mode: int, style: int, long: bool) -> str {
+    if style == no_indicator() || kind < 0 {
+        return ""
+    }
+    if kind == bore.kind_dir() {
+        return "/"
+    }
+    if style == slash() {
+        return ""
+    }
+    if kind == bore.kind_link() {
+        return if long then "" else "@"
+    }
+    if kind == bore.kind_fifo() {
+        return "|"
+    }
+    if kind == bore.kind_socket() {
+        return "="
+    }
+    if style == classify() &&
+        kind == bore.kind_file() &&
+        mode % 2 + mode / 8 % 2 + mode / 64 % 2 > 0 {
+        return "*"
+    }
+    ""
+}
+
+/// The mark after entry `at`'s name in a format that is not long.
+fn indicator(d: Dir, at: int, o: Opts) -> str {
+    if o.indicator == no_indicator() || !has(d.es[at].state, typed()) {
+        return ""
+    }
+    let mode = if d.es[at].slot >= 0 then word(d, at, 4) else 0
+    mark_of(d.es[at].kind, mode, o.indicator, false)
+}
+
+/// A name as this listing prints it: in the shell-escape style on a
+/// terminal (`bore.quote_name`, quoted only when it has to be: `'with
+/// space'`, `'new'$'\n''line'`), else literally, through `shown`.
+fn label(name: str, o: Opts) -> str {
+    if o.escape { return escaped(name) }
+    if o.quote {
+        return bore.quote_name(name)
+    }
+    shown(name, o.hide)
+}
+
+/// The columns `label` takes: the quoted form is all printable ASCII.
+fn label_width(name: str, o: Opts) -> int {
+    if o.escape { return escaped(name).len }
+    if o.quote {
+        return bore.quote_name(name).len
+    }
+    width(name, o.hide)
+}
+
+/// A name as it is printed: as it is, or with `-q` every byte outside
+/// printable ASCII as `?`.
+fn shown(name: str, hide: bool) -> str {
+    if !hide {
+        return name
+    }
+    var plain = true
+    for b in name.bytes() {
+        if !printable(b as int) {
+            plain = false
+        }
+    }
+    if plain {
+        return name
+    }
+    var out = List[byte]()
+    for b in name.bytes() {
+        if printable(b as int) {
+            (mut out).push(b)
+        } else {
+            (mut out).push(63 as byte)
+        }
+    }
+    str_from_utf8(out) else name
+}
+
+/// The columns a name takes, as GNU counts them in the C locale: one
+/// per printable byte, and an unprintable one counts nothing printed
+/// as it is, one shown as `?`.
+fn width(name: str, hide: bool) -> int {
+    var w = 0
+    for b in name.bytes() {
+        if hide || printable(b as int) {
+            w += 1
+        }
+    }
+    w
+}
+
+fn printable(n: int) -> bool {
+    n >= 32 && n < 127
+}
+
+/// A name quoted as GNU quotes one it could not reach: always quoted,
+/// in the style `bore.quote_name` writes.
+fn quote_always(name: str) -> str {
+    let q = bore.quote_name(name)
+    if q == name {
+        return "'{name}'"
+    }
+    q
+}
+
+// ------------------------------------------------------- the vocabulary
+
+/// Every option GNU's `ls` 9.11 has, served or refused. The LONG names
+/// are in the order GNU lists them when an abbreviation is ambiguous
+/// (`--d` names five, measured), because `bore.parse` lists them in
+/// this table's order.
+fn options() -> List[bore.Opt] {
+    var s = List[bore.Opt]()
+    (mut s).push(bore.flag("a", "all"))
+    (mut s).push(bore.flag("A", "almost-all"))
+    (mut s).push(bore.flag("", "author"))
+    (mut s).push(bore.flag("b", "escape"))
+    (mut s).push(bore.takes("", "block-size"))
+    (mut s).push(bore.optional("", "classify"))
+    (mut s).push(bore.optional("", "color"))
+    (mut s).push(bore.flag("Z", "context"))
+    (mut s).push(bore.flag("d", "directory"))
+    (mut s).push(bore.flag("D", "dired"))
+    (mut s).push(bore.flag("H", "dereference-command-line"))
+    (mut s).push(bore.flag("", "dereference-command-line-symlink-to-dir"))
+    (mut s).push(bore.flag("L", "dereference"))
+    (mut s).push(bore.flag("h", "human-readable"))
+    (mut s).push(bore.flag("q", "hide-control-chars"))
+    (mut s).push(bore.takes("", "hide"))
+    (mut s).push(bore.optional("", "hyperlink"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("s", "size"))
+    (mut s).push(bore.flag("", "si"))
+    (mut s).push(bore.flag("", "show-control-chars"))
+    (mut s).push(bore.takes("", "sort"))
+    (mut s).push(bore.takes("T", "tabsize"))
+    (mut s).push(bore.takes("", "time"))
+    (mut s).push(bore.takes("", "time-style"))
+    (mut s).push(bore.flag("i", "inode"))
+    (mut s).push(bore.flag("B", "ignore-backups"))
+    (mut s).push(bore.takes("I", "ignore"))
+    (mut s).push(bore.takes("", "indicator-style"))
+    (mut s).push(bore.flag("", "full-time"))
+    (mut s).push(bore.flag("", "file-type"))
+    (mut s).push(bore.takes("", "format"))
+    (mut s).push(bore.flag("Q", "quote-name"))
+    (mut s).push(bore.takes("", "quoting-style"))
+    (mut s).push(bore.flag("n", "numeric-uid-gid"))
+    (mut s).push(bore.flag("G", "no-group"))
+    (mut s).push(bore.flag("r", "reverse"))
+    (mut s).push(bore.flag("R", "recursive"))
+    (mut s).push(bore.flag("", "group-directories-first"))
+    (mut s).push(bore.flag("k", "kibibytes"))
+    (mut s).push(bore.flag("N", "literal"))
+    (mut s).push(bore.takes("w", "width"))
+    (mut s).push(bore.flag("", "zero"))
+    (mut s).push(bore.flag("", "version"))
+    (mut s).push(bore.flag("c", ""))
+    (mut s).push(bore.flag("C", ""))
+    (mut s).push(bore.flag("f", ""))
+    (mut s).push(bore.flag("F", ""))
+    (mut s).push(bore.flag("g", ""))
+    (mut s).push(bore.flag("l", ""))
+    (mut s).push(bore.flag("m", ""))
+    (mut s).push(bore.flag("o", ""))
+    (mut s).push(bore.flag("p", ""))
+    (mut s).push(bore.flag("S", ""))
+    (mut s).push(bore.flag("t", ""))
+    (mut s).push(bore.flag("u", ""))
+    (mut s).push(bore.flag("U", ""))
+    (mut s).push(bore.flag("v", ""))
+    (mut s).push(bore.flag("x", ""))
+    (mut s).push(bore.flag("X", ""))
+    (mut s).push(bore.flag("1", ""))
+    s
+}
+
+/// `--format`'s words in GNU's order; the meanings are the `format`
+/// numbers above.
+fn format_words() -> List[str] {
+    var s = List[str]()
+    (mut s).push("verbose")
+    (mut s).push("long")
+    (mut s).push("commas")
+    (mut s).push("horizontal")
+    (mut s).push("across")
+    (mut s).push("vertical")
+    (mut s).push("single-column")
+    s
+}
+
+fn format_meanings() -> List[int] {
+    var s = List[int]()
+    (mut s).push(long_format())
+    (mut s).push(long_format())
+    (mut s).push(with_commas())
+    (mut s).push(across())
+    (mut s).push(across())
+    (mut s).push(vertical())
+    (mut s).push(one_per_line())
+    s
+}
+
+fn sort_words() -> List[str] {
+    var s = List[str]()
+    (mut s).push("none")
+    (mut s).push("size")
+    (mut s).push("time")
+    (mut s).push("version")
+    (mut s).push("extension")
+    (mut s).push("name")
+    (mut s).push("width")
+    s
+}
+
+fn sort_meanings() -> List[int] {
+    var s = List[int]()
+    (mut s).push(unsorted())
+    (mut s).push(by_size())
+    (mut s).push(by_time())
+    (mut s).push(by_version())
+    (mut s).push(by_extension())
+    (mut s).push(by_name())
+    (mut s).push(by_width())
+    s
+}
+
+/// `--time-style`'s named words, less GNU's optional `posix-`.
+fn style_words() -> List[str] {
+    var s = List[str]()
+    (mut s).push("full-iso")
+    (mut s).push("long-iso")
+    (mut s).push("iso")
+    (mut s).push("locale")
+    s
+}
+
+fn style_meanings() -> List[int] {
+    var s = List[int]()
+    (mut s).push(style_full_iso())
+    (mut s).push(style_long_iso())
+    (mut s).push(style_iso())
+    (mut s).push(style_locale())
+    s
+}
+
+/// `--time`'s words: 0 modification, 1 access, 2 status change, 3
+/// birth, the numbers `bore/info.lu` reads a record's times by.
+fn time_words() -> List[str] {
+    var s = List[str]()
+    (mut s).push("atime")
+    (mut s).push("access")
+    (mut s).push("use")
+    (mut s).push("ctime")
+    (mut s).push("status")
+    (mut s).push("mtime")
+    (mut s).push("modification")
+    (mut s).push("birth")
+    (mut s).push("creation")
+    s
+}
+
+fn time_meanings() -> List[int] {
+    var s = List[int]()
+    (mut s).push(1)
+    (mut s).push(1)
+    (mut s).push(1)
+    (mut s).push(2)
+    (mut s).push(2)
+    (mut s).push(0)
+    (mut s).push(0)
+    (mut s).push(3)
+    (mut s).push(3)
+    s
+}
+
+/// The WHEN of `--color` and `--classify`: 0 always, 1 never, 2 when
+/// standard output is a terminal, which it is never taken to be here.
+fn when_words() -> List[str] {
+    var s = List[str]()
+    (mut s).push("always")
+    (mut s).push("yes")
+    (mut s).push("force")
+    (mut s).push("never")
+    (mut s).push("no")
+    (mut s).push("none")
+    (mut s).push("auto")
+    (mut s).push("tty")
+    (mut s).push("if-tty")
+    s
+}
+
+fn when_meanings() -> List[int] {
+    var s = List[int]()
+    (mut s).push(0)
+    (mut s).push(0)
+    (mut s).push(0)
+    (mut s).push(1)
+    (mut s).push(1)
+    (mut s).push(1)
+    (mut s).push(2)
+    (mut s).push(2)
+    (mut s).push(2)
+    s
+}
+
+fn indicator_words() -> List[str] {
+    var s = List[str]()
+    (mut s).push("none")
+    (mut s).push("slash")
+    (mut s).push("file-type")
+    (mut s).push("classify")
+    s
+}
+
+fn indicator_meanings() -> List[int] {
+    var s = List[int]()
+    (mut s).push(no_indicator())
+    (mut s).push(slash())
+    (mut s).push(file_type())
+    (mut s).push(classify())
+    s
+}
+
+fn help() -> str {
+    """
+    Usage: ls [OPTION]... [FILE]...
+    List each FILE, and the contents of each directory FILE (the
+    working directory when there is none), sorted by name.
+
+    Which names:
+      -a, --all                  every name, the ones starting with . too
+      -A, --almost-all           every name but . and ..
+      -d, --directory            the operands themselves, not what they hold
+      -R, --recursive            every directory under each one as well
+
+    How they are laid out:
+      -1                         one name per line (the default here)
+      -C                         in columns, filled top to bottom
+      -x                         in columns, filled left to right
+      -m                         on lines, separated by commas
+      -l                         the long format: mode, links, owner, group,
+                                 size, time, name
+      -g                         -l without the owner
+      -o                         -l without the group
+      -n, --numeric-uid-gid      -l with owner and group as numbers
+      -G, --no-group             no group column in a long listing
+          --full-time            -l with the whole time, to the nanosecond
+          --time-style=STYLE     full-iso, long-iso, iso or locale
+          --format=WORD          long or verbose (-l), vertical (-C), across
+                                 or horizontal (-x), commas (-m),
+                                 single-column (-1)
+      -w, --width=COLS           the line width for -C, -x and -m
+                                 (0: no limit; else COLUMNS, else 80)
+      -T, --tabsize=COLS         a tab stop every COLS columns (0: no tabs)
+
+    In what order (by name, in byte order, unless):
+      -S                         largest first
+      -t                         newest first
+      -X                         by the text after the last .
+      -U                         the directory's own order
+      -f                         -a and -U
+          --sort=WORD            none (-U), name, size (-S), time (-t),
+                                 extension (-X)
+      -r, --reverse              the other way round
+          --group-directories-first  directories before everything else
+
+    Which time (to show in -l; to sort by with -t, or without -l):
+      -u                         the last access
+      -c                         the last change of status
+          --time=WORD            atime, ctime, mtime or birth
+
+    What is shown:
+      -s, --size                 each entry's allocated blocks before it
+      -i, --inode                each entry's inode number before it
+      -h, --human-readable       sizes and blocks in K, M, G (powers of 1024)
+          --si                   the same in powers of 1000
+      -k, --kibibytes            blocks of 1024 bytes (the default, unless
+                                 POSIXLY_CORRECT is set)
+      -F, --classify             / after a directory, @ after a link, * after
+                                 an executable, | after a pipe, = after a
+                                 socket
+          --file-type            the same, less the *
+      -p                         / after a directory
+          --indicator-style=WORD none, slash (-p), file-type, classify (-F)
+      -q, --hide-control-chars   ? for every byte that is not printable
+          --show-control-chars   names as they are (the default off a terminal)
+      -N, --literal              no quoting (on a terminal names are quoted
+                                 as a shell would read them)
+
+    Links:
+      -H, --dereference-command-line  follow a link given as an operand
+      -L, --dereference          follow every link
+
+          --help                 print this help and exit
+          --version              print the version and exit
+
+    Not here yet, and refused by name: -v, the quoting styles but -N,
+    --author, --block-size, --time-style=+FORMAT, and the colour and
+    filtering options. On a terminal the width is -w, COLUMNS or 80: the
+    terminal's own width cannot be asked. Owners and groups are named
+    from /etc/passwd and /etc/group only.
+
+    Exit status: 0 when all went well, 1 for a minor problem (an entry
+    or a subdirectory it could not read), 2 for a serious one (an
+    operand it could not reach, a bad option).
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}
+
+/// GNU escape style in LC_ALL=C: printable bytes except space/backslash
+/// are literal, named C controls have short escapes, other bytes octal.
+fn escaped(name: str) -> str {
+    var bytes = List[byte]()
+    for b in name.bytes() {
+        let n = b as int
+        var piece = ""
+        if n == 32 { piece = "\\ " }
+        else if n == 92 { piece = "\\\\" }
+        else if n == 7 { piece = "\\a" }
+        else if n == 8 { piece = "\\b" }
+        else if n == 9 { piece = "\\t" }
+        else if n == 10 { piece = "\\n" }
+        else if n == 11 { piece = "\\v" }
+        else if n == 12 { piece = "\\f" }
+        else if n == 13 { piece = "\\r" }
+        else if n < 32 || n >= 127 { piece = "\\{n / 64}{n / 8 % 8}{n % 8}" }
+        else { (mut bytes).push(b); continue }
+        for octet in piece.bytes() { (mut bytes).push(octet) }
+    }
+    str_from_utf8(bytes) else name
+}

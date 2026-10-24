@@ -1,0 +1,154 @@
+
+[[case]]
+name = "['--help']"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "['--version']"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "['.']"
+args = ["."]
+scratch = { "alpha" = "a", "space name" = "abc", "new\nline" = "x", "back\\slash" = "x", "d/file" = "abc" }
+scratch_dirs = ["d"]
+scratch_links = { sym = "alpha" }
+scratch_time_all = 1000000000
+env = { TZ = "UTC0", COLUMNS = "80" }
+
+[[case]]
+name = "['-1', '.']"
+args = ["-1", "."]
+scratch = { "alpha" = "a", "space name" = "abc", "new\nline" = "x", "back\\slash" = "x", "d/file" = "abc" }
+scratch_dirs = ["d"]
+scratch_links = { sym = "alpha" }
+scratch_time_all = 1000000000
+env = { TZ = "UTC0", COLUMNS = "80" }
+
+[[case]]
+name = "['-l', '.']"
+args = ["-l", "."]
+scratch = { "alpha" = "a", "space name" = "abc", "new\nline" = "x", "back\\slash" = "x", "d/file" = "abc" }
+scratch_dirs = ["d"]
+scratch_links = { sym = "alpha" }
+scratch_time_all = 1000000000
+env = { TZ = "UTC0", COLUMNS = "80" }
+
+[[case]]
+name = "['-C', '.']"
+args = ["-C", "."]
+scratch = { "alpha" = "a", "space name" = "abc", "new\nline" = "x", "back\\slash" = "x", "d/file" = "abc" }
+scratch_dirs = ["d"]
+scratch_links = { sym = "alpha" }
+scratch_time_all = 1000000000
+env = { TZ = "UTC0", COLUMNS = "80" }
+
+[[case]]
+name = "['-x', '.']"
+args = ["-x", "."]
+scratch = { "alpha" = "a", "space name" = "abc", "new\nline" = "x", "back\\slash" = "x", "d/file" = "abc" }
+scratch_dirs = ["d"]
+scratch_links = { sym = "alpha" }
+scratch_time_all = 1000000000
+env = { TZ = "UTC0", COLUMNS = "80" }
+
+[[case]]
+name = "['-m', '.']"
+args = ["-m", "."]
+scratch = { "alpha" = "a", "space name" = "abc", "new\nline" = "x", "back\\slash" = "x", "d/file" = "abc" }
+scratch_dirs = ["d"]
+scratch_links = { sym = "alpha" }
+scratch_time_all = 1000000000
+env = { TZ = "UTC0", COLUMNS = "80" }
+
+[[case]]
+name = "['-N', '.']"
+args = ["-N", "."]
+scratch = { "alpha" = "a", "space name" = "abc", "new\nline" = "x", "back\\slash" = "x", "d/file" = "abc" }
+scratch_dirs = ["d"]
+scratch_links = { sym = "alpha" }
+scratch_time_all = 1000000000
+env = { TZ = "UTC0", COLUMNS = "80" }
+
+[[case]]
+name = "['-b', '.']"
+args = ["-b", "."]
+scratch = { "alpha" = "a", "space name" = "abc", "new\nline" = "x", "back\\slash" = "x", "d/file" = "abc" }
+scratch_dirs = ["d"]
+scratch_links = { sym = "alpha" }
+scratch_time_all = 1000000000
+env = { TZ = "UTC0", COLUMNS = "80" }
+
+[[case]]
+name = "['-ab', '.']"
+args = ["-ab", "."]
+scratch = { "alpha" = "a", "space name" = "abc", "new\nline" = "x", "back\\slash" = "x", "d/file" = "abc" }
+scratch_dirs = ["d"]
+scratch_links = { sym = "alpha" }
+scratch_time_all = 1000000000
+env = { TZ = "UTC0", COLUMNS = "80" }
+
+[[case]]
+name = "['-n', '.']"
+args = ["-n", "."]
+scratch = { "alpha" = "a", "space name" = "abc", "new\nline" = "x", "back\\slash" = "x", "d/file" = "abc" }
+scratch_dirs = ["d"]
+scratch_links = { sym = "alpha" }
+scratch_time_all = 1000000000
+env = { TZ = "UTC0", COLUMNS = "80" }
+
+[[case]]
+name = "['-F', '.']"
+args = ["-F", "."]
+scratch = { "alpha" = "a", "space name" = "abc", "new\nline" = "x", "back\\slash" = "x", "d/file" = "abc" }
+scratch_dirs = ["d"]
+scratch_links = { sym = "alpha" }
+scratch_time_all = 1000000000
+env = { TZ = "UTC0", COLUMNS = "80" }
+
+[[case]]
+name = "['-d', 'space name']"
+args = ["-d", "space name"]
+scratch = { "alpha" = "a", "space name" = "abc", "new\nline" = "x", "back\\slash" = "x", "d/file" = "abc" }
+scratch_dirs = ["d"]
+scratch_links = { sym = "alpha" }
+scratch_time_all = 1000000000
+env = { TZ = "UTC0", COLUMNS = "80" }
+
+[[case]]
+name = "['-w', '20', '.']"
+args = ["-w", "20", "."]
+scratch = { "alpha" = "a", "space name" = "abc", "new\nline" = "x", "back\\slash" = "x", "d/file" = "abc" }
+scratch_dirs = ["d"]
+scratch_links = { sym = "alpha" }
+scratch_time_all = 1000000000
+env = { TZ = "UTC0", COLUMNS = "80" }
+
+[[case]]
+name = "['-T', '0', '.']"
+args = ["-T", "0", "."]
+scratch = { "alpha" = "a", "space name" = "abc", "new\nline" = "x", "back\\slash" = "x", "d/file" = "abc" }
+scratch_dirs = ["d"]
+scratch_links = { sym = "alpha" }
+scratch_time_all = 1000000000
+env = { TZ = "UTC0", COLUMNS = "80" }
+
+[[case]]
+name = "['missing']"
+args = ["missing"]
+scratch = { "alpha" = "a", "space name" = "abc", "new\nline" = "x", "back\\slash" = "x", "d/file" = "abc" }
+scratch_dirs = ["d"]
+scratch_links = { sym = "alpha" }
+scratch_time_all = 1000000000
+env = { TZ = "UTC0", COLUMNS = "80" }
+
+[[case]]
+name = "['-R', '.']"
+args = ["-R", "."]
+scratch = { "alpha" = "a", "space name" = "abc", "new\nline" = "x", "back\\slash" = "x", "d/file" = "abc" }
+scratch_dirs = ["d"]
+scratch_links = { sym = "alpha" }
+scratch_time_all = 1000000000
+env = { TZ = "UTC0", COLUMNS = "80" }
