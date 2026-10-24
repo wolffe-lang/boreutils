@@ -1,0 +1,22 @@
+Prediction, before implementation
+
+The date formatter should cover all documented C-locale conversions, padding,
+width and case flags, epoch seconds and nanoseconds, and numeric zone forms.
+I predict ISO/RFC dates, @seconds, numeric offsets, weekday and relative units
+can ship; obscure free-form combinations will need explicit refusal cases.
+The existing bore.clock TZif/POSIX reader should avoid a general named-zone
+gap, but abbreviations and leap-second zones need separate measurement.
+Clock setting and clock resolution may lack a pinned surface.
+
+I predict at least 50 documented stty settings cannot be expressed by the
+pinned term.Mode API; the exact named list must be measured, not inferred.
+I predict the Ubuntu container has no live utmp login records, and GNU who
+will not honour an arbitrary UTMP environment variable. An explicit FILE and
+constructed 384-byte Linux records should provide deterministic comparisons.
+
+After bu33 merges, predict 102 of 103 utility units have source entries, df
+remaining absent; chroot, priority-changing nice and arbitrary-child stdbuf
+remain named central-operation gaps. Recount units rather than assuming 103.
+
+This lane uses notes/bu35-evidence/ and the five PR-body sections as the
+report fallback: the wrapper forbids writing Markdown report files.
