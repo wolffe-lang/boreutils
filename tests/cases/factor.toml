@@ -1,0 +1,230 @@
+
+[[case]]
+name = "0[]"
+args = ["0"]
+
+[[case]]
+name = "0['-h']"
+args = ["-h", "0"]
+
+[[case]]
+name = "1[]"
+args = ["1"]
+
+[[case]]
+name = "1['-h']"
+args = ["-h", "1"]
+
+[[case]]
+name = "2[]"
+args = ["2"]
+
+[[case]]
+name = "2['-h']"
+args = ["-h", "2"]
+
+[[case]]
+name = "3[]"
+args = ["3"]
+
+[[case]]
+name = "3['-h']"
+args = ["-h", "3"]
+
+[[case]]
+name = "4[]"
+args = ["4"]
+
+[[case]]
+name = "4['-h']"
+args = ["-h", "4"]
+
+[[case]]
+name = "8[]"
+args = ["8"]
+
+[[case]]
+name = "8['-h']"
+args = ["-h", "8"]
+
+[[case]]
+name = "12[]"
+args = ["12"]
+
+[[case]]
+name = "12['-h']"
+args = ["-h", "12"]
+
+[[case]]
+name = "360[]"
+args = ["360"]
+
+[[case]]
+name = "360['-h']"
+args = ["-h", "360"]
+
+[[case]]
+name = "65535[]"
+args = ["65535"]
+
+[[case]]
+name = "65535['-h']"
+args = ["-h", "65535"]
+
+[[case]]
+name = "65536[]"
+args = ["65536"]
+
+[[case]]
+name = "65536['-h']"
+args = ["-h", "65536"]
+
+[[case]]
+name = "65537[]"
+args = ["65537"]
+
+[[case]]
+name = "65537['-h']"
+args = ["-h", "65537"]
+
+[[case]]
+name = "4294967291[]"
+args = ["4294967291"]
+
+[[case]]
+name = "4294967291['-h']"
+args = ["-h", "4294967291"]
+
+[[case]]
+name = "4294967295[]"
+args = ["4294967295"]
+
+[[case]]
+name = "4294967295['-h']"
+args = ["-h", "4294967295"]
+
+[[case]]
+name = "4294967296[]"
+args = ["4294967296"]
+
+[[case]]
+name = "4294967296['-h']"
+args = ["-h", "4294967296"]
+
+[[case]]
+name = "9223372036854775807[]"
+args = ["9223372036854775807"]
+
+[[case]]
+name = "9223372036854775807['-h']"
+args = ["-h", "9223372036854775807"]
+
+[[case]]
+name = "9223372036854775808[]"
+args = ["9223372036854775808"]
+
+[[case]]
+name = "9223372036854775808['-h']"
+args = ["-h", "9223372036854775808"]
+
+[[case]]
+name = "18446744073709551615[]"
+args = ["18446744073709551615"]
+
+[[case]]
+name = "18446744073709551615['-h']"
+args = ["-h", "18446744073709551615"]
+
+[[case]]
+name = "18446744073709551557[]"
+args = ["18446744073709551557"]
+
+[[case]]
+name = "18446744073709551557['-h']"
+args = ["-h", "18446744073709551557"]
+
+[[case]]
+name = "341550071728321[]"
+args = ["341550071728321"]
+
+[[case]]
+name = "341550071728321['-h']"
+args = ["-h", "341550071728321"]
+
+[[case]]
+name = "3825123056546413051[]"
+args = ["3825123056546413051"]
+
+[[case]]
+name = "3825123056546413051['-h']"
+args = ["-h", "3825123056546413051"]
+
+[[case]]
+name = "18446743979220271189[]"
+args = ["18446743979220271189"]
+
+[[case]]
+name = "18446743979220271189['-h']"
+args = ["-h", "18446743979220271189"]
+
+[[case]]
+name = "invalid ''"
+args = ["--", ""]
+
+[[case]]
+name = "invalid '-1'"
+args = ["--", "-1"]
+
+[[case]]
+name = "invalid '+2'"
+args = ["--", "+2"]
+
+[[case]]
+name = "invalid ' 42'"
+args = ["--", " 42"]
+
+[[case]]
+name = "invalid '42 '"
+args = ["--", "42 "]
+
+[[case]]
+name = "invalid 'x'"
+args = ["--", "x"]
+
+[[case]]
+name = "invalid '0x10'"
+args = ["--", "0x10"]
+
+[[case]]
+name = "invalid '1.5'"
+args = ["--", "1.5"]
+
+[[case]]
+name = "stdin words"
+args = []
+stdin = "0 1\n  12\t360\r\n65537"
+
+[[case]]
+name = "continue after invalid"
+args = ["12", "x", "8"]
+
+[[case]]
+name = "closed help"
+args = ["--help"]
+stdout_closed = true
+
+[[case]]
+name = "full output"
+args = ["12"]
+stdout_file = "/dev/full"
+
+[[case]]
+name = "deterministic 10000 full-u64 random inputs"
+args = []
+stdin_file = "bu33-factor-random"
+timeout = 1200
+
+[[case]]
+name = "larger integer named refusal"
+args = ["18446744073709551616"]
+skip = "wolf-std#100: factor explicitly refuses integers beyond 64 bits; tools/numbertest checks the refusal"
