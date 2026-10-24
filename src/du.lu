@@ -91,6 +91,11 @@ fn excluded(path: str, c: Config) -> bool {
     if slash >= 0 { base = path[slash + 1..] }
     for pat in c.excludes {
         if glob(pat, path) || glob(pat, base) { return true }
+        var i = 0
+        while i < path.len {
+            if path.bytes()[i] as int == 47 && glob(pat, path[i + 1..]) { return true }
+            i += 1
+        }
     }
     false
 }
