@@ -80,11 +80,26 @@ args = ["f"]
 skip = "default block rounding needs st_blksize #684"
 
 [[case]]
-name = "mixed pattern scheduling not implemented"
-args = ["-x", "-n", "25", "f"]
-skip = "mixed pattern scheduling not implemented"
-
-[[case]]
 name = "name wipe needs non-replacing rename #706"
 args = ["-x", "-u", "f"]
 skip = "name wipe needs non-replacing rename #706"
+
+[[case]]
+name = "4 mixed passes then zero"
+args = ["-x", "-z", "-n", "4", "f"]
+scratch = { f = "secret" }
+
+[[case]]
+name = "6 mixed passes then zero"
+args = ["-x", "-z", "-n", "6", "f"]
+scratch = { f = "secret" }
+
+[[case]]
+name = "10 mixed passes then zero"
+args = ["-x", "-z", "-n", "10", "f"]
+scratch = { f = "secret" }
+
+[[case]]
+name = "25 mixed passes then zero"
+args = ["-x", "-z", "-n", "25", "f"]
+scratch = { f = "secret" }

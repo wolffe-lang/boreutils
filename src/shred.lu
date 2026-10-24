@@ -5,11 +5,38 @@
 //! This never promises physical erasure on CoW, flash, snapshots or backups.
 //! -x is required: st_blksize is absent (wolf-lang#684). Name wiping is
 //! refused: a non-replacing rename is absent (#706); --remove=unlink works.
-//! More than three random passes need GNU's mixed-pattern scheduling, not
-//! implemented here and refused by name. os_random supplies random passes.
+//! Up to 25 passes use the measured pattern families: multiples of 0x11,
+//! six 3-byte rotations and random boundaries/midpoint. Order is randomized.
+//! os_random supplies random passes. Larger schedules are refused by name.
 
 use bore
 
+fn passes(n: int) -> List[int] {
+    var result = List[int]()
+    if n <= 3 { var i = 0; while i < n { (mut result).push(-1); i += 1 }; return result }
+    var pool = [0, 16777215, 5592405, 11184810, 9586980, 2396745, 4793490, 11983725, 14380470, 7190235, 1118481, 2236962, 3355443, 4473924, 6710886, 7829367, 8947848, 10066329, 12303291, 13421772, 14540253, 15658734]
+    let randoms = if n < 7 then 2 else 3
+    let fixed = n - randoms
+    var i = fixed - 1
+    while i > 0 {
+        let bytes = os_random(4)
+        let value = bytes[0] + bytes[1] * 256 + bytes[2] * 65536 + bytes[3] * 16777216
+        let j = value % (i + 1)
+        let x = pool[i]; pool[i] = pool[j]; pool[j] = x
+        i -= 1
+    }
+    (mut result).push(-1)
+    i = 0
+    while i < fixed { if randoms == 3 && i == fixed / 2 { (mut result).push(-1) }; (mut result).push(pool[i]); i += 1 }
+    (mut result).push(-1)
+    result
+}
+fn pattern_text(pattern: int) -> str {
+    let digits = "0123456789abcdef"
+    var text = "", shift = 20
+    while shift >= 0 { let n = pattern >> shift & 15; text += digits[n..n + 1]; shift -= 4 }
+    text
+}
 fn overwrite(path: str, n: int, size: int, zero: bool, force: bool, remove: bool, verbose: bool, random: int) -> bool {
     var r = List[int]()
     if path == "-" { r = fs_fstat_record(1) else |_| { bore.warn("shred", "{path}: failed to open for writing: {bore.io_error()}"); return false } }
@@ -27,11 +54,14 @@ fn overwrite(path: str, n: int, size: int, zero: bool, force: bool, remove: bool
     let opened = fs_fstat_record(fd) else |_| { return false }
     if !bore.same_file(r, opened) { bore.warn("shred", "{path}: operand changed during open; refusing to overwrite"); return false }
     let bytes = if size >= 0 then size else bore.rec_size(r)
-    let passes = n + if zero then 1 else 0
+    var schedule = passes(n)
+    if zero { (mut schedule).push(0) }
+    let count = schedule.len
     var pass = 0
-    while pass < passes {
-        let zeros = pass == n
-        if verbose { bore.warn("shred", "{path}: pass {pass + 1}/{passes} ({if zeros then "000000" else "random"})...") }
+    while pass < count {
+        let pattern = schedule[pass]
+        let zeros = pattern >= 0
+        if verbose { bore.warn("shred", "{path}: pass {pass + 1}/{count} ({if zeros then pattern_text(pattern) else "random"})...") }
         let _ = fs_seek(fd, 0, 0) else |_| { bore.warn("shred", "{path}: cannot seek: {bore.io_error()}"); return false }
         var left = bytes
         while left > 0 {
@@ -40,7 +70,8 @@ fn overwrite(path: str, n: int, size: int, zero: bool, force: bool, remove: bool
                 var data = List[byte]()
                 if zeros {
                     var i = 0
-                    while i < amount { (mut data).push(0 as byte); i += 1 }
+                    while i < amount { let shift = (2 - ((bytes - left + i) % 3)) * 8
+                    (mut data).push((pattern >> shift & 255) as byte); i += 1 }
                 } else if random >= 0 {
                     while data.len < amount {
                         let part = fs_read_chunk(random, amount - data.len) else |_| { bore.warn("shred", "random source exhausted"); return false }
@@ -98,7 +129,7 @@ fn main() -> int {
     if !bore.ok(p) { return bore.usage_error("shred", p.error) }
     if p.operands.len == 0 { return bore.usage_error("shred", "missing file operand") }
     if !exact { bore.warn("shred", "unsupported default block rounding: st_blksize absent (wolf-lang#684); use -x"); return 1 }
-    if n > 3 { bore.warn("shred", "unsupported --iterations above 3: mixed-pattern scheduling not implemented"); return 1 }
+    if n > 25 { bore.warn("shred", "unsupported --iterations above 25: longer schedules not implemented"); return 1 }
     if how.len > 0 && how != "unlink" { bore.warn("shred", "unsupported --remove={how}: no non-replacing rename (wolf-lang#706)"); return 1 }
     var random = -1
     if random_name.len > 0 { random = fs_open(random_name) else |_| { bore.warn("shred", "{random_name}: {bore.io_error()}"); return 1 } }
