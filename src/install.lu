@@ -96,7 +96,7 @@ fn copy_file(src: str, dst: str, c: Config, mut out: bore.Out) -> bool {
     let fd = fs_open_perm(dst, 4, 384) else |_| { bore.warn("install", "cannot create regular file {bore.quote_always(dst)}: {bore.io_error()}"); return false }
     defer fs_close(fd) else |_| {}
     loop {
-        let n = fs_copy_chunk(fd, input, 1048576) else |e| match e {
+        let n = fs_copy_chunk(input, fd, 1048576) else |e| match e {
             eof => { break },
             io => { bore.warn("install", "error copying {bore.quote_always(src)} to {bore.quote_always(dst)}: {bore.io_error()}"); return false },
         }

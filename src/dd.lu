@@ -179,6 +179,7 @@ fn main() -> int {
                     left -= bytes.len
                 }
             }
+            if left > 0 && c.status != 0 { bore.warn("dd", "{bore.quote_always(if c.input == "-" then "standard input" else c.input)}: cannot skip to specified offset") }
         }
     }
     if c.seek > 0 {

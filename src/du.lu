@@ -13,7 +13,7 @@ use bore
 struct Config {
     all: bool, apparent: bool, inodes: bool, links: bool, follow: int,
     separate: bool, onefs: bool, depth: int, block: int, human: int,
-    threshold: int, nul: bool, time: int, style: str, excludes: List[str],
+    threshold: int, unit: str, nul: bool, time: int, style: str, excludes: List[str],
 }
 struct State {
     seen: Map[str, bool], active: Map[str, bool], total: int,
@@ -109,6 +109,7 @@ fn emit(mut out: bore.Out, path: str, a: Amount, c: Config) {
         if c.human != 0 { n = bore.human(a.size, c.human == 2) }
         else { n = "{a.size / c.block + if a.size % c.block != 0 then 1 else 0}" }
     }
+    if c.human == 0 && !c.inodes { n += c.unit }
     bore.put(mut out, "{n}\t") else |_| {}
     if c.time >= 0 { bore.put(mut out, "{time_text(c, a.secs, a.nanos)}\t") else |_| {} }
     bore.put(mut out, path) else |_| {}
@@ -181,7 +182,7 @@ fn main() -> int {
     (mut opts).push(bore.optional("", "time"))
     let p = bore.parse(opts, env_args(), bore.permute())
     var out = bore.stdout()
-    var c = Config { all: false, apparent: false, inodes: false, links: false, follow: 0, separate: false, onefs: false, depth: 2147483647, block: 1024, human: 0, threshold: 0, nul: false, time: -1, style: env_get("TIME_STYLE") else "long-iso", excludes: List[str]() }
+    var c = Config { all: false, apparent: false, inodes: false, links: false, follow: 0, separate: false, onefs: false, depth: 2147483647, block: 1024, human: 0, threshold: 0, unit: "", nul: false, time: -1, style: env_get("TIME_STYLE") else "long-iso", excludes: List[str]() }
     let blockenv = env_get("DU_BLOCK_SIZE") else (env_get("BLOCK_SIZE") else (env_get("BLOCKSIZE") else ""))
     if blockenv.len > 0 { c.block = sized(blockenv) else 1024 }
     else if (env_get("POSIXLY_CORRECT") else "").len > 0 { c.block = 512 }
@@ -215,7 +216,7 @@ fn main() -> int {
         if k == "block-size" || k == "threshold" {
             let n = sized(v) else |_| { bore.warn("du", "invalid {if k == "threshold" then "threshold" else "--block-size argument"} {bore.quote_always(v)}"); return 1 }
             if k == "threshold" { c.threshold = n }
-            else { if n <= 0 { bore.warn("du", "invalid block size"); return 1 }; c.block = n; c.human = 0 }
+            else { if n <= 0 { bore.warn("du", "invalid block size"); return 1 }; c.block = n; c.human = 0; c.unit = ""; if v.len > 0 && v.bytes()[0] as int >= 65 { c.unit = if v == "KB" then "kB" else v } }
         }
         if k == "exclude" { (mut c.excludes).push(v) }
         if k == "exclude-from" {
