@@ -952,3 +952,8 @@ stdout_closed = true
 [[case]]
 name = "common missing file"
 args = ["missing"]
+
+[[case]]
+name = "large valid formatting parameter"
+args = ["-t", "-l1000001"]
+stdin = ""

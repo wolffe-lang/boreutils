@@ -121,7 +121,7 @@ fn format_spec(word: str) -> Format ! {parse} {
         while k < word.len && word.bytes()[k] >= 48 as byte && word.bytes()[k] <= 57 as byte {
             f.width = f.width * 10 + word.bytes()[k] as int - 48
             k += 1
-            if f.width > 100000 { return parse }
+            if f.width > 2147483647 { return parse }
         }
         if k < word.len && word.bytes()[k] == 46 as byte {
             k += 1
@@ -129,7 +129,7 @@ fn format_spec(word: str) -> Format ! {parse} {
             while k < word.len && word.bytes()[k] >= 48 as byte && word.bytes()[k] <= 57 as byte {
                 f.precision = f.precision * 10 + word.bytes()[k] as int - 48
                 k += 1
-                if f.precision > 1000 { return parse }
+                if f.precision > 2147483647 { return parse }
             }
         }
         if k >= word.len || word.bytes()[k] != 102 as byte { return parse }
@@ -481,7 +481,7 @@ fn main() -> int {
         }
         if key == "padding" {
             o.padding = v.to_int() else 9223372036854775807
-            if o.padding > 100000 || o.padding < -100000 {
+            if o.padding > 2147483647 || o.padding < -2147483647 {
                 bore.warn("numfmt", "invalid padding value {bore.quote_always(v)}")
                 return 1
             }

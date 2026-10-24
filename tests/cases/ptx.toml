@@ -436,3 +436,8 @@ args = ["missing"]
 name = "traditional format named refusal"
 args = ["-G"]
 skip = "POSIX/traditional ptx output is outside this GNU-mode implementation; tools/numbertest checks the named refusal"
+
+[[case]]
+name = "large valid formatting parameter"
+args = ["-w100001"]
+stdin = ""

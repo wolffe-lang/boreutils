@@ -1591,3 +1591,8 @@ stdin = "x xxxxx xxxxxxxxx xxxxxxxxxx xxxxxxxxxx xxxxx xxxxxxxxx xxxxxxxxxx xxxx
 name = "fresh word lengths 75 11"
 args = ["-w75"]
 stdin = "xxx x xxx x xxxxxxxxxx xxxxxxxxx xxxx xxxxxxxxxx xxxxx xx xxxx xxxxxxxxx xxxxxxxxx xx xxxxxxx xxxx xxxx x xxxxxxxxxx xxxxxxxx xxxx xxxxx x xxxxxxxxx xxxxxxxxx xxxx xxxxxxxxx xxxxxxx xxxxxxxxxx xxxxxxxxxx\n"
+
+[[case]]
+name = "large valid formatting parameter"
+args = ["-w100001"]
+stdin = "small paragraph\n"

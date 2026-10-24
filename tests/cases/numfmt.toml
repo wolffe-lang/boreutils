@@ -867,3 +867,8 @@ stdout_closed = true
 name = "debug named refusal"
 args = ["--debug", "1"]
 skip = "--debug is not implemented; tools/numbertest verifies its named refusal"
+
+[[case]]
+name = "large valid formatting parameter"
+args = ["--padding=100001"]
+stdin = ""

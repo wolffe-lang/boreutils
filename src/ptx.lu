@@ -570,7 +570,7 @@ fn main() -> int {
         if key == "ignore-case" { o.fold = true }
         if key == "width" || key == "gap-size" {
             let n = v.to_int() else -1
-            if n < 0 || key == "width" && n == 0 || n > 100000 {
+            if n < 0 || key == "width" && n == 0 || n > 2147483647 {
                 bore.warn("ptx", "invalid {key}: {bore.quote_always(v)}")
                 return 1
             }

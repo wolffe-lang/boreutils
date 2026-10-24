@@ -442,7 +442,7 @@ fn main() -> int {
             key == "indent" ||
             key == "first-line-number" {
             let n = v.to_int() else -1
-            if n < 0 || n == 0 && key != "indent" && key != "first-line-number" || n > 1000000 {
+            if n < 0 || n == 0 && key != "indent" && key != "first-line-number" || n > 2147483647 {
                 bore.warn("pr", "invalid {key} argument: {bore.quote_always(v)}")
                 return 1
             }

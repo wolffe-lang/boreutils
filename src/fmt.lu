@@ -294,7 +294,7 @@ fn main() -> int {
         }
         if key == "width" || key == "goal" {
             let n = v.to_int() else -1
-            if n <= 0 || n > 100000 {
+            if n <= 0 || n > 2147483647 {
                 bore.warn("fmt", "invalid width: {bore.quote_always(v)}")
                 return 1
             }
