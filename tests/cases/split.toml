@@ -692,6 +692,7 @@ scratch = {}
 
 [[case]]
 name = "elide l/5"
+skip = "R-bu33-1 named GNU 9.11 divergence; correct termination and bytes checked by tools/splittertest"
 args = ["-e", "-n", "l/5"]
 stdin = "a\nb\n"
 scratch = {}
@@ -716,6 +717,7 @@ scratch = {}
 
 [[case]]
 name = "elide l/10"
+skip = "R-bu33-1 named GNU 9.11 divergence; correct termination and bytes checked by tools/splittertest"
 args = ["-e", "-n", "l/10"]
 stdin = "a\nb\n"
 scratch = {}
@@ -866,6 +868,7 @@ scratch = {}
 
 [[case]]
 name = "suffix --hex-suffixes=f"
+skip = "R-bu33-1 named GNU 9.11 divergence; correct termination and bytes checked by tools/splittertest"
 args = ["-l", "1", "--hex-suffixes=f"]
 stdin = "one\ntwo\nthree\nfour\nfive\n"
 scratch = {}

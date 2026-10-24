@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+"""Correct-behavior witnesses for R-bu33-1, not GNU expectation overrides."""
+import os
+from pathlib import Path
+import subprocess
+import tempfile
+import unittest
+
+ROOT = Path(__file__).resolve().parent.parent
+TIER = os.environ.get("BORE_SPLITTER_TIER", "release")
+BIN = ROOT / "target" / TIER
+
+
+class SplitDivergences(unittest.TestCase):
+    def test_hex_start_preserves_every_record(self):
+        with tempfile.TemporaryDirectory(prefix="bore-split.") as top:
+            data = b"one\ntwo\nthree\nfour\nfive\n"
+            run = subprocess.run([BIN / "split", "--hex-suffixes=f", "-l1"],
+                                 input=data, cwd=top, capture_output=True, timeout=5)
+            self.assertEqual((run.returncode, run.stdout, run.stderr), (0, b"", b""))
+            names = sorted(Path(top).iterdir())
+            self.assertEqual([p.name for p in names], ["x0f", "x10", "x11", "x12", "x13"])
+            self.assertEqual(b"".join(p.read_bytes() for p in names), data)
+
+    def test_line_partition_elides_empty_files_and_terminates(self):
+        for count in (5, 10):
+            with self.subTest(count=count), tempfile.TemporaryDirectory(prefix="bore-split.") as top:
+                data = b"a\nb\n"
+                run = subprocess.run([BIN / "split", "-e", "-n", f"l/{count}"],
+                                     input=data, cwd=top, capture_output=True, timeout=5)
+                self.assertEqual((run.returncode, run.stdout, run.stderr), (0, b"", b""))
+                files = sorted(Path(top).iterdir())
+                self.assertEqual([p.name for p in files], ["xaa", "xab"])
+                self.assertTrue(all(p.stat().st_size > 0 for p in files))
+                self.assertEqual(b"".join(p.read_bytes() for p in files), data)
+
+
+if __name__ == "__main__":
+    unittest.main()
