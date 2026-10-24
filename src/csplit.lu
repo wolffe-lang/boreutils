@@ -80,6 +80,15 @@ fn main() -> int {
     }
     if !bore.ok(p) { return bore.usage_error("csplit", p.error) }
     if p.operands.len < 2 { return bore.usage_error("csplit", if p.operands.len == 0 then "missing operand" else "missing operand after {bore.quote(p.operands[0])}") }
+    var prior = 0
+    for j in 1..p.operands.len {
+        let value = p.operands[j].to_int() else -1
+        if value >= 0 {
+            if value == 0 { bore.warn("csplit", "{p.operands[j]}: line number must be greater than zero"); return 1 }
+            if value < prior { bore.warn("csplit", "line number {bore.quote_always(p.operands[j])} is smaller than preceding line number, {prior}"); return 1 }
+            prior = value
+        }
+    }
     let path = p.operands[0]
     let src = bore.open_input(path) else |_| { bore.input_error("csplit", path, bore.reason_of(bore.host_code())); return 1 }
     defer bore.close_input(src)
@@ -136,9 +145,9 @@ fn main() -> int {
                 }
             }
             if !found || target < current || target > lines || !is_regex && target >= lines {
-                if !discard { if !write_piece(mut out, mut sink, bytes, starts[current], bytes.len) { status = 1; break } }
-                current = lines
-                if forever && is_regex { break }
+                if !discard { if !write_piece(mut out, mut sink, bytes, starts[current], if found && target < current then starts[current] else bytes.len) { status = 1; break } }
+                current = lines + 1
+                if forever && is_regex && !found { break }
                 var suffix = ""
                 if repeat > 0 { suffix = " on repetition {repeat}" }
                 bore.warn("csplit", "{bore.quote_always(pattern)}: {if !found then "match not found" else "line number out of range"}{suffix}")
