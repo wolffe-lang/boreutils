@@ -190,7 +190,7 @@ fn paragraph(mut out: bore.Out, rows: List[Row], a: int, z: int, o: Options) -> 
                 }
                 rough += (width - following) * (width - following)
             }
-            if cost < best || cost == best && rough < best_ragged {
+            if best == 9223372036854775807 || cost * 4 + rough < best * 4 + best_ragged {
                 best = cost
                 best_ragged = rough
                 next[i] = end + 1
@@ -280,7 +280,7 @@ fn main() -> int {
             }
             if key == "width" { o.width = n; width_given = true } else { o.goal = n }
         }
-        if key == "prefix" { o.prefix = v }
+        if key == "prefix" { var start = 0; while start < v.len && blank(v.bytes()[start]) { start += 1 }; o.prefix = v[start..] }
         if key == "split-only" { o.split = true }
         if key == "crown-margin" { o.crown = true }
         if key == "tagged-paragraph" { o.tagged = true }
