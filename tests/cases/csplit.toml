@@ -681,3 +681,23 @@ name = "suffix format \u03b2%03d.txt"
 args = ["-b", "\u03b2%03d.txt", "-", "3"]
 stdin = "1\n2\n3\n4\n"
 scratch = {}
+
+[[case]]
+name = "input inode collision same"
+args = ["xx00", "2"]
+scratch = { "xx00" = "1\n2\n3\n" }
+skip = "R-bu33-3 / ruling 123: preserve and refuse input-inode collisions; GNU truncates/deletes the input; tools/splittertest checks preservation"
+
+[[case]]
+name = "input inode collision hardlink"
+args = ["f", "2"]
+scratch = { "f" = "1\n2\n3\n" }
+scratch_hardlinks = { "xx00" = "f" }
+skip = "R-bu33-3 / ruling 123: preserve and refuse input-inode collisions; GNU truncates/deletes the input; tools/splittertest checks preservation"
+
+[[case]]
+name = "input inode collision symlink"
+args = ["f", "2"]
+scratch = { "f" = "1\n2\n3\n" }
+scratch_links = { "xx00" = "f" }
+skip = "R-bu33-3 / ruling 123: preserve and refuse input-inode collisions; GNU truncates/deletes the input; tools/splittertest checks preservation"

@@ -79,5 +79,29 @@ class SplitStreaming(unittest.TestCase):
         self._partial_record(True)
 
 
+class InputPreservation(unittest.TestCase):
+    def test_piece_paths_never_truncate_the_input_inode(self):
+        data = b'1\n2\n3\n'
+        for utility, name in [('split', 'xaa'), ('csplit', 'xx00')]:
+            for arrangement in ('same', 'hardlink', 'symlink', 'stdin'):
+                with self.subTest(utility=utility, arrangement=arrangement), tempfile.TemporaryDirectory(prefix='bore-piece-input.') as top:
+                    root = Path(top)
+                    source = root / (name if arrangement == 'same' else 'f')
+                    source.write_bytes(data)
+                    if arrangement in ('hardlink', 'stdin'):
+                        os.link(source, root / name)
+                    elif arrangement == 'symlink':
+                        (root / name).symlink_to('f')
+                    operand = '-' if arrangement == 'stdin' else source.name
+                    args = ['-l1', operand] if utility == 'split' else [operand, '2']
+                    with source.open('rb') as stream:
+                        p = subprocess.run([BIN / utility] + args, stdin=stream if arrangement == 'stdin' else subprocess.DEVNULL,
+                                           cwd=top, capture_output=True, timeout=5)
+                    self.assertEqual((p.returncode, p.stdout), (1, b''))
+                    self.assertEqual(p.stderr, f"{utility}: '{name}' would overwrite input; aborting\n".encode())
+                    self.assertEqual(source.read_bytes(), data)
+                    self.assertEqual((root / name).read_bytes(), data)
+
+
 if __name__ == "__main__":
     unittest.main()

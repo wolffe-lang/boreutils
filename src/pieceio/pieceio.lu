@@ -1,0 +1,48 @@
+//! Safe piece creation for split/csplit. References: POSIX file identity
+//! and truncate semantics; GNU 9.11 split's measured collision refusal.
+//! An append-capable writable open does not truncate and does not require
+//! read permission. Check the opened inode before the explicit truncation;
+//! this also catches hard links and a symlink swapped before the open.
+
+use bore
+
+/// Device/inode identity of the input descriptor, not its pathname.
+pub struct Identity { device: int, inode: int, known: bool }
+/// Identity before an input descriptor has been opened.
+pub fn unknown() -> Identity { Identity { device: 0, inode: 0, known: false } }
+/// Read the actual input descriptor's complete stat record.
+pub fn from_fd(fd: int) -> Identity {
+    region metadata {
+        let r = fs_fstat_record(fd) else |_| { return unknown() }
+        if r.len < 11 { return unknown() }
+        Identity { device: bore.rec_dev(r), inode: bore.rec_ino(r), known: true }
+    }
+}
+fn open_impl(prog: str, name: str, source: Identity, truncate: bool) -> int {
+    if !source.known { bore.warn(prog, "cannot identify input; refusing to create output"); return -1 }
+    let fd = fs_open_mode(name, 2) else |_| { bore.warn(prog, "{bore.quote_name(name)}: {bore.reason_of(bore.host_code())}"); return -1 }
+    let r = fs_fstat_record(fd) else |_| {
+        let why = bore.reason_of(bore.host_code())
+        let _ = fs_close(fd) else |_| {}
+        bore.warn(prog, "cannot stat {bore.quote_always(name)}: {why}"); return -1
+    }
+    if r.len < 11 { let _ = fs_close(fd) else |_| {}; bore.warn(prog, "cannot identify output {bore.quote_always(name)}"); return -1 }
+    if bore.rec_dev(r) == source.device && bore.rec_ino(r) == source.inode {
+        let _ = fs_close(fd) else |_| {}
+        bore.warn(prog, "{bore.quote_always(name)} would overwrite input; aborting"); return -1
+    }
+    if truncate && bore.rec_kind(r) == bore.kind_file() {
+        fs_truncate(fd, 0) else |_| {
+            let why = bore.reason_of(bore.host_code())
+            let _ = fs_close(fd) else |_| {}
+            bore.warn(prog, "{bore.quote_name(name)}: {why}"); return -1
+        }
+    }
+    fd
+}
+/// Open one output without risking truncation of the input. A negative
+/// result already carries its single diagnostic. Non-regular outputs are
+/// not truncated, as O_TRUNC does not truncate a device or FIFO either.
+pub fn open(prog: str, name: str, source: Identity, truncate: bool) -> int {
+    region metadata { open_impl(prog, name, source, truncate) }
+}

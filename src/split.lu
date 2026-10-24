@@ -6,6 +6,7 @@
 
 use bore
 use numcli
+use pieceio
 use std.fmt
 
 struct Output {
@@ -17,6 +18,7 @@ struct Output {
     next: int,
     verbose: bool,
     filter: str,
+    source: pieceio.Identity,
 }
 
 fn decimal_count(word: str) -> int {
@@ -101,10 +103,8 @@ fn save(mut out: bore.Out, mut o: Output, bs: List[byte]) -> bool {
         }
         return good
     }
-    let fd = fs_open_mode(name, 1) else |_| {
-        bore.warn("split", "{bore.quote_name(name)}: {bore.reason_of(bore.host_code())}")
-        return false
-    }
+    let fd = pieceio.open("split", name, o.source, true)
+    if fd < 0 { return false }
     var ok = true
     fs_write_chunk(fd, bs) else |_| {
         bore.warn("split", "{bore.quote_name(name)}: {bore.io_error()}")
@@ -138,7 +138,8 @@ fn round_piece(out: bore.Out, mut naming: Output, mut names: List[str], mut pipe
             let _ = fs_close(r) else |_| {}
             (mut pipes).push(w); (mut jobs).push(job)
         } else {
-            let fd = fs_open_mode(name, 1) else |_| { bore.warn("split", "{bore.quote_name(name)}: {bore.reason_of(bore.host_code())}"); return false }
+            let fd = pieceio.open("split", name, naming.source, true)
+            if fd < 0 { return false }
             fs_close(fd) else |_| { bore.warn("split", "{bore.quote_name(name)}: {bore.io_error()}"); return false }
             (mut pipes).push(-1); (mut jobs).push(-1)
         }
@@ -146,7 +147,8 @@ fn round_piece(out: bore.Out, mut naming: Output, mut names: List[str], mut pipe
     if naming.filter.len > 0 {
         fs_write_chunk(pipes[part], data) else |_| { bore.warn("split", "{bore.quote_name(names[part])}: {bore.io_error()}"); return false }
     } else {
-        let fd = fs_open_mode(names[part], 2) else |_| { bore.warn("split", "{bore.quote_name(names[part])}: {bore.reason_of(bore.host_code())}"); return false }
+        let fd = pieceio.open("split", names[part], naming.source, false)
+        if fd < 0 { return false }
         var good = true
         fs_write_chunk(fd, data) else |_| { bore.warn("split", "{bore.quote_name(names[part])}: {bore.io_error()}"); good = false }
         fs_close(fd) else |_| { good = false }
@@ -221,6 +223,7 @@ fn main() -> int {
         next: 0,
         verbose: false,
         filter: "",
+        source: pieceio.unknown(),
     }
     var mode = "lines",
         amount = 1000,
@@ -328,6 +331,7 @@ fn main() -> int {
         return 1
     }
     defer bore.close_input(src)
+    o.source = pieceio.from_fd(src.fd)
     if mode == "number" && number.starts_with("r/") {
         let parts = number.split("/")
         var count = -1, which = 0

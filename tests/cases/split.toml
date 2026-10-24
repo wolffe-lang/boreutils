@@ -1162,3 +1162,20 @@ args = ["-n", "r/2/1000000000"]
 stdin = "abc\ndef\n"
 scratch = {}
 timeout = 5
+
+[[case]]
+name = "input inode collision same"
+args = ["-l1", "xaa"]
+scratch = { "xaa" = "1\n2\n3\n" }
+
+[[case]]
+name = "input inode collision hardlink"
+args = ["-l1", "f"]
+scratch = { "f" = "1\n2\n3\n" }
+scratch_hardlinks = { "xaa" = "f" }
+
+[[case]]
+name = "input inode collision symlink"
+args = ["-l1", "f"]
+scratch = { "f" = "1\n2\n3\n" }
+scratch_links = { "xaa" = "f" }
