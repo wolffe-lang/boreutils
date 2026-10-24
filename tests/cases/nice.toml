@@ -1,0 +1,44 @@
+
+[[case]]
+name = "['--help']"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "['--version']"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "[]"
+args = []
+requires = "/proc/self/stat"
+
+[[case]]
+name = "['-n', '0']"
+args = ["-n", "0"]
+
+[[case]]
+name = "['-n', 'x']"
+args = ["-n", "x"]
+
+[[case]]
+name = "['-n', '0', '/bin/true']"
+args = ["-n", "0", "/bin/true"]
+
+[[case]]
+name = "['-n', '0', '/bin/false']"
+args = ["-n", "0", "/bin/false"]
+
+[[case]]
+name = "['-n', '0', '/bin/sh', '-c', 'printf hello']"
+args = ["-n", "0", "/bin/sh", "-c", "printf hello"]
+
+[[case]]
+name = "['-n', '0', 'no-such-command-bu34']"
+args = ["-n", "0", "no-such-command-bu34"]
+
+[[case]]
+name = "missing priority surface"
+args = ["-n", "1", "/bin/true"]
+skip = "no setpriority; tests/gaps/bu34/priority/main.lu E0301"
