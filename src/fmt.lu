@@ -85,7 +85,7 @@ fn paragraph(mut out: bore.Out, rows: List[Row], a: int, z: int, o: Options) -> 
         }
     }
     var first_indent = rows[a].indent, rest_indent = first_indent
-    if (o.crown || o.tagged) && z > a + 1 { rest_indent = rows[a + 1].indent } else if o.tagged { rest_indent += 3 }
+    if (o.crown || o.tagged) && z > a + 1 { rest_indent = rows[a + 1].indent } else if o.tagged { rest_indent = if first_indent == 0 then 3 else 0 }
     var costs = List[int](), next = List[int]()
     for _ in 0..words.len + 1 { (mut costs).push(0); (mut next).push(words.len) }
     var i = words.len - 1
@@ -97,8 +97,8 @@ fn paragraph(mut out: bore.Out, rows: List[Row], a: int, z: int, o: Options) -> 
             width += words[end].bytes.len
             if width > o.width && end > i { break }
             let distance = o.goal - width
-            var cost = distance * distance
-            if end == words.len - 1 { cost = 0 } else {
+            var cost = distance * distance + 400
+            if end == words.len - 1 { cost = if end == i && i > 0 then 50 else 0 } else {
                 if words[end].sentence { cost -= 200 }
                 if end + 1 < words.len && sentence(words[end + 1].bytes) { cost += 20 }
             }
@@ -108,6 +108,15 @@ fn paragraph(mut out: bore.Out, rows: List[Row], a: int, z: int, o: Options) -> 
         }
         costs[i] = best
         i -= 1
+    }
+    if o.tagged && z == a + 1 {
+        var width = first_indent, stop = 0
+        while stop < words.len {
+            let add = words[stop].bytes.len + if stop == 0 then 0 else words[stop].gap
+            if stop > 0 && width + add > o.width { break }
+            width += add; stop += 1
+        }
+        next[0] = stop
     }
     i = 0
     while i < words.len {
@@ -120,7 +129,7 @@ fn paragraph(mut out: bore.Out, rows: List[Row], a: int, z: int, o: Options) -> 
         }
         let stop = next[i]
         for j in i..stop { if j > i { spaces(mut line, words[j].gap) }; for b in words[j].bytes { (mut line).push(b) } }
-        if !putline(mut out, line, tabs && !o.uniform) { return false }
+        if !putline(mut out, line, tabs) { return false }
         i = stop
     }
     true
