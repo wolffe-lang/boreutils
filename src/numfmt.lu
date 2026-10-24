@@ -7,6 +7,7 @@
 
 use bore
 use floattext
+use numcli
 
 struct Range { first: int, last: int }
 
@@ -25,6 +26,8 @@ struct Options {
     to: int,
     from_unit: floattext.Number,
     to_unit: floattext.Number,
+    max_input: floattext.Number,
+    max_output: floattext.Number,
     mode: int,
     suffix: str,
     unit_sep: str,
@@ -93,8 +96,9 @@ fn format_spec(word: str) -> Format ! {parse} {
     var k = 0, found = false
     while k < word.len {
         if word.bytes()[k] != 37 as byte {
-            if found { f.after += word[k..k + 1] } else { f.before += word[k..k + 1] }
-            k += 1
+            let start = k
+            while k < word.len && word.bytes()[k] != 37 as byte { k += 1 }
+            if found { f.after += word[start..k] } else { f.before += word[start..k] }
             continue
         }
         k += 1
@@ -146,10 +150,12 @@ fn unit_power(c: int) -> int {
     0
 }
 
-fn unit_size(word: str) -> floattext.Number ! {parse} {
+fn unit_size(word: str) -> floattext.Number ! {parse, overflow} {
     var k = 0
     while k < word.len && word.bytes()[k] >= 48 as byte && word.bytes()[k] <= 57 as byte { k += 1 }
     if k == 0 { return parse }
+    var units = numcli.unsigned(word[0..k])?
+    let maximum: wrapping[u64] = 18446744073709551615
     var value = floattext.parse_number(word[0..k]) else |_| { return parse }
     if floattext.compare_integer(value, 0) == 0 { return parse }
     if k < word.len {
@@ -160,7 +166,7 @@ fn unit_size(word: str) -> floattext.Number ! {parse} {
         if k < word.len && word.bytes()[k] == 105 as byte { base = 1024; k += 1 }
         if k < word.len && word.bytes()[k] == 66 as byte { k += 1 }
         if k != word.len { return parse }
-        for _ in 0..power { value = floattext.product(value, floattext.integer(base)) }
+        for _ in 0..power { if units > maximum / base as wrapping[u64] { return overflow }; units *= base as wrapping[u64]; value = floattext.product(value, floattext.integer(base)) }
     }
     value
 }
@@ -195,6 +201,7 @@ fn convert(word: str, o: Options, automatic_width: int) -> Conversion {
     var number = floattext.parse_number(s[0..k]) else |_| {
         return Conversion { text: word, error: "invalid number: {bore.quote_always(word.trim())}" }
     }
+    if floattext.compare_abs(number, o.max_input) >= 0 { return Conversion { text: word, error: "value too large to be converted: {bore.quote_always(word.trim())}" } }
     var suffix = s[k..], input_power = 0, base = if o.from == 2 || o.from == 3 then 1024 else 1000
     if o.unit_sep.len > 0 && suffix.starts_with(o.unit_sep) { suffix = suffix[o.unit_sep.len..] }
     if suffix.len > 0 {
@@ -237,7 +244,10 @@ fn convert(word: str, o: Options, automatic_width: int) -> Conversion {
         }
         for _ in 0..input_power { number = floattext.product(number, floattext.integer(base)) }
     }
+    if floattext.compare_abs(number, o.max_input) >= 0 { return Conversion { text: word, error: "value too large to be converted: {bore.quote_always(word.trim())}" } }
     number = floattext.quotient(floattext.product(number, o.from_unit), o.to_unit)
+    if floattext.compare_abs(number, o.max_input) >= 0 { return Conversion { text: word, error: "value too large to be converted: {bore.quote_always(word.trim())}" } }
+    if o.to == 0 && floattext.compare_abs(number, o.max_output) >= 0 { return Conversion { text: word, error: "value too large to be printed: {bore.quote_always(floattext.general(number, 6))} (consider using --to)" } }
     var power = 0
     let output_base = if o.to == 1 then 1000 else 1024
     if o.to != 0 {
@@ -395,11 +405,15 @@ fn main() -> int {
     (mut spec).push(bore.flag("", "version"))
     let p = bore.parse(spec, env_args(), bore.permute())
     var out = bore.stdout()
+    let max_input = floattext.parse_number("1000000000000000000000000000000000") else |_| { return 1 }
+    let max_output = floattext.parse_number("10000000000000000000") else |_| { return 1 }
     var o = Options {
         from: 0,
         to: 0,
         from_unit: floattext.integer(1),
         to_unit: floattext.integer(1),
+        max_input: max_input,
+        max_output: max_output,
         mode: 0,
         suffix: "",
         unit_sep: "",
@@ -460,8 +474,10 @@ fn main() -> int {
             o.invalid = n
         }
         if key == "from-unit" || key == "to-unit" {
-            let n = unit_size(v) else |_| {
-                bore.warn("numfmt", "invalid unit size: {bore.quote_always(v)}")
+            let n = unit_size(v) else |e| {
+                var suffix = ""
+                match e { overflow => { suffix = ": " + bore.reason_of(if os_name() == "macos" then 84 else 75) }, parse => {} }
+                bore.warn("numfmt", "invalid unit size: {bore.quote_always(v)}{suffix}")
                 return 1
             }
             if key == "from-unit" { o.from_unit = n } else { o.to_unit = n }
