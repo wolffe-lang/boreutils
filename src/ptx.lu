@@ -11,7 +11,7 @@ use textio
 struct Text { bytes: List[byte], raw: List[byte], name: str }
 struct Entry { file: int, lo: int, hi: int, first: int, last: int, reference: str }
 struct Options { width: int, gap: int, auto: bool, refs: bool, right: bool, fold: bool, style: int, macro: str, flag: str, sentence: str, explicit_sentence: bool, word: str, breaks: List[byte], custom_breaks: bool, ignored: List[textio.Rec], only: List[textio.Rec], use_only: bool }
-struct Fields { tail: List[byte], before: List[byte], after: List[byte], head: List[byte], key: List[byte], rest: List[byte] }
+struct Fields { tail: List[byte], before: List[byte], after: List[byte], head: List[byte], key: List[byte], rest: List[byte], head_cut: bool }
 fn space(c: byte) -> bool { let n = c as int; n == 32 || n >= 9 && n <= 13 }
 fn alpha(c: byte) -> bool { let n = c as int; n >= 65 && n <= 90 || n >= 97 && n <= 122 }
 fn bytes(bs: List[byte], a: int, z: int) -> List[byte] { var result = List[byte](); for k in a..z { (mut result).push(bs[k]) }; result }
@@ -131,12 +131,12 @@ fn head_begin(bs: List[byte], limit: int, o: Options) -> int {
     while a < bs.len && space(bs[a]) { a += 1 }
     a
 }
-fn layout(text: Text, entry: Entry, o: Options, half: int) -> Fields {
+fn layout(text: Text, entry: Entry, o: Options, half: int, right_half: int) -> Fields {
     let before = trim(bytes(text.bytes, entry.first, entry.lo)), after = trim(bytes(text.bytes, entry.lo, entry.last))
     let leftlimit = if half - o.gap - 2 * o.flag.len > 0 then half - o.gap - 2 * o.flag.len else 0
-    let rightlimit = if half - 2 * o.flag.len > 0 then half - 2 * o.flag.len else 0
+    let rightlimit = if right_half - 2 * o.flag.len > 0 then right_half - 2 * o.flag.len else 0
     let a = suffix_begin(before, leftlimit, o), z = prefix_end(after, rightlimit, o)
-    var f = Fields { tail: List[byte](), before: bytes(before, a, before.len), after: bytes(after, 0, z), head: List[byte](), key: bytes(text.bytes, entry.lo, entry.hi), rest: List[byte]() }
+    var f = Fields { tail: List[byte](), before: bytes(before, a, before.len), after: bytes(after, 0, z), head: List[byte](), key: bytes(text.bytes, entry.lo, entry.hi), rest: List[byte](), head_cut: false }
     let overflow_after = trim(bytes(after, z, after.len)), overflow_before = trim(bytes(before, 0, a))
     if overflow_after.len > 0 && leftlimit - f.before.len - o.gap > 0 {
         let tail_end = prefix_end(overflow_after, leftlimit - f.before.len - o.gap - o.flag.len, o)
@@ -145,10 +145,15 @@ fn layout(text: Text, entry: Entry, o: Options, half: int) -> Fields {
         if tail_end == 0 { add(mut f.after, o.flag) }
     } else if z < after.len { add(mut f.after, o.flag) }
     if overflow_before.len > 0 && rightlimit - f.after.len - o.gap > 0 {
-        let spare = half - f.before.len - o.gap + entry.hi - entry.lo
-        let available = rightlimit - f.after.len - o.gap
-        let start = head_begin(overflow_before, if spare < available then spare else available, o)
-        if start < overflow_before.len { if start > 0 { add(mut f.head, o.flag) }; for b in bytes(overflow_before, start, overflow_before.len) { (mut f.head).push(b) } } else if a > 0 { var marked = o.flag.bytes(); for b in f.before { (mut marked).push(b) }; f.before = marked }
+        let spare = right_half - f.before.len - 3 + entry.hi - entry.lo
+        let available = right_half - f.after.len - o.gap
+        var start = head_begin(overflow_before, if spare < available then spare else available, o)
+        while start < overflow_before.len && overflow_before.len - start + (if start > 0 then o.flag.len else 0) > available {
+            start += 1
+            while start < overflow_before.len && constituent(overflow_before[start], o.breaks, o.custom_breaks) { start += 1 }
+            while start < overflow_before.len && space(overflow_before[start]) { start += 1 }
+        }
+        if start < overflow_before.len { if start > 0 { add(mut f.head, o.flag); f.head_cut = true }; for b in bytes(overflow_before, start, overflow_before.len) { (mut f.head).push(b) } } else if a > 0 { var marked = o.flag.bytes(); for b in f.before { (mut marked).push(b) }; f.before = marked }
     } else if a > 0 { var marked = o.flag.bytes(); for b in f.before { (mut marked).push(b) }; f.before = marked }
     let keylen = entry.hi - entry.lo
     if f.after.len > keylen { f.rest = bytes(f.after, keylen, f.after.len) }
@@ -229,21 +234,22 @@ fn main() -> int {
     let references = o.auto || o.refs
     let reference_width = if references && !o.right then refwidth + o.gap + (if o.auto && o.style == 0 then 1 else 0) else 0
     let half = o.width / 2 - reference_width
+    let right_half = (o.width - reference_width) / 2
     for entry in entries {
-        let f = layout(texts[entry.file], entry, o, half)
+        let f = layout(texts[entry.file], entry, o, half, right_half)
         var line = List[byte]()
         if o.style == 0 {
-            if references && !o.right { add(mut line, entry.reference); if o.auto { add(mut line, ":") }; pad(mut line, reference_width - entry.reference.len - (if o.auto then 1 else 0)) }
-            let left = if o.right then half - o.gap else if references then (o.width - reference_width) / 2 - o.gap - (if o.auto then 1 else 0) else half
-            if f.tail.len > 0 { if !o.right { pad(mut line, o.gap) }; for b in f.tail { (mut line).push(b) }; pad(mut line, left - f.tail.len - f.before.len - (if o.right then 0 else o.gap)) } else { pad(mut line, left - f.before.len) }
+            if references && !o.right { add(mut line, entry.reference); if o.auto { add(mut line, ":") }; pad(mut line, reference_width - entry.reference.len - (if o.auto then 2 else 0)) }
+            let left = if o.right then half - o.gap else if references then (o.width - reference_width) / 2 - o.gap else half
+            if f.tail.len > 0 { if !o.right && !references { pad(mut line, o.gap) }; for b in f.tail { (mut line).push(b) }; pad(mut line, left - f.tail.len - f.before.len - (if o.right || references then 0 else o.gap)) } else { pad(mut line, left - f.before.len) }
             for b in f.before { (mut line).push(b) }; pad(mut line, o.gap); for b in f.after { (mut line).push(b) }
-            if f.head.len > 0 { pad(mut line, half - f.after.len - f.head.len); for b in f.head { (mut line).push(b) } }
+            if f.head.len > 0 { pad(mut line, right_half - f.after.len - f.head.len); for b in f.head { (mut line).push(b) } }
             if references && o.right { pad(mut line, o.width - line.len + o.gap); add(mut line, entry.reference) }
         } else {
             add(mut line, if o.style == 1 then ".{o.macro}" else "\\{o.macro} ")
             var fields = [copy f.tail, copy f.before]
             if o.style == 1 { (mut fields).push(copy f.after) } else { (mut fields).push(copy f.key); (mut fields).push(copy f.rest) }
-            (mut fields).push(copy f.head)
+            (mut fields).push(if o.style == 2 && f.head_cut then bytes(f.head, o.flag.len, f.head.len) else copy f.head)
             if references { (mut fields).push(entry.reference.bytes()) }
             for value in fields { if o.style == 1 { add(mut line, " \"") } else { add(mut line, "{{") }; for b in escaped(value, o.style == 2) { (mut line).push(b) }; add(mut line, if o.style == 1 then "\"" else "}}") }
         }
