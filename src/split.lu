@@ -120,74 +120,152 @@ fn segment(bs: List[byte], a: int, z: int) -> List[byte] {
     out
 }
 
-fn round_piece(out: bore.Out, mut naming: Output, mut names: List[str], mut pipes: List[int], mut jobs: List[int], part: int, data: List[byte]) -> bool {
+fn round_piece(
+    out: bore.Out,
+    mut naming: Output,
+    mut names: List[str],
+    mut pipes: List[int],
+    mut jobs: List[int],
+    part: int,
+    data: List[byte],
+) -> bool {
     while names.len <= part {
         let name = partname(mut naming)
         if name.len == 0 { bore.warn("split", "output file suffixes exhausted"); return false }
         if naming.verbose {
-            bore.write_direct(out, "creating file {bore.quote_always(name)}\n".bytes()) else |_| { bore.write_error(out, "split", "write error"); return false }
+            bore.write_direct(out, "creating file {bore.quote_always(name)}\n".bytes()) else |_| {
+                bore.write_error(out, "split", "write error")
+                return false
+            }
         }
         (mut names).push(copy name)
         if naming.filter.len > 0 {
-            let (r, w) = os_pipe() else |_| { bore.warn("split", "pipe: {bore.io_error()}"); return false }
+            let (r, w) = os_pipe() else |_| {
+                bore.warn("split", "pipe: {bore.io_error()}")
+                return false
+            }
             let _ = env_set("FILE", name) else |_| {}
             let job = os_spawn_fds("/bin/sh", ["-c", naming.filter], [0, r]) else |_| {
-                let _ = fs_close(r) else |_| {}; let _ = fs_close(w) else |_| {}
-                bore.warn("split", "cannot execute filter"); return false
+                let _ = fs_close(r) else |_| {}
+                let _ = fs_close(w) else |_| {}
+                bore.warn("split", "cannot execute filter")
+                return false
             }
             let _ = fs_close(r) else |_| {}
-            (mut pipes).push(w); (mut jobs).push(job)
+            (mut pipes).push(w)
+            (mut jobs).push(job)
         } else {
             let fd = pieceio.open("split", name, naming.source, true)
             if fd < 0 { return false }
-            fs_close(fd) else |_| { bore.warn("split", "{bore.quote_name(name)}: {bore.io_error()}"); return false }
-            (mut pipes).push(-1); (mut jobs).push(-1)
+            fs_close(fd) else |_| {
+                bore.warn("split", "{bore.quote_name(name)}: {bore.io_error()}")
+                return false
+            }
+            (mut pipes).push(-1)
+            (mut jobs).push(-1)
         }
     }
     if naming.filter.len > 0 {
-        fs_write_chunk(pipes[part], data) else |_| { bore.warn("split", "{bore.quote_name(names[part])}: {bore.io_error()}"); return false }
+        fs_write_chunk(pipes[part], data) else |_| {
+            bore.warn("split", "{bore.quote_name(names[part])}: {bore.io_error()}")
+            return false
+        }
     } else {
         let fd = pieceio.open("split", names[part], naming.source, false)
         if fd < 0 { return false }
         var good = true
-        fs_write_chunk(fd, data) else |_| { bore.warn("split", "{bore.quote_name(names[part])}: {bore.io_error()}"); good = false }
+        fs_write_chunk(fd, data) else |_| {
+            bore.warn("split", "{bore.quote_name(names[part])}: {bore.io_error()}")
+            good = false
+        }
         fs_close(fd) else |_| { good = false }
         if !good { return false }
     }
     true
 }
-fn round_stream(src: bore.In, out: bore.Out, o: Output, count: int, which: int, elide: bool, delim: int) -> int {
+
+fn round_stream(
+    src: bore.In,
+    out: bore.Out,
+    o: Output,
+    count: int,
+    which: int,
+    elide: bool,
+    delim: int,
+) -> int {
     var naming = copy o, names = List[str](), pipes = List[int](), jobs = List[int]()
     var part = 0, done = false, failed = false
     while !done && !failed {
         let data = bore.read_chunk(src, 65536) else |e| match e {
             eof => { done = true; List[byte]() },
-            io => { bore.warn("split", "read error: {bore.io_error()}"); failed = true; List[byte]() },
+            io => {
+                bore.warn("split", "read error: {bore.io_error()}")
+                failed = true
+                List[byte]()
+            },
         }
         if data.len == 0 { done = true }
         var start = 0
         for k in 0..data.len {
             if data[k] as int == delim {
-                if which == 0 { if !round_piece(out, mut naming, mut names, mut pipes, mut jobs, part, segment(data, start, k + 1)) { failed = true; break } } else if which == part + 1 {
-                    bore.write_direct(out, segment(data, start, k + 1)) else |_| { bore.write_error(out, "split", "write error"); failed = true; break }
+                if which == 0 {
+                    if !round_piece(
+                        out,
+                        mut naming,
+                        mut names,
+                        mut pipes,
+                        mut jobs,
+                        part,
+                        segment(data, start, k + 1),
+                    ) {
+                        failed = true
+                        break
+                    }
+                } else if which == part + 1 {
+                    bore.write_direct(out, segment(data, start, k + 1)) else |_| {
+                        bore.write_error(out, "split", "write error")
+                        failed = true
+                        break
+                    }
                 }
-                part = if part + 1 == count then 0 else part + 1; start = k + 1
+                part = if part + 1 == count then 0 else part + 1
+                start = k + 1
             }
         }
         if !failed && start < data.len {
-            if which == 0 { if !round_piece(out, mut naming, mut names, mut pipes, mut jobs, part, segment(data, start, data.len)) { failed = true } } else if which == part + 1 {
-                bore.write_direct(out, segment(data, start, data.len)) else |_| { bore.write_error(out, "split", "write error"); failed = true }
+            if which == 0 {
+                if !round_piece(
+                    out,
+                    mut naming,
+                    mut names,
+                    mut pipes,
+                    mut jobs,
+                    part,
+                    segment(data, start, data.len),
+                ) {
+                    failed = true
+                }
+            } else if which == part + 1 {
+                bore.write_direct(out, segment(data, start, data.len)) else |_| {
+                    bore.write_error(out, "split", "write error")
+                    failed = true
+                }
             }
         }
     }
     if !failed && which == 0 && !elide {
-        if !round_piece(out, mut naming, mut names, mut pipes, mut jobs, count - 1, List[byte]()) { failed = true }
+        if !round_piece(out, mut naming, mut names, mut pipes, mut jobs, count - 1, List[byte]()) {
+            failed = true
+        }
     }
     for fd in pipes { if fd >= 0 { let _ = fs_close(fd) else |_| {} } }
     for k in 0..jobs.len {
         if jobs[k] >= 0 {
             let status = os_wait(jobs[k]) else |_| { failed = true; -1 }
-            if status != 0 { bore.warn("split", "with FILE={names[k]}, exit {status} from command: {o.filter}"); failed = true }
+            if status != 0 {
+                bore.warn("split", "with FILE={names[k]}, exit {status} from command: {o.filter}")
+                failed = true
+            }
         }
     }
     if failed then 1 else 0
@@ -335,9 +413,20 @@ fn main() -> int {
     if mode == "number" && number.starts_with("r/") {
         let parts = number.split("/")
         var count = -1, which = 0
-        if parts.len == 2 { count = decimal_count(parts[1]) } else if parts.len == 3 { which = decimal_count(parts[1]); count = decimal_count(parts[2]) }
-        if count <= 0 || which < 0 || which > count || parts.len == 3 && which == 0 { bore.warn("split", "invalid number of chunks: {bore.quote_always(number)}"); return 1 }
-        if which > 0 && o.filter.len > 0 { bore.warn("split", "--filter does not process a chunk extracted to stdout"); return 1 }
+        if parts.len == 2 {
+            count = decimal_count(parts[1])
+        } else if parts.len == 3 {
+            which = decimal_count(parts[1])
+            count = decimal_count(parts[2])
+        }
+        if count <= 0 || which < 0 || which > count || parts.len == 3 && which == 0 {
+            bore.warn("split", "invalid number of chunks: {bore.quote_always(number)}")
+            return 1
+        }
+        if which > 0 && o.filter.len > 0 {
+            bore.warn("split", "--filter does not process a chunk extracted to stdout")
+            return 1
+        }
         return round_stream(src, out, o, count, which, elide, delim)
     }
     var bs = List[byte](), done = false
@@ -377,14 +466,19 @@ fn main() -> int {
         }
         if which > 0 {
             let part = which - 1, remainder = bs.len % count
-            var start = (bs.len / count) * part + (if part < remainder then part else remainder)
-            var stop = (bs.len / count) * (part + 1) + (if part + 1 < remainder then part + 1 else remainder)
+            var start = bs.len / count * part + (if part < remainder then part else remainder)
+            var stop = bs.len / count * (part + 1) +
+                (if part + 1 < remainder then part + 1 else remainder)
             if kind == "l" {
-                if start > 0 { while start < bs.len && bs[start - 1] as int != delim { start += 1 } }
+                if start > 0 {
+                    while start < bs.len && bs[start - 1] as int != delim { start += 1 }
+                }
                 if stop > 0 { while stop < bs.len && bs[stop - 1] as int != delim { stop += 1 } }
             }
             if stop < start { stop = start }
-            bore.write_all(mut out, segment(bs, start, stop)) else |_| { return bore.finish(mut out, "split", 1) }
+            bore.write_all(mut out, segment(bs, start, stop)) else |_| {
+                return bore.finish(mut out, "split", 1)
+            }
             return bore.finish(mut out, "split", 0)
         }
         var offset = 0

@@ -70,7 +70,9 @@ fn capture_prefix_at(
                         ) {
                     best = pos
                     winning = copy caps
-                    if best == longest && capture_get(winning, 2) == 0 && capture_get(winning, 3) == longest {
+                    if best == longest &&
+                        capture_get(winning, 2) == 0 &&
+                        capture_get(winning, 3) == longest {
                         return PrefixCapture { end: best, caps: winning }
                     }
                 }
@@ -126,10 +128,17 @@ pub fn match_prefix(
     (mut re.verify).push(references)
     var ws = workspace_new(re), longest = -1
     if !references {
-        let span = linear_span(re, mut ws, bytes, 0, bytes.len, 0, false, false) else Span { lo: -1, hi: -1 }
-        if span.lo != 0 { return PrefixMatch { matched: false, length: 0, group: groups > 0, text: List[byte]() } }
+        let span = linear_span(re, mut ws, bytes, 0, bytes.len, 0, false, false) else Span {
+            lo: -1,
+            hi: -1,
+        }
+        if span.lo != 0 {
+            return PrefixMatch { matched: false, length: 0, group: groups > 0, text: List[byte]() }
+        }
         longest = span.hi
-        if groups == 0 { return PrefixMatch { matched: true, length: longest, group: false, text: List[byte]() } }
+        if groups == 0 {
+            return PrefixMatch { matched: true, length: longest, group: false, text: List[byte]() }
+        }
     }
     let found = capture_prefix_at(re, mut ws, root, bytes, 0, bytes.len, 0, false, false, longest)
     var text = List[byte]()

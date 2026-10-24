@@ -436,7 +436,16 @@ fn sorted(mut entries: List[Entry], texts: List[Text], fold: bool) {
     }
 }
 
-fn output_entry(out: bore.Out, texts: List[Text], entry: Entry, o: Options, half: int, right_half: int, reference_width: int, references: bool) -> bool {
+fn output_entry(
+    out: bore.Out,
+    texts: List[Text],
+    entry: Entry,
+    o: Options,
+    half: int,
+    right_half: int,
+    reference_width: int,
+    references: bool,
+) -> bool {
     region record {
         let f = layout(texts[entry.file], entry, o, half, right_half)
         var line = List[byte]()
@@ -498,9 +507,11 @@ fn output_entry(out: bore.Out, texts: List[Text], entry: Entry, o: Options, half
             }
         }
         (mut line).push(10 as byte)
-        bore.write_direct(out, line) else |_| { bore.write_error(out, "ptx", "write error"); return false }
+        bore.write_direct(out, line) else |_| {
+            bore.write_error(out, "ptx", "write error")
+            return false
+        }
         true
-
     }
 }
 
@@ -639,7 +650,9 @@ fn main() -> int {
     let half = o.width / 2 - reference_width
     let right_half = (o.width - reference_width) / 2
     for entry in entries {
-        if !output_entry(out, texts, entry, o, half, right_half, reference_width, references) { return 1 }
+        if !output_entry(out, texts, entry, o, half, right_half, reference_width, references) {
+            return 1
+        }
     }
     bore.finish(mut out, "ptx", 0)
 }
