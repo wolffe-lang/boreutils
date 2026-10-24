@@ -350,3 +350,38 @@ scratch = { a = "abc", b = "def", exclude = "a\nexclude\n" }
 name = "dereference args spelling D"
 args = ["-D", "sym"]
 tree = "links"
+
+[[case]]
+name = "exclude [ab]"
+args = ["-ab", "--exclude=[ab]", "."]
+tree = "links"
+
+[[case]]
+name = "exclude [a-z]"
+args = ["-ab", "--exclude=[a-z]", "."]
+tree = "links"
+
+[[case]]
+name = "exclude [!b]*"
+args = ["-ab", "--exclude=[!b]*", "."]
+tree = "links"
+
+[[case]]
+name = "exclude [[:alpha:]]"
+args = ["-ab", "--exclude=[[:alpha:]]", "."]
+tree = "links"
+
+[[case]]
+name = "exclude a?"
+args = ["-ab", "--exclude=a?", "."]
+tree = "links"
+
+[[case]]
+name = "exclude d/*"
+args = ["-ab", "--exclude=d/*", "."]
+tree = "links"
+
+[[case]]
+name = "unit overridden by k"
+args = ["-B", "KB", "-k", "."]
+tree = "links"

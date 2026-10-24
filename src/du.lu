@@ -19,7 +19,51 @@ struct State {
     seen: Map[str, bool], active: Map[str, bool], total: int,
     secs: int, nanos: int, status: int,
 }
-struct Amount { size: int, secs: int, nanos: int }
+struct Amount { size: int, secs: int, nanos: int, directory: bool }
+
+fn character_class(name: str, b: int) -> bool {
+    let upper = b >= 65 && b <= 90, lower = b >= 97 && b <= 122
+    let digit = b >= 48 && b <= 57
+    if name == "alpha" { return upper || lower }
+    if name == "alnum" { return upper || lower || digit }
+    if name == "digit" { return digit }
+    if name == "xdigit" { return digit || b >= 65 && b <= 70 || b >= 97 && b <= 102 }
+    if name == "upper" { return upper }
+    if name == "lower" { return lower }
+    if name == "blank" { return b == 32 || b == 9 }
+    if name == "space" { return b == 32 || b >= 9 && b <= 13 }
+    if name == "cntrl" { return b < 32 || b == 127 }
+    if name == "print" { return b >= 32 && b < 127 }
+    if name == "graph" { return b > 32 && b < 127 }
+    if name == "punct" { return b > 32 && b < 127 && !upper && !lower && !digit }
+    false
+}
+fn component(pat: str, at: int, b: int) -> int {
+    let k = pat.bytes()[at] as int
+    if k == 63 { return at + 1 }
+    if k == 92 {
+        if at + 1 < pat.len && pat.bytes()[at + 1] as int == b { return at + 2 }
+        return -1
+    }
+    if k != 91 { return if k == b then at + 1 else -1 }
+    var i = at + 1, invert = false, yes = false
+    if i < pat.len && (pat.bytes()[i] as int == 33 || pat.bytes()[i] as int == 94) { invert = true; i += 1 }
+    let first = i
+    while i < pat.len {
+        let c = pat.bytes()[i] as int
+        if c == 93 && i > first { return if yes != invert then i + 1 else -1 }
+        if c == 91 && i + 1 < pat.len && pat.bytes()[i + 1] as int == 58 {
+            let end = pat[i + 2..].find(":]") else -1
+            if end >= 0 { if character_class(pat[i + 2..i + 2 + end], b) { yes = true }; i += end + 4; continue }
+        }
+        if i + 2 < pat.len && pat.bytes()[i + 1] as int == 45 && pat.bytes()[i + 2] as int != 93 {
+            if b >= c && b <= pat.bytes()[i + 2] as int { yes = true }
+            i += 3
+        } else { if c == b { yes = true }; i += 1 }
+    }
+    if b == 91 { return at + 1 }
+    -1
+}
 
 fn glob(pattern: str, text: str) -> bool {
     var p = 0, t = 0, star = -1, retry = 0
@@ -29,8 +73,8 @@ fn glob(pattern: str, text: str) -> bool {
             p += 1
             retry = t
         } else if p < pattern.len &&
-            (pattern.bytes()[p] as int == 63 || pattern.bytes()[p] == text.bytes()[t]) {
-            p += 1
+            component(pattern, p, text.bytes()[t] as int) >= 0 {
+            p = component(pattern, p, text.bytes()[t] as int)
             t += 1
         } else if star >= 0 {
             retry += 1
@@ -119,7 +163,7 @@ fn newer(a: Amount, b: Amount) -> bool {
     a.secs > b.secs || a.secs == b.secs && a.nanos > b.nanos
 }
 fn walk(path: str, depth: int, device: int, c: Config, mut s: State, mut out: bore.Out) -> Amount {
-    var answer = Amount { size: 0, secs: -9223372036854775807, nanos: 0 }
+    var answer = Amount { size: 0, secs: -9223372036854775807, nanos: 0, directory: false }
     if excluded(path, c) { return answer }
     let follow = c.follow == 2 || c.follow == 1 && depth == 0
     let r = (if follow then fs_stat(path) else fs_lstat(path)) else |_| {
@@ -128,6 +172,7 @@ fn walk(path: str, depth: int, device: int, c: Config, mut s: State, mut out: bo
         return answer
     }
     let dir = bore.rec_kind(r) == bore.kind_dir()
+    answer.directory = dir
     if c.onefs && depth > 0 && dir && bore.rec_dev(r) != device { return answer }
     let key = "{bore.rec_dev(r)}:{bore.rec_ino(r)}"
     if (s.active[key] else false) {
@@ -161,7 +206,7 @@ fn walk(path: str, depth: int, device: int, c: Config, mut s: State, mut out: bo
             }
             let child = if path.ends_with("/") then "{path}{name}" else "{path}/{name}"
             let a = walk(child, depth + 1, bore.rec_dev(r), c, mut s, mut out)
-            if !c.separate || raw[0] as int != bore.kind_dir() { answer.size += a.size }
+            if !c.separate || !a.directory { answer.size += a.size }
             if newer(a, answer) { answer.secs = a.secs; answer.nanos = a.nanos }
         }
         s.active[key] = false
@@ -194,7 +239,7 @@ fn main() -> int {
         if k == "version" { bore.put(mut out, bore.version_text("du")) else |_| {}; return bore.finish(mut out, "du", 0) }
         if k == "all" { c.all = true }
         if k == "apparent-size" { c.apparent = true }
-        if k == "bytes" { c.apparent = true; c.block = 1; c.human = 0 }
+        if k == "bytes" { c.apparent = true; c.block = 1; c.human = 0; c.unit = "" }
         if k == "total" { total = true }
         if k == "dereference-args" || k == "H" { c.follow = 1 }
         if k == "dereference" { c.follow = 2 }
@@ -203,8 +248,8 @@ fn main() -> int {
         if k == "inodes" { c.inodes = true }
         if k == "human-readable" { c.human = 1 }
         if k == "si" { c.human = 2 }
-        if k == "k" { c.block = 1024; c.human = 0 }
-        if k == "m" { c.block = 1048576; c.human = 0 }
+        if k == "k" { c.block = 1024; c.human = 0; c.unit = "" }
+        if k == "m" { c.block = 1048576; c.human = 0; c.unit = "" }
         if k == "separate-dirs" { c.separate = true }
         if k == "one-file-system" { c.onefs = true }
         if k == "null" { c.nul = true }
@@ -241,6 +286,6 @@ fn main() -> int {
     var paths = copy p.operands
     if paths.len == 0 { (mut paths).push(".") }
     for path in paths { let _ = walk(path, 0, -1, c, mut s, mut out) }
-    if total { emit(mut out, "total", Amount { size: s.total, secs: s.secs, nanos: s.nanos }, c) }
+    if total { emit(mut out, "total", Amount { size: s.total, secs: s.secs, nanos: s.nanos, directory: true }, c) }
     bore.finish(mut out, "du", s.status)
 }
