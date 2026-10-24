@@ -1,0 +1,19 @@
+
+[[case]]
+name = "['--help']"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "['--version']"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "[]"
+args = []
+
+[[case]]
+name = "missing chroot surface"
+args = ["/", "/bin/true"]
+skip = "no os_chroot; tests/gaps/bu34/chroot/main.lu E0301"
