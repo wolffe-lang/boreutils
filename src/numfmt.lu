@@ -308,9 +308,9 @@ fn convert(word: str, o: Options, automatic_width: int) -> Conversion {
 
 fn row_impl(out: bore.Out, bs: List[byte], o: Options, line: int) -> Outcome {
     if line < o.header {
-        var copy = copy bs
-        (mut copy).push(o.record as byte)
-        bore.write_direct(out, copy) else |_| { bore.write_error(out, "numfmt", "write error"); return Outcome { status: 1, stop: true } }
+        var payload = copy bs
+        (mut payload).push(o.record as byte)
+        bore.write_direct(out, payload) else |_| { bore.write_error(out, "numfmt", "write error"); return Outcome { status: 1, stop: true } }
         return Outcome { status: 0, stop: false }
     }
     var result = List[byte](), at = 0, field = 1, status = 0
