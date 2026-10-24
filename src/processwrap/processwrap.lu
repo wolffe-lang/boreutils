@@ -19,6 +19,9 @@ fn script(path: str) -> bool {
     !(b.len >= 2 && b[0] as int == 35 && b[1] as int == 33) &&
         !(b.len >= 4 && b[0] as int == 127 && b[1] as int == 69 && b[2] as int == 76 && b[3] as int == 70)
 }
+/// Replace this process, falling back to /bin/sh for readable scripts.
+/// Returns only on exec failure: 125 wrapper failure, 126 denied, 127 missing.
+/// args must contain its command at index zero; fds follows os_exec mapping.
 pub fn run(prog: str, args: List[str], fds: List[int]) -> int {
     let command = args[0]
     let vars = env_vars()
