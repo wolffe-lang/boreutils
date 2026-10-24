@@ -178,7 +178,7 @@ fn database() -> str {
     .spx 00;36
     .xspf 00;36
     *~ 00;90
-    *
+    *# 00;90
     .bak 00;90
     .crdownload 00;90
     .dpkg-dist 00;90
@@ -264,8 +264,8 @@ fn main() -> int {
     var keys = List[str](), values = List[str]()
     for line in db.lines() {
         line_no += 1
-        let comment = line.find("#") else line.len
-        let clean = line[..comment].trim()
+        let clean = line.trim()
+        if clean.starts_with("#") { continue }
         if clean.len == 0 { continue }
         let parts = clean.words()
         let word = parts[0]

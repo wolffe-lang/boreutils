@@ -384,7 +384,7 @@ pub fn command() -> int {
         quote: false,
         literal: program() != "ls",
         escape: program() != "ls",
-        format_given: program() != "ls",
+        format_given: false,
         deref: follow_dir_operands(),
         deref_given: false,
         group_dirs: false,
@@ -470,7 +470,7 @@ pub fn command() -> int {
     // closed descriptor 1 is not a terminal.
     let tty = os_isatty(1) else false
     if tty {
-        if !o.format_given {
+        if !o.format_given && program() == "ls" {
             o.format = vertical()
         }
         if !o.hide_given {
@@ -546,7 +546,7 @@ fn take_option(mut o: Opts, k: str, v: str, given: bool) -> int {
     } else if k == "1" {
         // Measured: `-l -1` stays long, where `--format=single-column`
         // does not.
-        if o.format != long_format() {
+        if o.format != long_format() || !o.format_given {
             o.format = one_per_line()
         }
         o.format_given = true

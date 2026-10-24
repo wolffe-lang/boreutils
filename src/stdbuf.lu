@@ -21,7 +21,7 @@ fn main() -> int {
         if k == "version" { bore.put(mut out, bore.version_text("stdbuf")) else |_| {}; return bore.finish(mut out, "stdbuf", 0) }
         var mode = v
         if v == "L" {
-            if k == "input" { bore.warn("stdbuf", "line buffering stdin is meaningless"); eprint("Try 'stdbuf --help' for more information."); return 125 }
+            if k == "input" { bore.warn("stdbuf", "line buffering standard input is meaningless"); eprint("Try 'stdbuf --help' for more information."); return 125 }
         } else {
             let count = bore.parse_count(v) else |_| { bore.warn("stdbuf", "invalid mode {bore.quote_always(v)}"); return 125 }
             if bore.count_minus(count) { bore.warn("stdbuf", "invalid mode {bore.quote_always(v)}"); return 125 }
