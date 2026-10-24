@@ -129,13 +129,15 @@ fn head_begin(bs: List[byte], limit: int, o: Options) -> int {
     // the primary before field instead advances past such a keyword.
     while a > 0 && constituent(bs[a], o.breaks, o.custom_breaks) && constituent(bs[a - 1], o.breaks, o.custom_breaks) { a -= 1 }
     while a < bs.len && space(bs[a]) { a += 1 }
+    if a > 0 && a < bs.len && constituent(bs[a], o.breaks, o.custom_breaks) && !space(bs[a - 1]) && !constituent(bs[a - 1], o.breaks, o.custom_breaks) { a -= 1 }
     a
 }
 fn layout(text: Text, entry: Entry, o: Options, half: int, right_half: int) -> Fields {
     let before = trim(bytes(text.bytes, entry.first, entry.lo)), after = trim(bytes(text.bytes, entry.lo, entry.last))
     let leftlimit = if half - o.gap - 2 * o.flag.len > 0 then half - o.gap - 2 * o.flag.len else 0
     let rightlimit = if right_half - 2 * o.flag.len > 0 then right_half - 2 * o.flag.len else 0
-    let a = suffix_begin(before, leftlimit, o), z = prefix_end(after, rightlimit, o)
+    let a = if (o.auto || o.refs) && before.len <= half - o.gap then 0 else suffix_begin(before, leftlimit, o)
+    let z = prefix_end(after, rightlimit, o)
     var f = Fields { tail: List[byte](), before: bytes(before, a, before.len), after: bytes(after, 0, z), head: List[byte](), key: bytes(text.bytes, entry.lo, entry.hi), rest: List[byte](), head_cut: false }
     let overflow_after = trim(bytes(after, z, after.len)), overflow_before = trim(bytes(before, 0, a))
     if overflow_after.len > 0 && leftlimit - f.before.len - o.gap > 0 {
@@ -145,12 +147,14 @@ fn layout(text: Text, entry: Entry, o: Options, half: int, right_half: int) -> F
         if tail_end == 0 { add(mut f.after, o.flag) }
     } else if z < after.len { add(mut f.after, o.flag) }
     if overflow_before.len > 0 && rightlimit - f.after.len - o.gap > 0 {
-        let spare = right_half - f.before.len - 3 + entry.hi - entry.lo
-        let available = right_half - f.after.len - o.gap
+        let separation = if entry.lo > entry.first && space(text.raw[entry.lo - 1]) && o.gap < 3 then 3 else o.gap
+        let spare = right_half - f.before.len - separation + entry.hi - entry.lo
+        let available = right_half - f.after.len - o.gap - o.flag.len
         var start = head_begin(overflow_before, if spare < available then spare else available, o)
         while start < overflow_before.len && overflow_before.len - start + (if start > 0 then o.flag.len else 0) > available {
+            let word = constituent(overflow_before[start], o.breaks, o.custom_breaks)
             start += 1
-            while start < overflow_before.len && constituent(overflow_before[start], o.breaks, o.custom_breaks) { start += 1 }
+            if word { while start < overflow_before.len && constituent(overflow_before[start], o.breaks, o.custom_breaks) { start += 1 } }
             while start < overflow_before.len && space(overflow_before[start]) { start += 1 }
         }
         if start < overflow_before.len { if start > 0 { add(mut f.head, o.flag); f.head_cut = true }; for b in bytes(overflow_before, start, overflow_before.len) { (mut f.head).push(b) } } else if a > 0 { var marked = o.flag.bytes(); for b in f.before { (mut marked).push(b) }; f.before = marked }
