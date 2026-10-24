@@ -1,0 +1,96 @@
+//! Hand units from XBD 9.1 and yew src/search_re_match_test.lu:171-209,
+//! remeasured with GNU: yew's a|ab preference is deliberately NOT copied.
+
+fn options_fixture() -> Options {
+    Options { extended: true, icase: false, word: false, whole: false, terminator: 10 as byte }
+}
+
+fn alternation_fixture(options: Options) -> Regex {
+    // a|ab. A shorter first alternative must not cut off the longer one.
+    var prog = List[Inst]()
+    (mut prog).push(Inst { op: SPLIT, x: 1, y: 2, arg: 0 })
+    (mut prog).push(Inst { op: CHAR, x: 4, y: 0, arg: 97 })
+    (mut prog).push(Inst { op: CHAR, x: 3, y: 0, arg: 97 })
+    (mut prog).push(Inst { op: CHAR, x: 4, y: 0, arg: 98 })
+    (mut prog).push(Inst { op: ACCEPT, x: 0, y: 0, arg: 0 })
+    var starts = List[int]()
+    (mut starts).push(0)
+    var refs = List[bool]()
+    (mut refs).push(false)
+    Regex {
+        options: options,
+        prog: prog,
+        classes: List[bool](),
+        starts: copy starts,
+        span_starts: starts,
+        backrefs: copy refs,
+        verify: refs,
+    }
+}
+
+fn test_leftmost_longest() {
+    let re = alternation_fixture(options_fixture())
+    var ws = workspace_new(re)
+    let bytes = "xab aa".bytes()
+    let span = linear_span(re, mut ws, bytes, 0, bytes.len, 0, true, false) else {
+        assert(false, "a|ab must match")
+        return
+    }
+    assert(span.lo == 1 && span.hi == 3, "the first branch must not win")
+    let next = linear_span(re, mut ws, bytes, 0, bytes.len, span.hi, true, false) else {
+        assert(false, "later span must exist")
+        return
+    }
+    assert(next.lo == 4 && next.hi == 5, "resume after nonempty match")
+}
+
+fn test_word_and_whole() {
+    var options = options_fixture()
+    options.word = true
+    let re = alternation_fixture(options)
+    var ws = workspace_new(re)
+    let bytes = "xaba ab a".bytes()
+    let span = linear_span(re, mut ws, bytes, 0, bytes.len, 0, true, false) else {
+        assert(false, "whole word must exist")
+        return
+    }
+    assert(span.lo == 5 && span.hi == 7, "reject interior matches")
+    options.whole = true
+    let full = alternation_fixture(options)
+    var full_ws = workspace_new(full)
+    let no = linear_span(full, mut full_ws, bytes, 0, bytes.len, 0, false, true) else Span {
+        lo: -1,
+        hi: -1,
+    }
+    assert(no.lo == -1, "whole line rejects partial match")
+    let yes = linear_span(full, mut full_ws, bytes, 5, 7, 5, true, false) else Span {
+        lo: -1,
+        hi: -1,
+    }
+    assert(yes.lo == 5 && yes.hi == 7, "windows anchor independently")
+}
+
+fn test_empty_cycle_linear() {
+    // (a*)*b. Two epsilon cycles must each be visited once per byte.
+    var re = alternation_fixture(options_fixture())
+    re.prog[0] = Inst { op: SPLIT, x: 1, y: 3, arg: 0 }
+    re.prog[1] = Inst { op: SPLIT, x: 2, y: 0, arg: 0 }
+    re.prog[2] = Inst { op: CHAR, x: 1, y: 0, arg: 97 }
+    re.prog[3] = Inst { op: CHAR, x: 4, y: 0, arg: 98 }
+    var ws = workspace_new(re)
+    var bytes = List[byte]()
+    var i = 0
+    while i < 10000 { (mut bytes).push(97 as byte); i += 1 }
+    let no = linear_span(re, mut ws, bytes, 0, bytes.len, 0, false, true) else Span {
+        lo: -1,
+        hi: -1,
+    }
+    assert(no.lo == -1, "nested stars cannot create a b")
+    assert(ws.visits <= re.prog.len * (bytes.len + 1), "state visits linear in input")
+    (mut bytes).push(98 as byte)
+    let yes = linear_span(re, mut ws, bytes, 0, bytes.len, 0, true, false) else Span {
+        lo: -1,
+        hi: -1,
+    }
+    assert(yes.lo == 0 && yes.hi == bytes.len, "nested stars retain earliest origin")
+}

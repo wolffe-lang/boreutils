@@ -1,0 +1,174 @@
+//! Leftmost-longest state-set execution. Sources: POSIX XBD 9.1, Cox's
+//! regexp1/regexp2 descriptions; yew src/search/pike.lu:6-14 at 83020234
+//! for the generation-mark/explicit-stack shape, NOT its priority rule.
+//! Seeds are visited in ascending origin order. The first visit to a pc
+//! therefore dominates later origins; accepting never discards a longer
+//! path at the same origin. The word test filters accepts, not winners.
+
+fn closure(
+    re: Regex,
+    mut ws: Workspace,
+    pc: int,
+    origin: int,
+    bytes: List[byte],
+    lo: int,
+    hi: int,
+    pos: int,
+    projected: bool,
+) {
+    var top = 1
+    ws.stack[0] = pc
+    while top > 0 {
+        top -= 1
+        let at = ws.stack[top]
+        if ws.marks[at] == ws.generation { continue }
+        ws.marks[at] = ws.generation
+        ws.visits += 1
+        let inst = copy re.prog[at]
+        if inst.op == SPLIT {
+            ws.stack[top] = inst.y
+            ws.stack[top + 1] = inst.x
+            top += 2
+        } else if inst.op == JUMP || inst.op == SAVE {
+            ws.stack[top] = inst.x
+            top += 1
+        } else if inst.op >= BOL && inst.op <= WORD_END {
+            if assertion(inst.op, bytes, lo, hi, pos) {
+                ws.stack[top] = inst.x
+                top += 1
+            }
+        } else {
+            // A backreference's regular projection is any byte string:
+            // retain this pc as a consuming self-loop, and allow epsilon exit.
+            if projected && inst.op == REF {
+                ws.stack[top] = inst.x
+                top += 1
+            }
+            ws.next_pcs[ws.next_count] = at
+            ws.next_origins[ws.next_count] = origin
+            ws.next_count += 1
+        }
+    }
+}
+
+fn new_generation(mut ws: Workspace) {
+    // No wraparound and no scan per byte: clear once near the int ceiling.
+    if ws.generation == 9223372036854775806 {
+        var i = 0
+        while i < ws.marks.len { ws.marks[i] = 0; i += 1 }
+        ws.generation = 0
+    }
+    ws.generation += 1
+    ws.next_count = 0
+}
+
+fn linear_search(
+    re: Regex,
+    mut ws: Workspace,
+    bytes: List[byte],
+    lo: int,
+    hi: int,
+    from: int,
+    nonempty: bool,
+    any_match: bool,
+    projected_pattern: int,
+) -> Span ! {none} {
+    ws.count = 0
+    ws.visits = 0
+    var pos = if from < lo then lo else from
+    var best_lo = -1
+    var best_hi = -1
+    if pos > hi { return none }
+    new_generation(mut ws)
+    while pos <= hi {
+        if best_lo < 0 &&
+            (!re.options.whole || pos == lo) &&
+            (!re.options.word || re.options.whole || pos == lo || !is_word(bytes[pos - 1] as int)) {
+            var k = if projected_pattern >= 0 then projected_pattern else 0
+            while k < re.starts.len && (projected_pattern < 0 || k == projected_pattern) {
+                if projected_pattern >= 0 || !re.backrefs[k] {
+                    closure(
+                        re,
+                        mut ws,
+                        program_start(re, k, nonempty),
+                        pos,
+                        bytes,
+                        lo,
+                        hi,
+                        pos,
+                        projected_pattern >= 0,
+                    )
+                }
+                k += 1
+            }
+        }
+        ws.count = ws.next_count
+        var i = 0
+        while i < ws.count {
+            ws.pcs[i] = ws.next_pcs[i]
+            ws.origins[i] = ws.next_origins[i]
+            let pc = ws.pcs[i]
+            let start = ws.origins[i]
+            if re.prog[pc].op == ACCEPT &&
+                (!nonempty || start < pos) &&
+                (!re.options.whole || pos == hi) &&
+                (!re.options.word || re.options.whole || pos == hi || !is_word(bytes[pos] as int)) {
+                if any_match { return Span { lo: start, hi: pos } }
+                if best_lo < 0 || start < best_lo || start == best_lo && pos > best_hi {
+                    best_lo = start
+                    best_hi = pos
+                }
+            }
+            i += 1
+        }
+        if pos == hi { break }
+        new_generation(mut ws)
+        i = 0
+        while i < ws.count {
+            let inst = copy re.prog[ws.pcs[i]]
+            let start = ws.origins[i]
+            let ref_loop = projected_pattern >= 0 &&
+                inst.op == REF &&
+                bytes[pos] != re.options.terminator
+            if (best_lo < 0 || start <= best_lo) && (ref_loop || consumes(re, inst, bytes[pos])) {
+                let next = if ref_loop then ws.pcs[i] else inst.x
+                closure(re, mut ws, next, start, bytes, lo, hi, pos + 1, projected_pattern >= 0)
+            }
+            i += 1
+        }
+        if best_lo >= 0 && ws.next_count == 0 { break }
+        pos += 1
+    }
+    if best_lo < 0 { return none }
+    Span { lo: best_lo, hi: best_hi }
+}
+
+fn linear_span(
+    re: Regex,
+    mut ws: Workspace,
+    bytes: List[byte],
+    lo: int,
+    hi: int,
+    from: int,
+    nonempty: bool,
+    any_match: bool,
+) -> Span ! {none} {
+    var present = false
+    for refs in re.backrefs { if !refs { present = true; break } }
+    if !present { return none }
+    linear_search(re, mut ws, bytes, lo, hi, from, nonempty, any_match, -1)
+}
+
+fn projection_matches(
+    re: Regex,
+    mut ws: Workspace,
+    index: int,
+    bytes: List[byte],
+    lo: int,
+    hi: int,
+) -> bool {
+    let span = linear_search(re, mut ws, bytes, lo, hi, lo, false, true, index) else {
+        return false
+    }
+    span.lo >= lo
+}

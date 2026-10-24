@@ -1,0 +1,230 @@
+//! Unit rows from POSIX XBD 9 and GNU info 3.1–3.7. Regex semantics are
+//! independently measured by tools/re-oracle, not inferred from these units.
+
+fn compiled_fixture(pattern: str, options: Options) -> Regex {
+    var patterns = List[List[byte]]()
+    (mut patterns).push(pattern.bytes())
+    var d = diagnostics_new()
+    compile(patterns, options, mut d) else {
+        assert(false, "fixture must compile: {pattern}")
+        return Regex {
+            options: copy options,
+            prog: List[Inst](),
+            classes: List[bool](),
+            starts: List[int](),
+            span_starts: List[int](),
+            backrefs: List[bool](),
+            verify: List[bool](),
+        }
+    }
+}
+
+fn check_fixture(pattern: str, text: str, options: Options, lo: int, hi: int) {
+    let re = compiled_fixture(pattern, options)
+    var ws = workspace_new(re)
+    let bytes = text.bytes()
+    let span = linear_span(re, mut ws, bytes, 0, bytes.len, 0, false, false) else Span {
+        lo: -1,
+        hi: -1,
+    }
+    assert(
+        span.lo == lo && span.hi == hi,
+        "pattern {pattern} span {span.lo}..{span.hi}, expected {lo}..{hi}",
+    )
+}
+
+fn test_compile_syntax_and_intervals() {
+    let options = options_fixture()
+    check_fixture("a|ab", "xab", options, 1, 3)
+    check_fixture("(a*)*b", "aaaaab", options, 0, 6)
+    check_fixture("(a|aa)*c", "aaaaa", options, -1, -1)
+    check_fixture("(a?){{3}}a{{3}}", "aaa", options, 0, 3)
+    check_fixture("(a?){{3}}a{{3}}", "aaaaaa", options, 0, 6)
+    check_fixture("a{{2,3}}", "baaaa", options, 1, 4)
+    check_fixture("a{{,2}}", "aaa", options, 0, 2)
+    check_fixture("a{{0}}", "bbb", options, 0, 0)
+    check_fixture("a+?", "aaa", options, 0, 3)
+    check_fixture("()|ab", "ab", options, 0, 2)
+    check_fixture("a||b", "z", options, 0, 0)
+    check_fixture("a^", "a", options, -1, -1)
+    var basic = options_fixture()
+    basic.extended = false
+    check_fixture(r"a\|ab", "ab", basic, 0, 2)
+    check_fixture(r"\(a\?\)\{3\}a\{3\}", "aaa", basic, 0, 3)
+    check_fixture("a^b", "xa^b", basic, 1, 4)
+    check_fixture("a$b", "xa$b", basic, 1, 4)
+    check_fixture("^*", "*", basic, 0, 1)
+}
+
+fn test_compile_brackets_and_assertions() {
+    let options = options_fixture()
+    check_fixture("[a-c]+", "xxabc", options, 2, 5)
+    check_fixture("[]a]+", "]aa]", options, 0, 4)
+    check_fixture("[^a]+", "aa!_", options, 2, 4)
+    check_fixture("[[:digit:]]+", "x123z", options, 1, 4)
+    check_fixture("[[=a=]]", "ba", options, 1, 2)
+    check_fixture("[[.a.]]", "ba", options, 1, 2)
+    check_fixture(r"\bfoo\b", "xfoo foo!", options, 5, 8)
+    check_fixture(r"\Bfoo", "xfoo", options, 1, 4)
+    check_fixture(r"\<foo\>", "xfoo foo!", options, 5, 8)
+    var folded = options_fixture()
+    folded.icase = true
+    check_fixture("[[:upper:]]+", "abc", folded, 0, 3)
+    check_fixture("[^a]+", "aAbB", folded, 2, 4)
+    var word = options_fixture()
+    word.word = true
+    check_fixture("a|a-b", "a-bx", word, 0, 1)
+}
+
+fn test_parser_diagnostics_and_refs() {
+    let options = options_fixture()
+    var d = diagnostics_new()
+    let p = parse_fixture(r"(a)\1", options, mut d, 0)
+    assert(!p.failed && p.has_ref, "ERE backreference is supported")
+    let bad = parse_fixture(r"(a\1)", options, mut d, 1)
+    assert(bad.failed, "self reference is invalid")
+    let branch = parse_fixture(r"(a)|\1", options, mut d, 2)
+    assert(branch.failed, "reference must belong to its alternative")
+    let range = parse_fixture("[z-a]", options, mut d, 3)
+    assert(range.failed, "descending range is invalid")
+    let huge = parse_fixture("a{{32768}}", options, mut d, 4)
+    assert(huge.failed, "repetition exceeds GNU limit")
+}
+
+fn options_fixture() -> Options {
+    Options { extended: true, icase: false, word: false, whole: false, terminator: 10 as byte }
+}
+
+fn parse_fixture(pat: str, options: Options, mut d: Diagnostics, index: int) -> Parser {
+    parse(pat.bytes(), options, mut d, index)
+}
+
+fn check_reference(pattern: str, text: str, options: Options, lo: int, hi: int) {
+    let re = compiled_fixture(pattern, options)
+    var ws = workspace_new(re)
+    let bytes = text.bytes()
+    let selected = line_matches(re, mut ws, bytes, 0, bytes.len)
+    let span = if selected {
+        next_span(re, mut ws, bytes, 0, bytes.len, 0) else Span { lo: -1, hi: -1 }
+    } else {
+        Span { lo: -1, hi: -1 }
+    }
+    assert(span.lo == lo && span.hi == hi, "backreference {pattern}: {span.lo}..{span.hi}")
+}
+
+fn test_backreference_path() {
+    let options = options_fixture()
+    check_reference(r"(a)\1", "zaa", options, 1, 3)
+    check_reference(r"(a)*\1", "a", options, -1, -1)
+    check_reference(r"(a*)\1", "aaaa", options, 0, 4)
+    check_reference(r"(a|ab)\1", "abab", options, 0, 4)
+    check_reference(r"^(ab*)*\1$", "ababbabb", options, 0, 8)
+    check_reference(r"^(ab*)*\1$", "ababbab", options, -1, -1)
+    var folded = options_fixture()
+    folded.icase = true
+    check_reference(r"(a)\1", "aA", folded, 0, 2)
+    let re = compiled_fixture(r"(a?)\1", options)
+    var ws = workspace_new(re)
+    let empty = List[byte]()
+    assert(line_matches(re, mut ws, empty, 0, 0), "empty backreference selects empty line")
+}
+
+fn test_empty_pattern_mebibyte() {
+    let re = compiled_fixture("", options_fixture())
+    var ws = workspace_new(re)
+    let bytes = "a".repeat(1048576).bytes()
+    assert(line_matches(re, mut ws, bytes, 0, bytes.len), "empty pattern selects long line")
+    let span = next_span(re, mut ws, bytes, 0, bytes.len, 0) else Span { lo: -1, hi: -1 }
+    assert(span.lo == -1, "next_span never returns empty spans")
+    assert(ws.visits <= re.prog.len * (bytes.len + 1), "empty scan is linear")
+}
+
+fn test_leading_interval_span() {
+    let re = compiled_fixture("{{1}}", options_fixture())
+    var ws = workspace_new(re)
+    let bytes = "{{1}}".bytes()
+    assert(line_matches(re, mut ws, bytes, 0, bytes.len), "leading repeat selects line")
+    let span = next_span(re, mut ws, bytes, 0, bytes.len, 0) else Span { lo: -1, hi: -1 }
+    assert(span.lo == 1 && span.hi == 3, "GNU prints interval contents after leading operator")
+}
+
+fn test_generated_diagnostic_regressions() {
+    let options = options_fixture()
+    var d = diagnostics_new()
+    let control = parse_fixture("\\\t", options, mut d, 0)
+    assert(!control.failed, "escaped tab is valid with a warning")
+    let text = str_from_utf8(d.items[0].text) else ""
+    assert(text == "warning: stray \\ before unprintable character", "control warning wording")
+    check_fixture("{{}}", "{{}}", options, 0, 2)
+    var patterns = List[List[byte]]()
+    (mut patterns).push("(*)".bytes())
+    let _ = compile(patterns, options, mut d) else { return }
+    assert(false, "discarded leading repetition before close must be invalid")
+}
+
+fn test_literal_and_interval_validation_paths() {
+    var basic = options_fixture()
+    basic.extended = false
+    let literal = compiled_fixture("$|", basic)
+    var ws = workspace_new(literal)
+    let bytes = "x$|x".bytes()
+    assert(line_matches(literal, mut ws, bytes, 0, bytes.len), "literal shortcut preserves dollar")
+    check_fixture("{{{{}}", "{{{{}}", options_fixture(), 0, 3)
+}
+
+fn test_interval_needs_content_after_operand() {
+    var d = diagnostics_new()
+    let p = parse_fixture("a{{}}", options_fixture(), mut d, 0)
+    assert(p.failed, "empty interval after an operand is invalid")
+}
+
+fn test_capture_in_nonfinal_alternative() {
+    let options = options_fixture()
+    check_reference(r"((a)|b)\2", "aa", options, 0, 2)
+    check_reference(r"((a)|b)\2", "b", options, -1, -1)
+    check_reference(r"(a|(b))\2", "bb", options, 0, 2)
+}
+
+fn projection_fixture(pattern: str, text: str, flags: Options, want: bool) {
+    let re = compiled_fixture(pattern, flags)
+    var ws = workspace_new(re)
+    let bytes = text.bytes()
+    assert(projection_matches(re, mut ws, 0, bytes, 0, bytes.len), "projection must pass {pattern}")
+    let filtered = line_matches_mode(re, mut ws, bytes, 0, bytes.len, true)
+    let plain = line_matches_mode(re, mut ws, bytes, 0, bytes.len, false)
+    assert(filtered == plain && plain == want, "backtracker decides {pattern} on {text}")
+}
+
+fn test_backreference_projection_is_a_superset() {
+    let options = options_fixture()
+    projection_fixture(r"(a)\1", "ab", options, false)
+    projection_fixture(r"(a*)\1", "aaaa", options, true)
+    projection_fixture(r"(a|aa)*\1b", "aaaab", options, true)
+    projection_fixture(r"^(a+)\1+$", "aaaa", options, true)
+    projection_fixture(r"((a)|b)\2", "b", options, false)
+    projection_fixture(r"(a)?\1", "a", options, false)
+    projection_fixture(r"(a(b)?)*\2", "abb", options, true)
+    projection_fixture(r"(a|(b))*\2", "bb", options, true)
+    projection_fixture(r"(a*)*\1", "aa", options, true)
+    projection_fixture(r"(a?)\1", "", options, true)
+    projection_fixture(r"(a|())\2", "", options, true)
+    projection_fixture(r"^(ab*)*\1$", "ababbabb", options, true)
+    projection_fixture(r"(a|ab)\1", "abab", options, true)
+    var folded = options_fixture()
+    folded.icase = true
+    projection_fixture(r"(a)\1", "aA", folded, true)
+    let re = compiled_fixture(r"(a|aa)*\1b", options)
+    var ws = workspace_new(re)
+    let bytes = "a".repeat(10000).bytes()
+    assert(!line_matches(re, mut ws, bytes, 0, bytes.len), "projection rejects impossible suffix")
+    assert(ws.peak == 0, "an impossible regular projection never enters DFS")
+    assert(ws.visits <= re.prog.len * (bytes.len + 1), "projection has linear state visits")
+}
+
+fn test_adjacent_repeat_compatibility_policy() {
+    let options = options_fixture()
+    check_reference(r"(A**|.)(a)\1**", "a", options, 0, 1)
+    var folded = options_fixture()
+    folded.icase = true
+    check_reference(r"(A**|.)(a)\1**", "A", folded, 0, 1)
+}

@@ -1,0 +1,183 @@
+//! Vendored from wolffe-lang/scent src/re at b6f63a4892cca631475cd0b87a0b648ce9b532a9.
+//! GPL-3.0-or-later with wolf Training Data Permission v1.0.
+//! R-bu33-2 A authorizes reuse of this org-owned clean-room engine.
+//! Only this origin header differs from upstream at import.
+//!
+//! C-locale overall-span regex representation, clean-room from POSIX XBD 9,
+//! GNU grep 3.12's manual and measured probes. Design inputs: yew at
+//! 83020234 src/search/regex.lu:20-51 (flat pools and separate workspace),
+//! pike.lu:6-14 (state-set deduplication); Cox regexp1/regexp2 articles.
+//! No external engine implementation consulted. Captures exist only for
+//! backreferences; a regular program is always run by state-set simulation.
+
+/// C-locale syntax and selection modes; terminator is excluded from every match.
+pub struct Options {
+    extended: bool,
+    icase: bool,
+    word: bool,
+    whole: bool,
+    terminator: byte,
+}
+
+/// Half-open absolute offsets in the caller's byte buffer.
+pub struct Span {
+    lo: int,
+    hi: int,
+}
+
+/// An unprefixed message for one zero-based pattern; text excludes the final newline.
+pub struct Diagnostic {
+    pattern: int,
+    warning: bool,
+    text: List[byte],
+}
+
+/// Ordered warnings and errors produced by compilation.
+pub struct Diagnostics {
+    items: List[Diagnostic],
+}
+
+/// Make an empty diagnostic sink.
+pub fn diagnostics_new() -> Diagnostics {
+    Diagnostics { items: List[Diagnostic]() }
+}
+
+fn message(mut d: Diagnostics, pattern: int, warning: bool, text: str) {
+    (mut d.items).push(Diagnostic { pattern: pattern, warning: warning, text: text.bytes() })
+}
+
+// Instructions consume a byte or assert a position; x is the successor.
+// SPLIT has two successors; SAVE and REF use arg for the numbered slot.
+const CHAR: int = 1
+
+const CLASS: int = 2
+
+const ANY: int = 3
+
+const SPLIT: int = 4
+
+const JUMP: int = 5
+
+const SAVE: int = 6
+
+const REF: int = 7
+
+const BOL: int = 8
+
+const EOL: int = 9
+
+const BOUND: int = 10
+
+const NOT_BOUND: int = 11
+
+const WORD_START: int = 12
+
+const WORD_END: int = 13
+
+const ACCEPT: int = 14
+
+struct Inst {
+    op: int,
+    x: int,
+    y: int,
+    arg: int,
+}
+
+/// Immutable instruction and class pools; share it with separate workspaces.
+pub struct Regex {
+    options: Options,
+    prog: List[Inst],
+    classes: List[bool],
+    starts: List[int],
+    span_starts: List[int],
+    backrefs: List[bool],
+    verify: List[bool],
+}
+
+/// Reusable state sets sized to one compiled program; no per-line allocation.
+pub struct Workspace {
+    pcs: List[int],
+    origins: List[int],
+    next_pcs: List[int],
+    next_origins: List[int],
+    marks: List[int],
+    stack: List[int],
+    generation: int,
+    count: int,
+    next_count: int,
+    visits: int,
+    branches: List[BacktrackFrame],
+    depth: int,
+    peak: int,
+    feasible: List[int],
+}
+
+fn zeros(n: int) -> List[int] {
+    var result = List[int]()
+    var i = 0
+    while i < n {
+        (mut result).push(0)
+        i += 1
+    }
+    result
+}
+
+/// Allocate bounded execution scratch once for this program.
+pub fn workspace_new(re: Regex) -> Workspace {
+    let n = re.prog.len
+    Workspace {
+        pcs: zeros(n),
+        origins: zeros(n),
+        next_pcs: zeros(n),
+        next_origins: zeros(n),
+        marks: zeros(n),
+        stack: zeros(2 * n + 1),
+        generation: 0,
+        count: 0,
+        next_count: 0,
+        visits: 0,
+        branches: List[BacktrackFrame](),
+        depth: 0,
+        peak: 0,
+        feasible: zeros(re.starts.len),
+    }
+}
+
+fn ascii_fold(c: int) -> int {
+    if c >= 65 && c <= 90 then c + 32 else c
+}
+
+fn is_word(c: int) -> bool {
+    c == 95 || c >= 48 && c <= 57 || c >= 65 && c <= 90 || c >= 97 && c <= 122
+}
+
+fn is_space(c: int) -> bool {
+    c == 32 || c >= 9 && c <= 13
+}
+
+fn assertion(op: int, bytes: List[byte], lo: int, hi: int, pos: int) -> bool {
+    if op == BOL { return pos == lo }
+    if op == EOL { return pos == hi }
+    let left = pos > lo && is_word(bytes[pos - 1] as int)
+    let right = pos < hi && is_word(bytes[pos] as int)
+    if op == BOUND { return left != right }
+    if op == NOT_BOUND { return left == right }
+    if op == WORD_START { return !left && right }
+    if op == WORD_END { return left && !right }
+    false
+}
+
+fn consumes(re: Regex, inst: Inst, b: byte) -> bool {
+    if b == re.options.terminator { return false }
+    let c = b as int
+    if inst.op == ANY { return true }
+    if inst.op == CLASS { return re.classes[inst.arg * 256 + c] }
+    if inst.op == CHAR {
+        return if re.options.icase then ascii_fold(c) == ascii_fold(inst.arg) else c == inst.arg
+    }
+    false
+}
+
+fn program_start(re: Regex, index: int, spans: bool) -> int {
+    if spans || re.verify[index] then re.span_starts[index] else re.starts[index]
+}
