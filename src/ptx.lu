@@ -10,7 +10,7 @@ use textio
 
 struct Text { bytes: List[byte], raw: List[byte], name: str }
 struct Entry { file: int, lo: int, hi: int, first: int, last: int, reference: str }
-struct Options { width: int, gap: int, auto: bool, refs: bool, right: bool, fold: bool, style: int, macro: str, flag: str, sentence: str, explicit_sentence: bool, word: str, breaks: List[byte], ignored: List[textio.Rec], only: List[textio.Rec], use_only: bool }
+struct Options { width: int, gap: int, auto: bool, refs: bool, right: bool, fold: bool, style: int, macro: str, flag: str, sentence: str, explicit_sentence: bool, word: str, breaks: List[byte], custom_breaks: bool, ignored: List[textio.Rec], only: List[textio.Rec], use_only: bool }
 struct Fields { tail: List[byte], before: List[byte], after: List[byte], head: List[byte], key: List[byte], rest: List[byte] }
 fn space(c: byte) -> bool { let n = c as int; n == 32 || n >= 9 && n <= 13 }
 fn alpha(c: byte) -> bool { let n = c as int; n >= 65 && n <= 90 || n >= 97 && n <= 122 }
@@ -24,7 +24,7 @@ fn decode(s: str) -> str {
     str_from_utf8(result) else s
 }
 fn member(word: List[byte], rows: List[textio.Rec], fold: bool) -> bool { for row in rows { if textio.cmp(word, row.data, fold) == 0 { return true } }; false }
-fn constituent(b: byte, breaks: List[byte]) -> bool { if breaks.len == 0 { return alpha(b) }; for c in breaks { if c == b { return false } }; true }
+fn constituent(b: byte, breaks: List[byte], custom: bool) -> bool { if !custom { return alpha(b) }; for c in breaks { if c == b { return false } }; true }
 fn readall(path: str) -> List[byte] ! {io} {
     let src = bore.open_input(path) else |_| { bore.input_error("ptx", path, bore.reason_of(bore.host_code())); return io }
     defer bore.close_input(src)
@@ -32,9 +32,25 @@ fn readall(path: str) -> List[byte] ! {io} {
     while !done { let chunk = bore.read_chunk(src, 65536) else |e| match e { eof => { done = true; List[byte]() }, io => { bore.warn("ptx", "read error: {bore.io_error()}"); return io } }; if chunk.len == 0 { done = true }; for b in chunk { (mut result).push(b) } }
     result
 }
+fn emacs(s: str) -> List[byte] {
+    var result = List[byte](), k = 0, bracket = false
+    while k < s.len {
+        let c = s.bytes()[k]; k += 1
+        if c == 92 as byte && k < s.len {
+            let d = s.bytes()[k]; k += 1
+            if d == 119 as byte { add(mut result, "[A-Za-z]") } else if d == 87 as byte { add(mut result, "[^A-Za-z]") } else if d == 43 as byte || d == 63 as byte { (mut result).push(d) } else { (mut result).push(c); (mut result).push(d) }
+        } else {
+            if c == 91 as byte { bracket = true }
+            if !bracket && (c == 43 as byte || c == 63 as byte) { (mut result).push(92 as byte) }
+            (mut result).push(c)
+            if c == 93 as byte { bracket = false }
+        }
+    }
+    result
+}
 fn compile(s: str) -> re.Regex ! {invalid} {
     var d = re.diagnostics_new()
-    re.compile([s.bytes()], re.Options { extended: false, icase: false, word: false, whole: false, terminator: 0 as byte }, mut d) else |_| { for item in d.items { bore.warn("ptx", str_from_utf8(item.text) else "invalid regular expression") }; return invalid }
+    re.compile([emacs(s)], re.Options { extended: false, icase: false, word: false, whole: false, terminator: 0 as byte }, mut d) else |_| { for item in d.items { bore.warn("ptx", str_from_utf8(item.text) else "invalid regular expression") }; return invalid }
 }
 fn index_text(mut entries: List[Entry], text: Text, file: int, o: Options) -> bool {
     var ends = [0]
@@ -72,8 +88,8 @@ fn index_text(mut entries: List[Entry], text: Text, file: int, o: Options) -> bo
             if span.lo > k { k += 1; continue }
             hi = span.hi
         } else {
-            if !constituent(text.raw[k], o.breaks) { k += 1; continue }
-            while hi < text.raw.len && constituent(text.raw[hi], o.breaks) { hi += 1 }
+            if !constituent(text.raw[k], o.breaks, o.custom_breaks) { k += 1; continue }
+            while hi < text.raw.len && constituent(text.raw[hi], o.breaks, o.custom_breaks) { hi += 1 }
         }
         k = hi
         let key = bytes(text.raw, lo, hi)
@@ -140,7 +156,7 @@ fn main() -> int {
     (mut spec).push(bore.flag("", "help")); (mut spec).push(bore.flag("", "version"))
     let p = bore.parse(spec, env_args(), bore.permute())
     var out = bore.stdout()
-    var o = Options { width: 72, gap: 3, auto: false, refs: false, right: false, fold: false, style: 0, macro: "xx", flag: "/", sentence: "", explicit_sentence: false, word: "", breaks: List[byte](), ignored: List[textio.Rec](), only: List[textio.Rec](), use_only: false }
+    var o = Options { width: 72, gap: 3, auto: false, refs: false, right: false, fold: false, style: 0, macro: "xx", flag: "/", sentence: "", explicit_sentence: false, word: "", breaks: List[byte](), custom_breaks: false, ignored: List[textio.Rec](), only: List[textio.Rec](), use_only: false }
     for k in 0..p.keys.len {
         let key = p.keys[k], v = p.values[k]
         if key == "help" || key == "version" { bore.put(mut out, if key == "version" then bore.version_text("ptx") else "Usage: ptx [OPTION]... [INPUT]...\nProduce a permuted keyword index.\n") else |_| {}; return bore.finish(mut out, "ptx", 0) }
@@ -150,7 +166,7 @@ fn main() -> int {
         if key == "format" { if v == "roff" { o.style = 1 } else if v == "tex" { o.style = 2 } else { return bore.usage_error("ptx", "invalid format {bore.quote_always(v)}") } }
         if key == "macro-name" { o.macro = v }; if key == "flag-truncation" { o.flag = decode(v) }
         if key == "sentence-regexp" { o.sentence = v; o.explicit_sentence = true }; if key == "word-regexp" { o.word = decode(v) }
-        if key == "break-file" { o.breaks = readall(v) else |_| { return 1 } }
+        if key == "break-file" { o.custom_breaks = true; o.breaks = readall(v) else |_| { return 1 } }
         if key == "ignore-file" || key == "only-file" { let rows = textio.load("ptx", v, 10); if rows.failed { return 1 }; if key == "ignore-file" { o.ignored = copy rows.items } else { o.only = copy rows.items; o.use_only = true } }
         if key == "traditional" { bore.warn("ptx", "unsupported option: traditional (-G) output"); return 1 }
     }
