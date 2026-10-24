@@ -5,6 +5,7 @@
 //! formatter implementation consulted. C-locale byte columns.
 
 use bore
+use pieceio
 
 struct Row {
     bytes: List[byte],
@@ -348,7 +349,7 @@ fn main() -> int {
     if paths.len == 0 { (mut paths).push("-") }
     var status = 0
     for path in paths {
-        let src = bore.open_input(path) else |_| {
+        let src = pieceio.input(path) else |_| {
             bore.warn(
                 "fmt",
                 "cannot open {bore.quote_always(path)} for reading: {bore.reason_of(bore.host_code())}",
@@ -361,7 +362,7 @@ fn main() -> int {
             let chunk = bore.read_chunk(src, 65536) else |e| match e {
                 eof => { done = true; List[byte]() },
                 io => {
-                    bore.warn("fmt", "read error: {bore.io_error()}")
+                    bore.warn("fmt", "error reading {bore.quote_always(path)}: {bore.io_error()}")
                     status = 1
                     done = true
                     List[byte]()

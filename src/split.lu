@@ -199,7 +199,7 @@ fn round_stream(
         let data = bore.read_chunk(src, 65536) else |e| match e {
             eof => { done = true; List[byte]() },
             io => {
-                bore.warn("split", "read error: {bore.io_error()}")
+                bore.input_error("split", bore.name_of(src), bore.io_error())
                 failed = true
                 List[byte]()
             },
@@ -401,7 +401,7 @@ fn main() -> int {
     }
     let path = if p.operands.len > 0 then p.operands[0] else "-"
     if p.operands.len > 1 { o.prefix = p.operands[1] }
-    let src = bore.open_input(path) else |_| {
+    let src = pieceio.input(path) else |_| {
         bore.warn(
             "split",
             "cannot open {bore.quote_always(path)} for reading: {bore.reason_of(bore.host_code())}",
@@ -433,7 +433,7 @@ fn main() -> int {
     while !done {
         let chunk = bore.read_chunk(src, 65536) else |e| match e {
             eof => { done = true; List[byte]() },
-            io => { bore.warn("split", "read error: {bore.io_error()}"); return 1 },
+            io => { bore.input_error("split", bore.name_of(src), bore.io_error()); return 1 },
         }
         if chunk.len == 0 { done = true }
         for b in chunk { (mut bs).push(b) }

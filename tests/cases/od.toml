@@ -721,3 +721,21 @@ stdin_file = "bu33-od-bytes"
 name = "directory input read failure"
 args = ["d"]
 scratch_dirs = ["d"]
+
+[[case]]
+name = "directory read policy ['-N0', 'd']"
+args = ["-N0", "d"]
+scratch_dirs = ["d"]
+scratch = { "empty" = "" }
+
+[[case]]
+name = "directory read policy ['-tx1', 'd', 'empty']"
+args = ["-tx1", "d", "empty"]
+scratch_dirs = ["d"]
+scratch = { "empty" = "" }
+
+[[case]]
+name = "directory read policy ['-j1', 'd']"
+args = ["-j1", "d"]
+scratch_dirs = ["d"]
+scratch = { "empty" = "" }

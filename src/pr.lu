@@ -6,6 +6,7 @@
 //! No foreign implementation consulted.
 
 use bore
+use pieceio
 use std.time
 use std.fmt
 
@@ -529,7 +530,7 @@ fn main() -> int {
     if paths.len == 0 { (mut paths).push("-") }
     var files = List[File](), status = 0
     for path in paths {
-        let src = bore.open_input(path) else |_| {
+        let src = pieceio.input(path) else |_| {
             if !o.quiet { bore.input_error("pr", path, bore.reason_of(bore.host_code())) }
             status = 1
             continue
@@ -539,6 +540,7 @@ fn main() -> int {
             let chunk = bore.read_chunk(src, 65536) else |e| match e {
                 eof => { done = true; List[byte]() },
                 io => {
+                    bore.input_error("pr", path, bore.io_error())
                     status = 1
                     done = true
                     List[byte]()
@@ -559,9 +561,9 @@ fn main() -> int {
                 }
             }
         }
+        let rec = if path == "-" then List[int]() else (fs_fstat_record(src.fd) else |_| { fs_stat(path) else |_| { List[int]() } })
         bore.close_input(src)
         if line.len > 0 { (mut rows).push(Row { bytes: line, page: false }) }
-        let rec = if path == "-" then List[int]() else (fs_stat(path) else |_| { List[int]() })
         let stamp = if rec.len > 0 then bore.rec_secs(rec, 0) else bore.instant_now().secs
         (mut files).push(File { rows: rows, name: if path == "-" then "" else path, stamp: stamp })
     }

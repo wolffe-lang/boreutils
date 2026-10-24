@@ -706,3 +706,18 @@ skip = "R-bu33-3 / ruling 123: preserve and refuse input-inode collisions; GNU t
 name = "directory input read failure"
 args = ["d", "2"]
 scratch_dirs = ["d"]
+
+[[case]]
+name = "directory read error ['-s']"
+args = ["-s", "d", "2"]
+scratch_dirs = ["d"]
+
+[[case]]
+name = "directory read error ['-z']"
+args = ["-z", "d", "2"]
+scratch_dirs = ["d"]
+
+[[case]]
+name = "directory read error ['-k']"
+args = ["-k", "d", "2"]
+scratch_dirs = ["d"]

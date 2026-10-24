@@ -6,6 +6,7 @@
 //! arithmetic reuses this repository's own printf through floattext.
 
 use bore
+use pieceio
 use floattext
 use std.fmt
 
@@ -424,10 +425,10 @@ fn main() -> int {
         o.width = multiple
     }
     if !width_given && o.width < multiple { o.width = multiple }
-    var data = List[byte](), skipped = 0, status = 0, done = false, opened = false
+    var data = List[byte](), skipped = 0, status = 0, done = false, opened = false, read_failed = false, valid_read = false
     for path in paths {
         if done { break }
-        let src = bore.open_input(path) else |_| {
+        let src = pieceio.input(path) else |_| {
             bore.input_error("od", path, bore.reason_of(bore.host_code()))
             status = 1
             continue
@@ -443,12 +444,14 @@ fn main() -> int {
             ) else |e| match e {
                 eof => { eof = true; List[byte]() },
                 io => {
-                    bore.warn("od", "read error: {bore.io_error()}")
+                    bore.input_error("od", path, bore.io_error())
+                    good_read = false; read_failed = true
                     status = 1
                     eof = true
                     List[byte]()
                 },
             }
+            if good_read { valid_read = true }
             if chunk.len == 0 { eof = true }
             if skipped < o.skip {
                 skipped += chunk.len
@@ -458,7 +461,7 @@ fn main() -> int {
         }
         bore.close_input(src)
     }
-    if !opened { return status }
+    if !opened || data.len == 0 && read_failed && !valid_read { return status }
     if skipped < o.skip { bore.warn("od", "cannot skip past end of combined input"); return 1 }
     if o.strings > 0 {
         var start = 0

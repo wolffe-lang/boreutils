@@ -5,6 +5,7 @@
 //! uses the org-owned clean-room scent engine (see re's origin header).
 
 use bore
+use pieceio
 use re
 use textio
 
@@ -100,7 +101,7 @@ fn constituent(b: byte, breaks: List[byte], custom: bool) -> bool {
 }
 
 fn readall(path: str) -> List[byte] ! {io} {
-    let src = bore.open_input(path) else |_| {
+    let src = pieceio.input(path) else |_| {
         bore.input_error("ptx", path, bore.reason_of(bore.host_code()))
         return io
     }
@@ -109,7 +110,7 @@ fn readall(path: str) -> List[byte] ! {io} {
     while !done {
         let chunk = bore.read_chunk(src, 65536) else |e| match e {
             eof => { done = true; List[byte]() },
-            io => { bore.warn("ptx", "read error: {bore.io_error()}"); return io },
+            io => { bore.input_error("ptx", path, bore.io_error()); return io },
         }
         if chunk.len == 0 { done = true }
         for b in chunk { (mut result).push(b) }
