@@ -164,7 +164,11 @@ fn print_files(mut out: bore.Out, files: List[File], o: Options) -> bool {
             }
         } else {
             var pos = cursors[0]
-            while pos < files[0].rows.len { if files[0].rows[pos].page { explicit_end = true; break }; available += 1; pos += 1 }
+            while pos < files[0].rows.len {
+                if files[0].rows[pos].page { explicit_end = true; break }
+                available += 1
+                pos += 1
+            }
         }
         if available <= 0 && !explicit_end { break }
         var columns = o.cols
@@ -185,7 +189,10 @@ fn print_files(mut out: bore.Out, files: List[File], o: Options) -> bool {
         if page > o.lastpage { break }
         if shown && !o.omit { if !header(mut out, files[0], page, o) { return false } }
         var printed = 0, consumed = 0, broke = false
-        if count == 0 && explicit_end && shown && !o.omit { bore.put(mut out, "\n") else |_| { return false }; printed = 1 }
+        if count == 0 && explicit_end && shown && !o.omit {
+            bore.put(mut out, "\n") else |_| { return false }
+            printed = 1
+        }
         for r in 0..rows {
             var line = List[byte](), barriers = List[int]()
             pad(mut line, o.margin)
@@ -531,7 +538,10 @@ fn main() -> int {
                     if line.len > 0 { (mut rows).push(Row { bytes: line, page: false }); line = List[byte]() }
                     if !o.no_pages { (mut rows).push(Row { bytes: List[byte](), page: true }) }
                     after_formfeed = true
-                } else { (mut line).push(b); after_formfeed = false }
+                } else {
+                    (mut line).push(b)
+                    after_formfeed = false
+                }
             }
         }
         bore.close_input(src)

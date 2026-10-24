@@ -1,19 +1,32 @@
 //! Independent arithmetic controls, including carries above bit 63.
+
 fn test_montgomery_high_products() {
     let moduli: List[wrapping[u64]] = [3, 17, 4294967291, 18446744073709551557]
-    let operands: List[wrapping[u64]] = [0, 1, 4294967295, 9223372036854775808, 18446744073709551615]
+    let operands: List[wrapping[u64]] = [
+        0,
+        1,
+        4294967295,
+        9223372036854775808,
+        18446744073709551615,
+    ]
     for n in moduli {
         let m = modulus(n)
-        for a in operands { for b in operands {
-            let got = multiply(multiply(encoded(a, m), encoded(b, m), m), 1, m)
-            assert(got == slow_product(a % n, b % n, n), "Montgomery product")
-        } }
+        for a in operands {
+            for b in operands {
+                let got = multiply(multiply(encoded(a, m), encoded(b, m), m), 1, m)
+                assert(got == slow_product(a % n, b % n, n), "Montgomery product")
+            }
+        }
     }
 }
+
 fn test_small_factor_controls() {
     assert(factors(0).len == 0 && factors(1).len == 0, "zero and one")
     let f = factors(360)
-    assert(f.len == 6 && f[0] == 2 && f[1] == 2 && f[2] == 2 && f[3] == 3 && f[4] == 3 && f[5] == 5, "sorted multiplicities")
+    assert(
+        f.len == 6 && f[0] == 2 && f[1] == 2 && f[2] == 2 && f[3] == 3 && f[4] == 3 && f[5] == 5,
+        "sorted multiplicities",
+    )
     assert(prime(18446744073709551557), "largest u64 prime")
     assert(!prime(341550071728321) && !prime(3825123056546413051), "strong pseudoprime controls")
 }

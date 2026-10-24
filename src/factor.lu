@@ -14,15 +14,47 @@ fn quoted(word: str) -> str {
     var result = "'"
     for b in word.bytes() {
         let c = b as int
-        if c == 39 { result += "\\'" } else if c == 92 { result += "\\\\" } else if c == 9 { result += "\\t" } else if c == 10 { result += "\\n" } else if c == 13 { result += "\\r" } else if c == 7 { result += "\\a" } else if c == 8 { result += "\\b" } else if c == 11 { result += "\\v" } else if c == 12 { result += "\\f" } else if c < 32 || c >= 127 { result += "\\" + fmt.pad_left_with(fmt.to_str_base(c, 8) else "0", 3, "0") } else { result += str_from_utf8([b]) else "?" }
+        if c == 39 {
+            result += "\\'"
+        } else if c == 92 {
+            result += "\\\\"
+        } else if c == 9 {
+            result += "\\t"
+        } else if c == 10 {
+            result += "\\n"
+        } else if c == 13 {
+            result += "\\r"
+        } else if c == 7 {
+            result += "\\a"
+        } else if c == 8 {
+            result += "\\b"
+        } else if c == 11 {
+            result += "\\v"
+        } else if c == 12 {
+            result += "\\f"
+        } else if c < 32 || c >= 127 {
+            result += "\\" + fmt.pad_left_with(fmt.to_str_base(c, 8) else "0", 3, "0")
+        } else {
+            result += str_from_utf8([b]) else "?"
+        }
     }
     result + "'"
 }
+
 fn number_impl(out: bore.Out, word: str, exponents: bool) -> int {
     var bad = false, large = false
-    let value = numcli.unsigned(word) else |e| match e { parse => { bad = true; 0 as wrapping[u64] }, overflow => { large = true; 0 as wrapping[u64] } }
+    let value = numcli.unsigned(word) else |e| match e {
+        parse => { bad = true; 0 as wrapping[u64] },
+        overflow => { large = true; 0 as wrapping[u64] },
+    }
     if bad { bore.warn("factor", "{quoted(word)} is not a valid positive integer"); return 1 }
-    if large { bore.warn("factor", "unsupported integer: {bore.quote_always(word)} exceeds 64 bits (wolf-std#100)"); return 1 }
+    if large {
+        bore.warn(
+            "factor",
+            "unsupported integer: {bore.quote_always(word)} exceeds 64 bits (wolf-std#100)",
+        )
+        return 1
+    }
     let factors = factorcore.factors(value)
     var line = bore.u64_text(value) + ":"
     var k = 0
@@ -32,41 +64,88 @@ fn number_impl(out: bore.Out, word: str, exponents: bool) -> int {
         while end < factors.len && factors[end] == p { end += 1 }
         if exponents {
             line += " " + bore.u64_text(p) + (if end - k > 1 then "^{end - k}" else "")
-        } else { for _ in k..end { line += " " + bore.u64_text(p) } }
+        } else {
+            for _ in k..end { line += " " + bore.u64_text(p) }
+        }
         k = end
     }
-    bore.write_direct(out, (line + "\n").bytes()) else |_| { bore.write_error(out, "factor", "write error"); return -1 }
+    bore.write_direct(out, (line + "\n").bytes()) else |_| {
+        bore.write_error(out, "factor", "write error")
+        return -1
+    }
     0
 }
+
 fn number(out: bore.Out, word: str, exponents: bool) -> int {
     region record { number_impl(out, word, exponents) }
 }
+
 fn main() -> int {
     var spec = List[bore.Opt]()
-    (mut spec).push(bore.flag("h", "exponents")); (mut spec).push(bore.flag("", "help")); (mut spec).push(bore.flag("", "version"))
+    (mut spec).push(bore.flag("h", "exponents"))
+    (mut spec).push(bore.flag("", "help"))
+    (mut spec).push(bore.flag("", "version"))
     let p = bore.parse(spec, env_args(), bore.permute())
     var out = bore.stdout(), exponents = false
     for key in p.keys {
-        if key == "help" || key == "version" { bore.put(mut out, if key == "version" then bore.version_text("factor") else "Usage: factor [OPTION] [NUMBER]...\nPrint prime factors of unsigned 64-bit integers.\n-h, --exponents prints repeated factors with exponents.\nLarger integers require wolf-std#100.\n") else |_| {}; return bore.finish(mut out, "factor", 0) }
+        if key == "help" || key == "version" {
+            bore.put(
+                mut out,
+                if key == "version" {
+                    bore.version_text("factor")
+                } else {
+                    "Usage: factor [OPTION] [NUMBER]...\nPrint prime factors of unsigned 64-bit integers.\n-h, --exponents prints repeated factors with exponents.\nLarger integers require wolf-std#100.\n"
+                },
+            ) else |_| {}
+            return bore.finish(mut out, "factor", 0)
+        }
         if key == "exponents" { exponents = true }
     }
     if !bore.ok(p) { return bore.usage_error("factor", p.error) }
     var status = 0
-    if p.operands.len > 0 { for word in p.operands { let code = number(out, word, exponents); if code < 0 { return 1 }; if code != 0 { status = 1 } } } else {
-        let src = bore.open_input("-") else |_| { bore.warn("factor", "read error: {bore.io_error()}"); return 1 }
+    if p.operands.len > 0 {
+        for word in p.operands {
+            let code = number(out, word, exponents)
+            if code < 0 { return 1 }
+            if code != 0 { status = 1 }
+        }
+    } else {
+        let src = bore.open_input("-") else |_| {
+            bore.warn("factor", "read error: {bore.io_error()}")
+            return 1
+        }
         defer bore.close_input(src)
         var token = List[byte](), done = false
         while !done {
-            let chunk = bore.read_chunk(src, 65536) else |e| match e { eof => { done = true; List[byte]() }, io => { bore.warn("factor", "read error: {bore.io_error()}"); status = 1; done = true; List[byte]() } }
+            let chunk = bore.read_chunk(src, 65536) else |e| match e {
+                eof => { done = true; List[byte]() },
+                io => {
+                    bore.warn("factor", "read error: {bore.io_error()}")
+                    status = 1
+                    done = true
+                    List[byte]()
+                },
+            }
             if chunk.len == 0 { done = true }
             for b in chunk {
                 let c = b as int
                 if c == 32 || c == 9 || c == 10 {
-                    if token.len > 0 { let code = number(out, str_from_utf8(token) else "<non-UTF-8>", exponents); if code < 0 { return 1 }; if code != 0 { status = 1 }; token = List[byte]() }
-                } else { (mut token).push(b) }
+                    if token.len > 0 {
+                        let code = number(out, str_from_utf8(token) else "<non-UTF-8>", exponents)
+                        if code < 0 { return 1 }
+                        if code != 0 { status = 1 }
+                        token = List[byte]()
+                    }
+                } else {
+                    (mut token).push(b)
+                }
             }
         }
-        if token.len > 0 { let code = number(out, str_from_utf8(token) else "<non-UTF-8>", exponents); if code < 0 { return 1 }; if code != 0 { status = 1 } }
+        if token.len > 0 {
+            let code = number(out, str_from_utf8(token) else "<non-UTF-8>", exponents)
+            if code < 0 { return 1 }
+            if code != 0 { status = 1 }
+        }
     }
     bore.finish(mut out, "factor", status)
 }

@@ -228,7 +228,10 @@ fn main() -> int {
     let path = if p.operands.len > 0 then p.operands[0] else "-"
     if p.operands.len > 1 { o.prefix = p.operands[1] }
     let src = bore.open_input(path) else |_| {
-        bore.warn("split", "cannot open {bore.quote_always(path)} for reading: {bore.reason_of(bore.host_code())}")
+        bore.warn(
+            "split",
+            "cannot open {bore.quote_always(path)} for reading: {bore.reason_of(bore.host_code())}",
+        )
         return 1
     }
     defer bore.close_input(src)

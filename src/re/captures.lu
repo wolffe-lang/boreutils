@@ -56,7 +56,20 @@ fn capture_prefix_at(
             if (!nonempty || pos > origin) &&
                 (!re.options.whole || pos == hi) &&
                 (!re.options.word || re.options.whole || pos == hi || !is_word(bytes[pos] as int)) {
-                if pos > best || pos == best && (capture_get(caps, 2) >= 0 && (capture_get(winning, 2) < 0 || capture_get(caps, 2) < capture_get(winning, 2) || capture_get(caps, 2) == capture_get(winning, 2) && capture_get(caps, 3) > capture_get(winning, 3))) { best = pos; winning = copy caps }
+                if pos > best ||
+                    pos == best &&
+                        (
+                            capture_get(caps, 2) >= 0 &&
+                                (
+                                    capture_get(winning, 2) < 0 ||
+                                        capture_get(caps, 2) < capture_get(winning, 2) ||
+                                        capture_get(caps, 2) == capture_get(winning, 2) &&
+                                            capture_get(caps, 3) > capture_get(winning, 3)
+                                )
+                        ) {
+                    best = pos
+                    winning = copy caps
+                }
             }
         } else if inst.op == SPLIT || inst.op == JUMP {
             branch_push(mut ws, inst.x, pos, caps)
@@ -75,21 +88,45 @@ fn capture_prefix_at(
     PrefixCapture { end: best, caps: winning }
 }
 
-
 /// Compile one BRE with capture retention and match at byte zero.
-pub fn match_prefix(pattern: List[byte], bytes: List[byte], mut diagnostics: Diagnostics) -> PrefixMatch ! {invalid} {
-    let options = Options { extended: false, icase: false, word: false, whole: false, terminator: 0 as byte }
+pub fn match_prefix(
+    pattern: List[byte],
+    bytes: List[byte],
+    mut diagnostics: Diagnostics,
+) -> PrefixMatch ! {invalid} {
+    let options = Options {
+        extended: false,
+        icase: false,
+        word: false,
+        whole: false,
+        terminator: 0 as byte,
+    }
     var parsed = parse(pattern, options, mut diagnostics, 0)
     if parsed.failed { return invalid }
     let groups = parsed.group
     parsed.has_ref = true
-    var re = Regex { options: options, prog: List[Inst](), classes: copy parsed.classes, starts: List[int](), span_starts: List[int](), backrefs: List[bool](), verify: List[bool]() }
+    var re = Regex {
+        options: options,
+        prog: List[Inst](),
+        classes: copy parsed.classes,
+        starts: List[int](),
+        span_starts: List[int](),
+        backrefs: List[bool](),
+        verify: List[bool](),
+    }
     let end = emit(mut re.prog, ACCEPT, 0, 0, 0)
     let root = compile_tree(mut re.prog, parsed, 0, end)
     var ws = workspace_new(re)
     let found = capture_prefix_at(re, mut ws, root, bytes, 0, bytes.len, 0, false, false)
     var text = List[byte]()
     let start = capture_get(found.caps, 2), stop = capture_get(found.caps, 3)
-    if found.end >= 0 && start >= 0 && stop >= start { for k in start..stop { (mut text).push(bytes[k]) } }
-    PrefixMatch { matched: found.end >= 0, length: if found.end >= 0 then found.end else 0, group: groups > 0, text: text }
+    if found.end >= 0 && start >= 0 && stop >= start {
+        for k in start..stop { (mut text).push(bytes[k]) }
+    }
+    PrefixMatch {
+        matched: found.end >= 0,
+        length: if found.end >= 0 then found.end else 0,
+        group: groups > 0,
+        text: text,
+    }
 }

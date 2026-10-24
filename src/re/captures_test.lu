@@ -1,10 +1,26 @@
 //! Expr-specific capture and anchoring checks; no oracle-derived expected code.
+
 fn test_expr_prefix_captures() {
     var d = diagnostics_new()
-    let a = match_prefix("\\(ab*\\)".bytes(), "abbbx".bytes(), mut d) else { assert(false, "BRE compiles"); return }
-    assert(a.matched && a.length == 4 && a.group && (str_from_utf8(a.text) else "?") == "abbb", "first capture")
-    let b = match_prefix("b*".bytes(), "abbb".bytes(), mut d) else { assert(false, "BRE compiles"); return }
+    let a = match_prefix("\\(ab*\\)".bytes(), "abbbx".bytes(), mut d) else {
+        assert(false, "BRE compiles")
+        return
+    }
+    assert(
+        a.matched && a.length == 4 && a.group && (str_from_utf8(a.text) else "?") == "abbb",
+        "first capture",
+    )
+    let b = match_prefix("b*".bytes(), "abbb".bytes(), mut d) else {
+        assert(false, "BRE compiles")
+        return
+    }
     assert(b.matched && b.length == 0 && !b.group, "empty prefix, not later match")
-    let c = match_prefix("\\(a*\\)b\\1".bytes(), "aaabaaa".bytes(), mut d) else { assert(false, "BRE compiles"); return }
-    assert(c.matched && c.length == 7 && (str_from_utf8(c.text) else "?") == "aaa", "backreference capture")
+    let c = match_prefix("\\(a*\\)b\\1".bytes(), "aaabaaa".bytes(), mut d) else {
+        assert(false, "BRE compiles")
+        return
+    }
+    assert(
+        c.matched && c.length == 7 && (str_from_utf8(c.text) else "?") == "aaa",
+        "backreference capture",
+    )
 }

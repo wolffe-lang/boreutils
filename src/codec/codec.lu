@@ -130,7 +130,8 @@ fn value(c: int, width: int, table: str) -> int {
         return -1
     }
     if width == 6 && table.ends_with("-_") {
-        if c == 45 { return 62 }; if c == 95 { return 63 }
+        if c == 45 { return 62 }
+        if c == 95 { return 63 }
         if c == 43 || c == 47 { return -1 }
     }
     if c >= 65 && c <= 90 { return c - 65 }
@@ -298,7 +299,16 @@ fn group32(block: List[int], mut bytes: List[byte], table: str) -> bool {
 
 /// Shared RFC 4648 transformation for base64/base32 and basenc variants.
 /// Alphabets contain exactly 2^width bytes; width is five or six.
-pub fn transform(src: bore.In, out: bore.Out, prog: str, width: int, table: str, decode: bool, ignore: bool, wrap: int) -> int {
+pub fn transform(
+    src: bore.In,
+    out: bore.Out,
+    prog: str,
+    width: int,
+    table: str,
+    decode: bool,
+    ignore: bool,
+    wrap: int,
+) -> int {
     assert((width == 5 || width == 6) && table.len == 1 << width, "RFC alphabet width")
     if decode { return decoding(src, out, prog, width, ignore, table) }
     encoding(src, out, prog, width, wrap, table)

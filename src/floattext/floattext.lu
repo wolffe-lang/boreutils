@@ -5,7 +5,9 @@
 //! GNU coreutils 9.11 binaries are the oracle, never implementation source.
 
 struct Host { mant: int, emin_lsb: int, emax: int }
+
 fn push_str(mut b: List[byte], s: str) { for c in s.bytes() { (mut b).push(c) } }
+
 fn hex_digit(c: int) -> int {
     if c >= 48 && c <= 57 {
         return c - 48
@@ -723,7 +725,10 @@ struct Conv {
 
 fn to_host(lx: Lex, h: Host) -> Conv {
     if lx.kind != 0 {
-        return Conv { v: Number { kind: lx.kind, neg: lx.neg, m: List[int](), e: 0 }, erange: false }
+        return Conv {
+            v: Number { kind: lx.kind, neg: lx.neg, m: List[int](), e: 0 },
+            erange: false,
+        }
     }
     let zero = Number { kind: 0, neg: lx.neg, m: List[int](), e: 0 }
     let inf = Number { kind: 1, neg: lx.neg, m: List[int](), e: 0 }
@@ -999,13 +1004,17 @@ fn fmt_g(v: Number, prec: int, alt: bool, upper: bool) -> List[byte] {
     r
 }
 
-
 fn mantissa(n: wrapping[u64]) -> List[int] {
     var result = List[int](), v = n
     while v != 0 { (mut result).push((v & 16777215) as int); v = v >> 24 }
     result
 }
-fn same(a: Number, b: Number) -> bool { a.kind == b.kind && a.neg == b.neg && (a.kind != 0 || a.m.len == 0 && b.m.len == 0 || a.e == b.e && bn_cmp(a.m, b.m) == 0) }
+
+fn same(a: Number, b: Number) -> bool {
+    a.kind == b.kind &&
+        a.neg == b.neg &&
+        (a.kind != 0 || a.m.len == 0 && b.m.len == 0 || a.e == b.e && bn_cmp(a.m, b.m) == 0)
+}
 
 /// Render an IEEE binary16/bfloat16/binary32/binary64/x87 value using
 /// the smallest %g precision that reads back to its value. GNU formats
@@ -1016,7 +1025,7 @@ pub fn shortest(raw: List[byte], kind: int, big: bool) -> str {
     for k in 0..raw.len { (mut data).push(raw[if big then raw.len - k - 1 else k]) }
     var bits: wrapping[u64] = 0
     let count = if data.len < 8 then data.len else 8
-    for k in 0..count { bits |= (data[k] as int as wrapping[u64]) << (8 * k) as wrapping[u64] }
+    for k in 0..count { bits |= data[k] as int as wrapping[u64] << (8 * k) as wrapping[u64] }
     var h = Host { mant: 24, emin_lsb: -149, emax: 127 }
     var negative = false, exponent = 0, fraction: wrapping[u64] = 0, special = 0, shift = 0
     if kind == 16 {
@@ -1026,35 +1035,69 @@ pub fn shortest(raw: List[byte], kind: int, big: bool) -> str {
         exponent = tag % 32768
         fraction = bits
         let integer = bits >> 63 != 0
-        if exponent == 32767 { special = if bits == 9223372036854775808 then 1 else 2 } else if exponent > 0 && !integer { special = 2 }
+        if exponent == 32767 {
+            special = if bits == 9223372036854775808 then 1 else 2
+        } else if exponent > 0 && !integer {
+            special = 2
+        }
         shift = (if exponent == 0 then 1 else exponent) - 16383 - 63
     } else {
         var fracbits = 23, expbits = 8, bias = 127
-        if kind == 8 { fracbits = 52; expbits = 11; bias = 1023; h = Host { mant: 53, emin_lsb: -1074, emax: 1023 } }
-        if kind == 2 { fracbits = 10; expbits = 5; bias = 15 }
+        if kind == 8 {
+            fracbits = 52
+            expbits = 11
+            bias = 1023
+            h = Host { mant: 53, emin_lsb: -1074, emax: 1023 }
+        }
+        if kind == 2 {
+            fracbits = 10
+            expbits = 5
+            bias = 15
+        }
         if kind == 3 { fracbits = 7 }
         let expmask = (1 << expbits) - 1
         negative = bits >> (fracbits + expbits) as wrapping[u64] != 0
-        exponent = ((bits >> fracbits as wrapping[u64]) & expmask as wrapping[u64]) as int
-        fraction = bits & ((1 as wrapping[u64] << fracbits as wrapping[u64]) - 1)
-        if exponent == expmask { special = if fraction == 0 then 1 else 2 } else if exponent > 0 { fraction |= 1 as wrapping[u64] << fracbits as wrapping[u64] }
+        exponent = (bits >> fracbits as wrapping[u64] & expmask as wrapping[u64]) as int
+        fraction = bits & (1 as wrapping[u64] << fracbits as wrapping[u64]) - 1
+        if exponent == expmask {
+            special = if fraction == 0 then 1 else 2
+        } else if exponent > 0 {
+            fraction |= 1 as wrapping[u64] << fracbits as wrapping[u64]
+        }
         shift = (if exponent == 0 then 1 else exponent) - bias - fracbits
     }
     if special == 2 { return if negative then "-nan" else "nan" }
     if special == 1 { return if negative then "-inf" else "inf" }
-    let exact = Lex { kind: 0, neg: negative, m: mantissa(fraction), e: shift, hex: true, ndig: 0, start: 0, end: 0 }
+    let exact = Lex {
+        kind: 0,
+        neg: negative,
+        m: mantissa(fraction),
+        e: shift,
+        hex: true,
+        ndig: 0,
+        start: 0,
+        end: 0,
+    }
     let v = to_host(exact, h).v
     let maxdigits = if kind == 16 then 21 else if kind == 8 then 17 else 9
     let firstdigits = if kind == 16 then 18 else if kind == 8 then 15 else 6
     for p in 1..maxdigits + 1 {
         var candidate = fmt_g(v, p, false, false)
-        if negative { var signed = "-".bytes(); for b in candidate { (mut signed).push(b) }; candidate = signed }
+        if negative {
+            var signed = "-".bytes()
+            for b in candidate { (mut signed).push(b) }
+            candidate = signed
+        }
         let converted = to_host(lex_float(candidate), h).v
         if same(v, converted) {
             let exponent10 = if v.m.len == 0 then 0 else sci(v, p - 1).x10
             if exponent10 >= -4 && exponent10 < firstdigits && exponent10 >= p {
                 candidate = fmt_f(v, 0, false)
-                if negative { var signed = "-".bytes(); for b in candidate { (mut signed).push(b) }; candidate = signed }
+                if negative {
+                    var signed = "-".bytes()
+                    for b in candidate { (mut signed).push(b) }
+                    candidate = signed
+                }
             }
             return str_from_utf8(candidate) else "?"
         }
@@ -1065,25 +1108,36 @@ pub fn shortest(raw: List[byte], kind: int, big: bool) -> str {
 fn arithmetic_host() -> Host {
     if os_name() == "macos" { return Host { mant: 53, emin_lsb: -1074, emax: 1023 } }
     let arch = os_arch()
-    if arch == "aarch64" || arch == "arm64" { return Host { mant: 113, emin_lsb: -16494, emax: 16383 } }
+    if arch == "aarch64" || arch == "arm64" {
+        return Host { mant: 113, emin_lsb: -16494, emax: 16383 }
+    }
     Host { mant: 64, emin_lsb: -16445, emax: 16383 }
 }
+
 fn rounded_number(v: Number) -> Number {
-    to_host(Lex { kind: v.kind, neg: v.neg, m: copy v.m, e: v.e, hex: true, ndig: 0, start: 0, end: 0 }, arithmetic_host()).v
+    to_host(
+        Lex { kind: v.kind, neg: v.neg, m: copy v.m, e: v.e, hex: true, ndig: 0, start: 0, end: 0 },
+        arithmetic_host(),
+    ).v
 }
+
 /// Parse a complete finite decimal at the host long-double precision.
 pub fn parse_number(s: str) -> Number ! {parse} {
     let lx = lex_float(s.bytes())
     if lx.kind != 0 || lx.end != s.len || lx.start == lx.end { return parse }
     let v = to_host(lx, arithmetic_host()).v
-    if v.kind != 0 { return parse }; v
+    if v.kind != 0 { return parse }
+    v
 }
+
 /// A small nonnegative exact integer.
 pub fn integer(n: int) -> Number { Number { kind: 0, neg: false, m: bn_of(n), e: 0 } }
+
 /// Host-rounded product of two finite dyadic numbers.
 pub fn product(a: Number, b: Number) -> Number {
     rounded_number(Number { kind: 0, neg: a.neg != b.neg, m: bn_mul(a.m, b.m), e: a.e + b.e })
 }
+
 /// Host-rounded quotient. The caller supplies a nonzero finite divisor.
 pub fn quotient(a: Number, b: Number) -> Number {
     let h = arithmetic_host()
@@ -1101,18 +1155,27 @@ pub fn quotient(a: Number, b: Number) -> Number {
     }
     rounded_number(Number { kind: 0, neg: a.neg != b.neg, m: q, e: e })
 }
+
 /// Compare the absolute value with a small nonnegative integer.
 pub fn compare_integer(v: Number, n: int) -> int {
     if v.e >= 0 { return bn_cmp(bn_shl(v.m, v.e), bn_of(n)) }
     bn_cmp(v.m, bn_shl(bn_of(n), -v.e))
 }
+
 /// Format a fixed decimal with explicit scaling-round semantics.
 /// modes: 0 away, 1 toward zero, 2 up, 3 down, 4 nearest-away, 5 nearest-even.
 pub fn fixed(v: Number, places: int, mode: int) -> str {
-    let scaled_value = rounded_number(Number { kind: 0, neg: v.neg, m: bn_mul(v.m, bn_pow(10, places)), e: v.e })
+    let scaled_value = rounded_number(Number {
+        kind: 0,
+        neg: v.neg,
+        m: bn_mul(v.m, bn_pow(10, places)),
+        e: v.e,
+    })
     let scaled = copy scaled_value.m
     var q = List[int]()
-    if scaled_value.e >= 0 { q = bn_shl(scaled, scaled_value.e) } else {
+    if scaled_value.e >= 0 {
+        q = bn_shl(scaled, scaled_value.e)
+    } else {
         let shift = -scaled_value.e
         q = bn_shr(scaled, shift)
         let inexact = bn_low_nonzero(scaled, shift)
@@ -1121,14 +1184,20 @@ pub fn fixed(v: Number, places: int, mode: int) -> str {
         if mode == 2 { increment = inexact && !v.neg }
         if mode == 3 { increment = inexact && v.neg }
         if mode == 4 { increment = bn_bit(scaled, shift - 1) != 0 }
-        if mode == 5 { increment = bn_bit(scaled, shift - 1) != 0 && (bn_low_nonzero(scaled, shift - 1) || bn_bit(q, 0) != 0) }
+        if mode == 5 {
+            increment = bn_bit(scaled, shift - 1) != 0 &&
+                (bn_low_nonzero(scaled, shift - 1) || bn_bit(q, 0) != 0)
+        }
         if increment { q = bn_add_small(q, 1) }
     }
     var digits = bn_dec(q), result = List[byte]()
     if v.neg && q.len > 0 { (mut result).push(45 as byte) }
     var width = places + 1 - digits.len
     while width > 0 { (mut result).push(48 as byte); width -= 1 }
-    for k in 0..digits.len { if places > 0 && digits.len - k == places { (mut result).push(46 as byte) }; (mut result).push(digits[k]) }
+    for k in 0..digits.len {
+        if places > 0 && digits.len - k == places { (mut result).push(46 as byte) }
+        (mut result).push(digits[k])
+    }
     // When zeros were prepended, the point belongs inside that prefix.
     if places >= digits.len {
         result = List[byte]()

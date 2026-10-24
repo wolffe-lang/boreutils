@@ -9,11 +9,15 @@ use bore
 use codec
 use numcli
 
-fn z85() -> str { "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-:+=^!/*?&<>()[]{{}}@%$#" }
+fn z85() -> str {
+    "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-:+=^!/*?&<>()[]{{}}@%$#"
+}
+
 fn emit(mut bytes: List[byte], c: byte, wrap: int, mut column: int) {
     (mut bytes).push(c)
     if wrap > 0 { column += 1; if column == wrap { (mut bytes).push(10 as byte); column = 0 } }
 }
+
 fn block_z85(bs: List[byte], mut output: List[byte], wrap: int, mut column: int) {
     let table = z85()
     var k = 0
@@ -21,57 +25,90 @@ fn block_z85(bs: List[byte], mut output: List[byte], wrap: int, mut column: int)
         var value = 0
         for j in 0..4 { value = value * 256 + bs[k + j] as int }
         var digits = [0, 0, 0, 0, 0], j = 4
-        while j >= 0 { digits[j] = value % 85; value /= 85; j -= 1 }
+        while j >= 0 {
+            digits[j] = value % 85
+            value /= 85
+            j -= 1
+        }
         for d in digits { emit(mut output, table.bytes()[d], wrap, mut column) }
         k += 4
     }
 }
+
 fn encode(src: bore.In, out: bore.Out, kind: int, wrap: int) -> int {
     var column = 0, done = false, pending = List[byte]()
     let block = if kind == 8 then 30720 else 65536
     while !done {
         region pass {
-            let chunk = bore.read_chunk(src, block - pending.len) else |e| match e { eof => { done = true; List[byte]() }, io => { bore.warn("basenc", "read error: {bore.io_error()}"); return 1 } }
+            let chunk = bore.read_chunk(src, block - pending.len) else |e| match e {
+                eof => { done = true; List[byte]() },
+                io => { bore.warn("basenc", "read error: {bore.io_error()}"); return 1 },
+            }
             if chunk.len == 0 { done = true }
             var output = List[byte]()
             if kind == 8 {
                 for b in chunk { (mut pending).push(b) }
                 if pending.len == block || done {
-                    if pending.len % 4 != 0 { bore.warn("basenc", "invalid input (length must be multiple of 4 characters)"); return 1 }
-                    block_z85(pending, mut output, wrap, mut column); (mut pending).clear()
+                    if pending.len % 4 != 0 {
+                        bore.warn(
+                            "basenc",
+                            "invalid input (length must be multiple of 4 characters)",
+                        )
+                        return 1
+                    }
+                    block_z85(pending, mut output, wrap, mut column)
+                    (mut pending).clear()
                 }
             } else {
                 for b in chunk {
                     let value = b as int
                     if kind == 5 {
                         let alphabet = "0123456789ABCDEF"
-                        emit(mut output, alphabet.bytes()[value / 16], wrap, mut column); emit(mut output, alphabet.bytes()[value % 16], wrap, mut column)
+                        emit(mut output, alphabet.bytes()[value / 16], wrap, mut column)
+                        emit(mut output, alphabet.bytes()[value % 16], wrap, mut column)
                     } else {
-                        for j in 0..8 { let shift = if kind == 7 then j else 7 - j; emit(mut output, (48 + (value >> shift & 1)) as byte, wrap, mut column) }
+                        for j in 0..8 {
+                            let shift = if kind == 7 then j else 7 - j
+                            emit(mut output, (48 + (value >> shift & 1)) as byte, wrap, mut column)
+                        }
                     }
                 }
             }
             if done && wrap > 0 && column > 0 { (mut output).push(10 as byte) }
-            if output.len > 0 { bore.write_direct(out, output) else |_| { bore.write_error(out, "basenc", "write error"); return 1 } }
+            if output.len > 0 {
+                bore.write_direct(out, output) else |_| {
+                    bore.write_error(out, "basenc", "write error")
+                    return 1
+                }
+            }
         }
     }
     0
 }
+
 fn symbol(c: int, kind: int) -> int {
     if kind == 5 {
-        if c >= 48 && c <= 57 { return c - 48 }; if c >= 65 && c <= 70 { return c - 55 }; if c >= 97 && c <= 102 { return c - 87 }; return -1
+        if c >= 48 && c <= 57 { return c - 48 }
+        if c >= 65 && c <= 70 { return c - 55 }
+        if c >= 97 && c <= 102 { return c - 87 }
+        return -1
     }
     if kind == 6 || kind == 7 { if c == 48 || c == 49 { return c - 48 }; return -1 }
     let table = z85()
-    for k in 0..table.len { if c == table.bytes()[k] as int { return k } }; -1
+    for k in 0..table.len { if c == table.bytes()[k] as int { return k } }
+    -1
 }
+
 fn decode(src: bore.In, out: bore.Out, kind: int, ignore: bool) -> int {
     let quantum = if kind == 8 then 5 else if kind == 5 then 2 else 8
     let base = if kind == 8 then 85 else if kind == 5 then 16 else 2
     var value = 0, used = 0, done = false, bad = false
     while !done && !bad {
         region pass {
-            let chunk = bore.read_chunk(src, 65536) else |e| match e { eof => { done = true; List[byte]() }, io => { bore.warn("basenc", "read error: {bore.io_error()}"); return 1 } }
+            let chunk = bore.read_chunk(src, 65536) else |e| match e {
+                eof => { done = true; List[byte]() },
+                io => { bore.warn("basenc", "read error: {bore.io_error()}"); return 1 },
+            }
             if chunk.len == 0 { done = true }
             var output = List[byte]()
             for b in chunk {
@@ -81,45 +118,117 @@ fn decode(src: bore.In, out: bore.Out, kind: int, ignore: bool) -> int {
                 if kind == 7 { value |= v << used } else { value = value * base + v }
                 used += 1
                 if used == quantum {
-                    if kind == 8 { if value > 4294967295 { bad = true; break }; for j in 0..4 { (mut output).push((value >> (24 - 8 * j) & 255) as byte) } } else { (mut output).push(value as byte) }
-                    value = 0; used = 0
+                    if kind == 8 {
+                        if value > 4294967295 { bad = true; break }
+                        for j in 0..4 { (mut output).push((value >> 24 - 8 * j & 255) as byte) }
+                    } else {
+                        (mut output).push(value as byte)
+                    }
+                    value = 0
+                    used = 0
                 }
             }
-            if output.len > 0 { bore.write_direct(out, output) else |_| { bore.write_error(out, "basenc", "write error"); return 1 } }
+            if output.len > 0 {
+                bore.write_direct(out, output) else |_| {
+                    bore.write_error(out, "basenc", "write error")
+                    return 1
+                }
+            }
         }
     }
     if used != 0 { bad = true }
-    if bad { bore.warn("basenc", "invalid input"); return 1 }; 0
+    if bad { bore.warn("basenc", "invalid input"); return 1 }
+    0
 }
+
 fn main() -> int {
     var spec = List[bore.Opt]()
-    let encodings = ["base64", "base64url", "base32", "base32hex", "base16", "base2msbf", "base2lsbf", "z85"]
+    let encodings = [
+        "base64",
+        "base64url",
+        "base32",
+        "base32hex",
+        "base16",
+        "base2msbf",
+        "base2lsbf",
+        "z85",
+    ]
     for name in encodings { (mut spec).push(bore.flag("", name)) }
-    (mut spec).push(bore.flag("", "base58")); (mut spec).push(bore.flag("d", "decode")); (mut spec).push(bore.flag("i", "ignore-garbage")); (mut spec).push(bore.takes("w", "wrap")); (mut spec).push(bore.flag("", "help")); (mut spec).push(bore.flag("", "version"))
+    (mut spec).push(bore.flag("", "base58"))
+    (mut spec).push(bore.flag("d", "decode"))
+    (mut spec).push(bore.flag("i", "ignore-garbage"))
+    (mut spec).push(bore.takes("w", "wrap"))
+    (mut spec).push(bore.flag("", "help"))
+    (mut spec).push(bore.flag("", "version"))
     let p = bore.parse(spec, env_args(), bore.permute())
     var out = bore.stdout(), kind = 0, decoding = false, ignore = false, wrap = 76
     for k in 0..p.keys.len {
         let key = p.keys[k], v = p.values[k]
-        if key == "help" || key == "version" { bore.put(mut out, if key == "version" then bore.version_text("basenc") else "Usage: basenc [OPTION]... [FILE]\nEncode or decode base64, base64url, base32, base32hex, base16, base2msbf, base2lsbf or z85.\n--base58 is not implemented.\n") else |_| {}; return bore.finish(mut out, "basenc", 0) }
+        if key == "help" || key == "version" {
+            bore.put(
+                mut out,
+                if key == "version" {
+                    bore.version_text("basenc")
+                } else {
+                    "Usage: basenc [OPTION]... [FILE]\nEncode or decode base64, base64url, base32, base32hex, base16, base2msbf, base2lsbf or z85.\n--base58 is not implemented.\n"
+                },
+            ) else |_| {}
+            return bore.finish(mut out, "basenc", 0)
+        }
         for j in 0..encodings.len { if key == encodings[j] { kind = j + 1 } }
-        if key == "base58" { bore.warn("basenc", "unsupported encoding: --base58 (not implemented)"); return 1 }
-        if key == "decode" { decoding = true }; if key == "ignore-garbage" { ignore = true }
-        if key == "wrap" { let n = numcli.count(v, true) else |_| { bore.warn("basenc", "invalid wrap size: {bore.quote(v)}"); return 1 }; wrap = if n.large then 0 else n.value }
+        if key == "base58" {
+            bore.warn("basenc", "unsupported encoding: --base58 (not implemented)")
+            return 1
+        }
+        if key == "decode" { decoding = true }
+        if key == "ignore-garbage" { ignore = true }
+        if key == "wrap" {
+            let n = numcli.count(v, true) else |_| {
+                bore.warn("basenc", "invalid wrap size: {bore.quote(v)}")
+                return 1
+            }
+            wrap = if n.large then 0 else n.value
+        }
     }
     if !bore.ok(p) { return bore.usage_error("basenc", p.error) }
     if kind == 0 { return bore.usage_error("basenc", "missing encoding type") }
-    if p.operands.len > 1 { return bore.usage_error("basenc", "extra operand {bore.quote(p.operands[1])}") }
+    if p.operands.len > 1 {
+        return bore.usage_error("basenc", "extra operand {bore.quote(p.operands[1])}")
+    }
     let path = if p.operands.len == 0 then "-" else p.operands[0]
     let src = bore.open_input(path) else |e| match e {
-        not_found => { bore.warn("basenc", "{bore.quote_name(path)}: {bore.no_such_file()}"); return 1 },
-        denied => { bore.warn("basenc", "{bore.quote_name(path)}: {bore.permission_denied()}"); return 1 },
+        not_found => {
+            bore.warn("basenc", "{bore.quote_name(path)}: {bore.no_such_file()}")
+            return 1
+        },
+        denied => {
+            bore.warn("basenc", "{bore.quote_name(path)}: {bore.permission_denied()}")
+            return 1
+        },
         is_dir => { bore.warn("basenc", "read error: {bore.directory_reason()}"); return 1 },
         io => { bore.warn("basenc", "{bore.quote_name(path)}: {bore.io_error()}"); return 1 },
     }
     defer bore.close_input(src)
     if kind <= 4 {
-        let table = if kind == 1 then "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/" else if kind == 2 then "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_" else if kind == 3 then "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567" else "0123456789ABCDEFGHIJKLMNOPQRSTUV"
-        return codec.transform(src, out, "basenc", if kind <= 2 then 6 else 5, table, decoding, ignore, wrap)
+        let table = if kind == 1 {
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+        } else if kind == 2 {
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+        } else if kind == 3 {
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
+        } else {
+            "0123456789ABCDEFGHIJKLMNOPQRSTUV"
+        }
+        return codec.transform(
+            src,
+            out,
+            "basenc",
+            if kind <= 2 then 6 else 5,
+            table,
+            decoding,
+            ignore,
+            wrap,
+        )
     }
     if decoding { return decode(src, out, kind, ignore) }
     encode(src, out, kind, wrap)

@@ -163,7 +163,10 @@ fn main() -> int {
     }
     let path = p.operands[0]
     let src = bore.open_input(path) else |_| {
-        bore.warn("csplit", "cannot open {bore.quote_always(path)} for reading: {bore.reason_of(bore.host_code())}")
+        bore.warn(
+            "csplit",
+            "cannot open {bore.quote_always(path)} for reading: {bore.reason_of(bore.host_code())}",
+        )
         return 1
     }
     defer bore.close_input(src)
