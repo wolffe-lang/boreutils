@@ -1,0 +1,47 @@
+
+[[case]]
+name = "['--help']"
+args = ["--help"]
+compare = ["exit"]
+env = { BORE_STDBUF_AWARE = "1" }
+
+[[case]]
+name = "['--version']"
+args = ["--version"]
+compare = ["exit"]
+env = { BORE_STDBUF_AWARE = "1" }
+
+[[case]]
+name = "[]"
+args = []
+env = { BORE_STDBUF_AWARE = "1" }
+
+[[case]]
+name = "['/bin/true']"
+args = ["/bin/true"]
+env = { BORE_STDBUF_AWARE = "1" }
+
+[[case]]
+name = "['-iL', '/bin/true']"
+args = ["-iL", "/bin/true"]
+env = { BORE_STDBUF_AWARE = "1" }
+
+[[case]]
+name = "['-o0', '/bin/true']"
+args = ["-o0", "/bin/true"]
+env = { BORE_STDBUF_AWARE = "1" }
+
+[[case]]
+name = "['-oL', '/bin/sh', '-c', 'printf hello']"
+args = ["-oL", "/bin/sh", "-c", "printf hello"]
+env = { BORE_STDBUF_AWARE = "1" }
+
+[[case]]
+name = "['-o1K', '/bin/sh', '-c', 'printf \"%s\\\\n\" \"$_STDBUF_O\"']"
+args = ["-o1K", "/bin/sh", "-c", "printf \"%s\\n\" \"$_STDBUF_O\""]
+env = { BORE_STDBUF_AWARE = "1" }
+
+[[case]]
+name = "['-o0', 'no-such-command-bu34']"
+args = ["-o0", "no-such-command-bu34"]
+env = { BORE_STDBUF_AWARE = "1" }

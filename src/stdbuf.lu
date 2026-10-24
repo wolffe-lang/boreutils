@@ -1,0 +1,39 @@
+//! member: false
+//! stdbuf — explicit shim-free environment contract (R-bu34-1, proposed A).
+//! References consulted: GNU coreutils 9.11 manual and black-box runs.
+//! GNU's LD_PRELOAD changes libc FILE streams, not wolf IO or static libc.
+//! No source consulted. This wrapper never promises buffering for arbitrary
+//! children: BORE_STDBUF_AWARE=1 explicitly opts a child into honoring the
+//! _STDBUF_I/_STDBUF_O/_STDBUF_E environment contract. Otherwise refuse.
+use bore
+use processwrap
+fn main() -> int {
+    var opts = List[bore.Opt]()
+    (mut opts).push(bore.takes("i", "input")); (mut opts).push(bore.takes("o", "output")); (mut opts).push(bore.takes("e", "error"))
+    (mut opts).push(bore.flag("", "help")); (mut opts).push(bore.flag("", "version"))
+    let p = bore.parse(opts, env_args(), false)
+    var out = bore.stdout()
+    var changed = false
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i], v = p.values[i]
+        if k == "help" { bore.put(mut out, "Usage: stdbuf -i MODE|-o MODE|-e MODE COMMAND [ARG]...\nSet _STDBUF_* for a child explicitly opting in with BORE_STDBUF_AWARE=1.\nNo preload shim, relay or arbitrary-child buffering is claimed.\n") else |_| {}; return bore.finish(mut out, "stdbuf", 0) }
+        if k == "version" { bore.put(mut out, bore.version_text("stdbuf")) else |_| {}; return bore.finish(mut out, "stdbuf", 0) }
+        var mode = v
+        if v == "L" {
+            if k == "input" { bore.warn("stdbuf", "line buffering stdin is meaningless"); eprint("Try 'stdbuf --help' for more information."); return 125 }
+        } else {
+            let count = bore.parse_count(v) else |_| { bore.warn("stdbuf", "invalid mode {bore.quote_always(v)}"); return 125 }
+            if bore.count_minus(count) { bore.warn("stdbuf", "invalid mode {bore.quote_always(v)}"); return 125 }
+            mode = "{bore.count_value(count)}"
+        }
+        env_set(if k == "input" then "_STDBUF_I" else if k == "output" then "_STDBUF_O" else "_STDBUF_E", mode)
+        changed = true
+        i += 1
+    }
+    if !bore.ok(p) { bore.warn("stdbuf", p.error); eprint("Try 'stdbuf --help' for more information."); return 125 }
+    if p.operands.len == 0 { bore.warn("stdbuf", "missing operand"); eprint("Try 'stdbuf --help' for more information."); return 125 }
+    if !changed { bore.warn("stdbuf", "you must specify a buffering mode option"); eprint("Try 'stdbuf --help' for more information."); return 125 }
+    if (env_get("BORE_STDBUF_AWARE") else "") != "1" { bore.warn("stdbuf", "unsupported arbitrary-child buffering: no preload shim; an environment-aware child must explicitly opt in with BORE_STDBUF_AWARE=1"); return 125 }
+    processwrap.run("stdbuf", p.operands, List[int]())
+}
