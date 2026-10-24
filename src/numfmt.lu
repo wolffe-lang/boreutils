@@ -106,7 +106,7 @@ fn convert(word: str, o: Options, automatic_width: int) -> Conversion {
     if o.to != 0 && power == 0 && !o.format_given { mode = 5 }
     var result = floattext.fixed(number, precision, mode)
     if o.to != 0 && power < 10 {
-        let rounded = floattext.parse_number(result) else |_| { number }
+        let rounded = floattext.parse_number(result) else |_| { copy number }
         if floattext.compare_integer(rounded, output_base) >= 0 {
             number = floattext.quotient(number, floattext.integer(output_base)); power += 1
             precision = if o.format.precision >= 0 then o.format.precision else if floattext.compare_integer(number, 10) < 0 then 1 else 0
@@ -114,7 +114,7 @@ fn convert(word: str, o: Options, automatic_width: int) -> Conversion {
         }
     }
     if o.to != 0 && power == 0 && o.format.precision > 0 {
-        let rounded = floattext.parse_number(result) else |_| { number }
+        let rounded = floattext.parse_number(result) else |_| { copy number }
         result = floattext.fixed(rounded, o.format.precision, 5)
     }
     if o.format.plus && !result.starts_with("-") { result = "+" + result }
