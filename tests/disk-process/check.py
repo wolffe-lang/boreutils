@@ -87,7 +87,7 @@ with tempfile.TemporaryDirectory(prefix="bu34.") as raw:
                 check(bool(ready) and os.read(child.stdout.fileno(), 2) == b"ab", tier + ": bs preserves immediate short read " + str(name))
                 child.stdin.write(b"cd"); child.stdin.flush(); child.stdin.close(); child.stdin = None
                 stdout, stderr = child.communicate(timeout=10)
-                check(child.returncode == 0 and stdout == b"cd" and stderr == b"0+2 records in\n0+2 records out\n", tier + ": short record counters " + str(name))
+                check(child.returncode == 0 and stdout == b"cd" and stderr == b"dd: warning: partial read (2 bytes); suggest iflag=fullblock\n0+2 records in\n0+2 records out\n", tier + ": short record counters " + str(name))
             finally:
                 if child.poll() is None: child.kill(); child.wait()
         for name in (GNU / "dd", bin / "dd"):
@@ -102,7 +102,7 @@ with tempfile.TemporaryDirectory(prefix="bu34.") as raw:
                 os.kill(child.pid, signal.SIGUSR1)
                 child.stdin.write(b"b"); child.stdin.flush(); child.stdin.close(); child.stdin = None
                 stdout, stderr = child.communicate(timeout=10)
-                check(child.returncode == 0 and b"records in" in stderr and b"records out" in stderr,
+                check(child.returncode == 0 and stderr.count(b"records in") == 2 and stderr.count(b"records out") == 2,
                       tier + ": USR1 reports while copying " + str(name))
             finally:
                 if child.poll() is None: child.kill(); child.wait()
