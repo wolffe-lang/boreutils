@@ -217,21 +217,6 @@ args = ["if=a", "of=b", "conv=sparse", "status=noxfer"]
 scratch = { a = "aBcDeF", b = "0123456789" }
 
 [[case]]
-name = "gap conv ascii"
-args = ["conv=ascii"]
-skip = "not implemented yet: conv=ascii is refused by name"
-
-[[case]]
-name = "gap conv ebcdic"
-args = ["conv=ebcdic"]
-skip = "not implemented yet: conv=ebcdic is refused by name"
-
-[[case]]
-name = "gap conv ibm"
-args = ["conv=ibm"]
-skip = "not implemented yet: conv=ibm is refused by name"
-
-[[case]]
 name = "gap conv nocreat"
 args = ["conv=nocreat"]
 skip = "not implemented yet: conv=nocreat is refused by name"
@@ -270,3 +255,43 @@ skip = "pinned open surface lacks noctty; refused by name"
 name = "gap iflag directory"
 args = ["iflag=directory"]
 skip = "pinned open surface lacks directory; refused by name"
+
+[[case]]
+name = "all bytes ['conv=ascii']"
+args = ["conv=ascii", "status=noxfer"]
+stdin_file = "disk-allbytes.bin"
+
+[[case]]
+name = "all bytes ['conv=ebcdic']"
+args = ["conv=ebcdic", "status=noxfer"]
+stdin_file = "disk-allbytes.bin"
+
+[[case]]
+name = "all bytes ['conv=ibm']"
+args = ["conv=ibm", "status=noxfer"]
+stdin_file = "disk-allbytes.bin"
+
+[[case]]
+name = "all bytes ['conv=ascii,ucase']"
+args = ["conv=ascii,ucase", "status=noxfer"]
+stdin_file = "disk-allbytes.bin"
+
+[[case]]
+name = "all bytes ['conv=ebcdic,lcase']"
+args = ["conv=ebcdic,lcase", "status=noxfer"]
+stdin_file = "disk-allbytes.bin"
+
+[[case]]
+name = "all bytes ['conv=ibm,ucase']"
+args = ["conv=ibm,ucase", "status=noxfer"]
+stdin_file = "disk-allbytes.bin"
+
+[[case]]
+name = "all bytes ['conv=ascii,swab']"
+args = ["conv=ascii,swab", "status=noxfer"]
+stdin_file = "disk-allbytes.bin"
+
+[[case]]
+name = "all bytes ['conv=ebcdic,sync', 'ibs=300']"
+args = ["conv=ebcdic,sync", "ibs=300", "status=noxfer"]
+stdin_file = "disk-allbytes.bin"

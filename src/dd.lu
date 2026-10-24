@@ -2,7 +2,7 @@
 //! dd — bounded block IO and record conversions.
 //! References consulted: POSIX.1-2024 dd; GNU coreutils 9.11 manual and
 //! black-box runs only. Reads retain only one input and output block.
-//! EBCDIC conversions are refused by name until their byte tables land.
+//! ASCII/EBCDIC/IBM byte maps were observed on all 256 input octets.
 //! Open flags not served by wolf are refused by their operand and flag.
 //! fdatasync uses the stronger fs_sync, as sync -d does in this tree.
 
@@ -19,6 +19,20 @@ struct Config {
 }
 struct Stats { wholein: int, partialin: int, wholeout: int, partialout: int, bytes: int, trunc: int }
 struct Writer { fd: int, buf: List[byte], at: int, sparse_end: bool }
+
+
+fn mapping(name: str) -> str {
+    if name == "ascii" { return "000102039c09867f978d8e0b0c0d0e0f101112139d8508871819928f1c1d1e1f80818283840a171b88898a8b8c050607909116939495960498999a9b14159e1a20a0a1a2a3a4a5a6a7a8d52e3c282b7c26a9aaabacadaeafb0b121242a293b7e2d2fb2b3b4b5b6b7b8b9cb2c255f3e3fbabbbcbdbebfc0c1c2603a2340273d22c3616263646566676869c4c5c6c7c8c9ca6a6b6c6d6e6f7071725ecccdcecfd0d1e5737475767778797ad2d3d45bd6d7d8d9dadbdcdddedfe0e1e2e3e45de6e77b414243444546474849e8e9eaebeced7d4a4b4c4d4e4f505152eeeff0f1f2f35c9f535455565758595af4f5f6f7f8f930313233343536373839fafbfcfdfeff" }
+    if name == "ebcdic" { return "00010203372d2e2f1605250b0c0d0e0f101112133c3d322618193f271c1d1e1f405a7f7b5b6c507d4d5d5c4e6b604b61f0f1f2f3f4f5f6f7f8f97a5e4c7e6e6f7cc1c2c3c4c5c6c7c8c9d1d2d3d4d5d6d7d8d9e2e3e4e5e6e7e8e9ade0bd9a6d79818283848586878889919293949596979899a2a3a4a5a6a7a8a9c04fd05f07202122232415061728292a2b2c090a1b30311a333435360838393a3b04143ee14142434445464748495152535455565758596263646566676869707172737475767778808a8b8c8d8e8f906a9b9c9d9e9fa0aaabac4aaeafb0b1b2b3b4b5b6b7b8b9babbbca1bebfcacbcccdcecfdadbdcdddedfeaebecedeeeffafbfcfdfeff" }
+    if name == "ibm" { return "00010203372d2e2f1605250b0c0d0e0f101112133c3d322618193f271c1d1e1f405a7f7b5b6c507d4d5d5c4e6b604b61f0f1f2f3f4f5f6f7f8f97a5e4c7e6e6f7cc1c2c3c4c5c6c7c8c9d1d2d3d4d5d6d7d8d9e2e3e4e5e6e7e8e9ade0bd5f6d79818283848586878889919293949596979899a2a3a4a5a6a7a8a9c04fd0a107202122232415061728292a2b2c090a1b30311a333435360838393a3b04143ee14142434445464748495152535455565758596263646566676869707172737475767778808a8b8c8d8e8f909a9b9c9d9e9fa0aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfcacbcccdcecfdadbdcdddedfeaebecedeeeffafbfcfdfeff" }
+    ""
+}
+fn mapped(table: str, n: int) -> int {
+    let h = "0123456789abcdef"
+    let high = h.find(table[n * 2..n * 2 + 1]) else 0
+    let low = h.find(table[n * 2 + 1..n * 2 + 2]) else 0
+    high * 16 + low
+}
 
 fn number(s: str) -> int ! {invalid} {
     if s.len == 0 { return invalid }
@@ -79,7 +93,7 @@ fn put(mut w: Writer, b: byte, c: Config, mut s: Stats) -> bool {
 }
 fn main() -> int {
     var c = Config { input: "-", output: "standard output", ibs: 512, obs: 512, cbs: 0, count: -1, skip: 0, seek: 0, countbytes: false, skipbytes: false, seekbytes: false, full: false, pad: false, swab: false, lower: false, upper: false, block: false, unblock: false, sparse: false, notrunc: false, excl: false, nocreat: false, noerror: false, sync: false, append: false, inf: 0, outf: 0, status: 2, table: "" }
-    var bs = 0
+    var bs = 0, bs_given = false
     for arg in env_args() {
         if arg == "--help" || arg == "--version" {
             var out = bore.stdout()
@@ -112,6 +126,7 @@ fn main() -> int {
                     else if word == "block" { c.block = true }
                     else if word == "unblock" { c.unblock = true }
                     else if word == "fdatasync" || word == "fsync" { c.sync = true }
+                    else if word == "ascii" || word == "ebcdic" || word == "ibm" { if c.table.len > 0 && c.table != word { bore.warn("dd", "cannot combine any two of {{ascii,ebcdic,ibm}}"); return 1 }; c.table = word }
                     else { supported = false }
                 } else {
                     if word == "fullblock" && k == "iflag" { c.full = true }
@@ -135,7 +150,7 @@ fn main() -> int {
             if k == "seek" || k == "oseek" { c.seekbytes = true }
         }
         let n = number(text) else |_| { bore.warn("dd", "invalid number: {bore.quote_always(v)}"); return 1 }
-        if k == "bs" { bs = n }
+        if k == "bs" { bs = n; bs_given = true }
         else if k == "ibs" { c.ibs = n }
         else if k == "obs" { c.obs = n }
         else if k == "cbs" { c.cbs = n }
@@ -144,7 +159,7 @@ fn main() -> int {
         else if k == "seek" || k == "oseek" { c.seek = n }
         else { bore.warn("dd", "unrecognized operand {bore.quote_always(arg)}"); return 1 }
     }
-    if bs > 0 { c.ibs = bs; c.obs = bs }
+    if bs_given { c.ibs = bs; c.obs = bs }
     if c.ibs <= 0 || c.obs <= 0 || c.lower && c.upper || c.block && c.unblock {
         bore.warn("dd", "invalid or conflicting block size or conversion"); return 1
     }
@@ -185,6 +200,7 @@ fn main() -> int {
     if c.seek > 0 {
         let _ = fs_seek(fd, c.seek * (if c.seekbytes then 1 else c.obs), 0) else |_| { bore.warn("dd", "{bore.quote_always(c.output)}: cannot seek: {bore.io_error()}"); return 1 }
     }
+    let table = mapping(c.table)
     let started = os_clock_ns()
     os_signal_listen(signal.user()) else |_| { bore.warn("dd", "cannot listen for USR1"); return 1 }
     var last = started
@@ -230,8 +246,10 @@ fn main() -> int {
         }
         for octet in chunk {
             var b = octet as int
+            if c.table == "ascii" { b = mapped(table, b) }
             if c.lower && b >= 65 && b <= 90 { b += 32 }
             if c.upper && b >= 97 && b <= 122 { b -= 32 }
+            if c.table.len > 0 && c.table != "ascii" { b = mapped(table, b) }
             if c.block {
                 if b == 10 {
                     while record < c.cbs { if !put(mut w, 32 as byte, c, mut s) { status = 1; break }; record += 1 }
@@ -263,7 +281,10 @@ fn main() -> int {
     if w.at > 0 { if !write_block(w.fd, mut w.sparse_end, w.buf[..w.at], c, mut s) { status = 1 } }
     if w.sparse_end || c.seek > 0 && !c.notrunc && c.output != "standard output" {
         let end = fs_tell(fd) else -1
-        if end >= 0 { fs_truncate(fd, end) else |_| { status = 1 } }
+        if end >= 0 {
+            let r = fs_fstat_record(fd) else |_| { List[int]() }
+            if !c.notrunc || r.len == 0 || bore.rec_size(r) < end { fs_truncate(fd, end) else |_| { status = 1 } }
+        }
     }
     if c.sync { fs_sync(fd) else |_| { bore.warn("dd", "fsync failed: {bore.io_error()}"); status = 1 } }
     report(s, c.status, started)
