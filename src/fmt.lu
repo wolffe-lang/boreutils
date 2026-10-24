@@ -84,6 +84,7 @@ fn paragraph(mut out: bore.Out, rows: List[Row], a: int, z: int, o: Options) -> 
             word_index += 1
         }
     }
+    words[words.len - 1].sentence = true
     var first_indent = rows[a].indent, rest_indent = first_indent
     if (o.crown || o.tagged) && z > a + 1 { rest_indent = rows[a + 1].indent } else if o.tagged { rest_indent = if first_indent == 0 then 3 else 0 }
     var costs = List[int](), next = List[int]()
@@ -98,9 +99,9 @@ fn paragraph(mut out: bore.Out, rows: List[Row], a: int, z: int, o: Options) -> 
             if width > o.width && end > i { break }
             let distance = o.goal - width
             var cost = distance * distance + 400
-            if end == words.len - 1 { cost = if end == i && i > 0 then 50 else 0 } else {
+            if end == words.len - 1 { cost = 0 } else {
                 if words[end].sentence { cost -= 200 }
-                if end + 1 < words.len && sentence(words[end + 1].bytes) { cost += 20 }
+                if end + 1 < words.len && words[end + 1].sentence { cost += 40 }
             }
             cost += costs[end + 1]
             if cost < best { best = cost; next[i] = end + 1 }
@@ -108,15 +109,6 @@ fn paragraph(mut out: bore.Out, rows: List[Row], a: int, z: int, o: Options) -> 
         }
         costs[i] = best
         i -= 1
-    }
-    if o.tagged && z == a + 1 {
-        var width = first_indent, stop = 0
-        while stop < words.len {
-            let add = words[stop].bytes.len + if stop == 0 then 0 else words[stop].gap
-            if stop > 0 && width + add > o.width { break }
-            width += add; stop += 1
-        }
-        next[0] = stop
     }
     i = 0
     while i < words.len {
