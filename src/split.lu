@@ -371,6 +371,18 @@ fn main() -> int {
             bore.warn("split", "--filter does not process a chunk extracted to stdout")
             return 1
         }
+        if which > 0 {
+            let part = which - 1, remainder = bs.len % count
+            var start = (bs.len / count) * part + (if part < remainder then part else remainder)
+            var stop = (bs.len / count) * (part + 1) + (if part + 1 < remainder then part + 1 else remainder)
+            if kind == "l" {
+                if start > 0 { while start < bs.len && bs[start - 1] as int != delim { start += 1 } }
+                if stop > 0 { while stop < bs.len && bs[stop - 1] as int != delim { stop += 1 } }
+            }
+            if stop < start { stop = start }
+            bore.write_all(mut out, segment(bs, start, stop)) else |_| { return bore.finish(mut out, "split", 1) }
+            return bore.finish(mut out, "split", 0)
+        }
         var offset = 0
         for part in 0..count {
             var chunk = List[byte]()

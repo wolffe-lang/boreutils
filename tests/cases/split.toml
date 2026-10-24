@@ -1134,3 +1134,31 @@ name = "quantity grammar ['-a0', '-l1']"
 args = ["-a0", "-l1"]
 stdin = "abc\ndef\n"
 scratch = {}
+
+[[case]]
+name = "large selected chunk 2/1000000000"
+args = ["-n", "2/1000000000"]
+stdin = "abc\ndef\n"
+scratch = {}
+timeout = 5
+
+[[case]]
+name = "large selected chunk 1000000000/1000000000"
+args = ["-n", "1000000000/1000000000"]
+stdin = "abc\ndef\n"
+scratch = {}
+timeout = 5
+
+[[case]]
+name = "large selected chunk l/2/1000000000"
+args = ["-n", "l/2/1000000000"]
+stdin = "abc\ndef\n"
+scratch = {}
+timeout = 5
+
+[[case]]
+name = "large selected chunk r/2/1000000000"
+args = ["-n", "r/2/1000000000"]
+stdin = "abc\ndef\n"
+scratch = {}
+timeout = 5
