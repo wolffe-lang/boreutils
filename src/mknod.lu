@@ -1,0 +1,90 @@
+//! member: false
+//! mknod — make named pipes; device nodes require the absent fs_mknod.
+//! Witness: tests/gaps/bu34/mknod/main.lu, E0301 at wolf 0.2.35.
+//! Block/character devices (b,c,u) are refused by name, wolf-lang#705.
+//! References consulted: POSIX.1-2024 mkfifo and mknod; GNU coreutils 9.11's
+//! documented invocation and black-box binary runs. No implementation source.
+//! -Z/--context are refused by name: wolf has no SELinux surface.
+
+use bore
+
+fn main() -> int {
+    var opts = List[bore.Opt]()
+    (mut opts).push(bore.takes("m", "mode"))
+    (mut opts).push(bore.flag("Z", ""))
+    (mut opts).push(bore.optional("", "context"))
+    (mut opts).push(bore.flag("", "help"))
+    (mut opts).push(bore.flag("", "version"))
+    let p = bore.parse(opts, env_args(), bore.permute())
+    var out = bore.stdout()
+    var mode = 438
+    var explicit = false
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i]
+        if k == "help" {
+            bore.put(
+                mut out,
+                "Usage: mknod [OPTION]... NAME p\nMake named pipes; -m MODE sets permissions.\n-Z/--context require an unavailable SELinux surface.\n",
+            ) else |_| {}
+            return bore.finish(mut out, "mknod", 0)
+        }
+        if k == "version" {
+            bore.put(mut out, bore.version_text("mknod")) else |_| {}
+            return bore.finish(mut out, "mknod", 0)
+        }
+        if k == "Z" || k == "context" {
+            bore.warn("mknod", "unsupported option: SELinux (-Z/--context)")
+            return 1
+        }
+        if k == "mode" {
+            let m = bore.parse_mode(p.values[i]) else |_| {
+                bore.warn("mknod", "invalid mode")
+                return 1
+            }
+            mode = bore.apply_mode(m, 438, false, bore.current_umask())
+            if mode >= 512 {
+                bore.warn("mknod", "mode must specify only file permission bits")
+                return 1
+            }
+            explicit = true
+        }
+        i += 1
+    }
+    if !bore.ok(p) { return bore.usage_error("mknod", p.error) }
+    if p.operands.len < 2 {
+        if p.operands.len == 0 { return bore.usage_error("mknod", "missing operand") }
+        return bore.usage_error("mknod", "missing operand after {bore.quote_always(p.operands[0])}")
+    }
+    let node = p.operands[1]
+    if node == "b" || node == "c" || node == "u" {
+        bore.warn("mknod", "unsupported device node type {node}: no fs_mknod surface (wolf-lang#705)")
+        return 1
+    }
+    if node != "p" { return bore.usage_error("mknod", "invalid device type {bore.quote_always(node)}") }
+    if p.operands.len > 2 { return bore.usage_error("mknod", "extra operand {bore.quote_always(p.operands[2])}") }
+    var status = 0
+    for name in [p.operands[0]] {
+        var mask = -1
+        if explicit { mask = os_umask(0) else -1 }
+        var code = 0
+        fs_mknod(name, mode % 512) else |_| { code = bore.host_code() }
+        if mask >= 0 { let _ = os_umask(mask) else 0 }
+        if code != 0 {
+            bore.warn(
+                "mknod",
+                "{name}: {bore.reason_of(code)}",
+            )
+            status = 1
+        } else if explicit && mode >= 512 {
+            fs_set_mode(name, mode) else |_| {
+                bore.warn(
+                    "mknod",
+                    "cannot set permissions of {bore.quote_always(name)}: {bore.io_error()}",
+                )
+                status = 1
+            }
+        }
+    }
+    bore.finish(mut out, "mknod", status)
+}

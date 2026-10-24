@@ -1,0 +1,85 @@
+
+[[case]]
+name = "['--help']"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "['--version']"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "['f', 'p']"
+args = ["f", "p"]
+scratch = { existing = "keep" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "['-m', '600', 'f', 'p']"
+args = ["-m", "600", "f", "p"]
+scratch = { existing = "keep" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "['-m', '000', 'f', 'p']"
+args = ["-m", "000", "f", "p"]
+scratch = { existing = "keep" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "['-m', 'u=rw', 'f', 'p']"
+args = ["-m", "u=rw", "f", "p"]
+scratch = { existing = "keep" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "['-m', 'a=r', 'f', 'p']"
+args = ["-m", "a=r", "f", "p"]
+scratch = { existing = "keep" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "['existing', 'p']"
+args = ["existing", "p"]
+scratch = { existing = "keep" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "['d/f', 'p']"
+args = ["d/f", "p"]
+scratch = { existing = "keep" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "[]"
+args = []
+scratch = { existing = "keep" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "['f']"
+args = ["f"]
+scratch = { existing = "keep" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "['f', 'p', '1']"
+args = ["f", "p", "1"]
+scratch = { existing = "keep" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "unsupported b"
+args = ["f", "b", "1", "3"]
+skip = "wolf-lang#705: no fs_mknod; compiler witness tests/gaps/bu34/mknod/main.lu"
+
+[[case]]
+name = "unsupported c"
+args = ["f", "c", "1", "3"]
+skip = "wolf-lang#705: no fs_mknod; compiler witness tests/gaps/bu34/mknod/main.lu"
+
+[[case]]
+name = "unsupported u"
+args = ["f", "u", "1", "3"]
+skip = "wolf-lang#705: no fs_mknod; compiler witness tests/gaps/bu34/mknod/main.lu"
