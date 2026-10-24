@@ -1,0 +1,300 @@
+//! member: false
+//! dircolors — translate terminal-scoped color rules into shell assignments.
+//! References consulted: GNU coreutils 9.11 documented invocation and
+//! black-box outputs. Default key/value facts were observed through the
+//! binary's print-database interface; none of its prose is reproduced.
+//! -p emits the same functional database with our own heading, not GNU prose.
+//! No implementation source was consulted.
+
+use bore
+
+fn database() -> str {
+    """
+# Color rules measured from GNU 9.11; comments are boreutils' own.
+COLORTERM ?*
+TERM Eterm
+TERM ansi
+TERM *color*
+TERM con[0-9]*x[0-9]*
+TERM cons25
+TERM console
+TERM cygwin
+TERM *direct*
+TERM dtterm
+TERM gnome
+TERM hurd
+TERM jfbterm
+TERM konsole
+TERM kterm
+TERM linux
+TERM linux-c
+TERM mlterm
+TERM putty
+TERM rxvt*
+TERM screen*
+TERM st
+TERM terminator
+TERM tmux*
+TERM vt100
+TERM vt220
+TERM xterm*
+RESET 0
+DIR 01;34
+LINK 01;36
+MULTIHARDLINK 00
+FIFO 40;33
+SOCK 01;35
+DOOR 01;35
+BLK 40;33;01
+CHR 40;33;01
+ORPHAN 40;31;01
+MISSING 00
+SETUID 37;41
+SETGID 30;43
+CAPABILITY 00
+STICKY_OTHER_WRITABLE 30;42
+OTHER_WRITABLE 34;42
+STICKY 37;44
+EXEC 01;32
+.7z 01;31
+.ace 01;31
+.alz 01;31
+.apk 01;31
+.arc 01;31
+.arj 01;31
+.bz 01;31
+.bz2 01;31
+.cab 01;31
+.cpio 01;31
+.crate 01;31
+.deb 01;31
+.drpm 01;31
+.dwm 01;31
+.dz 01;31
+.ear 01;31
+.egg 01;31
+.esd 01;31
+.gz 01;31
+.jar 01;31
+.lha 01;31
+.lrz 01;31
+.lz 01;31
+.lz4 01;31
+.lzh 01;31
+.lzma 01;31
+.lzo 01;31
+.pyz 01;31
+.rar 01;31
+.rpm 01;31
+.rz 01;31
+.sar 01;31
+.swm 01;31
+.t7z 01;31
+.tar 01;31
+.taz 01;31
+.tbz 01;31
+.tbz2 01;31
+.tgz 01;31
+.tlz 01;31
+.txz 01;31
+.tz 01;31
+.tzo 01;31
+.tzst 01;31
+.udeb 01;31
+.war 01;31
+.whl 01;31
+.wim 01;31
+.xz 01;31
+.z 01;31
+.zip 01;31
+.zoo 01;31
+.zst 01;31
+.avif 01;35
+.jpg 01;35
+.jpeg 01;35
+.jxl 01;35
+.mjpg 01;35
+.mjpeg 01;35
+.gif 01;35
+.bmp 01;35
+.pbm 01;35
+.pgm 01;35
+.ppm 01;35
+.tga 01;35
+.xbm 01;35
+.xpm 01;35
+.tif 01;35
+.tiff 01;35
+.png 01;35
+.svg 01;35
+.svgz 01;35
+.mng 01;35
+.pcx 01;35
+.mov 01;35
+.mpg 01;35
+.mpeg 01;35
+.m2v 01;35
+.mkv 01;35
+.webm 01;35
+.webp 01;35
+.ogm 01;35
+.mp4 01;35
+.m4v 01;35
+.mp4v 01;35
+.vob 01;35
+.qt 01;35
+.nuv 01;35
+.wmv 01;35
+.asf 01;35
+.rm 01;35
+.rmvb 01;35
+.flc 01;35
+.avi 01;35
+.fli 01;35
+.flv 01;35
+.gl 01;35
+.dl 01;35
+.xcf 01;35
+.xwd 01;35
+.yuv 01;35
+.cgm 01;35
+.emf 01;35
+.ogv 01;35
+.ogx 01;35
+.aac 00;36
+.au 00;36
+.flac 00;36
+.m4a 00;36
+.mid 00;36
+.midi 00;36
+.mka 00;36
+.mp3 00;36
+.mpc 00;36
+.ogg 00;36
+.ra 00;36
+.wav 00;36
+.oga 00;36
+.opus 00;36
+.spx 00;36
+.xspf 00;36
+*~ 00;90
+*
+.bak 00;90
+.crdownload 00;90
+.dpkg-dist 00;90
+.dpkg-new 00;90
+.dpkg-old 00;90
+.dpkg-tmp 00;90
+.old 00;90
+.orig 00;90
+.part 00;90
+.rej 00;90
+.rpmnew 00;90
+.rpmorig 00;90
+.rpmsave 00;90
+.swp 00;90
+.tmp 00;90
+.ucf-dist 00;90
+.ucf-new 00;90
+.ucf-old 00;90
+    """
+}
+fn matches(pat: str, text: str) -> bool {
+    var p = 0, t = 0, star = -1, retry = 0
+    while t < text.len {
+        if p < pat.len && pat.bytes()[p] as int == 42 { star = p; p += 1; retry = t }
+        else if p < pat.len && (pat.bytes()[p] as int == 63 || pat.bytes()[p] == text.bytes()[t]) { p += 1; t += 1 }
+        else if p < pat.len && pat[p..].starts_with("[0-9]") && text.bytes()[t] as int >= 48 && text.bytes()[t] as int <= 57 { p += 5; t += 1 }
+        else if star >= 0 { retry += 1; t = retry; p = star + 1 }
+        else { return false }
+    }
+    while p < pat.len && pat.bytes()[p] as int == 42 { p += 1 }
+    p == pat.len
+}
+fn key(word: str) -> str {
+    let words = ["NORMAL", "NORM", "FILE", "DIR", "LINK", "LNK", "SYMLINK", "FIFO", "PIPE", "SOCK", "DOOR", "BLK", "BLOCK", "CHR", "CHAR", "ORPHAN", "MISSING", "EXEC", "SETUID", "SETGID", "STICKY_OTHER_WRITABLE", "OTHER_WRITABLE", "STICKY", "CAPABILITY", "MULTIHARDLINK", "LEFTCODE", "RIGHTCODE", "ENDCODE", "RESET"]
+    let keys = ["no", "no", "fi", "di", "ln", "ln", "ln", "pi", "pi", "so", "do", "bd", "bd", "cd", "cd", "or", "mi", "ex", "su", "sg", "tw", "ow", "st", "ca", "mh", "lc", "rc", "ec", "rs"]
+    var i = 0
+    while i < words.len { if word == words[i] { return keys[i] }; i += 1 }
+    if word.starts_with(".") { return "*{word}" }
+    if word.starts_with("*") { return word }
+    ""
+}
+fn main() -> int {
+    var opts = List[bore.Opt]()
+    (mut opts).push(bore.flag("b", "sh")); (mut opts).push(bore.flag("", "bourne-shell"))
+    (mut opts).push(bore.flag("c", "csh")); (mut opts).push(bore.flag("", "c-shell"))
+    (mut opts).push(bore.flag("p", "print-database")); (mut opts).push(bore.flag("", "print-ls-colors"))
+    (mut opts).push(bore.flag("", "help")); (mut opts).push(bore.flag("", "version"))
+    let p = bore.parse(opts, env_args(), bore.permute())
+    var out = bore.stdout()
+    var shell = 0, mode = 0
+    for k in p.keys {
+        if k == "help" { bore.put(mut out, "Usage: dircolors [OPTION]... [FILE]
+Emit shell color assignments, raw display colors or a reusable database.
+-b selects Bourne shell; -c selects C shell; -p prints default rules.
+") else |_| {}; return bore.finish(mut out, "dircolors", 0) }
+        if k == "version" { bore.put(mut out, bore.version_text("dircolors")) else |_| {}; return bore.finish(mut out, "dircolors", 0) }
+        if k == "sh" || k == "bourne-shell" { shell = 1 }
+        if k == "csh" || k == "c-shell" { shell = 2 }
+        if k == "print-database" { mode = 1 }
+        if k == "print-ls-colors" { mode = 2 }
+    }
+    if !bore.ok(p) { return bore.usage_error("dircolors", p.error) }
+    if p.operands.len > 1 { return bore.usage_error("dircolors", "extra operand {bore.quote_always(p.operands[1])}") }
+    if mode == 1 {
+        if p.operands.len != 0 { return bore.usage_error("dircolors", "extra operand {bore.quote_always(p.operands[0])}") }
+        bore.put(mut out, database()) else |_| {}
+        return bore.finish(mut out, "dircolors", 0)
+    }
+    if shell == 0 && mode == 0 {
+        let sh = env_get("SHELL") else ""
+        if sh.ends_with("csh") { shell = 2 }
+        else if sh.ends_with("sh") { shell = 1 }
+        else { bore.warn("dircolors", "no SHELL environment variable, and no shell type option given"); return 1 }
+    }
+    var db = database()
+    var file = ""
+    if p.operands.len > 0 {
+        file = p.operands[0]
+        let bytes = fs_read_bytes(file) else |_| { bore.warn("dircolors", "{file}: {bore.io_error()}"); return 1 }
+        db = str_from_utf8(bytes) else |_| { bore.warn("dircolors", "unsupported non-UTF-8 database"); return 1 }
+    }
+    let term = env_get("TERM") else ""
+    let colorterm = env_get("COLORTERM") else ""
+    var active = true, conditions = false
+    var encoded = "", line_no = 0
+    var keys = List[str](), values = List[str]()
+    for line in db.lines() {
+        line_no += 1
+        let comment = line.find("#") else line.len
+        let clean = line[..comment].trim()
+        if clean.len == 0 { continue }
+        let parts = clean.words()
+        let word = parts[0]
+        if parts.len < 2 { bore.warn("dircolors", "{file}:{line_no}: invalid line;  missing second token"); return 1 }
+        let value = parts[1]
+        if word == "TERM" || word == "COLORTERM" {
+            if !conditions { active = false; conditions = true }
+            if matches(value, if word == "TERM" then term else colorterm) { active = true }
+            continue
+        }
+        conditions = false
+        if word == "EIGHTBIT" || word == "OPTIONS" || word == "COLOR" { continue }
+        let code = key(word)
+        if code.len == 0 { bore.warn("dircolors", "{file}:{line_no}: unrecognized keyword {bore.quote_always(word)}"); return 1 }
+        if active { (mut keys).push(code); (mut values).push(value); encoded += "{code}={value}:" }
+    }
+    if mode == 2 {
+        var i = 0
+        while i < keys.len {
+            bore.put(mut out, "\x1b[{values[i]}m{keys[i]}\t{values[i]}\x1b[0m\n") else |_| {}
+            i += 1
+        }
+    } else {
+        let quote = encoded.replace("'", "'\\''")
+        if shell == 1 { bore.put(mut out, "LS_COLORS='{quote}';\nexport LS_COLORS\n") else |_| {} }
+        else { bore.put(mut out, "setenv LS_COLORS '{quote}'\n") else |_| {} }
+    }
+    bore.finish(mut out, "dircolors", 0)
+}

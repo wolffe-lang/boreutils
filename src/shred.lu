@@ -11,7 +11,9 @@
 use bore
 
 fn overwrite(path: str, n: int, size: int, zero: bool, force: bool, remove: bool, verbose: bool, random: int) -> bool {
-    let r = (if path == "-" then fs_fstat_record(1) else fs_stat(path)) else |_| { bore.warn("shred", "{path}: failed to open for writing: {bore.io_error()}"); return false }
+    var r = List[int]()
+    if path == "-" { r = fs_fstat_record(1) else |_| { bore.warn("shred", "{path}: failed to open for writing: {bore.io_error()}"); return false } }
+    else { r = fs_stat(path) else |_| { bore.warn("shred", "{path}: failed to open for writing: {bore.io_error()}"); return false } }
     if bore.rec_kind(r) != bore.kind_file() {
         bore.warn("shred", "{path}: unsupported file type; only regular files are overwritten")
         return false
@@ -45,7 +47,7 @@ fn overwrite(path: str, n: int, size: int, zero: bool, force: bool, remove: bool
                         for b in part { (mut data).push(b) }
                     }
                 } else {
-                    data = os_random(amount) else |_| { bore.warn("shred", "cannot obtain random data"); return false }
+                    for octet in os_random(amount) { (mut data).push(octet as byte) }
                 }
                 fs_write_chunk(fd, data) else |_| { bore.warn("shred", "{path}: error writing: {bore.io_error()}"); return false }
                 left -= amount

@@ -1,0 +1,139 @@
+
+[[case]]
+name = "['--help']"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "['--version']"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "dumb -b"
+args = ["-b"]
+env = {"TERM" = "dumb", "COLORTERM" = ""}
+
+[[case]]
+name = "dumb -c"
+args = ["-c"]
+env = {"TERM" = "dumb", "COLORTERM" = ""}
+
+[[case]]
+name = "dumb --print-ls-colors"
+args = ["--print-ls-colors"]
+env = {"TERM" = "dumb", "COLORTERM" = ""}
+
+[[case]]
+name = "xterm -b"
+args = ["-b"]
+env = {"TERM" = "xterm", "COLORTERM" = ""}
+
+[[case]]
+name = "xterm -c"
+args = ["-c"]
+env = {"TERM" = "xterm", "COLORTERM" = ""}
+
+[[case]]
+name = "xterm --print-ls-colors"
+args = ["--print-ls-colors"]
+env = {"TERM" = "xterm", "COLORTERM" = ""}
+
+[[case]]
+name = "xterm-256color -b"
+args = ["-b"]
+env = {"TERM" = "xterm-256color", "COLORTERM" = ""}
+
+[[case]]
+name = "xterm-256color -c"
+args = ["-c"]
+env = {"TERM" = "xterm-256color", "COLORTERM" = ""}
+
+[[case]]
+name = "xterm-256color --print-ls-colors"
+args = ["--print-ls-colors"]
+env = {"TERM" = "xterm-256color", "COLORTERM" = ""}
+
+[[case]]
+name = "linux -b"
+args = ["-b"]
+env = {"TERM" = "linux", "COLORTERM" = ""}
+
+[[case]]
+name = "linux -c"
+args = ["-c"]
+env = {"TERM" = "linux", "COLORTERM" = ""}
+
+[[case]]
+name = "linux --print-ls-colors"
+args = ["--print-ls-colors"]
+env = {"TERM" = "linux", "COLORTERM" = ""}
+
+[[case]]
+name = "screen -b"
+args = ["-b"]
+env = {"TERM" = "screen", "COLORTERM" = ""}
+
+[[case]]
+name = "screen -c"
+args = ["-c"]
+env = {"TERM" = "screen", "COLORTERM" = ""}
+
+[[case]]
+name = "screen --print-ls-colors"
+args = ["--print-ls-colors"]
+env = {"TERM" = "screen", "COLORTERM" = ""}
+
+[[case]]
+name = "vt100 -b"
+args = ["-b"]
+env = {"TERM" = "vt100", "COLORTERM" = ""}
+
+[[case]]
+name = "vt100 -c"
+args = ["-c"]
+env = {"TERM" = "vt100", "COLORTERM" = ""}
+
+[[case]]
+name = "vt100 --print-ls-colors"
+args = ["--print-ls-colors"]
+env = {"TERM" = "vt100", "COLORTERM" = ""}
+
+[[case]]
+name = "not-a-terminal -b"
+args = ["-b"]
+env = {"TERM" = "not-a-terminal", "COLORTERM" = ""}
+
+[[case]]
+name = "not-a-terminal -c"
+args = ["-c"]
+env = {"TERM" = "not-a-terminal", "COLORTERM" = ""}
+
+[[case]]
+name = "not-a-terminal --print-ls-colors"
+args = ["--print-ls-colors"]
+env = {"TERM" = "not-a-terminal", "COLORTERM" = ""}
+
+[[case]]
+name = "['-b', 'colors']"
+args = ["-b", "colors"]
+scratch = { colors = "TERM *\nDIR 01;34\n.txt 00;32\nLINK target\n" }
+env = { TERM = "xterm", SHELL = "/bin/bash" }
+
+[[case]]
+name = "['-c', 'colors']"
+args = ["-c", "colors"]
+scratch = { colors = "TERM *\nDIR 01;34\n.txt 00;32\nLINK target\n" }
+env = { TERM = "xterm", SHELL = "/bin/bash" }
+
+[[case]]
+name = "['--print-ls-colors', 'colors']"
+args = ["--print-ls-colors", "colors"]
+scratch = { colors = "TERM *\nDIR 01;34\n.txt 00;32\nLINK target\n" }
+env = { TERM = "xterm", SHELL = "/bin/bash" }
+
+[[case]]
+name = "['colors']"
+args = ["colors"]
+scratch = { colors = "TERM *\nDIR 01;34\n.txt 00;32\nLINK target\n" }
+env = { TERM = "xterm", SHELL = "/bin/bash" }
