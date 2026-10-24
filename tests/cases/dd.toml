@@ -1,0 +1,272 @@
+# Summary time/rate are measured by shape; record counters remain byte-exact.
+
+[[case]]
+name = "stdin []"
+args = ["status=noxfer"]
+stdin = "aBcD eF\nxy\nlast"
+
+[[case]]
+name = "stdin ['bs=2']"
+args = ["bs=2", "status=noxfer"]
+stdin = "aBcD eF\nxy\nlast"
+
+[[case]]
+name = "stdin ['ibs=2', 'obs=3']"
+args = ["ibs=2", "obs=3", "status=noxfer"]
+stdin = "aBcD eF\nxy\nlast"
+
+[[case]]
+name = "stdin ['count=0']"
+args = ["count=0", "status=noxfer"]
+stdin = "aBcD eF\nxy\nlast"
+
+[[case]]
+name = "stdin ['count=1']"
+args = ["count=1", "status=noxfer"]
+stdin = "aBcD eF\nxy\nlast"
+
+[[case]]
+name = "stdin ['count=2']"
+args = ["count=2", "status=noxfer"]
+stdin = "aBcD eF\nxy\nlast"
+
+[[case]]
+name = "stdin ['count=2B']"
+args = ["count=2B", "status=noxfer"]
+stdin = "aBcD eF\nxy\nlast"
+
+[[case]]
+name = "stdin ['skip=1']"
+args = ["skip=1", "status=noxfer"]
+stdin = "aBcD eF\nxy\nlast"
+
+[[case]]
+name = "stdin ['skip=1', 'ibs=2']"
+args = ["skip=1", "ibs=2", "status=noxfer"]
+stdin = "aBcD eF\nxy\nlast"
+
+[[case]]
+name = "stdin ['skip=2B']"
+args = ["skip=2B", "status=noxfer"]
+stdin = "aBcD eF\nxy\nlast"
+
+[[case]]
+name = "stdin ['bs=1c']"
+args = ["bs=1c", "status=noxfer"]
+stdin = "aBcD eF\nxy\nlast"
+
+[[case]]
+name = "stdin ['bs=2w']"
+args = ["bs=2w", "status=noxfer"]
+stdin = "aBcD eF\nxy\nlast"
+
+[[case]]
+name = "stdin ['bs=1x2']"
+args = ["bs=1x2", "status=noxfer"]
+stdin = "aBcD eF\nxy\nlast"
+
+[[case]]
+name = "stdin ['bs=1K']"
+args = ["bs=1K", "status=noxfer"]
+stdin = "aBcD eF\nxy\nlast"
+
+[[case]]
+name = "stdin ['status=none']"
+args = ["status=none"]
+stdin = "aBcD eF\nxy\nlast"
+
+[[case]]
+name = "stdin ['status=progress']"
+args = ["status=progress"]
+stdin = "aBcD eF\nxy\nlast"
+mask = ["[0-9.e+-]+ s, [^\n]+/s"]
+
+[[case]]
+name = "stdin ['conv=lcase']"
+args = ["conv=lcase", "status=noxfer"]
+stdin = "aBcD eF\nxy\nlast"
+
+[[case]]
+name = "stdin ['conv=ucase']"
+args = ["conv=ucase", "status=noxfer"]
+stdin = "aBcD eF\nxy\nlast"
+
+[[case]]
+name = "stdin ['conv=swab']"
+args = ["conv=swab", "status=noxfer"]
+stdin = "aBcD eF\nxy\nlast"
+
+[[case]]
+name = "stdin ['ibs=4', 'conv=swab']"
+args = ["ibs=4", "conv=swab", "status=noxfer"]
+stdin = "aBcD eF\nxy\nlast"
+
+[[case]]
+name = "stdin ['ibs=4', 'conv=sync']"
+args = ["ibs=4", "conv=sync", "status=noxfer"]
+stdin = "aBcD eF\nxy\nlast"
+
+[[case]]
+name = "stdin ['ibs=4', 'conv=swab,sync']"
+args = ["ibs=4", "conv=swab,sync", "status=noxfer"]
+stdin = "aBcD eF\nxy\nlast"
+
+[[case]]
+name = "stdin ['cbs=4', 'conv=block']"
+args = ["cbs=4", "conv=block", "status=noxfer"]
+stdin = "aBcD eF\nxy\nlast"
+
+[[case]]
+name = "stdin ['cbs=4', 'conv=unblock']"
+args = ["cbs=4", "conv=unblock", "status=noxfer"]
+stdin = "aBcD eF\nxy\nlast"
+
+[[case]]
+name = "stdin ['cbs=4', 'conv=block,sync']"
+args = ["cbs=4", "conv=block,sync", "status=noxfer"]
+stdin = "aBcD eF\nxy\nlast"
+
+[[case]]
+name = "stdin ['cbs=4', 'conv=unblock,sync']"
+args = ["cbs=4", "conv=unblock,sync", "status=noxfer"]
+stdin = "aBcD eF\nxy\nlast"
+
+[[case]]
+name = "stdin ['iflag=fullblock']"
+args = ["iflag=fullblock", "status=noxfer"]
+stdin = "aBcD eF\nxy\nlast"
+
+[[case]]
+name = "stdin ['count=3', 'iflag=count_bytes']"
+args = ["count=3", "iflag=count_bytes", "status=noxfer"]
+stdin = "aBcD eF\nxy\nlast"
+
+[[case]]
+name = "stdin ['skip=3', 'iflag=skip_bytes']"
+args = ["skip=3", "iflag=skip_bytes", "status=noxfer"]
+stdin = "aBcD eF\nxy\nlast"
+
+[[case]]
+name = "files ['if=a', 'of=b']"
+args = ["if=a", "of=b", "status=noxfer"]
+scratch = { a = "aBcDeF", b = "0123456789" }
+
+[[case]]
+name = "files ['if=a', 'of=b', 'bs=2']"
+args = ["if=a", "of=b", "bs=2", "status=noxfer"]
+scratch = { a = "aBcDeF", b = "0123456789" }
+
+[[case]]
+name = "files ['if=a', 'of=b', 'ibs=3', 'obs=4']"
+args = ["if=a", "of=b", "ibs=3", "obs=4", "status=noxfer"]
+scratch = { a = "aBcDeF", b = "0123456789" }
+
+[[case]]
+name = "files ['if=a', 'of=b', 'conv=notrunc']"
+args = ["if=a", "of=b", "conv=notrunc", "status=noxfer"]
+scratch = { a = "aBcDeF", b = "0123456789" }
+
+[[case]]
+name = "files ['if=a', 'of=b', 'seek=1', 'obs=2']"
+args = ["if=a", "of=b", "seek=1", "obs=2", "status=noxfer"]
+scratch = { a = "aBcDeF", b = "0123456789" }
+
+[[case]]
+name = "files ['if=a', 'of=b', 'seek=1', 'obs=2', 'conv=notrunc']"
+args = ["if=a", "of=b", "seek=1", "obs=2", "conv=notrunc", "status=noxfer"]
+scratch = { a = "aBcDeF", b = "0123456789" }
+
+[[case]]
+name = "files ['if=a', 'of=b', 'oflag=append', 'conv=notrunc']"
+args = ["if=a", "of=b", "oflag=append", "conv=notrunc", "status=noxfer"]
+scratch = { a = "aBcDeF", b = "0123456789" }
+
+[[case]]
+name = "files ['if=a', 'of=b', 'conv=fsync']"
+args = ["if=a", "of=b", "conv=fsync", "status=noxfer"]
+scratch = { a = "aBcDeF", b = "0123456789" }
+
+[[case]]
+name = "files ['if=a', 'of=b', 'conv=fdatasync']"
+args = ["if=a", "of=b", "conv=fdatasync", "status=noxfer"]
+scratch = { a = "aBcDeF", b = "0123456789" }
+
+[[case]]
+name = "files ['if=a', 'of=new', 'conv=excl']"
+args = ["if=a", "of=new", "conv=excl", "status=noxfer"]
+scratch = { a = "aBcDeF", b = "0123456789" }
+
+[[case]]
+name = "files ['if=a', 'of=b', 'conv=excl']"
+args = ["if=a", "of=b", "conv=excl", "status=noxfer"]
+scratch = { a = "aBcDeF", b = "0123456789" }
+
+[[case]]
+name = "files ['if=a', 'of=b', 'bs=1', 'count=3']"
+args = ["if=a", "of=b", "bs=1", "count=3", "status=noxfer"]
+scratch = { a = "aBcDeF", b = "0123456789" }
+
+[[case]]
+name = "files ['if=a', 'of=b', 'ibs=2', 'skip=2']"
+args = ["if=a", "of=b", "ibs=2", "skip=2", "status=noxfer"]
+scratch = { a = "aBcDeF", b = "0123456789" }
+
+[[case]]
+name = "files ['if=a', 'of=b', 'conv=sparse']"
+args = ["if=a", "of=b", "conv=sparse", "status=noxfer"]
+scratch = { a = "aBcDeF", b = "0123456789" }
+
+[[case]]
+name = "gap conv ascii"
+args = ["conv=ascii"]
+skip = "not implemented yet: conv=ascii is refused by name"
+
+[[case]]
+name = "gap conv ebcdic"
+args = ["conv=ebcdic"]
+skip = "not implemented yet: conv=ebcdic is refused by name"
+
+[[case]]
+name = "gap conv ibm"
+args = ["conv=ibm"]
+skip = "not implemented yet: conv=ibm is refused by name"
+
+[[case]]
+name = "gap conv nocreat"
+args = ["conv=nocreat"]
+skip = "not implemented yet: conv=nocreat is refused by name"
+
+[[case]]
+name = "gap iflag direct"
+args = ["iflag=direct"]
+skip = "pinned open surface lacks direct; refused by name"
+
+[[case]]
+name = "gap iflag dsync"
+args = ["iflag=dsync"]
+skip = "pinned open surface lacks dsync; refused by name"
+
+[[case]]
+name = "gap iflag sync"
+args = ["iflag=sync"]
+skip = "pinned open surface lacks sync; refused by name"
+
+[[case]]
+name = "gap iflag noatime"
+args = ["iflag=noatime"]
+skip = "pinned open surface lacks noatime; refused by name"
+
+[[case]]
+name = "gap iflag nocache"
+args = ["iflag=nocache"]
+skip = "pinned open surface lacks nocache; refused by name"
+
+[[case]]
+name = "gap iflag noctty"
+args = ["iflag=noctty"]
+skip = "pinned open surface lacks noctty; refused by name"
+
+[[case]]
+name = "gap iflag directory"
+args = ["iflag=directory"]
+skip = "pinned open surface lacks directory; refused by name"

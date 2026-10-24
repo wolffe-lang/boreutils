@@ -1,0 +1,267 @@
+//! member: false
+//! dd — bounded block IO and record conversions.
+//! References consulted: POSIX.1-2024 dd; GNU coreutils 9.11 manual and
+//! black-box runs only. The conversion tables are measured byte mappings,
+//! not implementation text. Reads retain only one input and output block.
+//! Open flags not served by wolf are refused by their operand and flag.
+//! fdatasync uses the stronger fs_sync, as sync -d does in this tree.
+
+use bore
+use std.signal
+
+struct Config {
+    input: str, output: str, ibs: int, obs: int, cbs: int, count: int,
+    skip: int, seek: int, countbytes: bool, skipbytes: bool, seekbytes: bool,
+    full: bool, pad: bool, swab: bool, lower: bool, upper: bool,
+    block: bool, unblock: bool, sparse: bool, notrunc: bool, excl: bool,
+    nocreat: bool, noerror: bool, sync: bool, append: bool,
+    inf: int, outf: int, status: int, table: str,
+}
+struct Stats { wholein: int, partialin: int, wholeout: int, partialout: int, bytes: int, trunc: int }
+struct Writer { fd: int, buf: List[byte], at: int, sparse_end: bool }
+
+fn number(s: str) -> int ! {invalid} {
+    if s.len == 0 { return invalid }
+    let x = s.find("x") else -1
+    if x > 0 {
+        let a = number(s[..x])?, b = number(s[x + 1..])?
+        if b > 0 && a > bore.count_cap() / b { return invalid }
+        return a * b
+    }
+    if s.ends_with("c") { return number(s[..^1]) }
+    if s.ends_with("w") {
+        let n = number(s[..^1])?
+        if n > bore.count_cap() / 2 { return invalid }
+        return n * 2
+    }
+    let n = bore.parse_count(s)?
+    if bore.count_minus(n) || bore.count_value(n) == bore.count_cap() { return invalid }
+    bore.count_value(n)
+}
+fn report(s: Stats, level: int, started: int) {
+    if level == 0 { return }
+    eprint("{s.wholein}+{s.partialin} records in\n{s.wholeout}+{s.partialout} records out")
+    if s.trunc > 0 { eprint("{s.trunc} truncated {if s.trunc == 1 then "record" else "records"}") }
+    if level != 1 {
+        let elapsed = os_clock_ns() - started
+        let seconds = elapsed as f64 / 1000000000.0
+        let rate = if elapsed > 0 then s.bytes as f64 / seconds else 0.0
+        eprint("{s.bytes} {if s.bytes == 1 then "byte" else "bytes"} copied, {seconds} s, {rate} B/s")
+    }
+}
+fn write_block(mut w: Writer, bytes: List[byte], c: Config, mut s: Stats) -> bool {
+    var zeros = c.sparse
+    if zeros { for b in bytes { if b as int != 0 { zeros = false; break } } }
+    var moved = false
+    if zeros {
+        let at = fs_tell(w.fd) else -1
+        if at >= 0 { fs_seek(w.fd, at + bytes.len) else |_| { return false }; moved = true }
+    }
+    if !moved {
+        fs_write_chunk(w.fd, bytes) else |_| {
+            bore.warn("dd", "error writing {bore.quote_always(c.output)}: {bore.io_error()}")
+            return false
+        }
+    }
+    w.sparse_end = moved
+    s.bytes += bytes.len
+    if bytes.len == c.obs { s.wholeout += 1 } else { s.partialout += 1 }
+    true
+}
+fn put(mut w: Writer, b: byte, c: Config, mut s: Stats) -> bool {
+    (mut w.buf).push(b)
+    if w.buf.len == c.obs {
+        if !write_block(mut w, w.buf, c, mut s) { return false }
+        w.buf = List[byte]()
+    }
+    true
+}
+fn main() -> int {
+    var c = Config { input: "-", output: "standard output", ibs: 512, obs: 512, cbs: 0, count: -1, skip: 0, seek: 0, countbytes: false, skipbytes: false, seekbytes: false, full: false, pad: false, swab: false, lower: false, upper: false, block: false, unblock: false, sparse: false, notrunc: false, excl: false, nocreat: false, noerror: false, sync: false, append: false, inf: 0, outf: 0, status: 2, table: "" }
+    var bs = 0
+    for arg in env_args() {
+        if arg == "--help" || arg == "--version" {
+            var out = bore.stdout()
+            bore.put(mut out, if arg == "--help" then "Usage: dd [OPERAND]...\nCopy blocks with if=, of=, bs=, count= and explicit conversions.\nUnsupported open flags are refused by name.\n" else bore.version_text("dd")) else |_| {}
+            return bore.finish(mut out, "dd", 0)
+        }
+        let eq = arg.find("=") else -1
+        if eq < 0 { bore.warn("dd", "unrecognized operand {bore.quote_always(arg)}"); eprint("Try 'dd --help' for more information."); return 1 }
+        let k = arg[..eq], v = arg[eq + 1..]
+        if k == "if" { c.input = v; continue }
+        if k == "of" { c.output = v; continue }
+        if k == "status" {
+            if v == "none" { c.status = 0 } else if v == "noxfer" { c.status = 1 } else if v == "progress" { c.status = 3 }
+            else { bore.warn("dd", "invalid status level {bore.quote_always(v)}"); return 1 }
+            continue
+        }
+        if k == "conv" || k == "iflag" || k == "oflag" {
+            for word in v.split(",") {
+                var supported = true
+                if k == "conv" {
+                    if word == "notrunc" { c.notrunc = true }
+                    else if word == "excl" { c.excl = true }
+                    else if word == "nocreat" { c.nocreat = true }
+                    else if word == "noerror" { c.noerror = true }
+                    else if word == "sync" { c.pad = true }
+                    else if word == "swab" { c.swab = true }
+                    else if word == "lcase" { c.lower = true }
+                    else if word == "ucase" { c.upper = true }
+                    else if word == "sparse" { c.sparse = true }
+                    else if word == "block" { c.block = true }
+                    else if word == "unblock" { c.unblock = true }
+                    else if word == "fdatasync" || word == "fsync" { c.sync = true }
+                    else { supported = false }
+                } else {
+                    if word == "fullblock" && k == "iflag" { c.full = true }
+                    else if word == "count_bytes" && k == "iflag" { c.countbytes = true }
+                    else if word == "skip_bytes" && k == "iflag" { c.skipbytes = true }
+                    else if word == "seek_bytes" && k == "oflag" { c.seekbytes = true }
+                    else if word == "append" && k == "oflag" { c.append = true }
+                    else if word == "nofollow" { if k == "iflag" { c.inf += if c.inf / 16 % 2 == 0 then 16 else 0 } else { c.outf = 16 } }
+                    else if word == "nonblock" && k == "iflag" { c.inf = 5 + c.inf / 16 * 16 }
+                    else { supported = false }
+                }
+                if !supported { bore.warn("dd", "unsupported {k} flag: {word}"); return 1 }
+            }
+            continue
+        }
+        var text = v
+        if (k == "count" || k == "skip" || k == "iseek" || k == "seek" || k == "oseek") && v.ends_with("B") {
+            text = v[..^1]
+            if k == "count" { c.countbytes = true }
+            if k == "skip" || k == "iseek" { c.skipbytes = true }
+            if k == "seek" || k == "oseek" { c.seekbytes = true }
+        }
+        let n = number(text) else |_| { bore.warn("dd", "invalid number: {bore.quote_always(v)}"); return 1 }
+        if k == "bs" { bs = n }
+        else if k == "ibs" { c.ibs = n }
+        else if k == "obs" { c.obs = n }
+        else if k == "cbs" { c.cbs = n }
+        else if k == "count" { c.count = n }
+        else if k == "skip" || k == "iseek" { c.skip = n }
+        else if k == "seek" || k == "oseek" { c.seek = n }
+        else { bore.warn("dd", "unrecognized operand {bore.quote_always(arg)}"); return 1 }
+    }
+    if bs > 0 { c.ibs = bs; c.obs = bs }
+    if c.ibs <= 0 || c.obs <= 0 || c.lower && c.upper || c.block && c.unblock {
+        bore.warn("dd", "invalid or conflicting block size or conversion"); return 1
+    }
+    if (c.block || c.unblock) && c.cbs == 0 { c.block = false; c.unblock = false }
+    // The pinned allocator has no reusable byte buffer. Bound block requests
+    // rather than let an adversarial operand exhaust the process's arena.
+    if c.ibs > 16777216 || c.obs > 16777216 || c.cbs > 16777216 {
+        bore.warn("dd", "unsupported block size above 16 MiB"); return 1
+    }
+    if c.nocreat { bore.warn("dd", "unsupported conv flag: nocreat (no non-creating writable open)"); return 1 }
+    if c.skip > bore.count_cap() / c.ibs || c.seek > bore.count_cap() / c.obs {
+        bore.warn("dd", "offset is too large"); return 1
+    }
+    let input = if c.input == "-" then 0 else (fs_open_mode(c.input, c.inf) else |_| { bore.warn("dd", "failed to open {bore.quote_always(c.input)}: {bore.io_error()}"); return 1 })
+    defer { if input != 0 { fs_close(input) else |_| {} } }
+    var fd = 1
+    if c.output != "standard output" {
+        let mode = (if c.excl then 4 else if c.append then 2 else if c.notrunc || c.seek > 0 then 3 else 1) + c.outf
+        fd = fs_open_mode(c.output, mode) else |_| { bore.warn("dd", "failed to open {bore.quote_always(c.output)}: {bore.io_error()}"); return 1 }
+    }
+    defer { if fd != 1 { fs_close(fd) else |_| {} } }
+    let skip = c.skip * if c.skipbytes then 1 else c.ibs
+    if skip > 0 {
+        let at = fs_tell(input) else -1
+        var sought = false
+        if at >= 0 { fs_seek(input, at + skip) else |_| { return 1 }; sought = true }
+        if !sought {
+            var left = skip
+            while left > 0 {
+                region skipped {
+                    let bytes = fs_read_chunk(input, if left < 65536 then left else 65536) else |_| { break }
+                    left -= bytes.len
+                }
+            }
+        }
+    }
+    if c.seek > 0 {
+        fs_seek(fd, c.seek * if c.seekbytes then 1 else c.obs) else |_| { bore.warn("dd", "{bore.quote_always(c.output)}: cannot seek: {bore.io_error()}"); return 1 }
+    }
+    let started = os_clock_ns()
+    os_signal_listen(signal.user()) else |_| { bore.warn("dd", "cannot listen for USR1"); return 1 }
+    var last = started
+    var s = Stats { wholein: 0, partialin: 0, wholeout: 0, partialout: 0, bytes: 0, trunc: 0 }
+    var w = Writer { fd: fd, buf: List[byte](), at: 0, sparse_end: false }
+    var blocks: int = 0, consumed: int = 0, record: int = 0, spaces: int = 0
+    var status = 0, stop = false, over = false
+    while !stop && (c.count < 0 || (if c.countbytes then consumed else blocks) < c.count) {
+        var wanted = c.ibs
+        if c.countbytes && c.count >= 0 && c.count - consumed < wanted { wanted = c.count - consumed }
+        var chunk = List[byte]()
+        region readblock {
+            while chunk.len < wanted {
+                let part = fs_read_chunk(input, wanted - chunk.len) else |e| match e {
+                    eof => { stop = true; break },
+                    io => {
+                        bore.warn("dd", "error reading {bore.quote_always(c.input)}: {bore.io_error()}")
+                        if !c.noerror { status = 1; stop = true }
+                        else {
+                            let at = fs_tell(input) else -1
+                            if at < 0 { bore.warn("dd", "cannot continue noerror on an unseekable input"); status = 1; stop = true }
+                            else { fs_seek(input, at + wanted) else |_| { status = 1; stop = true } }
+                        }
+                        break
+                    },
+                }
+                for b in part { (mut chunk).push(b) }
+                if !c.full { break }
+            }
+        }
+        if chunk.len == 0 { break }
+        consumed += chunk.len
+        blocks += 1
+        if chunk.len == c.ibs { s.wholein += 1 } else { s.partialin += 1 }
+        if c.pad {
+            while chunk.len < c.ibs { (mut chunk).push(if c.block || c.unblock then 32 as byte else 0 as byte) }
+        }
+        if c.swab {
+            var i = 0
+            while i + 1 < chunk.len { let b = chunk[i]; chunk[i] = chunk[i + 1]; chunk[i + 1] = b; i += 2 }
+        }
+        for octet in chunk {
+            var b = octet as int
+            if c.lower && b >= 65 && b <= 90 { b += 32 }
+            if c.upper && b >= 97 && b <= 122 { b -= 32 }
+            if c.block {
+                if b == 10 {
+                    while record < c.cbs { if !put(mut w, 32 as byte, c, mut s) { status = 1; break }; record += 1 }
+                    record = 0; over = false
+                } else if record < c.cbs {
+                    if !put(mut w, b as byte, c, mut s) { status = 1; break }
+                    record += 1
+                } else if !over { s.trunc += 1; over = true }
+            } else if c.unblock {
+                if b == 32 { spaces += 1 }
+                else {
+                    while spaces > 0 { if !put(mut w, 32 as byte, c, mut s) { status = 1; break }; spaces -= 1 }
+                    if !put(mut w, b as byte, c, mut s) { status = 1; break }
+                }
+                record += 1
+                if record == c.cbs { if !put(mut w, 10 as byte, c, mut s) { status = 1; break }; record = 0; spaces = 0 }
+            } else if !put(mut w, b as byte, c, mut s) { status = 1; break }
+        }
+        chunk = List[byte]()
+        if status != 0 { break }
+        let heard = os_signal_poll(signal.user()) else 0
+        let now = os_clock_ns()
+        if heard != 0 || c.status == 3 && now - last >= 1000000000 { report(s, c.status, started); last = now }
+    }
+    if c.block && record > 0 {
+        while record < c.cbs { if !put(mut w, 32 as byte, c, mut s) { status = 1; break }; record += 1 }
+    }
+    if c.unblock && record > 0 { if !put(mut w, 10 as byte, c, mut s) { status = 1 } }
+    if w.buf.len > 0 { if !write_block(mut w, w.buf, c, mut s) { status = 1 } }
+    if w.sparse_end || c.seek > 0 && !c.notrunc && c.output != "standard output" {
+        let end = fs_tell(fd) else -1
+        if end >= 0 { fs_truncate(fd, end) else |_| { status = 1 } }
+    }
+    if c.sync { fs_sync(fd) else |_| { bore.warn("dd", "fsync failed: {bore.io_error()}"); status = 1 } }
+    report(s, c.status, started)
+    status
+}
