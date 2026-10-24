@@ -255,8 +255,9 @@ fn main() -> int {
     (mut spec).push(bore.flag("u", "uniform-spacing"))
     (mut spec).push(bore.flag("", "help"))
     (mut spec).push(bore.flag("", "version"))
-    var args = List[str]()
+    var args = List[str](), expecting = false
     for arg in env_args() {
+        if expecting { (mut args).push(arg); expecting = false; continue }
         if arg.len > 1 &&
             arg.bytes()[0] == 45 as byte &&
             arg.bytes()[1] >= 48 as byte &&
@@ -266,6 +267,7 @@ fn main() -> int {
         } else {
             (mut args).push(arg)
         }
+        if arg == "-w" || arg == "-g" || arg == "-p" || arg == "--width" || arg == "--goal" || arg == "--prefix" { expecting = true }
     }
     let p = bore.parse(spec, args, bore.permute())
     var out = bore.stdout(),
@@ -278,7 +280,7 @@ fn main() -> int {
             tagged: false,
             uniform: false,
         }
-    var width_given = false
+    var width_given = false, goal_given = false, goal_word = ""
     for k in 0..p.keys.len {
         let key = p.keys[k], v = p.values[k]
         if key == "help" || key == "version" {
@@ -294,11 +296,14 @@ fn main() -> int {
         }
         if key == "width" || key == "goal" {
             let n = v.to_int() else -1
-            if n <= 0 || n > 2147483647 {
+            if n < 0 {
                 bore.warn("fmt", "invalid width: {bore.quote_always(v)}")
                 return 1
             }
-            if key == "width" { o.width = n; width_given = true } else { o.goal = n }
+            if key == "width" {
+                if n > 2500 { bore.warn("fmt", "invalid width: {bore.quote_always(v)}: {bore.reason_of(34)}"); return 1 }
+                o.width = n; width_given = true
+            } else { o.goal = n; goal_given = true; goal_word = v }
         }
         if key == "prefix" {
             var start = 0
@@ -311,8 +316,11 @@ fn main() -> int {
         if key == "uniform-spacing" { o.uniform = true }
     }
     if !bore.ok(p) { return bore.usage_error("fmt", p.error) }
-    if !width_given && o.goal > 0 { o.width = o.goal + 10 }
-    if o.goal == 0 { o.goal = o.width * 187 / 200 }
+    if goal_given && ((!width_given && o.goal > 2490) || width_given && o.goal > o.width) {
+        bore.warn("fmt", "invalid width: {bore.quote_always(goal_word)}: {bore.reason_of(if os_name() == "macos" then 84 else 75)}"); return 1
+    }
+    if !width_given && goal_given { o.width = o.goal + 10 }
+    if !goal_given { o.goal = o.width * 187 / 200 }
     var paths = copy p.operands
     if paths.len == 0 { (mut paths).push("-") }
     var status = 0

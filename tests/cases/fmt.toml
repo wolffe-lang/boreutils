@@ -1593,6 +1593,46 @@ args = ["-w75"]
 stdin = "xxx x xxx x xxxxxxxxxx xxxxxxxxx xxxx xxxxxxxxxx xxxxx xx xxxx xxxxxxxxx xxxxxxxxx xx xxxxxxx xxxx xxxx x xxxxxxxxxx xxxxxxxx xxxx xxxxx x xxxxxxxxx xxxxxxxxx xxxx xxxxxxxxx xxxxxxx xxxxxxxxxx xxxxxxxxxx\n"
 
 [[case]]
-name = "large valid formatting parameter"
+name = "formatting argument beyond GNU width limit"
 args = ["-w100001"]
 stdin = "small paragraph\n"
+
+[[case]]
+name = "width and goal domain ['-g2500']"
+args = ["-g2500"]
+stdin = "a b c\n"
+
+[[case]]
+name = "width and goal domain ['-w2500', '-g2500']"
+args = ["-w2500", "-g2500"]
+stdin = "a b c\n"
+
+[[case]]
+name = "width and goal domain ['-w20', '-g21']"
+args = ["-w20", "-g21"]
+stdin = "a b c\n"
+
+[[case]]
+name = "width and goal domain ['-w0']"
+args = ["-w0"]
+stdin = "a b c\n"
+
+[[case]]
+name = "width and goal domain ['-w', '-1']"
+args = ["-w", "-1"]
+stdin = "a b c\n"
+
+[[case]]
+name = "width and goal domain ['-g0']"
+args = ["-g0"]
+stdin = "a b c\n"
+
+[[case]]
+name = "width and goal domain ['-g2501']"
+args = ["-g2501"]
+stdin = "a b c\n"
+
+[[case]]
+name = "width and goal domain ['-w2501']"
+args = ["-w2501"]
+stdin = "a b c\n"
