@@ -408,3 +408,26 @@ name = "selection ['-M', 'index', '-O']"
 args = ["-M", "index", "-O"]
 stdin = "Alpha beta gamma\nDelta alpha beta\n"
 scratch = { "ignore" = "beta\n", "only" = "Alpha\nbeta\n", "breaks" = " \n" }
+
+[[case]]
+name = "common help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "common version"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "common unknown option"
+args = ["--not-an-option"]
+
+[[case]]
+name = "common closed version"
+args = ["--version"]
+stdout_closed = true
+
+[[case]]
+name = "common missing file"
+args = ["missing"]

@@ -668,3 +668,26 @@ stdin_file = "bu33-od-bytes"
 name = "traditional ['--traditional', '-tx1'] +0x10"
 args = ["--traditional", "-tx1", "+0x10"]
 stdin_file = "bu33-od-bytes"
+
+[[case]]
+name = "common help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "common version"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "common unknown option"
+args = ["--not-an-option"]
+
+[[case]]
+name = "common closed version"
+args = ["--version"]
+stdout_closed = true
+
+[[case]]
+name = "common missing file"
+args = ["missing"]

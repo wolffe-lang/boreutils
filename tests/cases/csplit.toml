@@ -581,3 +581,31 @@ name = "final record 'x\\ny\\n'"
 args = ["-", "2"]
 stdin = "x\ny\n"
 scratch = {}
+
+[[case]]
+name = "common help"
+args = ["--help"]
+compare = ["exit"]
+scratch = {}
+
+[[case]]
+name = "common version"
+args = ["--version"]
+compare = ["exit"]
+scratch = {}
+
+[[case]]
+name = "common unknown option"
+args = ["--not-an-option"]
+scratch = {}
+
+[[case]]
+name = "common closed version"
+args = ["--version"]
+stdout_closed = true
+scratch = {}
+
+[[case]]
+name = "common missing file"
+args = ["missing", "2"]
+scratch = {}

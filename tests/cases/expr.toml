@@ -1686,3 +1686,27 @@ stdout_file = "/dev/full"
 name = "closed help"
 args = ["--help"]
 stdout_closed = true
+
+[[case]]
+name = "common help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "common version"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "common unknown option"
+args = ["--not-an-option"]
+
+[[case]]
+name = "common closed version"
+args = ["--version"]
+stdout_closed = true
+
+[[case]]
+name = "integer magnitude exceeds u64"
+args = ["18446744073709551616"]
+skip = "wolf-std#100: named >64-bit refusal, checked independently by tools/numbertest"

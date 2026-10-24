@@ -228,3 +228,22 @@ timeout = 1200
 name = "larger integer named refusal"
 args = ["18446744073709551616"]
 skip = "wolf-std#100: factor explicitly refuses integers beyond 64 bits; tools/numbertest checks the refusal"
+
+[[case]]
+name = "common help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "common version"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "common unknown option"
+args = ["--not-an-option"]
+
+[[case]]
+name = "common closed version"
+args = ["--version"]
+stdout_closed = true

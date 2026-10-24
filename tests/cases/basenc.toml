@@ -1989,3 +1989,31 @@ name = "closed help"
 args = ["--help"]
 stdin = ""
 stdout_closed = true
+
+[[case]]
+name = "common help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "common version"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "common unknown option"
+args = ["--not-an-option"]
+
+[[case]]
+name = "common closed version"
+args = ["--version"]
+stdout_closed = true
+
+[[case]]
+name = "common missing file"
+args = ["--base16", "missing"]
+
+[[case]]
+name = "base58 named refusal"
+args = ["--base58"]
+skip = "GNU 9.11 base58 is outside this eight-encoding implementation; tools/numbertest checks the named refusal"

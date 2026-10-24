@@ -843,3 +843,22 @@ stdin = "1000\u00002000\u0000"
 name = "grouping C"
 args = ["--grouping", "--to=si"]
 stdin = "1000000\n"
+
+[[case]]
+name = "common help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "common version"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "common unknown option"
+args = ["--not-an-option"]
+
+[[case]]
+name = "common closed version"
+args = ["--version"]
+stdout_closed = true

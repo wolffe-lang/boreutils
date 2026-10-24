@@ -929,3 +929,26 @@ args = ["-l15", "-t", "-2", "f"]
 scratch = { "f" = "a\n\f\f\nb\n" }
 scratch_times = { "f" = 946782245 }
 env = { TZ = "UTC" }
+
+[[case]]
+name = "common help"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "common version"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "common unknown option"
+args = ["--not-an-option"]
+
+[[case]]
+name = "common closed version"
+args = ["--version"]
+stdout_closed = true
+
+[[case]]
+name = "common missing file"
+args = ["missing"]
