@@ -1,0 +1,189 @@
+//! member: false
+//! split — byte and record partitions. References consulted: GNU coreutils
+//! 9.11 --help and black-box binary probes. No implementation source.
+//! Input is retained in memory for size-based partitions, including pipes.
+
+use bore
+use numcli
+
+struct Output { prefix: str, extra: str, alphabet: str, digits: int, fixed: bool, next: int, verbose: bool, filter: str }
+
+fn quantity(s: str) -> int {
+    var end = 0
+    while end < s.len && s.bytes()[end] >= 48 as byte && s.bytes()[end] <= 57 as byte { end += 1 }
+    if end == 0 { return -1 }
+    let n = numcli.count(s[0..end], false) else |_| { return -1 }
+    if n.large { return -1 }
+    var v = n.value
+    let suffix = s[end..]
+    if suffix.len == 0 { return v }
+    if suffix == "b" { if v > 9223372036854775807 / 512 { return -1 }; return v * 512 }
+    let letters = "KMGTPEZYRQ"
+    var power = 0
+    for k in 0..letters.len { if suffix.starts_with(letters[k..k + 1]) { power = k + 1 } }
+    if power == 0 { return -1 }
+    let rest = suffix[1..]
+    if rest != "" && rest != "B" && rest != "iB" { return -1 }
+    let base = if rest == "B" then 1000 else 1024
+    for _ in 0..power { if v > 9223372036854775807 / base { return -1 }; v *= base }
+    v
+}
+
+fn partname(mut o: Output) -> str {
+    let base = o.alphabet.len
+    var capacity = 1
+    for _ in 0..o.digits { if capacity > 9223372036854775807 / base { capacity = 9223372036854775807; break }; capacity *= base }
+    if o.next >= capacity { return "" }
+    // GNU reserves the last alphabet letter for extending an automatic suffix.
+    if !o.fixed && o.alphabet.len == 26 && o.next >= 25 * (capacity / 26) {
+        o.prefix += "z"
+        o.digits += 1
+        o.next = 0
+    }
+    var n = o.next, suffix = ""
+    for _ in 0..o.digits { let d = n % base; suffix = o.alphabet[d..d + 1] + suffix; n /= base }
+    o.next += 1
+    o.prefix + suffix + o.extra
+}
+
+fn save(mut out: bore.Out, mut o: Output, bs: List[byte]) -> bool {
+    let name = partname(mut o)
+    if name.len == 0 { bore.warn("split", "output file suffixes exhausted"); return false }
+    if o.verbose { bore.put(mut out, "creating file {bore.quote_always(name)}\n") else |_| { return false } }
+    if o.filter.len > 0 {
+        let (r, w) = os_pipe() else |_| { bore.warn("split", "pipe: {bore.io_error()}"); return false }
+        let _ = env_set("FILE", name) else |_| {}
+        let h = os_spawn_fds("/bin/sh", ["-c", o.filter], [0, r]) else |_| {
+            let _ = fs_close(r) else |_| {}; let _ = fs_close(w) else |_| {}
+            bore.warn("split", "cannot execute filter"); return false
+        }
+        let _ = fs_close(r) else |_| {}
+        var good = true
+        fs_write_chunk(w, bs) else |_| { good = false }
+        let _ = fs_close(w) else |_| {}
+        let status = os_wait(h) else |_| { return false }
+        if status != 0 { bore.warn("split", "with FILE={name}, exit {status} from command: {o.filter}"); return false }
+        return good
+    }
+    let fd = fs_open_mode(name, 1) else |_| { bore.warn("split", "{bore.quote_name(name)}: {bore.reason_of(bore.host_code())}"); return false }
+    var ok = true
+    fs_write_chunk(fd, bs) else |_| { bore.warn("split", "{bore.quote_name(name)}: {bore.io_error()}"); ok = false }
+    fs_close(fd) else |_| { ok = false }
+    ok
+}
+
+fn segment(bs: List[byte], a: int, z: int) -> List[byte] {
+    var out = List[byte]()
+    for k in a..z { (mut out).push(bs[k]) }
+    out
+}
+
+fn main() -> int {
+    var spec = List[bore.Opt]()
+    (mut spec).push(bore.takes("a", "suffix-length"))
+    (mut spec).push(bore.takes("b", "bytes"))
+    (mut spec).push(bore.takes("C", "line-bytes"))
+    (mut spec).push(bore.takes("l", "lines"))
+    (mut spec).push(bore.takes("n", "number"))
+    (mut spec).push(bore.takes("t", "separator"))
+    (mut spec).push(bore.flag("d", ""))
+    (mut spec).push(bore.flag("x", ""))
+    (mut spec).push(bore.optional("", "numeric-suffixes"))
+    (mut spec).push(bore.optional("", "hex-suffixes"))
+    (mut spec).push(bore.takes("", "additional-suffix"))
+    (mut spec).push(bore.flag("e", "elide-empty-files"))
+    (mut spec).push(bore.flag("u", "unbuffered"))
+    (mut spec).push(bore.takes("", "filter"))
+    (mut spec).push(bore.flag("", "verbose"))
+    (mut spec).push(bore.flag("", "help"))
+    (mut spec).push(bore.flag("", "version"))
+    let p = bore.parse(spec, env_args(), bore.permute())
+    var out = bore.stdout()
+    var o = Output { prefix: "x", extra: "", alphabet: "abcdefghijklmnopqrstuvwxyz", digits: 2, fixed: false, next: 0, verbose: false, filter: "" }
+    var mode = "lines", amount = 1000, number = "", delim = 10, elide = false, chosen = false
+    for k in 0..p.keys.len {
+        let key = p.keys[k], v = p.values[k]
+        if key == "help" || key == "version" {
+            bore.put(mut out, if key == "version" then bore.version_text("split") else "Usage: split [OPTION]... [FILE [PREFIX]]\nSplit bytes or records into output files.\n") else |_| {}
+            return bore.finish(mut out, "split", 0)
+        }
+        if key == "lines" || key == "bytes" || key == "line-bytes" || key == "number" {
+            if chosen { return bore.usage_error("split", "cannot split in more than one way") }
+            chosen = true; mode = key
+            if key == "number" { number = v } else {
+                amount = quantity(v)
+                if amount <= 0 { bore.warn("split", "invalid number of {if key == "lines" then "lines" else "bytes"}: {bore.quote_always(v)}"); return 1 }
+            }
+        }
+        if key == "suffix-length" { o.digits = quantity(v); o.fixed = true; if o.digits <= 0 || o.digits > 1000 { bore.warn("split", "invalid suffix length: {bore.quote_always(v)}"); return 1 } }
+        if key == "d" || key == "numeric-suffixes" { o.alphabet = "0123456789" }
+        if key == "x" || key == "hex-suffixes" { o.alphabet = "0123456789abcdef" }
+        if key == "numeric-suffixes" || key == "hex-suffixes" {
+            if p.given[k] { o.next = quantity(v); o.fixed = true; if o.next < 0 { bore.warn("split", "invalid suffix start value: {bore.quote_always(v)}"); return 1 } }
+        }
+        if key == "additional-suffix" { o.extra = v; if v.find("/") else -1 >= 0 { bore.warn("split", "invalid suffix {bore.quote_always(v)}, contains directory separator"); return 1 } }
+        if key == "verbose" { o.verbose = true }
+        if key == "filter" { o.filter = v }
+        if key == "elide-empty-files" { elide = true }
+        if key == "separator" {
+            if v == "\\0" { delim = 0 } else if v.len == 1 { delim = v.bytes()[0] as int } else { bore.warn("split", "multi-character separator {bore.quote_always(v)}"); return 1 }
+        }
+    }
+    if !bore.ok(p) { return bore.usage_error("split", p.error) }
+    if p.operands.len > 2 { return bore.usage_error("split", "extra operand {bore.quote(p.operands[2])}") }
+    let path = if p.operands.len > 0 then p.operands[0] else "-"
+    if p.operands.len > 1 { o.prefix = p.operands[1] }
+    let src = bore.open_input(path) else |_| { bore.input_error("split", path, bore.reason_of(bore.host_code())); return 1 }
+    defer bore.close_input(src)
+    var bs = List[byte](), done = false
+    while !done {
+        let chunk = bore.read_chunk(src, 65536) else |e| match e { eof => { done = true; List[byte]() }, io => { bore.warn("split", "read error: {bore.io_error()}"); return 1 } }
+        if chunk.len == 0 { done = true }
+        for b in chunk { (mut bs).push(b) }
+    }
+    if mode == "number" {
+        var parts = List[str](), start = 0
+        for k in 0..number.len { if number.bytes()[k] == 47 as byte { (mut parts).push(number[start..k]); start = k + 1 } }
+        (mut parts).push(number[start..])
+        var kind = "", at = 0
+        if parts[0] == "l" || parts[0] == "r" { kind = parts[0]; at = 1 }
+        let remaining = parts.len - at
+        var which = 0, count = 0
+        if remaining == 1 { count = quantity(parts[at]) } else if remaining == 2 { which = quantity(parts[at]); count = quantity(parts[at + 1]) } else { count = -1 }
+        if count <= 0 || which < 0 || which > count || remaining == 2 && which == 0 { bore.warn("split", "invalid number of chunks: {bore.quote_always(number)}"); return 1 }
+        if which > 0 && o.filter.len > 0 { bore.warn("split", "--filter does not process a chunk extracted to stdout"); return 1 }
+        var offset = 0
+        for part in 0..count {
+            var chunk = List[byte]()
+            if kind == "r" {
+                var line = 0
+                for b in bs { if line % count == part { (mut chunk).push(b) }; if b as int == delim { line += 1 } }
+            } else {
+                let end = (bs.len / count) * (part + 1) + (bs.len % count) * (part + 1) / count
+                var stop = end
+                if kind == "l" && stop > 0 && stop < bs.len && bs[stop - 1] as int != delim { while stop < bs.len && bs[stop - 1] as int != delim { stop += 1 } }
+                if stop < offset { stop = offset }
+                chunk = segment(bs, offset, stop)
+                offset = stop
+            }
+            if which == part + 1 { bore.write_all(mut out, chunk) else |_| { return bore.finish(mut out, "split", 1) } }
+            if which == 0 && (!elide || chunk.len > 0) { if !save(mut out, mut o, chunk) { return bore.finish(mut out, "split", 1) } }
+        }
+    } else {
+        var start = 0
+        while start < bs.len {
+            var stop = start
+            if mode == "bytes" { stop = start + if amount < bs.len - start then amount else bs.len - start } else if mode == "lines" {
+                var lines = 0
+                while stop < bs.len && lines < amount { if bs[stop] as int == delim { lines += 1 }; stop += 1 }
+            } else {
+                var last = start
+                while stop < bs.len && stop - start < amount { if bs[stop] as int == delim { last = stop + 1 }; stop += 1 }
+                if stop < bs.len && last > start { stop = last }
+            }
+            if !save(mut out, mut o, segment(bs, start, stop)) { return bore.finish(mut out, "split", 1) }
+            start = stop
+        }
+    }
+    bore.finish(mut out, "split", 0)
+}
