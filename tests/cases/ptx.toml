@@ -441,3 +441,8 @@ skip = "POSIX/traditional ptx output is outside this GNU-mode implementation; to
 name = "large valid formatting parameter"
 args = ["-w100001"]
 stdin = ""
+
+[[case]]
+name = "directory input read failure"
+args = ["d"]
+scratch_dirs = ["d"]

@@ -1191,3 +1191,8 @@ name = "round robin filter ['-e']"
 args = ["-u", "-n", "r/5", "--filter=cat > \"$FILE\"", "-e"]
 stdin = "a\nb\n"
 scratch = {}
+
+[[case]]
+name = "directory input read failure"
+args = ["d"]
+scratch_dirs = ["d"]

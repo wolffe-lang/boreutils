@@ -978,3 +978,13 @@ args = ["-l11", "-D", "literal %% %Y", "f"]
 scratch = { "f" = "x\n" }
 scratch_times = { "f" = 946782245 }
 env = { TZ = "UTC" }
+
+[[case]]
+name = "directory input read failure"
+args = ["d"]
+scratch_dirs = ["d"]
+
+[[case]]
+name = "directory read failure is not an open warning"
+args = ["-r", "d"]
+scratch_dirs = ["d"]

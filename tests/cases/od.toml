@@ -716,3 +716,8 @@ stdin_file = "bu33-od-bytes"
 name = "quantity grammar ['--traditional', '-tx1', '+0x1b']"
 args = ["--traditional", "-tx1", "+0x1b"]
 stdin_file = "bu33-od-bytes"
+
+[[case]]
+name = "directory input read failure"
+args = ["d"]
+scratch_dirs = ["d"]

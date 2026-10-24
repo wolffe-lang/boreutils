@@ -701,3 +701,8 @@ args = ["f", "2"]
 scratch = { "f" = "1\n2\n3\n" }
 scratch_links = { "xx00" = "f" }
 skip = "R-bu33-3 / ruling 123: preserve and refuse input-inode collisions; GNU truncates/deletes the input; tools/splittertest checks preservation"
+
+[[case]]
+name = "directory input read failure"
+args = ["d", "2"]
+scratch_dirs = ["d"]

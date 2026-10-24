@@ -2017,3 +2017,8 @@ args = ["--base16", "missing"]
 name = "base58 named refusal"
 args = ["--base58"]
 skip = "GNU 9.11 base58 is outside this eight-encoding implementation; tools/numbertest checks the named refusal"
+
+[[case]]
+name = "directory input read failure"
+args = ["--base16", "d"]
+scratch_dirs = ["d"]
