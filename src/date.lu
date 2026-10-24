@@ -15,7 +15,7 @@ fn invalid_date(text: str, unread: bool) {
     else { bore.warn("date", "invalid date {bore.quote_always(text)}") }
 }
 
-fn display(mut out: bore.Out, text: str, fmt: str, z: bore.Zone, now: bore.Instant) -> int {
+fn display(out: bore.Out, text: str, fmt: str, z: bore.Zone, now: bore.Instant) -> int {
     let t = bore.date_read(text, z, now) else |e| match e {
         invalid => { invalid_date(text, false); return 1 },
         unread => { invalid_date(text, true); return 1 },
@@ -24,7 +24,7 @@ fn display(mut out: bore.Out, text: str, fmt: str, z: bore.Zone, now: bore.Insta
         bore.warn("date", "+FORMAT: field width above 1000000 is unsupported")
         return 1
     }
-    bore.put(mut out, result + "\n") else |_| {}
+    bore.write_direct(out, (result + "\n").bytes()) else |_| { bore.write_error(out, "date", "write error"); return 1 }
     0
 }
 
@@ -130,21 +130,21 @@ fn main() -> int {
             region chunk {
                 let bytes = bore.read_chunk(fd, 65536) else |e| match e {
                     eof => { break },
-                    io => { bore.warn("date", "{bore.quote_always(input)}: {bore.io_error()}"); return bore.finish(mut out, "date", 1) },
+                    io => { bore.warn("date", "{bore.quote_always(input)}: {bore.io_error()}"); status = 1; break },
                 }
                 for b in bytes {
                     if b as int == 10 {
                         let text = str_from_utf8(line) else "\u{fffd}"
-                        if display(mut out, text, fmt, z, now) != 0 { status = 1 }
+                        if display(out, text, fmt, z, now) != 0 { status = 1 }
                         while line.len > 0 { let _ = (mut line).pop() else 0 as byte }
                     } else { (mut line).push(b) }
                 }
             }
         }
-        if line.len > 0 { let text = str_from_utf8(line) else "\u{fffd}"; if display(mut out, text, fmt, z, now) != 0 { status = 1 } }
+        if line.len > 0 { let text = str_from_utf8(line) else "\u{fffd}"; if display(out, text, fmt, z, now) != 0 { status = 1 } }
         return bore.finish(mut out, "date", status)
     }
     let value = if mode == "date" then input else "now"
-    let status = display(mut out, value, fmt, z, now)
+    let status = display(out, value, fmt, z, now)
     bore.finish(mut out, "date", status)
 }
