@@ -1016,7 +1016,7 @@ pub fn shortest(raw: List[byte], kind: int, big: bool) -> str {
     for k in 0..raw.len { (mut data).push(raw[if big then raw.len - k - 1 else k]) }
     var bits: wrapping[u64] = 0
     let count = if data.len < 8 then data.len else 8
-    for k in 0..count { bits |= (data[k] as wrapping[u64]) << (8 * k) as wrapping[u64] }
+    for k in 0..count { bits |= (data[k] as int as wrapping[u64]) << (8 * k) as wrapping[u64] }
     var h = Host { mant: 24, emin_lsb: -149, emax: 127 }
     var negative = false, exponent = 0, fraction: wrapping[u64] = 0, special = 0, shift = 0
     if kind == 16 {

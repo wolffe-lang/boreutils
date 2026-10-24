@@ -89,7 +89,7 @@ fn raw(bs: List[byte], at: int, size: int, end: int, big: bool) -> List[byte] {
 }
 fn unsigned(bs: List[byte], big: bool) -> wrapping[u64] {
     var value: wrapping[u64] = 0
-    for k in 0..bs.len { value |= (bs[k] as wrapping[u64]) << (8 * (if big then bs.len - 1 - k else k)) as wrapping[u64] }
+    for k in 0..bs.len { value |= (bs[k] as int as wrapping[u64]) << (8 * (if big then bs.len - 1 - k else k)) as wrapping[u64] }
     value
 }
 fn character(b: int, named: bool) -> str {
