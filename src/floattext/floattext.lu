@@ -478,7 +478,7 @@ fn pow2_index(a: List[int]) -> int {
 
 /// A value in the host's `long double`: finite (`m * 2^e`, `m` at most
 /// `mant` bits), infinite or NaN, with a sign either way.
-struct Flt {
+pub struct Number {
     kind: int,
     neg: bool,
     m: List[int],
@@ -717,16 +717,16 @@ fn clamp(v: int) -> int {
 /// whether `strtold` would set ERANGE: an overflow, or a result that is
 /// subnormal (or zero) and inexact.
 struct Conv {
-    v: Flt,
+    v: Number,
     erange: bool,
 }
 
 fn to_host(lx: Lex, h: Host) -> Conv {
     if lx.kind != 0 {
-        return Conv { v: Flt { kind: lx.kind, neg: lx.neg, m: List[int](), e: 0 }, erange: false }
+        return Conv { v: Number { kind: lx.kind, neg: lx.neg, m: List[int](), e: 0 }, erange: false }
     }
-    let zero = Flt { kind: 0, neg: lx.neg, m: List[int](), e: 0 }
-    let inf = Flt { kind: 1, neg: lx.neg, m: List[int](), e: 0 }
+    let zero = Number { kind: 0, neg: lx.neg, m: List[int](), e: 0 }
+    let inf = Number { kind: 1, neg: lx.neg, m: List[int](), e: 0 }
     if lx.m.len == 0 {
         return Conv { v: zero, erange: false }
     }
@@ -787,7 +787,7 @@ fn to_host(lx: Lex, h: Host) -> Conv {
     if bl - 1 + e2 > h.emax {
         return Conv { v: inf, erange: true }
     }
-    let v = Flt { kind: 0, neg: lx.neg, m: r.q, e: e2 }
+    let v = Number { kind: 0, neg: lx.neg, m: r.q, e: e2 }
     Conv { v: v, erange: r.inexact && bl < h.mant }
 }
 
@@ -822,7 +822,7 @@ fn scaled(lx: Lex, p5: List[int], e2: int) -> Rounded {
 
 /// `%f`: the value rounded to `p` decimals, half to even on the exact
 /// binary value.
-fn fmt_f(v: Flt, p: int, alt: bool) -> List[byte] {
+fn fmt_f(v: Number, p: int, alt: bool) -> List[byte] {
     var num = bn_mul(v.m, bn_pow(10, p))
     var x = List[int]()
     if v.e >= 0 {
@@ -864,7 +864,7 @@ struct Sci {
     x10: int,
 }
 
-fn sci(v: Flt, p: int) -> Sci {
+fn sci(v: Number, p: int) -> Sci {
     if v.m.len == 0 {
         var z = List[byte]()
         var k = 0
@@ -894,7 +894,7 @@ fn sci(v: Flt, p: int) -> Sci {
 }
 
 /// `v * 10^k`, rounded half to even.
-fn scaled_dec(v: Flt, k: int) -> List[int] {
+fn scaled_dec(v: Number, k: int) -> List[int] {
     var num = copy v.m
     var den = bn_of(1)
     if k >= 0 {
@@ -924,7 +924,7 @@ fn exp_text(x10: int, upper: bool) -> str {
     "{e}{sign}{n}"
 }
 
-fn fmt_e(v: Flt, p: int, alt: bool, upper: bool) -> List[byte] {
+fn fmt_e(v: Number, p: int, alt: bool, upper: bool) -> List[byte] {
     let s = sci(v, p)
     var r = List[byte]()
     (mut r).push(s.ds[0])
@@ -940,7 +940,7 @@ fn fmt_e(v: Flt, p: int, alt: bool, upper: bool) -> List[byte] {
     r
 }
 
-fn fmt_g(v: Flt, prec: int, alt: bool, upper: bool) -> List[byte] {
+fn fmt_g(v: Number, prec: int, alt: bool, upper: bool) -> List[byte] {
     var p = prec
     if p < 0 {
         p = 6
@@ -1005,7 +1005,7 @@ fn mantissa(n: wrapping[u64]) -> List[int] {
     while v != 0 { (mut result).push((v & 16777215) as int); v = v >> 24 }
     result
 }
-fn same(a: Flt, b: Flt) -> bool { a.kind == b.kind && a.neg == b.neg && (a.kind != 0 || a.m.len == 0 && b.m.len == 0 || a.e == b.e && bn_cmp(a.m, b.m) == 0) }
+fn same(a: Number, b: Number) -> bool { a.kind == b.kind && a.neg == b.neg && (a.kind != 0 || a.m.len == 0 && b.m.len == 0 || a.e == b.e && bn_cmp(a.m, b.m) == 0) }
 
 /// Render an IEEE binary16/bfloat16/binary32/binary64/x87 value using
 /// the smallest %g precision that reads back to its value. GNU formats
@@ -1060,4 +1060,81 @@ pub fn shortest(raw: List[byte], kind: int, big: bool) -> str {
         }
     }
     "?"
+}
+
+fn arithmetic_host() -> Host {
+    if os_name() == "macos" { return Host { mant: 53, emin_lsb: -1074, emax: 1023 } }
+    let arch = os_arch()
+    if arch == "aarch64" || arch == "arm64" { return Host { mant: 113, emin_lsb: -16494, emax: 16383 } }
+    Host { mant: 64, emin_lsb: -16445, emax: 16383 }
+}
+fn rounded_number(v: Number) -> Number {
+    to_host(Lex { kind: v.kind, neg: v.neg, m: copy v.m, e: v.e, hex: true, ndig: 0, start: 0, end: 0 }, arithmetic_host()).v
+}
+/// Parse a complete finite decimal at the host long-double precision.
+pub fn parse_number(s: str) -> Number ! {parse} {
+    let lx = lex_float(s.bytes())
+    if lx.kind != 0 || lx.end != s.len || lx.start == lx.end { return parse }
+    let v = to_host(lx, arithmetic_host()).v
+    if v.kind != 0 { return parse }; v
+}
+/// A small nonnegative exact integer.
+pub fn integer(n: int) -> Number { Number { kind: 0, neg: false, m: bn_of(n), e: 0 } }
+/// Host-rounded product of two finite dyadic numbers.
+pub fn product(a: Number, b: Number) -> Number {
+    rounded_number(Number { kind: 0, neg: a.neg != b.neg, m: bn_mul(a.m, b.m), e: a.e + b.e })
+}
+/// Host-rounded quotient. The caller supplies a nonzero finite divisor.
+pub fn quotient(a: Number, b: Number) -> Number {
+    let h = arithmetic_host()
+    if a.m.len == 0 { return Number { kind: 0, neg: a.neg != b.neg, m: List[int](), e: 0 } }
+    var e = bn_bitlen(a.m) - bn_bitlen(b.m) + a.e - b.e - h.mant + 1
+    var q = List[int]()
+    for _ in 0..4 {
+        let shift = a.e - b.e - e
+        var num = copy a.m, den = copy b.m
+        if shift >= 0 { num = bn_shl(num, shift) } else { den = bn_shl(den, -shift) }
+        q = bn_div_round(num, den).q
+        let bits = bn_bitlen(q)
+        if bits == h.mant || bits == 0 { break }
+        e += bits - h.mant
+    }
+    rounded_number(Number { kind: 0, neg: a.neg != b.neg, m: q, e: e })
+}
+/// Compare the absolute value with a small nonnegative integer.
+pub fn compare_integer(v: Number, n: int) -> int {
+    if v.e >= 0 { return bn_cmp(bn_shl(v.m, v.e), bn_of(n)) }
+    bn_cmp(v.m, bn_shl(bn_of(n), -v.e))
+}
+/// Format a fixed decimal with explicit scaling-round semantics.
+/// modes: 0 away, 1 toward zero, 2 up, 3 down, 4 nearest-away, 5 nearest-even.
+pub fn fixed(v: Number, places: int, mode: int) -> str {
+    let scaled = bn_mul(v.m, bn_pow(10, places))
+    var q = List[int]()
+    if v.e >= 0 { q = bn_shl(scaled, v.e) } else {
+        let shift = -v.e
+        q = bn_shr(scaled, shift)
+        let inexact = bn_low_nonzero(scaled, shift)
+        var increment = false
+        if mode == 0 { increment = inexact }
+        if mode == 2 { increment = inexact && !v.neg }
+        if mode == 3 { increment = inexact && v.neg }
+        if mode == 4 { increment = bn_bit(scaled, shift - 1) != 0 }
+        if mode == 5 { increment = bn_bit(scaled, shift - 1) != 0 && (bn_low_nonzero(scaled, shift - 1) || bn_bit(q, 0) != 0) }
+        if increment { q = bn_add_small(q, 1) }
+    }
+    var digits = bn_dec(q), result = List[byte]()
+    if v.neg { (mut result).push(45 as byte) }
+    var width = places + 1 - digits.len
+    while width > 0 { (mut result).push(48 as byte); width -= 1 }
+    for k in 0..digits.len { if places > 0 && digits.len - k == places { (mut result).push(46 as byte) }; (mut result).push(digits[k]) }
+    // When zeros were prepended, the point belongs inside that prefix.
+    if places >= digits.len {
+        result = List[byte]()
+        if v.neg { (mut result).push(45 as byte) }
+        push_str(mut result, "0.")
+        for _ in digits.len..places { (mut result).push(48 as byte) }
+        for d in digits { (mut result).push(d) }
+    }
+    str_from_utf8(result) else "?"
 }
