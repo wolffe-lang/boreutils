@@ -49,7 +49,7 @@ fn main() -> int {
             if chunk.len == 0 { done = true }
             for b in chunk {
                 let c = b as int
-                if c == 32 || c >= 9 && c <= 13 {
+                if c == 32 || c == 9 || c == 10 {
                     if token.len > 0 { if number(mut out, str_from_utf8(token) else "<non-UTF-8>", exponents) != 0 { status = 1 }; token = List[byte]() }
                 } else { (mut token).push(b) }
             }
