@@ -106,38 +106,37 @@ fn index_text(mut entries: List[Entry], text: Text, file: int, o: Options) -> bo
     }
     true
 }
-fn prefix_end(bs: List[byte], limit: int) -> int {
+fn prefix_end(bs: List[byte], limit: int, o: Options) -> int {
     if bs.len <= limit { return bs.len }
     var z = if limit > 0 then limit else 0
-    while z > 0 && !space(bs[z]) { z -= 1 }
+    while z > 0 && constituent(bs[z], o.breaks, o.custom_breaks) && constituent(bs[z - 1], o.breaks, o.custom_breaks) { z -= 1 }
     if z == 0 { return 0 }
     while z > 0 && space(bs[z - 1]) { z -= 1 }
     z
 }
-fn suffix_begin(bs: List[byte], limit: int) -> int {
+fn suffix_begin(bs: List[byte], limit: int, o: Options) -> int {
     if bs.len <= limit { return 0 }
     var a = bs.len - if limit > 0 then limit else 0
-    while a < bs.len && a > 0 && !space(bs[a - 1]) { a += 1 }
+    while a < bs.len && a > 0 && constituent(bs[a], o.breaks, o.custom_breaks) && constituent(bs[a - 1], o.breaks, o.custom_breaks) { a += 1 }
     while a < bs.len && space(bs[a]) { a += 1 }
     a
 }
 fn layout(text: Text, entry: Entry, o: Options, half: int) -> Fields {
     let before = trim(bytes(text.bytes, entry.first, entry.lo)), after = trim(bytes(text.bytes, entry.lo, entry.last))
-    let leftlimit = if half - o.gap - o.flag.len - 1 > 0 then half - o.gap - o.flag.len - 1 else 0
-    let rightlimit = if half - o.flag.len - 1 > 0 then half - o.flag.len - 1 else 0
-    let a = suffix_begin(before, leftlimit), z = prefix_end(after, rightlimit)
+    let leftlimit = if half - o.gap - 2 * o.flag.len > 0 then half - o.gap - 2 * o.flag.len else 0
+    let rightlimit = if half - 2 * o.flag.len > 0 then half - 2 * o.flag.len else 0
+    let a = suffix_begin(before, leftlimit, o), z = prefix_end(after, rightlimit, o)
     var f = Fields { tail: List[byte](), before: bytes(before, a, before.len), after: bytes(after, 0, z), head: List[byte](), key: bytes(text.bytes, entry.lo, entry.hi), rest: List[byte]() }
     let overflow_after = trim(bytes(after, z, after.len)), overflow_before = trim(bytes(before, 0, a))
     if overflow_after.len > 0 && leftlimit - f.before.len - o.gap > 0 {
-        let tail_end = prefix_end(overflow_after, leftlimit - f.before.len - o.gap)
+        let tail_end = prefix_end(overflow_after, leftlimit - f.before.len - o.gap - o.flag.len, o)
         f.tail = bytes(overflow_after, 0, tail_end)
         if tail_end > 0 && tail_end < overflow_after.len { add(mut f.tail, o.flag) }
         if tail_end == 0 { add(mut f.after, o.flag) }
     } else if z < after.len { add(mut f.after, o.flag) }
     if overflow_before.len > 0 && rightlimit - f.after.len - o.gap > 0 {
-        let start = suffix_begin(overflow_before, rightlimit - f.after.len - o.gap)
-        if start > 0 { add(mut f.head, o.flag) }
-        for b in bytes(overflow_before, start, overflow_before.len) { (mut f.head).push(b) }
+        let start = suffix_begin(overflow_before, rightlimit - f.after.len - o.gap - o.flag.len, o)
+        if start < overflow_before.len { if start > 0 { add(mut f.head, o.flag) }; for b in bytes(overflow_before, start, overflow_before.len) { (mut f.head).push(b) } } else if a > 0 { var marked = o.flag.bytes(); for b in f.before { (mut marked).push(b) }; f.before = marked }
     } else if a > 0 { var marked = o.flag.bytes(); for b in f.before { (mut marked).push(b) }; f.before = marked }
     let keylen = entry.hi - entry.lo
     if f.after.len > keylen { f.rest = bytes(f.after, keylen, f.after.len) }
