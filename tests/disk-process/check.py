@@ -71,6 +71,16 @@ with tempfile.TemporaryDirectory(prefix="bu34.") as raw:
         patterns = {x[2] for x in lines[:-1] if x[2] != b"random"}
         check(result.returncode == 0 and len(lines) == 26 and len(patterns) == 22 and lines[-1] == (b"26", b"26", b"000000") and f.read_bytes() == b"\0" * 78,
               tier + ": 25 mixed passes cover 22 patterns and final zero pass")
+        source = top / "entropy"
+        source.write_bytes(bytes(range(256)) * 512)
+        for n in (1, 2, 3):
+            outputs = []
+            for name in (GNU / "shred", bin / "shred"):
+                f.write_bytes(b"secret" * 13)
+                result = run([name, "-x", "-n", str(n), "--random-source", source, f])
+                assert result.returncode == 0, result.stderr
+                outputs.append(f.read_bytes())
+            check(outputs[0] == outputs[1], tier + f": deterministic random source, {n} passes")
         db = run([bin / "dircolors", "-p"])
         file = top / "colors"; file.write_bytes(db.stdout)
         for term in ("dumb", "xterm", "screen", "linux", "con5x8"):

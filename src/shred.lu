@@ -13,7 +13,16 @@
 
 use bore
 
-fn passes(n: int) -> List[int] {
+fn entropy(fd: int, amount: int) -> List[byte] ! {io} {
+    var data = List[byte]()
+    if fd < 0 { for n in os_random(amount) { (mut data).push(n as byte) }; return data }
+    while data.len < amount {
+        let part = fs_read_chunk(fd, amount - data.len) else |_| { return io }
+        for b in part { (mut data).push(b) }
+    }
+    data
+}
+fn passes(n: int, random: int) -> List[int] ! {io} {
     var result = List[int]()
     if n <= 3 { var i = 0; while i < n { (mut result).push(-1); i += 1 }; return result }
     var pool = [0, 16777215, 5592405, 11184810, 9586980, 2396745, 4793490, 11983725, 14380470, 7190235, 1118481, 2236962, 3355443, 4473924, 6710886, 7829367, 8947848, 10066329, 12303291, 13421772, 14540253, 15658734]
@@ -21,8 +30,8 @@ fn passes(n: int) -> List[int] {
     let fixed = n - randoms
     var i = fixed - 1
     while i > 0 {
-        let bytes = os_random(4)
-        let value = bytes[0] + bytes[1] * 256 + bytes[2] * 65536 + bytes[3] * 16777216
+        let bytes = entropy(random, 4)?
+        let value = bytes[0] as int + bytes[1] as int * 256 + bytes[2] as int * 65536 + bytes[3] as int * 16777216
         let j = value % (i + 1)
         let x = pool[i]; pool[i] = pool[j]; pool[j] = x
         i -= 1
@@ -60,7 +69,7 @@ fn overwrite(path: str, n: int, size: int, zero: bool, force: bool, remove: bool
     let opened = fs_fstat_record(fd) else |_| { return false }
     if !bore.same_file(r, opened) { bore.warn("shred", "{path}: operand changed during open; refusing to overwrite"); return false }
     let bytes = if size >= 0 then size else bore.rec_size(r)
-    var schedule = passes(n)
+    var schedule = passes(n, random) else |_| { bore.warn("shred", "random source exhausted"); return false }
     if zero { (mut schedule).push(0) }
     let count = schedule.len
     var pass = 0
@@ -78,13 +87,8 @@ fn overwrite(path: str, n: int, size: int, zero: bool, force: bool, remove: bool
                     var i = 0
                     while i < amount { let shift = (2 - ((bytes - left + i) % 3)) * 8
                     (mut data).push((pattern >> shift & 255) as byte); i += 1 }
-                } else if random >= 0 {
-                    while data.len < amount {
-                        let part = fs_read_chunk(random, amount - data.len) else |_| { bore.warn("shred", "random source exhausted"); return false }
-                        for b in part { (mut data).push(b) }
-                    }
                 } else {
-                    for octet in os_random(amount) { (mut data).push(octet as byte) }
+                    data = entropy(random, amount) else |_| { bore.warn("shred", "random source exhausted"); return false }
                 }
                 fs_write_chunk(fd, data) else |_| { bore.warn("shred", "{path}: error writing: {bore.io_error()}"); return false }
                 left -= amount
