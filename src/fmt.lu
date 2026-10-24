@@ -104,7 +104,7 @@ fn paragraph(mut out: bore.Out, rows: List[Row], a: int, z: int, o: Options) -> 
                 if end + 1 < words.len && words[end + 1].sentence { cost += 160 / words[end + 1].bytes.len }
             }
             cost += costs[end + 1]
-            if cost < best { best = cost; next[i] = end + 1 }
+            if cost <= best { best = cost; next[i] = end + 1 }
             end += 1
         }
         costs[i] = best
