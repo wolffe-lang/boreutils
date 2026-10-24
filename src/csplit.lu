@@ -98,9 +98,9 @@ fn main() -> int {
         let pattern = p.operands[arg]
         arg += 1
         var repetitions = 0, forever = false
-        if arg < p.operands.len && p.operands[arg].starts_with("{") {
+        if arg < p.operands.len && p.operands[arg].starts_with("{{") {
             let word = p.operands[arg]; arg += 1
-            if word == "{*}" { forever = true } else if word.ends_with("}") { repetitions = word[1..word.len - 1].to_int() else -1 } else { repetitions = -1 }
+            if word == "{{*}}" { forever = true } else if word.ends_with("}}") { repetitions = word[1..word.len - 1].to_int() else -1 } else { repetitions = -1 }
             if repetitions < 0 { bore.warn("csplit", "{bore.quote_always(word)}: integer required between '{{' and '}}'"); status = 1; break }
         }
         var is_regex = pattern.starts_with("/") || pattern.starts_with("%"), discard = pattern.starts_with("%")
