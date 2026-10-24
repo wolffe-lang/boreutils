@@ -244,10 +244,9 @@ fn convert(word: str, o: Options, automatic_width: int) -> Conversion {
         }
         for _ in 0..input_power { number = floattext.product(number, floattext.integer(base)) }
     }
-    if floattext.compare_abs(number, o.max_input) >= 0 { return Conversion { text: word, error: "value too large to be converted: {bore.quote_always(word.trim())}" } }
     number = floattext.quotient(floattext.product(number, o.from_unit), o.to_unit)
-    if floattext.compare_abs(number, o.max_input) >= 0 { return Conversion { text: word, error: "value too large to be converted: {bore.quote_always(word.trim())}" } }
     if o.to == 0 && floattext.compare_abs(number, o.max_output) >= 0 { return Conversion { text: word, error: "value too large to be printed: {bore.quote_always(floattext.general(number, 6))} (consider using --to)" } }
+    if o.to != 0 && floattext.compare_abs(number, o.max_input) >= 0 { return Conversion { text: word, error: "value too large to be printed: {bore.quote_always(floattext.general(number, 6))} (cannot handle values > 999Q)" } }
     var power = 0
     let output_base = if o.to == 1 then 1000 else 1024
     if o.to != 0 {
@@ -474,10 +473,8 @@ fn main() -> int {
             o.invalid = n
         }
         if key == "from-unit" || key == "to-unit" {
-            let n = unit_size(v) else |e| {
-                var suffix = ""
-                match e { overflow => { suffix = ": " + bore.reason_of(if os_name() == "macos" then 84 else 75) }, parse => {} }
-                bore.warn("numfmt", "invalid unit size: {bore.quote_always(v)}{suffix}")
+            let n = unit_size(v) else |_| {
+                bore.warn("numfmt", "invalid unit size: {bore.quote_always(v)}")
                 return 1
             }
             if key == "from-unit" { o.from_unit = n } else { o.to_unit = n }

@@ -892,3 +892,87 @@ args = ["--from-unit=1Q", "1"]
 [[case]]
 name = "range or literal format ['--format=\u03b2%f\u7d42', '1.25']"
 args = ["--format=\u03b2%f\u7d42", "1.25"]
+
+[[case]]
+name = "conversion and print boundary 0"
+args = ["--from=si", "1000Q"]
+
+[[case]]
+name = "conversion and print boundary 1"
+args = ["--from=si", "--to-unit=1E", "1000Q"]
+
+[[case]]
+name = "conversion and print boundary 2"
+args = ["--from-unit=1E", "100000000000000000000000000000000"]
+
+[[case]]
+name = "conversion and print boundary 3"
+args = ["--to-unit=1E", "1000000000000000000000000000000000"]
+
+[[case]]
+name = "conversion and print boundary 4"
+args = ["--to-unit=1E", "100000000000000000000"]
+
+[[case]]
+name = "conversion and print boundary 5"
+args = ["--to=iec", "1000000000000000000000000000000000"]
+
+[[case]]
+name = "conversion and print boundary 6"
+args = ["--to=iec", "10000000000000000000000000000000000"]
+
+[[case]]
+name = "conversion and print boundary 7"
+args = ["--to=si", "1000000000000000000000000000000000"]
+
+[[case]]
+name = "conversion and print boundary 8"
+args = ["--from=si", "--to=si", "999Q"]
+
+[[case]]
+name = "conversion and print boundary 9"
+args = ["--from-unit=1E", "--to=si", "100000000000000000000000000000000"]
+
+[[case]]
+name = "conversion and print boundary 10"
+args = ["--from-unit=2", "--to=si", "500000000000000000000000000000000"]
+
+[[case]]
+name = "conversion and print boundary 11"
+args = ["--from-unit=2", "--to=si", "600000000000000000000000000000000"]
+
+[[case]]
+name = "conversion and print boundary 12"
+args = ["--from-unit=2", "--to=si", "700000000000000000000000000000000"]
+
+[[case]]
+name = "conversion and print boundary 13"
+args = ["--from-unit=1E", "--to=iec", "100000000000000000000000000000000"]
+
+[[case]]
+name = "conversion and print boundary 14"
+args = ["--from-unit=2", "--to=iec", "500000000000000000000000000000000"]
+
+[[case]]
+name = "conversion and print boundary 15"
+args = ["--from-unit=2", "--to=iec", "600000000000000000000000000000000"]
+
+[[case]]
+name = "conversion and print boundary 16"
+args = ["--from-unit=2", "--to=iec", "700000000000000000000000000000000"]
+
+[[case]]
+name = "conversion and print boundary 17"
+args = ["--from-unit=1E", "--to=iec-i", "100000000000000000000000000000000"]
+
+[[case]]
+name = "conversion and print boundary 18"
+args = ["--from-unit=2", "--to=iec-i", "500000000000000000000000000000000"]
+
+[[case]]
+name = "conversion and print boundary 19"
+args = ["--from-unit=2", "--to=iec-i", "600000000000000000000000000000000"]
+
+[[case]]
+name = "conversion and print boundary 20"
+args = ["--from-unit=2", "--to=iec-i", "700000000000000000000000000000000"]
