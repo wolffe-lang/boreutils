@@ -1,0 +1,255 @@
+
+[[case]]
+name = "['--help']"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "['--version']"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "['a', 'new']"
+args = ["a", "new"]
+scratch = { a = "abc\n", b = "old\n", same = "abc\n", original = "keep\n" }
+scratch_dirs = ["d"]
+scratch_links = { link = "original" }
+scratch_times = { a = 1000000000, b = 1000000001 }
+
+[[case]]
+name = "['a', 'b']"
+args = ["a", "b"]
+scratch = { a = "abc\n", b = "old\n", same = "abc\n", original = "keep\n" }
+scratch_dirs = ["d"]
+scratch_links = { link = "original" }
+scratch_times = { a = 1000000000, b = 1000000001 }
+
+[[case]]
+name = "['-v', 'a', 'b']"
+args = ["-v", "a", "b"]
+scratch = { a = "abc\n", b = "old\n", same = "abc\n", original = "keep\n" }
+scratch_dirs = ["d"]
+scratch_links = { link = "original" }
+scratch_times = { a = 1000000000, b = 1000000001 }
+
+[[case]]
+name = "['-vb', 'a', 'b']"
+args = ["-vb", "a", "b"]
+scratch = { a = "abc\n", b = "old\n", same = "abc\n", original = "keep\n" }
+scratch_dirs = ["d"]
+scratch_links = { link = "original" }
+scratch_times = { a = 1000000000, b = 1000000001 }
+
+[[case]]
+name = "['-b', '-S', '.old', 'a', 'b']"
+args = ["-b", "-S", ".old", "a", "b"]
+scratch = { a = "abc\n", b = "old\n", same = "abc\n", original = "keep\n" }
+scratch_dirs = ["d"]
+scratch_links = { link = "original" }
+scratch_times = { a = 1000000000, b = 1000000001 }
+
+[[case]]
+name = "['--backup=numbered', 'a', 'b']"
+args = ["--backup=numbered", "a", "b"]
+scratch = { a = "abc\n", b = "old\n", same = "abc\n", original = "keep\n" }
+scratch_dirs = ["d"]
+scratch_links = { link = "original" }
+scratch_times = { a = 1000000000, b = 1000000001 }
+
+[[case]]
+name = "['--backup=simple', 'a', 'b']"
+args = ["--backup=simple", "a", "b"]
+scratch = { a = "abc\n", b = "old\n", same = "abc\n", original = "keep\n" }
+scratch_dirs = ["d"]
+scratch_links = { link = "original" }
+scratch_times = { a = 1000000000, b = 1000000001 }
+
+[[case]]
+name = "['--backup=none', 'a', 'b']"
+args = ["--backup=none", "a", "b"]
+scratch = { a = "abc\n", b = "old\n", same = "abc\n", original = "keep\n" }
+scratch_dirs = ["d"]
+scratch_links = { link = "original" }
+scratch_times = { a = 1000000000, b = 1000000001 }
+
+[[case]]
+name = "['-m', '600', 'a', 'b']"
+args = ["-m", "600", "a", "b"]
+scratch = { a = "abc\n", b = "old\n", same = "abc\n", original = "keep\n" }
+scratch_dirs = ["d"]
+scratch_links = { link = "original" }
+scratch_times = { a = 1000000000, b = 1000000001 }
+
+[[case]]
+name = "['-m', 'u+w', 'a', 'b']"
+args = ["-m", "u+w", "a", "b"]
+scratch = { a = "abc\n", b = "old\n", same = "abc\n", original = "keep\n" }
+scratch_dirs = ["d"]
+scratch_links = { link = "original" }
+scratch_times = { a = 1000000000, b = 1000000001 }
+
+[[case]]
+name = "['-m', 'a=r', 'a', 'b']"
+args = ["-m", "a=r", "a", "b"]
+scratch = { a = "abc\n", b = "old\n", same = "abc\n", original = "keep\n" }
+scratch_dirs = ["d"]
+scratch_links = { link = "original" }
+scratch_times = { a = 1000000000, b = 1000000001 }
+
+[[case]]
+name = "['-m', '4755', 'a', 'b']"
+args = ["-m", "4755", "a", "b"]
+scratch = { a = "abc\n", b = "old\n", same = "abc\n", original = "keep\n" }
+scratch_dirs = ["d"]
+scratch_links = { link = "original" }
+scratch_times = { a = 1000000000, b = 1000000001 }
+
+[[case]]
+name = "['-d', 'x/y/z']"
+args = ["-d", "x/y/z"]
+scratch = { a = "abc\n", b = "old\n", same = "abc\n", original = "keep\n" }
+scratch_dirs = ["d"]
+scratch_links = { link = "original" }
+scratch_times = { a = 1000000000, b = 1000000001 }
+
+[[case]]
+name = "['-vd', 'x/y/z']"
+args = ["-vd", "x/y/z"]
+scratch = { a = "abc\n", b = "old\n", same = "abc\n", original = "keep\n" }
+scratch_dirs = ["d"]
+scratch_links = { link = "original" }
+scratch_times = { a = 1000000000, b = 1000000001 }
+
+[[case]]
+name = "['-d', '-m', '700', 'x/y/z']"
+args = ["-d", "-m", "700", "x/y/z"]
+scratch = { a = "abc\n", b = "old\n", same = "abc\n", original = "keep\n" }
+scratch_dirs = ["d"]
+scratch_links = { link = "original" }
+scratch_times = { a = 1000000000, b = 1000000001 }
+
+[[case]]
+name = "['-D', 'a', 'x/y/z']"
+args = ["-D", "a", "x/y/z"]
+scratch = { a = "abc\n", b = "old\n", same = "abc\n", original = "keep\n" }
+scratch_dirs = ["d"]
+scratch_links = { link = "original" }
+scratch_times = { a = 1000000000, b = 1000000001 }
+
+[[case]]
+name = "['-vD', 'a', 'x/y/z']"
+args = ["-vD", "a", "x/y/z"]
+scratch = { a = "abc\n", b = "old\n", same = "abc\n", original = "keep\n" }
+scratch_dirs = ["d"]
+scratch_links = { link = "original" }
+scratch_times = { a = 1000000000, b = 1000000001 }
+
+[[case]]
+name = "['a', 'd']"
+args = ["a", "d"]
+scratch = { a = "abc\n", b = "old\n", same = "abc\n", original = "keep\n" }
+scratch_dirs = ["d"]
+scratch_links = { link = "original" }
+scratch_times = { a = 1000000000, b = 1000000001 }
+
+[[case]]
+name = "['a', 'b', 'd']"
+args = ["a", "b", "d"]
+scratch = { a = "abc\n", b = "old\n", same = "abc\n", original = "keep\n" }
+scratch_dirs = ["d"]
+scratch_links = { link = "original" }
+scratch_times = { a = 1000000000, b = 1000000001 }
+
+[[case]]
+name = "['-t', 'd', 'a', 'b']"
+args = ["-t", "d", "a", "b"]
+scratch = { a = "abc\n", b = "old\n", same = "abc\n", original = "keep\n" }
+scratch_dirs = ["d"]
+scratch_links = { link = "original" }
+scratch_times = { a = 1000000000, b = 1000000001 }
+
+[[case]]
+name = "['-T', 'a', 'b']"
+args = ["-T", "a", "b"]
+scratch = { a = "abc\n", b = "old\n", same = "abc\n", original = "keep\n" }
+scratch_dirs = ["d"]
+scratch_links = { link = "original" }
+scratch_times = { a = 1000000000, b = 1000000001 }
+
+[[case]]
+name = "['-C', 'a', 'b']"
+args = ["-C", "a", "b"]
+scratch = { a = "abc\n", b = "old\n", same = "abc\n", original = "keep\n" }
+scratch_dirs = ["d"]
+scratch_links = { link = "original" }
+scratch_times = { a = 1000000000, b = 1000000001 }
+
+[[case]]
+name = "['-C', 'a', 'same']"
+args = ["-C", "a", "same"]
+scratch = { a = "abc\n", b = "old\n", same = "abc\n", original = "keep\n" }
+scratch_dirs = ["d"]
+scratch_links = { link = "original" }
+scratch_times = { a = 1000000000, b = 1000000001 }
+
+[[case]]
+name = "['-c', 'a', 'b']"
+args = ["-c", "a", "b"]
+scratch = { a = "abc\n", b = "old\n", same = "abc\n", original = "keep\n" }
+scratch_dirs = ["d"]
+scratch_links = { link = "original" }
+scratch_times = { a = 1000000000, b = 1000000001 }
+
+[[case]]
+name = "['-p', 'a', 'b']"
+args = ["-p", "a", "b"]
+scratch = { a = "abc\n", b = "old\n", same = "abc\n", original = "keep\n" }
+scratch_dirs = ["d"]
+scratch_links = { link = "original" }
+scratch_times = { a = 1000000000, b = 1000000001 }
+times = true
+
+[[case]]
+name = "['a', 'link']"
+args = ["a", "link"]
+scratch = { a = "abc\n", b = "old\n", same = "abc\n", original = "keep\n" }
+scratch_dirs = ["d"]
+scratch_links = { link = "original" }
+scratch_times = { a = 1000000000, b = 1000000001 }
+
+[[case]]
+name = "['missing', 'b']"
+args = ["missing", "b"]
+scratch = { a = "abc\n", b = "old\n", same = "abc\n", original = "keep\n" }
+scratch_dirs = ["d"]
+scratch_links = { link = "original" }
+scratch_times = { a = 1000000000, b = 1000000001 }
+
+[[case]]
+name = "['d', 'b']"
+args = ["d", "b"]
+scratch = { a = "abc\n", b = "old\n", same = "abc\n", original = "keep\n" }
+scratch_dirs = ["d"]
+scratch_links = { link = "original" }
+scratch_times = { a = 1000000000, b = 1000000001 }
+
+[[case]]
+name = "gap -s"
+args = ["-s", "a", "b"]
+skip = "strip/SELinux surface absent; refused by name"
+
+[[case]]
+name = "gap -Z"
+args = ["-Z", "a", "b"]
+skip = "strip/SELinux surface absent; refused by name"
+
+[[case]]
+name = "gap --context=ctx"
+args = ["--context=ctx", "a", "b"]
+skip = "strip/SELinux surface absent; refused by name"
+
+[[case]]
+name = "gap --preserve-context"
+args = ["--preserve-context", "a", "b"]
+skip = "strip/SELinux surface absent; refused by name"

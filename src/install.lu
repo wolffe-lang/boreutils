@@ -1,0 +1,191 @@
+//! member: false
+//! install — copy regular files with explicit mode, ownership and backups.
+//! References consulted: GNU coreutils 9.11 manual and black-box binary
+//! runs in a private Ubuntu scratch directory. No implementation source.
+//! -s/--strip and SELinux options are refused by name. Account names use
+//! bore's /etc/passwd and /etc/group tables, as chown does. Atomic creation
+//! uses fs_open_perm's exclusive mode; existing destination links are unlinked.
+
+use bore
+
+struct Config { mode: int, uid: int, gid: int, preserve: bool, verbose: bool, compare: bool, backup: str, suffix: str }
+fn parent(path: str) -> str {
+    let at = path.rfind("/") else -1
+    if at < 0 { return "." }
+    if at == 0 { return "/" }
+    path[..at]
+}
+fn directories(path: str, mode: int, c: Config, mut out: bore.Out) -> bool {
+    if path.len == 0 || path == "." || path == "/" { return true }
+    var current = if path.starts_with("/") then "/" else ""
+    let parts = path.split("/")
+    var i = 0
+    for part in parts {
+        i += 1
+        if part.len == 0 { continue }
+        current = if current.len == 0 || current.ends_with("/") then "{current}{part}" else "{current}/{part}"
+        let final = i == parts.len
+        let desired = if final then mode else 493
+        if !fs_is_dir(current) {
+            fs_create_dir_mode(current, 493) else |_| { bore.warn("install", "cannot create directory {bore.quote_always(current)}: {bore.io_error()}"); return false }
+            if c.verbose { bore.put(mut out, "install: creating directory {bore.quote_always(current)}\n") else |_| {} }
+            fs_set_mode(current, desired) else |_| { bore.warn("install", "cannot change permissions of {bore.quote_always(current)}: {bore.io_error()}"); return false }
+            if c.uid >= 0 || c.gid >= 0 { fs_set_owner(current, c.uid, c.gid, true) else |_| { bore.warn("install", "cannot change ownership of {bore.quote_always(current)}: {bore.io_error()}"); return false } }
+        } else if final {
+            if c.uid >= 0 || c.gid >= 0 { fs_set_owner(current, c.uid, c.gid, true) else |_| { return false } }
+            fs_set_mode(current, desired) else |_| { return false }
+        }
+    }
+    true
+}
+fn same_contents(a: str, b: str) -> bool {
+    let one = fs_open(a) else |_| { return false }
+    defer fs_close(one) else |_| {}
+    let two = fs_open(b) else |_| { return false }
+    defer fs_close(two) else |_| {}
+    loop {
+        region blocks {
+            let x = fs_read_chunk(one, 65536) else |e| match e { eof => { List[byte]() }, io => { return false } }
+            let y = fs_read_chunk(two, 65536) else |e| match e { eof => { List[byte]() }, io => { return false } }
+            if x.len != y.len { return false }
+            var i = 0
+            while i < x.len { if x[i] != y[i] { return false }; i += 1 }
+            if x.len == 0 { return true }
+        }
+    }
+}
+fn backup_name(path: str, c: Config) -> str {
+    if c.backup == "none" || c.backup.len == 0 { return "" }
+    if c.backup == "simple" { return "{path}{c.suffix}" }
+    var highest = 0
+    let names = fs_read_dir(parent(path)) else |_| { List[str]() }
+    let prefix = "{bore.last_name(path)}.~"
+    for name in names {
+        if name.starts_with(prefix) && name.ends_with("~") {
+            let n = name[prefix.len..^1].to_int() else 0
+            if n > highest { highest = n }
+        }
+    }
+    if c.backup == "existing" && highest == 0 { return "{path}{c.suffix}" }
+    "{path}.~{highest + 1}~"
+}
+fn copy_file(src: str, dst: str, c: Config, mut out: bore.Out) -> bool {
+    let r = fs_stat(src) else |_| { bore.warn("install", "cannot stat {bore.quote_always(src)}: {bore.io_error()}"); return false }
+    if bore.rec_kind(r) == bore.kind_dir() { bore.warn("install", "omitting directory {bore.quote_always(src)}"); return false }
+    if bore.rec_kind(r) != bore.kind_file() { bore.warn("install", "unsupported source type: {bore.quote_always(src)}"); return false }
+    let old = fs_lstat(dst) else |_| { List[int]() }
+    if old.len > 0 {
+        if bore.same_file(r, old) { bore.warn("install", "{bore.quote_always(src)} and {bore.quote_always(dst)} are the same file"); return false }
+        if bore.rec_kind(old) == bore.kind_dir() { bore.warn("install", "cannot overwrite directory {bore.quote_always(dst)} with non-directory"); return false }
+        let uid = if c.uid >= 0 then c.uid else (os_euid() else -1)
+        let gid = if c.gid >= 0 then c.gid else (os_egid() else -1)
+        if c.compare && bore.rec_kind(old) == bore.kind_file() && bore.rec_mode(old) == c.mode && bore.rec_uid(old) == uid && bore.rec_gid(old) == gid && bore.rec_size(old) == bore.rec_size(r) && same_contents(src, dst) { return true }
+    }
+    let input = fs_open(src) else |_| { bore.warn("install", "cannot open {bore.quote_always(src)} for reading: {bore.io_error()}"); return false }
+    defer fs_close(input) else |_| {}
+    var backup = ""
+    if old.len > 0 {
+        backup = backup_name(dst, c)
+        if backup.len > 0 {
+            fs_rename(dst, backup) else |_| { bore.warn("install", "cannot backup {bore.quote_always(dst)}: {bore.io_error()}"); return false }
+        } else {
+            fs_remove(dst) else |_| { bore.warn("install", "cannot remove {bore.quote_always(dst)}: {bore.io_error()}"); return false }
+            if c.verbose { bore.put(mut out, "removed {bore.quote_always(dst)}\n") else |_| {} }
+        }
+    }
+    let fd = fs_open_perm(dst, 4, 384) else |_| { bore.warn("install", "cannot create regular file {bore.quote_always(dst)}: {bore.io_error()}"); return false }
+    defer fs_close(fd) else |_| {}
+    loop {
+        let n = fs_copy_chunk(fd, input, 1048576) else |e| match e {
+            eof => { break },
+            io => { bore.warn("install", "error copying {bore.quote_always(src)} to {bore.quote_always(dst)}: {bore.io_error()}"); return false },
+        }
+        if n == 0 { break }
+    }
+    if c.uid >= 0 || c.gid >= 0 {
+        fs_set_owner(dst, c.uid, c.gid, true) else |_| { bore.warn("install", "cannot change ownership of {bore.quote_always(dst)}: {bore.io_error()}"); return false }
+    }
+    fs_set_mode(dst, c.mode) else |_| { bore.warn("install", "cannot change permissions of {bore.quote_always(dst)}: {bore.io_error()}"); return false }
+    if c.preserve {
+        fs_set_times(dst, bore.rec_secs(r, 1), bore.rec_nanos(r, 1), bore.rec_secs(r, 0), bore.rec_nanos(r, 0), true) else |_| { bore.warn("install", "cannot set timestamps of {bore.quote_always(dst)}: {bore.io_error()}"); return false }
+    }
+    if c.verbose {
+        bore.put(mut out, "{bore.quote_always(src)} -> {bore.quote_always(dst)}") else |_| {}
+        if backup.len > 0 { bore.put(mut out, " (backup: {bore.quote_always(backup)})") else |_| {} }
+        bore.put(mut out, "\n") else |_| {}
+    }
+    true
+}
+fn main() -> int {
+    var opts = List[bore.Opt]()
+    for pair in ["b:", "c:", "C:compare", "d:directory", "D:", "p:preserve-timestamps", "s:strip", "T:no-target-directory", "v:verbose", "Z:", ":preserve-context", ":debug", ":help", ":version"] {
+        let at = pair.find(":") else 0
+        (mut opts).push(bore.flag(pair[..at], pair[at + 1..]))
+    }
+    for pair in ["g:group", "m:mode", "o:owner", "S:suffix", "t:target-directory", ":strip-program"] {
+        let at = pair.find(":") else 0
+        (mut opts).push(bore.takes(pair[..at], pair[at + 1..]))
+    }
+    (mut opts).push(bore.optional("", "backup")); (mut opts).push(bore.optional("", "context"))
+    let p = bore.parse(opts, env_args(), bore.permute())
+    var out = bore.stdout()
+    var c = Config { mode: 493, uid: -1, gid: -1, preserve: false, verbose: false, compare: false, backup: "", suffix: env_get("SIMPLE_BACKUP_SUFFIX") else "~" }
+    var dirs = false, leading = false, nodir = false, target = ""
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i], v = p.values[i]
+        if k == "help" { bore.put(mut out, "Usage: install [OPTION]... SOURCE DEST\nCopy files with chosen permissions, ownership and optional backups.\n-d creates directories; -D creates destination parents.\n") else |_| {}; return bore.finish(mut out, "install", 0) }
+        if k == "version" { bore.put(mut out, bore.version_text("install")) else |_| {}; return bore.finish(mut out, "install", 0) }
+        if k == "strip" || k == "strip-program" || k == "Z" || k == "context" || k == "preserve-context" || k == "debug" { bore.warn("install", "unsupported option: {k}"); return 1 }
+        if k == "mode" { let m = bore.parse_mode(v) else |_| { bore.warn("install", "invalid mode {bore.quote_always(v)}"); return 1 }; c.mode = bore.apply_mode(m, 0, false, 0) }
+        if k == "group" || k == "owner" {
+            let a = bore.read_accounts()
+            let spec = if k == "group" then bore.group_spec(a, v) else bore.owner_spec(a, v)
+            if spec.error.len > 0 { bore.warn("install", spec.error); return 1 }
+            if k == "group" { c.gid = spec.gid } else { c.uid = spec.uid }
+        }
+        if k == "directory" { dirs = true }
+        if k == "D" { leading = true }
+        if k == "no-target-directory" { nodir = true }
+        if k == "target-directory" { target = v }
+        if k == "preserve-timestamps" { c.preserve = true }
+        if k == "verbose" { c.verbose = true }
+        if k == "compare" { c.compare = true }
+        if k == "suffix" { c.suffix = v }
+        if k == "b" || k == "backup" {
+            var method = v
+            if method.len == 0 { method = env_get("VERSION_CONTROL") else "existing" }
+            if method == "none" || method == "off" { c.backup = "none" }
+            else if method == "numbered" || method == "t" { c.backup = "numbered" }
+            else if method == "existing" || method == "nil" { c.backup = "existing" }
+            else if method == "simple" || method == "never" { c.backup = "simple" }
+            else { bore.warn("install", "unsupported backup control: {method}"); return 1 }
+        }
+        i += 1
+    }
+    if !bore.ok(p) { return bore.usage_error("install", p.error) }
+    if p.operands.len == 0 { return bore.usage_error("install", "missing file operand") }
+    if nodir && target.len > 0 { return bore.usage_error("install", "cannot combine --target-directory (-t) and --no-target-directory (-T)") }
+    var status = 0
+    if dirs {
+        for path in p.operands { if !directories(path, c.mode, c, mut out) { status = 1 } }
+        return bore.finish(mut out, "install", status)
+    }
+    var n = p.operands.len
+    if target.len == 0 {
+        if n < 2 { return bore.usage_error("install", "missing destination file operand after {bore.quote_always(p.operands[0])}") }
+        target = p.operands[n - 1]
+        n -= 1
+    }
+    if leading { if !directories(parent(target), 493, c, mut out) { return bore.finish(mut out, "install", 1) } }
+    let directory = !nodir && fs_is_dir(target)
+    if n > 1 && !directory { bore.warn("install", "target {bore.quote_always(target)}: Not a directory"); return 1 }
+    i = 0
+    while i < n {
+        let src = p.operands[i]
+        let dst = if directory then bore.join_name(target, bore.last_name(src)) else target
+        if !copy_file(src, dst, c, mut out) { status = 1 }
+        i += 1
+    }
+    bore.finish(mut out, "install", status)
+}
