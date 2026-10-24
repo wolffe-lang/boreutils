@@ -81,11 +81,12 @@ descriptor 0 and writes descriptor 1 directly, bu19.)
 
 ## Standard output, and the exit convention
 
-Every boreutils program writes through one shared buffered writer, and
-honours one convention, stated in full at the top of `src/bore/bore.lu`
+Every boreutils program uses the shared byte-output helpers, buffered or
+streaming, and honours one convention, stated in full at the top of `src/bore/bore.lu`
 and measured black-box against GNU:
 
-- **A write that fails is status 1 and one diagnostic.** `basename a/b
+- **A write that fails is status 1 and one diagnostic** (`expr` follows
+  GNU by using status 3 for its output errors). `basename a/b
   >&-` is `basename: write error: Bad file descriptor`, exit 1, exactly
   as GNU's is.
 - **Writing nothing never fails.** `true >&-` is 0 and `false >&-` is 1,
@@ -162,7 +163,7 @@ derives no boreutils code from GPL source.
 
 Every shipped utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus, except where a case says otherwise and is
-skipped with its reason. The combined corpus holds **10,697 cases**; `kill` has
+skipped with its reason. The combined corpus holds **12,784 cases across 92 case files**; `kill` has
 365 more that SEND, each run in a container of its own (`tests/kill/`,
 `tools/killtest`: **365 passed, 0 failed** on hasu at bu30, groups,
 `kill 0` and `kill -1` among them), `timeout` 163 more that run a
@@ -179,6 +180,49 @@ release and dev (before: 7,020 / 0 / 130). Six utilities add 1,012 cases:
 `mktemp` names are checked by fixed prefix, suffix, replaced X count,
 alphabet, object kind and private mode, never compared byte for byte.
 `tty` has standard-input pty cases, separate from standard-output ptys.
+
+The newest tools are `split`, `csplit`, `fmt`, `pr`, `ptx`, `od`,
+`expr`, `numfmt`, `factor` and `basenc`. Their **2,087 registered cases**
+contain 2,076 GNU comparisons and 11 explicitly named exceptions.
+One factor case contains a separate deterministic corpus of **10,000
+full-range unsigned 64-bit integers**. The toolchain remains wolf **0.2.35** / lupin **0.1.56**, bundled
+std `2386522e`; the oracle remains **GNU coreutils 9.11**, `LC_ALL=C` and
+`_POSIX2_VERSION=200112`.
+
+`split` supports byte, line, bounded-record and numbered/round-robin
+partitions, automatic alphabetic/numeric/hex suffix growth, and shell
+filters. Its two named GNU divergences are documented below and checked
+independently. `csplit` uses the vendored clean-room BRE engine, preserves
+unterminated input, and compares both byte counts and resulting files.
+Both splitters refuse output paths that resolve to the input inode before
+truncation; GNU csplit instead loses its input in the collision described
+below.
+`fmt` has indentation, prefix, sentence and fresh generated word-length
+corpora; `pr` fixes input mtimes for header comparisons and checks form
+feeds, columns, line numbers and tab stops. `ptx` implements GNU-mode
+context indexing and roff/TeX output, with `-G` explicitly refused.
+`od` covers character/integer formats and IEEE half, bfloat16, binary32,
+binary64 and x87 decimal output through the repository's own exact
+floating formatter. `numfmt` measures halfway rounding and host
+long-double arithmetic, including field delimiters and invalid-input modes.
+
+`factor` combines trial division, deterministic Miller–Rabin and an
+independent Montgomery/Brent–Pollard-rho design. `expr` evaluates the full
+token grammar with lazy Boolean operations and anchored first captures;
+its integers have up to 64 magnitude bits, with a separate sign. Both
+programs refuse larger integers by name rather than wrap or truncate
+([wolf-std#100](https://github.com/wolffe-lang/wolf-std/issues/100)).
+`basenc` shares the existing base64/base32 codec and adds the URL/hex
+alphabets, hexadecimal, both bit orders and Z85. GNU 9.11's additional
+`--base58` and `numfmt --debug` are explicitly not implemented.
+
+The new independent witnesses run through the existing `tools/texttest`
+CI entrypoint. They check the named refusals and GNU divergences, a
+32 MiB Z85 round trip, live round-robin output before EOF, input-inode
+preservation, and bounded numeric/context-record allocations. Non-round-robin
+`split` partitions, `csplit`, `fmt`, `pr`, `ptx` and `od` currently retain
+input in memory; this pass makes no constant-memory claim for those readers.
+No new utility has been speed-benchmarked.
 
 The preceding text-tool pass added `base64`, `base32`, `comm`, `join`, `tsort` and
 `shuf`. Both codecs stream in bounded chunks, including malformed padding
@@ -1309,6 +1353,16 @@ new security-sensitive designs.
 | `sha384sum` | FIPS 180-4 SHA-384; the checksum command modes, UTF-8 names | 0.40x (hasu) |
 | `sha512sum` | FIPS 180-4 SHA-512; the checksum command modes, UTF-8 names | 0.40x (hasu) |
 | `b2sum` | RFC 7693 BLAKE2b, variable digest lengths and the checksum command modes, UTF-8 names | 0.24x (hasu) |
+| `split` | byte, line, bounded-record and numbered/round-robin partitions; suffix growth, filters and named GNU divergences below | not benched |
+| `csplit` | numeric/BRE patterns, offsets and repetitions; suffix formats, counts, cleanup and empty suppression | not benched |
+| `fmt` | paragraph/sentence reflow; width, goal, prefixes, split-only, tagged/crown margins and spacing | not benched |
+| `pr` | fixed-mtime headers, pagination/form feeds, across/down/merged columns, numbering and tab/control formats | not benched |
+| `ptx` | GNU-mode keyword contexts, selection/reference options, roff and TeX; traditional `-G` refused | not benched |
+| `od` | character/integer and IEEE floating dumps, endian selection, offsets, strings and duplicate suppression | not benched |
+| `expr` | complete token grammar, lazy Booleans and anchored BRE captures; integers beyond 64 magnitude bits refused (wolf-std#100) | not benched |
+| `numfmt` | all unit families, field ranges, rounding, padding/formats, headers, invalid modes and NUL records; `--debug` refused | not benched |
+| `factor` | every unsigned 64-bit input, sorted factors and exponents; larger integers refused (wolf-std#100) | not benched |
+| `basenc` | eight encodings, decoding, garbage handling and wrapping; `--base58` refused | not benched |
 | `uname` | blocked on the listed surface: raw kernel fields; `os_name` and `os_arch` are normalized lowercase words, and node/release/version have no call | — |
 | `df` | blocked by wolf-lang#686; compiler witness and proposed PAX row retained | — |
 | `du` | allocation/apparent/inode traversal; named files0/time-format limits | not benched |
@@ -1328,9 +1382,10 @@ new security-sensitive designs.
 
 Recorded, not matched: each is a place where boreutils answers otherwise
 than GNU coreutils 9.11 and was ruled to stay that way, with the evidence
-that measured it. Nothing here is refused, and no case hides it: the
-utility runs, and does the other thing. (A refusal by name is in each
-utility's row in the tables above.)
+that measured it. The differences are explicit, including the safe refusal for csplit input
+collisions below. Named-difference cases have independent witnesses; no
+expected output is rewritten to silence an oracle disagreement. Other
+refusals are identified in each utility's row above.
 
 - **A streaming filter appended onto its own input** (boreutils#37,
   ruling #87). `tail -c +1 f >> f`, and `nl`, `cut`, `tr`, `fold`,
@@ -1448,7 +1503,6 @@ table answers it per utility, from the evidence and from nothing else.
 | `join` | 15 / 15 | 233 / 0 | not benched (hasu) | drop-in under LC_ALL=C |
 | `tsort` | 2 / 2 | 69 / 26 | not benched (hasu) | drop-in for DAGs and residual unions of simple cycles; complex cyclic components and cycles with outgoing tails refused by name |
 | `shuf` | 8 / 9 | 97 / 1 | not benched (hasu) | drop-in for scripts that avoid --random-source, refused by name |
-
 | `cksum` | 15 / 16 | 383 / 3 | 0.05x to 0.94x (hasu) | drop-in for UTF-8 file names and scripts that avoid `-a sha3`, `-a sm3` and hardware `--debug`, each refused by name |
 | `sum` | 4 / 4 | 58 / 0 | 0.14x to 0.94x (hasu) | drop-in; command-line file names are UTF-8 |
 | `md5sum` | 12 / 12 | 253 / 2 | 0.32x (hasu) | drop-in for UTF-8 file names; valid raw-byte name records refuse by name |
@@ -1470,8 +1524,18 @@ table answers it per utility, from the evidence and from nothing else.
 | `nice` | scoped above | 9 / 1 | not benched (hasu) | not yet |
 | `nohup` | scoped above | 12 / 0 | not benched (hasu) | drop-in |
 | `stdbuf` | scoped above | 9 / 0 | not benched (hasu) | not yet |
+| `split` | 15 / 15 | 195 / 3 | not benched (hasu) | documented correct behavior at the two named GNU defects below; other measured modes compare directly |
+| `csplit` | 9 / 9 | 114 / 3 | not benched (hasu) | refuses input-inode collisions without losing data, unlike GNU; other measured modes compare directly |
+| `fmt` | 9 / 9 | 328 / 0 | not benched (hasu) | drop-in under LC_ALL=C |
+| `pr` | 26 / 26 | 139 / 0 | not benched (hasu) | drop-in under LC_ALL=C |
+| `ptx` | 18 / 19 | 86 / 1 | not benched (hasu) | drop-in for GNU mode; `-G` refused by name |
+| `od` | 21 / 21 | 144 / 0 | not benched (hasu) | drop-in on the measured native type layouts under LC_ALL=C |
+| `expr` | 2 / 2, plus expression grammar | 425 / 1 | not benched (hasu) | drop-in for integers whose magnitude and arithmetic results fit 64 bits; larger values refused by name |
+| `numfmt` | 17 / 18 | 183 / 1 | not benched (hasu) | drop-in under LC_ALL=C for scripts that avoid `--debug`, refused by name |
+| `factor` | 3 / 3 | 59 / 1, including 10,000 random u64 values | not benched (hasu) | drop-in through 2^64−1; larger integers refused by name |
+| `basenc` | 13 / 14, eight encodings | 403 / 1 | not benched (hasu) | drop-in for scripts that avoid `--base58`, refused by name |
 
-**29 drop-in, 50 drop-in for scripts that avoid a named thing, 3 not yet** (command rows, not the manual's grouped utility units; new checksum
+**32 drop-in, 57 drop-in for scripts that avoid a named thing, 3 not yet** (command rows, not the manual's grouped utility units; new checksum
 rows explicitly require UTF-8 names). (bu28: `kill`'s two named things became one, and `timeout`'s four
 became three narrower ones; bu27: `timeout` arrived with named things, and `kill`'s three
 became two narrower ones; bu24: the six identity tools arrived with a named thing each —
@@ -1490,13 +1554,13 @@ evidence, with an upstream issue where one is already filed.
 sums counted as one and `[` as `test`; Arch's build installs 102
 binaries and leaves out `arch`, `chcon`, `runcon`, `hostname`, `kill`
 and `uptime`; `kill` is built only when asked for, which the oracle of
-record now does). boreutils builds **82 command binaries**, representing
-**79 of those 103 utility units (77%)** in the source tree. Three entries
+record now does). boreutils builds **92 command binaries**, representing
+**89 of those 103 utility units (86%)** in the source tree. Three entries
 (`chroot`, priority-changing `nice`, and arbitrary-child `stdbuf`) still
-lack their central operation; excluding them leaves **76 implemented
-utility units (74%)**. `df` is not counted. The four SHA-2 binaries occupy
+lack their central operation; excluding them leaves **86 implemented
+utility units (83%)**. `df` is not counted. The four SHA-2 binaries occupy
 one unit in that denominator. Effort is not what
-blocks many of the other 24: some need missing wolf surfaces. Existing
+blocks many of the other 14: some need missing wolf surfaces. Existing
 issues carry witnesses; newly measured gaps below are listed for upstream. The OS surface lane's first cut, s199's
 wolf-lang#426 and #424 (seek, tell, the positional read, and the
 standard descriptors), shipped in 0.2.22, and `tail`, `head` and `wc`
@@ -1647,7 +1711,7 @@ Newly measured surface gaps (bu30, `notes/bu30/probes/surface.lu`):
   The host-scoped witnesses are the two link cases and
   `notes/bu30/ev/ci-macos-red.log` (run 39987951234).
 
-### Named GNU 9.11 splitter divergences (bu33)
+### Named GNU 9.11 splitter divergences
 
 These are explicit divergences, not changed differential expectations.
 `tools/splittertest` checks the documented behavior independently.
@@ -1656,14 +1720,17 @@ These are explicit divergences, not changed differential expectations.
 |---|---|---|
 | `split --hex-suffixes=f` | `printf 'one\ntwo\nthree\nfour\nfive\n' \| split --hex-suffixes=f -l1 - hex.` exits 0 but drops `one` and creates `hex.0f`, `hex.0i`, `hex.0x`, `hex.0 ` | Preserve every record; sequential hexadecimal suffixes `0f`, `10`, `11`, `12`, `13` |
 | `split -e -n l/N` with more chunks than input bytes | `printf 'a\nb\n' \| timeout 3 split -e -n l/5 - hang.` writes two files and hangs (timeout exits 124); `l/10` also hangs | Finish with two nonempty files preserving all input bytes |
+| `csplit` output aliases its input | `printf '1\n2\n3\n' > xx00; csplit xx00 2` prints `0`, exits 1 with a line-number error, and deletes `xx00`; with input `f` hard-linked to `xx00`, `f` is left empty | Exit 1 with `csplit: 'xx00' would overwrite input; aborting`; preserve the original inode's bytes, including hard links, symlinks and input descriptor 0 |
 
-The manual promises hexadecimal suffixes and says `-e` does not generate
-empty output files with `-n`. The isolated witnesses ran in an Ubuntu
+
+The documented split interface promises hexadecimal suffixes and says `-e`
+does not generate empty output files with `-n`; csplit promises pieces of
+the original input, not truncation and deletion of that input. The isolated witnesses ran in an Ubuntu
 24.04 container on hasu, using the digest-built GNU 9.11 oracle. Evidence:
-`/home/mfwolffe/lanes/bu33/ev/split-oracle-anomalies.log`.
-These are the maintainer's R-bu33-1 decision: keep the documented, correct
-behavior and publish GNU's disagreement, rather than reproduce data loss
-or a hang.
+`/home/mfwolffe/lanes/bu33/ev/split-oracle-anomalies.log` and
+`/home/mfwolffe/lanes/bu33/ev/split-input-collision.log`.
+These preserve the documented behavior and publish GNU's disagreement,
+rather than reproduce data loss or a hang.
 
 The C-locale BRE engine in `src/re/` is vendored from the org's own
 clean-room [scent](https://github.com/wolffe-lang/scent) at
@@ -1671,3 +1738,17 @@ clean-room [scent](https://github.com/wolffe-lang/scent) at
 the wolf Training Data Permission. It substitutes for the pinned std's
 missing regex module ([wolf-std#99](https://github.com/wolffe-lang/wolf-std/issues/99));
 no GNU implementation source was consulted.
+
+### Numeric range witnesses
+
+The missing general bigint surface is
+[wolf-std#100](https://github.com/wolffe-lang/wolf-std/issues/100).
+`expr 18446744073709551615 + 1` prints `18446744073709551616` in GNU
+9.11; boreutils refuses the overflowing result with status 2 and names
+the 64-bit magnitude limit and that issue. `factor -h
+18446744073709551616` prints `18446744073709551616: 2^64` in GNU;
+boreutils refuses it with status 1 and the same issue. Values through
+`18446744073709551615` remain supported, including unsigned division and
+primality controls near that endpoint. `tools/numbertest`, included in
+`tools/texttest`, checks both the refusals and the supported side of the
+boundary.
