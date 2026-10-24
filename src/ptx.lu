@@ -1,0 +1,197 @@
+//! member: false
+//! ptx — C-locale keyword-in-context index. References consulted: GNU
+//! coreutils 9.11 help, manual's input/output-processing nodes and binary
+//! probes. No other indexer's implementation consulted. Regex matching
+//! uses the org-owned clean-room scent engine (see re's origin header).
+
+use bore
+use re
+use textio
+
+struct Text { bytes: List[byte], raw: List[byte], name: str }
+struct Entry { file: int, lo: int, hi: int, first: int, last: int, reference: str }
+struct Options { width: int, gap: int, auto: bool, refs: bool, right: bool, fold: bool, style: int, macro: str, flag: str, sentence: str, explicit_sentence: bool, word: str, breaks: List[byte], ignored: List[textio.Rec], only: List[textio.Rec], use_only: bool }
+struct Fields { tail: List[byte], before: List[byte], after: List[byte], head: List[byte], key: List[byte], rest: List[byte] }
+fn space(c: byte) -> bool { let n = c as int; n == 32 || n >= 9 && n <= 13 }
+fn alpha(c: byte) -> bool { let n = c as int; n >= 65 && n <= 90 || n >= 97 && n <= 122 }
+fn bytes(bs: List[byte], a: int, z: int) -> List[byte] { var result = List[byte](); for k in a..z { (mut result).push(bs[k]) }; result }
+fn add(mut bs: List[byte], s: str) { for b in s.bytes() { (mut bs).push(b) } }
+fn pad(mut bs: List[byte], n: int) { for _ in 0..n { (mut bs).push(32 as byte) } }
+fn trim(bs: List[byte]) -> List[byte] { var a = 0, z = bs.len; while a < z && space(bs[a]) { a += 1 }; while z > a && space(bs[z - 1]) { z -= 1 }; bytes(bs, a, z) }
+fn decode(s: str) -> str {
+    var result = List[byte](), k = 0
+    while k < s.len { let c = s.bytes()[k]; k += 1; if c == 92 as byte && k < s.len { let d = s.bytes()[k]; k += 1; if d == 110 as byte { (mut result).push(10 as byte) } else if d == 116 as byte { (mut result).push(9 as byte) } else if d == 114 as byte { (mut result).push(13 as byte) } else { (mut result).push(c); (mut result).push(d) } } else { (mut result).push(c) } }
+    str_from_utf8(result) else s
+}
+fn member(word: List[byte], rows: List[textio.Rec], fold: bool) -> bool { for row in rows { if textio.cmp(word, row.data, fold) == 0 { return true } }; false }
+fn constituent(b: byte, breaks: List[byte]) -> bool { if breaks.len == 0 { return alpha(b) }; for c in breaks { if c == b { return false } }; true }
+fn readall(path: str) -> List[byte] ! {io} {
+    let src = bore.open_input(path) else |_| { bore.input_error("ptx", path, bore.reason_of(bore.host_code())); return io }
+    defer bore.close_input(src)
+    var result = List[byte](), done = false
+    while !done { let chunk = bore.read_chunk(src, 65536) else |e| match e { eof => { done = true; List[byte]() }, io => { bore.warn("ptx", "read error: {bore.io_error()}"); return io } }; if chunk.len == 0 { done = true }; for b in chunk { (mut result).push(b) } }
+    result
+}
+fn compile(s: str) -> re.Regex ! {invalid} {
+    var d = re.diagnostics_new()
+    re.compile([s.bytes()], re.Options { extended: false, icase: false, word: false, whole: false, terminator: 0 as byte }, mut d) else |_| { for item in d.items { bore.warn("ptx", str_from_utf8(item.text) else "invalid regular expression") }; return invalid }
+}
+fn index_text(mut entries: List[Entry], text: Text, file: int, o: Options) -> bool {
+    var ends = [0]
+    if o.explicit_sentence {
+        let regex = compile(decode(o.sentence)) else |_| { return false }
+        var ws = re.workspace_new(regex), from = 0
+        while from < text.raw.len {
+            if !re.line_matches(regex, mut ws, text.raw, 0, text.raw.len) { break }
+            let span = re.next_span(regex, mut ws, text.raw, 0, text.raw.len, from) else |_| { break }
+            (mut ends).push(span.hi); from = span.hi
+        }
+    } else {
+        for k in 0..text.raw.len {
+            if o.refs && text.raw[k] == 10 as byte { (mut ends).push(k + 1) } else if !o.refs && (text.raw[k] == 46 as byte || text.raw[k] == 33 as byte || text.raw[k] == 63 as byte) {
+                var z = k + 1
+                while z < text.raw.len && (text.raw[z] == 34 as byte || text.raw[z] == 39 as byte || text.raw[z] == 41 as byte || text.raw[z] == 93 as byte || text.raw[z] == 125 as byte) { z += 1 }
+                if z == text.raw.len || text.raw[z] == 10 as byte || text.raw[z] == 9 as byte || z + 1 < text.raw.len && text.raw[z] == 32 as byte && text.raw[z + 1] == 32 as byte {
+                    while z < text.raw.len && space(text.raw[z]) { z += 1 }; (mut ends).push(z)
+                }
+            }
+        }
+    }
+    (mut ends).push(text.raw.len)
+    let regex = compile(o.word) else |_| { return false }
+    var ws = re.workspace_new(regex), k = 0, line = 1, line_start = 0, context = 0
+    while k < text.raw.len {
+        if text.raw[k] == 10 as byte { line += 1; line_start = k + 1; k += 1; continue }
+        var ref_end = line_start
+        if o.refs { while ref_end < text.raw.len && !space(text.raw[ref_end]) { ref_end += 1 }; if k < ref_end { k = ref_end; continue } }
+        let lo = k
+        var hi = k
+        if o.word.len > 0 {
+            if !re.line_matches(regex, mut ws, text.raw, 0, text.raw.len) { break }
+            let span = re.next_span(regex, mut ws, text.raw, 0, text.raw.len, k) else |_| { break }
+            if span.lo > k { k += 1; continue }
+            hi = span.hi
+        } else {
+            if !constituent(text.raw[k], o.breaks) { k += 1; continue }
+            while hi < text.raw.len && constituent(text.raw[hi], o.breaks) { hi += 1 }
+        }
+        k = hi
+        let key = bytes(text.raw, lo, hi)
+        if member(key, o.ignored, o.fold) || o.use_only && !member(key, o.only, o.fold) { continue }
+        while context + 1 < ends.len && lo >= ends[context + 1] { context += 1 }
+        var first = ends[context], last = ends[context + 1]
+        if o.refs && !o.explicit_sentence { first = ref_end }
+        while first < last && space(text.raw[first]) { first += 1 }
+        while last > first && space(text.raw[last - 1]) { last -= 1 }
+        var reference = ""
+        if o.refs { reference = str_from_utf8(bytes(text.raw, line_start, ref_end)) else "" }
+        if o.auto { reference = "{text.name}:{line}" }
+        (mut entries).push(Entry { file: file, lo: lo, hi: hi, first: first, last: last, reference: reference })
+    }
+    true
+}
+fn prefix_end(bs: List[byte], limit: int) -> int {
+    if bs.len <= limit { return bs.len }
+    var z = if limit > 0 then limit else 0
+    while z > 0 && !space(bs[z]) { z -= 1 }
+    if z == 0 { z = if limit < bs.len then limit else bs.len }
+    while z > 0 && space(bs[z - 1]) { z -= 1 }
+    z
+}
+fn suffix_begin(bs: List[byte], limit: int) -> int {
+    if bs.len <= limit { return 0 }
+    var a = bs.len - if limit > 0 then limit else 0
+    while a < bs.len && a > 0 && !space(bs[a - 1]) { a += 1 }
+    while a < bs.len && space(bs[a]) { a += 1 }
+    a
+}
+fn layout(text: Text, entry: Entry, o: Options, half: int) -> Fields {
+    let before = trim(bytes(text.bytes, entry.first, entry.lo)), after = trim(bytes(text.bytes, entry.lo, entry.last))
+    let limit = if entry.last - entry.first <= half then half else half - o.gap
+    let a = suffix_begin(before, limit), z = prefix_end(after, limit)
+    var f = Fields { tail: List[byte](), before: bytes(before, a, before.len), after: bytes(after, 0, z), head: List[byte](), key: bytes(text.bytes, entry.lo, entry.hi), rest: List[byte]() }
+    let overflow_after = trim(bytes(after, z, after.len)), overflow_before = trim(bytes(before, 0, a))
+    if overflow_after.len > 0 && limit - f.before.len - o.gap > 0 {
+        let tail_end = prefix_end(overflow_after, limit - f.before.len - o.gap)
+        f.tail = bytes(overflow_after, 0, tail_end)
+        if tail_end < overflow_after.len { add(mut f.tail, o.flag) }
+    } else if z < after.len { add(mut f.after, o.flag) }
+    if overflow_before.len > 0 && limit - f.after.len - o.gap > 0 {
+        let start = suffix_begin(overflow_before, limit - f.after.len - o.gap)
+        if start > 0 { add(mut f.head, o.flag) }
+        for b in bytes(overflow_before, start, overflow_before.len) { (mut f.head).push(b) }
+    } else if a > 0 { var marked = o.flag.bytes(); for b in f.before { (mut marked).push(b) }; f.before = marked }
+    let keylen = entry.hi - entry.lo
+    if f.after.len > keylen { f.rest = bytes(f.after, keylen, f.after.len) }
+    f
+}
+fn escaped(bs: List[byte], tex: bool) -> List[byte] {
+    var result = List[byte]()
+    for b in bs {
+        let c = b as int
+        if !tex { if c == 34 { (mut result).push(b) }; (mut result).push(if c < 32 || c == 127 then 32 as byte else b) } else if c == 36 || c == 37 || c == 38 || c == 35 || c == 95 { (mut result).push(92 as byte); (mut result).push(b) } else if c == 123 || c == 125 { add(mut result, "$\\"); (mut result).push(b); add(mut result, "$") } else if c == 92 { add(mut result, "\\backslash{{}}") } else if c == 94 || c == 126 { (mut result).push(b); add(mut result, "{{ }}") } else { (mut result).push(if c < 32 || c > 126 then 32 as byte else b) }
+    }
+    result
+}
+fn main() -> int {
+    var spec = List[bore.Opt]()
+    for pair in [["A", "auto-reference"], ["f", "ignore-case"], ["O", ""], ["r", "references"], ["R", "right-side-refs"], ["T", ""], ["t", "typeset-mode"], ["G", "traditional"]] { (mut spec).push(bore.flag(pair[0], pair[1])) }
+    for pair in [["b", "break-file"], ["g", "gap-size"], ["i", "ignore-file"], ["o", "only-file"], ["S", "sentence-regexp"], ["W", "word-regexp"], ["w", "width"], ["F", "flag-truncation"], ["M", "macro-name"], ["", "format"]] { (mut spec).push(bore.takes(pair[0], pair[1])) }
+    (mut spec).push(bore.flag("", "help")); (mut spec).push(bore.flag("", "version"))
+    let p = bore.parse(spec, env_args(), bore.permute())
+    var out = bore.stdout()
+    var o = Options { width: 72, gap: 3, auto: false, refs: false, right: false, fold: false, style: 0, macro: "xx", flag: "/", sentence: "", explicit_sentence: false, word: "", breaks: List[byte](), ignored: List[textio.Rec](), only: List[textio.Rec](), use_only: false }
+    for k in 0..p.keys.len {
+        let key = p.keys[k], v = p.values[k]
+        if key == "help" || key == "version" { bore.put(mut out, if key == "version" then bore.version_text("ptx") else "Usage: ptx [OPTION]... [INPUT]...\nProduce a permuted keyword index.\n") else |_| {}; return bore.finish(mut out, "ptx", 0) }
+        if key == "auto-reference" { o.auto = true }; if key == "references" { o.refs = true }; if key == "right-side-refs" { o.right = true }; if key == "ignore-case" { o.fold = true }
+        if key == "width" || key == "gap-size" { let n = v.to_int() else -1; if n < 0 || key == "width" && n == 0 || n > 100000 { bore.warn("ptx", "invalid {key}: {bore.quote_always(v)}"); return 1 }; if key == "width" { o.width = n } else { o.gap = n } }
+        if key == "typeset-mode" { o.width = 100 }; if key == "O" { o.style = 1 }; if key == "T" { o.style = 2 }
+        if key == "format" { if v == "roff" { o.style = 1 } else if v == "tex" { o.style = 2 } else { return bore.usage_error("ptx", "invalid format {bore.quote_always(v)}") } }
+        if key == "macro-name" { o.macro = v }; if key == "flag-truncation" { o.flag = decode(v) }
+        if key == "sentence-regexp" { o.sentence = v; o.explicit_sentence = true }; if key == "word-regexp" { o.word = decode(v) }
+        if key == "break-file" { o.breaks = readall(v) else |_| { return 1 } }
+        if key == "ignore-file" || key == "only-file" { let rows = textio.load("ptx", v, 10); if rows.failed { return 1 }; if key == "ignore-file" { o.ignored = copy rows.items } else { o.only = copy rows.items; o.use_only = true } }
+        if key == "traditional" { bore.warn("ptx", "unsupported option: traditional (-G) output"); return 1 }
+    }
+    if !bore.ok(p) { return bore.usage_error("ptx", p.error) }
+    var paths = copy p.operands
+    if paths.len == 0 { (mut paths).push("-") }
+    var texts = List[Text](), entries = List[Entry]()
+    for path in paths {
+        let raw = readall(path) else |_| { return 1 }
+        var normalized = List[byte]()
+        for b in raw { (mut normalized).push(if space(b) then 32 as byte else b) }
+        (mut texts).push(Text { bytes: normalized, raw: raw, name: if path == "-" then "" else path })
+        if !index_text(mut entries, texts[texts.len - 1], texts.len - 1, o) { return 1 }
+    }
+    // Stable insertion sort keeps occurrence order for identical keywords.
+    var i = 1
+    while i < entries.len { var j = i; while j > 0 && textio.cmp(bytes(texts[entries[j - 1].file].raw, entries[j - 1].lo, entries[j - 1].hi), bytes(texts[entries[j].file].raw, entries[j].lo, entries[j].hi), o.fold) > 0 { let old = copy entries[j - 1]; entries[j - 1] = copy entries[j]; entries[j] = old; j -= 1 }; i += 1 }
+    var refwidth = 0
+    for entry in entries { if entry.reference.len > refwidth { refwidth = entry.reference.len } }
+    let references = o.auto || o.refs
+    let reference_width = if references && !o.right then refwidth + o.gap + (if o.auto && o.style == 0 then 1 else 0) else 0
+    let half = (o.width - reference_width) / 2
+    for entry in entries {
+        let f = layout(texts[entry.file], entry, o, half)
+        var line = List[byte]()
+        if o.style == 0 {
+            if references && !o.right { add(mut line, entry.reference); if o.auto { add(mut line, ":") }; pad(mut line, reference_width - entry.reference.len - (if o.auto then 1 else 0)) }
+            let left = if o.right then half - o.gap else half
+            if f.tail.len > 0 { if !o.right { pad(mut line, o.gap) }; for b in f.tail { (mut line).push(b) }; pad(mut line, left - f.tail.len - f.before.len - (if o.right then 0 else o.gap)) } else { pad(mut line, left - f.before.len) }
+            for b in f.before { (mut line).push(b) }; pad(mut line, o.gap); for b in f.after { (mut line).push(b) }
+            if f.head.len > 0 { pad(mut line, half - o.gap - f.after.len - f.head.len); for b in f.head { (mut line).push(b) } }
+            if references && o.right { pad(mut line, o.width - line.len + o.gap); add(mut line, entry.reference) }
+        } else {
+            add(mut line, if o.style == 1 then ".{o.macro}" else "\\{o.macro} ")
+            var fields = [copy f.tail, copy f.before]
+            if o.style == 1 { (mut fields).push(copy f.after) } else { (mut fields).push(copy f.key); (mut fields).push(copy f.rest) }
+            (mut fields).push(copy f.head)
+            if references { (mut fields).push(entry.reference.bytes()) }
+            for value in fields { if o.style == 1 { add(mut line, " \"") } else { add(mut line, "{{") }; for b in escaped(value, o.style == 2) { (mut line).push(b) }; add(mut line, if o.style == 1 then "\"" else "}}") }
+        }
+        bore.write_all(mut out, line) else |_| { return bore.finish(mut out, "ptx", 1) }; bore.put(mut out, "\n") else |_| { return bore.finish(mut out, "ptx", 1) }
+    }
+    bore.finish(mut out, "ptx", 0)
+}
