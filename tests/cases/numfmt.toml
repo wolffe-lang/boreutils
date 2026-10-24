@@ -1,0 +1,845 @@
+
+[[case]]
+name = "round up to none"
+args = ["--round=up", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n1000000\n1000000000000000001\n01.20\n.5\n-0.00\n"
+
+[[case]]
+name = "round down to none"
+args = ["--round=down", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n1000000\n1000000000000000001\n01.20\n.5\n-0.00\n"
+
+[[case]]
+name = "round from-zero to none"
+args = ["--round=from-zero", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n1000000\n1000000000000000001\n01.20\n.5\n-0.00\n"
+
+[[case]]
+name = "round towards-zero to none"
+args = ["--round=towards-zero", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n1000000\n1000000000000000001\n01.20\n.5\n-0.00\n"
+
+[[case]]
+name = "round nearest to none"
+args = ["--round=nearest", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n1000000\n1000000000000000001\n01.20\n.5\n-0.00\n"
+
+[[case]]
+name = "round up to si"
+args = ["--round=up", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n1000000\n1000000000000000001\n01.20\n.5\n-0.00\n"
+
+[[case]]
+name = "round down to si"
+args = ["--round=down", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n1000000\n1000000000000000001\n01.20\n.5\n-0.00\n"
+
+[[case]]
+name = "round from-zero to si"
+args = ["--round=from-zero", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n1000000\n1000000000000000001\n01.20\n.5\n-0.00\n"
+
+[[case]]
+name = "round towards-zero to si"
+args = ["--round=towards-zero", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n1000000\n1000000000000000001\n01.20\n.5\n-0.00\n"
+
+[[case]]
+name = "round nearest to si"
+args = ["--round=nearest", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n1000000\n1000000000000000001\n01.20\n.5\n-0.00\n"
+
+[[case]]
+name = "round up to iec"
+args = ["--round=up", "--to=iec"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n1000000\n1000000000000000001\n01.20\n.5\n-0.00\n"
+
+[[case]]
+name = "round down to iec"
+args = ["--round=down", "--to=iec"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n1000000\n1000000000000000001\n01.20\n.5\n-0.00\n"
+
+[[case]]
+name = "round from-zero to iec"
+args = ["--round=from-zero", "--to=iec"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n1000000\n1000000000000000001\n01.20\n.5\n-0.00\n"
+
+[[case]]
+name = "round towards-zero to iec"
+args = ["--round=towards-zero", "--to=iec"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n1000000\n1000000000000000001\n01.20\n.5\n-0.00\n"
+
+[[case]]
+name = "round nearest to iec"
+args = ["--round=nearest", "--to=iec"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n1000000\n1000000000000000001\n01.20\n.5\n-0.00\n"
+
+[[case]]
+name = "round up to iec-i"
+args = ["--round=up", "--to=iec-i"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n1000000\n1000000000000000001\n01.20\n.5\n-0.00\n"
+
+[[case]]
+name = "round down to iec-i"
+args = ["--round=down", "--to=iec-i"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n1000000\n1000000000000000001\n01.20\n.5\n-0.00\n"
+
+[[case]]
+name = "round from-zero to iec-i"
+args = ["--round=from-zero", "--to=iec-i"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n1000000\n1000000000000000001\n01.20\n.5\n-0.00\n"
+
+[[case]]
+name = "round towards-zero to iec-i"
+args = ["--round=towards-zero", "--to=iec-i"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n1000000\n1000000000000000001\n01.20\n.5\n-0.00\n"
+
+[[case]]
+name = "round nearest to iec-i"
+args = ["--round=nearest", "--to=iec-i"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n1000000\n1000000000000000001\n01.20\n.5\n-0.00\n"
+
+[[case]]
+name = "format up%.0fnone"
+args = ["--round=up", "--format=%.0f", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format up%.0fsi"
+args = ["--round=up", "--format=%.0f", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format up%.1fnone"
+args = ["--round=up", "--format=%.1f", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format up%.1fsi"
+args = ["--round=up", "--format=%.1f", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format up%.2fnone"
+args = ["--round=up", "--format=%.2f", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format up%.2fsi"
+args = ["--round=up", "--format=%.2f", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format up%08.2fnone"
+args = ["--round=up", "--format=%08.2f", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format up%08.2fsi"
+args = ["--round=up", "--format=%08.2f", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format up%-12fnone"
+args = ["--round=up", "--format=%-12f", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format up%-12fsi"
+args = ["--round=up", "--format=%-12f", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format upprefix%08.2fendnone"
+args = ["--round=up", "--format=prefix%08.2fend", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format upprefix%08.2fendsi"
+args = ["--round=up", "--format=prefix%08.2fend", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format down%.0fnone"
+args = ["--round=down", "--format=%.0f", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format down%.0fsi"
+args = ["--round=down", "--format=%.0f", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format down%.1fnone"
+args = ["--round=down", "--format=%.1f", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format down%.1fsi"
+args = ["--round=down", "--format=%.1f", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format down%.2fnone"
+args = ["--round=down", "--format=%.2f", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format down%.2fsi"
+args = ["--round=down", "--format=%.2f", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format down%08.2fnone"
+args = ["--round=down", "--format=%08.2f", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format down%08.2fsi"
+args = ["--round=down", "--format=%08.2f", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format down%-12fnone"
+args = ["--round=down", "--format=%-12f", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format down%-12fsi"
+args = ["--round=down", "--format=%-12f", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format downprefix%08.2fendnone"
+args = ["--round=down", "--format=prefix%08.2fend", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format downprefix%08.2fendsi"
+args = ["--round=down", "--format=prefix%08.2fend", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format from-zero%.0fnone"
+args = ["--round=from-zero", "--format=%.0f", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format from-zero%.0fsi"
+args = ["--round=from-zero", "--format=%.0f", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format from-zero%.1fnone"
+args = ["--round=from-zero", "--format=%.1f", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format from-zero%.1fsi"
+args = ["--round=from-zero", "--format=%.1f", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format from-zero%.2fnone"
+args = ["--round=from-zero", "--format=%.2f", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format from-zero%.2fsi"
+args = ["--round=from-zero", "--format=%.2f", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format from-zero%08.2fnone"
+args = ["--round=from-zero", "--format=%08.2f", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format from-zero%08.2fsi"
+args = ["--round=from-zero", "--format=%08.2f", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format from-zero%-12fnone"
+args = ["--round=from-zero", "--format=%-12f", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format from-zero%-12fsi"
+args = ["--round=from-zero", "--format=%-12f", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format from-zeroprefix%08.2fendnone"
+args = ["--round=from-zero", "--format=prefix%08.2fend", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format from-zeroprefix%08.2fendsi"
+args = ["--round=from-zero", "--format=prefix%08.2fend", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format towards-zero%.0fnone"
+args = ["--round=towards-zero", "--format=%.0f", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format towards-zero%.0fsi"
+args = ["--round=towards-zero", "--format=%.0f", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format towards-zero%.1fnone"
+args = ["--round=towards-zero", "--format=%.1f", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format towards-zero%.1fsi"
+args = ["--round=towards-zero", "--format=%.1f", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format towards-zero%.2fnone"
+args = ["--round=towards-zero", "--format=%.2f", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format towards-zero%.2fsi"
+args = ["--round=towards-zero", "--format=%.2f", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format towards-zero%08.2fnone"
+args = ["--round=towards-zero", "--format=%08.2f", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format towards-zero%08.2fsi"
+args = ["--round=towards-zero", "--format=%08.2f", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format towards-zero%-12fnone"
+args = ["--round=towards-zero", "--format=%-12f", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format towards-zero%-12fsi"
+args = ["--round=towards-zero", "--format=%-12f", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format towards-zeroprefix%08.2fendnone"
+args = ["--round=towards-zero", "--format=prefix%08.2fend", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format towards-zeroprefix%08.2fendsi"
+args = ["--round=towards-zero", "--format=prefix%08.2fend", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format nearest%.0fnone"
+args = ["--round=nearest", "--format=%.0f", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format nearest%.0fsi"
+args = ["--round=nearest", "--format=%.0f", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format nearest%.1fnone"
+args = ["--round=nearest", "--format=%.1f", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format nearest%.1fsi"
+args = ["--round=nearest", "--format=%.1f", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format nearest%.2fnone"
+args = ["--round=nearest", "--format=%.2f", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format nearest%.2fsi"
+args = ["--round=nearest", "--format=%.2f", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format nearest%08.2fnone"
+args = ["--round=nearest", "--format=%08.2f", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format nearest%08.2fsi"
+args = ["--round=nearest", "--format=%08.2f", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format nearest%-12fnone"
+args = ["--round=nearest", "--format=%-12f", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format nearest%-12fsi"
+args = ["--round=nearest", "--format=%-12f", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format nearestprefix%08.2fendnone"
+args = ["--round=nearest", "--format=prefix%08.2fend", "--to=none"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "format nearestprefix%08.2fendsi"
+args = ["--round=nearest", "--format=prefix%08.2fend", "--to=si"]
+stdin = "0\n-0\n1.25\n-1.25\n1.5\n2.5\n-1.5\n9.95\n-9.95\n999\n999.1\n1000\n1024\n1250\n-1250\n12500\n-12500\n999499\n999500\n999999\n"
+
+[[case]]
+name = "from none to none"
+args = ["--from=none", "--to=none"]
+stdin = "1\n1.20\n.5\n-0.00\n"
+
+[[case]]
+name = "from none to si"
+args = ["--from=none", "--to=si"]
+stdin = "1\n1.20\n.5\n-0.00\n"
+
+[[case]]
+name = "from none to iec"
+args = ["--from=none", "--to=iec"]
+stdin = "1\n1.20\n.5\n-0.00\n"
+
+[[case]]
+name = "from none to iec-i"
+args = ["--from=none", "--to=iec-i"]
+stdin = "1\n1.20\n.5\n-0.00\n"
+
+[[case]]
+name = "from si to none"
+args = ["--from=si", "--to=none"]
+stdin = "1k\n1K\n1.2345k\n-1.5M\n"
+
+[[case]]
+name = "from si to si"
+args = ["--from=si", "--to=si"]
+stdin = "1k\n1K\n1.2345k\n-1.5M\n"
+
+[[case]]
+name = "from si to iec"
+args = ["--from=si", "--to=iec"]
+stdin = "1k\n1K\n1.2345k\n-1.5M\n"
+
+[[case]]
+name = "from si to iec-i"
+args = ["--from=si", "--to=iec-i"]
+stdin = "1k\n1K\n1.2345k\n-1.5M\n"
+
+[[case]]
+name = "from iec to none"
+args = ["--from=iec", "--to=none"]
+stdin = "1K\n1.5M\n-1G\n"
+
+[[case]]
+name = "from iec to si"
+args = ["--from=iec", "--to=si"]
+stdin = "1K\n1.5M\n-1G\n"
+
+[[case]]
+name = "from iec to iec"
+args = ["--from=iec", "--to=iec"]
+stdin = "1K\n1.5M\n-1G\n"
+
+[[case]]
+name = "from iec to iec-i"
+args = ["--from=iec", "--to=iec-i"]
+stdin = "1K\n1.5M\n-1G\n"
+
+[[case]]
+name = "from iec-i to none"
+args = ["--from=iec-i", "--to=none"]
+stdin = "1Ki\n1.5Mi\n-1Gi\n"
+
+[[case]]
+name = "from iec-i to si"
+args = ["--from=iec-i", "--to=si"]
+stdin = "1Ki\n1.5Mi\n-1Gi\n"
+
+[[case]]
+name = "from iec-i to iec"
+args = ["--from=iec-i", "--to=iec"]
+stdin = "1Ki\n1.5Mi\n-1Gi\n"
+
+[[case]]
+name = "from iec-i to iec-i"
+args = ["--from=iec-i", "--to=iec-i"]
+stdin = "1Ki\n1.5Mi\n-1Gi\n"
+
+[[case]]
+name = "from auto to none"
+args = ["--from=auto", "--to=none"]
+stdin = "1k\n1Ki\n1M\n1Mi\n"
+
+[[case]]
+name = "from auto to si"
+args = ["--from=auto", "--to=si"]
+stdin = "1k\n1Ki\n1M\n1Mi\n"
+
+[[case]]
+name = "from auto to iec"
+args = ["--from=auto", "--to=iec"]
+stdin = "1k\n1Ki\n1M\n1Mi\n"
+
+[[case]]
+name = "from auto to iec-i"
+args = ["--from=auto", "--to=iec-i"]
+stdin = "1k\n1Ki\n1M\n1Mi\n"
+
+[[case]]
+name = "from-unit2"
+args = ["--from-unit=2"]
+stdin = "1.5\n1.20\n1250\n-1250\n"
+
+[[case]]
+name = "to-unit2"
+args = ["--to-unit=2"]
+stdin = "1.5\n1.20\n1250\n-1250\n"
+
+[[case]]
+name = "from-unit1000"
+args = ["--from-unit=1000"]
+stdin = "1.5\n1.20\n1250\n-1250\n"
+
+[[case]]
+name = "to-unit1000"
+args = ["--to-unit=1000"]
+stdin = "1.5\n1.20\n1250\n-1250\n"
+
+[[case]]
+name = "from-unit1K"
+args = ["--from-unit=1K"]
+stdin = "1.5\n1.20\n1250\n-1250\n"
+
+[[case]]
+name = "to-unit1K"
+args = ["--to-unit=1K"]
+stdin = "1.5\n1.20\n1250\n-1250\n"
+
+[[case]]
+name = "from-unit1Ki"
+args = ["--from-unit=1Ki"]
+stdin = "1.5\n1.20\n1250\n-1250\n"
+
+[[case]]
+name = "to-unit1Ki"
+args = ["--to-unit=1Ki"]
+stdin = "1.5\n1.20\n1250\n-1250\n"
+
+[[case]]
+name = "from-unit2M"
+args = ["--from-unit=2M"]
+stdin = "1.5\n1.20\n1250\n-1250\n"
+
+[[case]]
+name = "to-unit2M"
+args = ["--to-unit=2M"]
+stdin = "1.5\n1.20\n1250\n-1250\n"
+
+[[case]]
+name = "from-unit3Mi"
+args = ["--from-unit=3Mi"]
+stdin = "1.5\n1.20\n1250\n-1250\n"
+
+[[case]]
+name = "to-unit3Mi"
+args = ["--to-unit=3Mi"]
+stdin = "1.5\n1.20\n1250\n-1250\n"
+
+[[case]]
+name = "fields []"
+args = ["--to=si", "--invalid=ignore"]
+stdin = "header 1024 2000\n 1000000   2000000   3000000\n1 2 3\n"
+
+[[case]]
+name = "fields ['--field=2']"
+args = ["--to=si", "--invalid=ignore", "--field=2"]
+stdin = "header 1024 2000\n 1000000   2000000   3000000\n1 2 3\n"
+
+[[case]]
+name = "fields ['--field=1,3']"
+args = ["--to=si", "--invalid=ignore", "--field=1,3"]
+stdin = "header 1024 2000\n 1000000   2000000   3000000\n1 2 3\n"
+
+[[case]]
+name = "fields ['--field=2-']"
+args = ["--to=si", "--invalid=ignore", "--field=2-"]
+stdin = "header 1024 2000\n 1000000   2000000   3000000\n1 2 3\n"
+
+[[case]]
+name = "fields ['--field=-2']"
+args = ["--to=si", "--invalid=ignore", "--field=-2"]
+stdin = "header 1024 2000\n 1000000   2000000   3000000\n1 2 3\n"
+
+[[case]]
+name = "fields ['--field=-']"
+args = ["--to=si", "--invalid=ignore", "--field=-"]
+stdin = "header 1024 2000\n 1000000   2000000   3000000\n1 2 3\n"
+
+[[case]]
+name = "fields ['--header']"
+args = ["--to=si", "--invalid=ignore", "--header"]
+stdin = "header 1024 2000\n 1000000   2000000   3000000\n1 2 3\n"
+
+[[case]]
+name = "fields ['--header=2']"
+args = ["--to=si", "--invalid=ignore", "--header=2"]
+stdin = "header 1024 2000\n 1000000   2000000   3000000\n1 2 3\n"
+
+[[case]]
+name = "fields ['--padding=10']"
+args = ["--to=si", "--invalid=ignore", "--padding=10"]
+stdin = "header 1024 2000\n 1000000   2000000   3000000\n1 2 3\n"
+
+[[case]]
+name = "fields ['--padding=-10']"
+args = ["--to=si", "--invalid=ignore", "--padding=-10"]
+stdin = "header 1024 2000\n 1000000   2000000   3000000\n1 2 3\n"
+
+[[case]]
+name = "invalid abort"
+args = ["--invalid=abort"]
+stdin = "1\nx\n2\ny\n"
+
+[[case]]
+name = "invalid fail"
+args = ["--invalid=fail"]
+stdin = "1\nx\n2\ny\n"
+
+[[case]]
+name = "invalid warn"
+args = ["--invalid=warn"]
+stdin = "1\nx\n2\ny\n"
+
+[[case]]
+name = "invalid ignore"
+args = ["--invalid=ignore"]
+stdin = "1\nx\n2\ny\n"
+
+[[case]]
+name = "delimiter si"
+args = ["--to=si", "--field=2-3", "-d:"]
+stdin = "a: 1024 :2000:x\nb:1000000:3000:y\n"
+
+[[case]]
+name = "delimiter iec"
+args = ["--to=iec", "--field=2-3", "-d:"]
+stdin = "a: 1024 :2000:x\nb:1000000:3000:y\n"
+
+[[case]]
+name = "delimiter iec-i"
+args = ["--to=iec-i", "--field=2-3", "-d:"]
+stdin = "a: 1024 :2000:x\nb:1000000:3000:y\n"
+
+[[case]]
+name = "invalid word nonenan"
+args = ["--from=none", "--", "nan"]
+
+[[case]]
+name = "invalid word sinan"
+args = ["--from=si", "--", "nan"]
+
+[[case]]
+name = "invalid word iecnan"
+args = ["--from=iec", "--", "nan"]
+
+[[case]]
+name = "invalid word iec-inan"
+args = ["--from=iec-i", "--", "nan"]
+
+[[case]]
+name = "invalid word autonan"
+args = ["--from=auto", "--", "nan"]
+
+[[case]]
+name = "invalid word none1."
+args = ["--from=none", "--", "1."]
+
+[[case]]
+name = "invalid word si1."
+args = ["--from=si", "--", "1."]
+
+[[case]]
+name = "invalid word iec1."
+args = ["--from=iec", "--", "1."]
+
+[[case]]
+name = "invalid word iec-i1."
+args = ["--from=iec-i", "--", "1."]
+
+[[case]]
+name = "invalid word auto1."
+args = ["--from=auto", "--", "1."]
+
+[[case]]
+name = "invalid word none+1"
+args = ["--from=none", "--", "+1"]
+
+[[case]]
+name = "invalid word si+1"
+args = ["--from=si", "--", "+1"]
+
+[[case]]
+name = "invalid word iec+1"
+args = ["--from=iec", "--", "+1"]
+
+[[case]]
+name = "invalid word iec-i+1"
+args = ["--from=iec-i", "--", "+1"]
+
+[[case]]
+name = "invalid word auto+1"
+args = ["--from=auto", "--", "+1"]
+
+[[case]]
+name = "invalid word none1e3"
+args = ["--from=none", "--", "1e3"]
+
+[[case]]
+name = "invalid word si1e3"
+args = ["--from=si", "--", "1e3"]
+
+[[case]]
+name = "invalid word iec1e3"
+args = ["--from=iec", "--", "1e3"]
+
+[[case]]
+name = "invalid word iec-i1e3"
+args = ["--from=iec-i", "--", "1e3"]
+
+[[case]]
+name = "invalid word auto1e3"
+args = ["--from=auto", "--", "1e3"]
+
+[[case]]
+name = "invalid word none1KB"
+args = ["--from=none", "--", "1KB"]
+
+[[case]]
+name = "invalid word si1KB"
+args = ["--from=si", "--", "1KB"]
+
+[[case]]
+name = "invalid word iec1KB"
+args = ["--from=iec", "--", "1KB"]
+
+[[case]]
+name = "invalid word iec-i1KB"
+args = ["--from=iec-i", "--", "1KB"]
+
+[[case]]
+name = "invalid word auto1KB"
+args = ["--from=auto", "--", "1KB"]
+
+[[case]]
+name = "invalid word none1Ki"
+args = ["--from=none", "--", "1Ki"]
+
+[[case]]
+name = "invalid word si1Ki"
+args = ["--from=si", "--", "1Ki"]
+
+[[case]]
+name = "invalid word iec1Ki"
+args = ["--from=iec", "--", "1Ki"]
+
+[[case]]
+name = "invalid word iec-i1Ki"
+args = ["--from=iec-i", "--", "1Ki"]
+
+[[case]]
+name = "invalid word auto1Ki"
+args = ["--from=auto", "--", "1Ki"]
+
+[[case]]
+name = "invalid word none1K"
+args = ["--from=none", "--", "1K"]
+
+[[case]]
+name = "invalid word si1K"
+args = ["--from=si", "--", "1K"]
+
+[[case]]
+name = "invalid word iec1K"
+args = ["--from=iec", "--", "1K"]
+
+[[case]]
+name = "invalid word iec-i1K"
+args = ["--from=iec-i", "--", "1K"]
+
+[[case]]
+name = "invalid word auto1K"
+args = ["--from=auto", "--", "1K"]
+
+[[case]]
+name = "invalid word none1.0Mi"
+args = ["--from=none", "--", "1.0Mi"]
+
+[[case]]
+name = "invalid word si1.0Mi"
+args = ["--from=si", "--", "1.0Mi"]
+
+[[case]]
+name = "invalid word iec1.0Mi"
+args = ["--from=iec", "--", "1.0Mi"]
+
+[[case]]
+name = "invalid word iec-i1.0Mi"
+args = ["--from=iec-i", "--", "1.0Mi"]
+
+[[case]]
+name = "invalid word auto1.0Mi"
+args = ["--from=auto", "--", "1.0Mi"]
+
+[[case]]
+name = "invalid word nonex"
+args = ["--from=none", "--", "x"]
+
+[[case]]
+name = "invalid word six"
+args = ["--from=si", "--", "x"]
+
+[[case]]
+name = "invalid word iecx"
+args = ["--from=iec", "--", "x"]
+
+[[case]]
+name = "invalid word iec-ix"
+args = ["--from=iec-i", "--", "x"]
+
+[[case]]
+name = "invalid word autox"
+args = ["--from=auto", "--", "x"]
+
+[[case]]
+name = "suffix"
+args = ["--from=si", "--to=iec", "--suffix=B"]
+stdin = "1.5kB\n2000B\n"
+
+[[case]]
+name = "unit separator"
+args = ["--from=si", "--to=iec", "--unit-separator= "]
+stdin = "1.5 k\n2000\n"
+
+[[case]]
+name = "nul records"
+args = ["-z", "--to=si"]
+stdin = "1000\u00002000\u0000"
+
+[[case]]
+name = "grouping C"
+args = ["--grouping", "--to=si"]
+stdin = "1000000\n"
