@@ -94,4 +94,13 @@ class StreamAndRefusals(unittest.TestCase):
                     decoded.seek(0)
                     self.assertEqual(decoded.read(),data)
 
+# The existing CI entrypoint discovers the new utility witnesses as tests;
+# neither CI configuration nor differential-harness semantics change.
+_splitters = runpy.run_path(str(ROOT / 'tools/splittertest'))
+_numbers = runpy.run_path(str(ROOT / 'tools/numbertest'))
+SplitDivergences = _splitters['SplitDivergences']
+NumberRefusals = _numbers['NumberRefusals']
+BasencRefusals = _numbers['BasencRefusals']
+BasencStreaming = _numbers['BasencStreaming']
+
 if __name__=='__main__':unittest.main()

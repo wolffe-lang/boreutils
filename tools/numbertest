@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+"""Independent named refusals and basenc streaming witnesses for bu33."""
+import os
+from pathlib import Path
+import resource
+import subprocess
+import tempfile
+import unittest
+
+ROOT = Path(__file__).resolve().parent.parent
+TIER = os.environ.get('BORE_NUMBER_TIER', os.environ.get('BORE_TEXT_TIER', 'release'))
+BIN = ROOT / 'target' / TIER
+
+
+class NumberRefusals(unittest.TestCase):
+    def test_expr_larger_than_64_bits_is_named(self):
+        for args in [['18446744073709551616'],
+                     ['18446744073709551615', '+', '1'],
+                     ['18446744073709551615', '*', '2'],
+                     ['--', '-18446744073709551616']]:
+            with self.subTest(args=args):
+                p = subprocess.run([BIN / 'expr'] + args, capture_output=True, timeout=5)
+                self.assertEqual((p.returncode, p.stdout), (2, b''))
+                self.assertIn(b'unsupported integer', p.stderr)
+                self.assertIn(b'wolf-std#100', p.stderr)
+
+    def test_factor_larger_than_64_bits_is_named(self):
+        p = subprocess.run([BIN / 'factor', '-h', '18446744073709551616'],
+                           capture_output=True, timeout=5)
+        self.assertEqual((p.returncode, p.stdout), (1, b''))
+        self.assertIn(b'exceeds 64 bits', p.stderr)
+        self.assertIn(b'wolf-std#100', p.stderr)
+
+    def test_full_unsigned_range_is_not_mistaken_for_the_gap(self):
+        p = subprocess.run([BIN / 'expr', '18446744073709551615', '/', '3'],
+                           capture_output=True, timeout=5)
+        self.assertEqual((p.returncode, p.stdout, p.stderr),
+                         (0, b'6148914691236517205\n', b''))
+        p = subprocess.run([BIN / 'factor', '18446744073709551557'],
+                           capture_output=True, timeout=5)
+        self.assertEqual((p.returncode, p.stdout, p.stderr),
+                         (0, b'18446744073709551557: 18446744073709551557\n', b''))
+
+
+class BasencRefusals(unittest.TestCase):
+    def test_unrequested_base58_is_named(self):
+        p = subprocess.run([BIN / 'basenc', '--base58'], input=b'a',
+                           capture_output=True, timeout=5)
+        self.assertEqual((p.returncode, p.stdout), (1, b''))
+        self.assertIn(b'unsupported encoding: --base58', p.stderr)
+
+
+class BasencStreaming(unittest.TestCase):
+    def test_z85_bounded_memory_and_round_trip(self):
+        data = b'abcd' * (8 * 1024 * 1024)
+        def cap():
+            resource.setrlimit(resource.RLIMIT_AS, (48 * 1024 * 1024, 48 * 1024 * 1024))
+        before = cap if os.uname().sysname == 'Linux' else None
+        with tempfile.TemporaryFile() as encoded:
+            p = subprocess.run([BIN / 'basenc', '--z85', '-w0'], input=data,
+                               stdout=encoded, stderr=subprocess.PIPE,
+                               preexec_fn=before, timeout=120)
+            self.assertEqual((p.returncode, p.stderr), (0, b''))
+            self.assertEqual(encoded.tell(), len(data) // 4 * 5)
+            encoded.seek(0)
+            with tempfile.TemporaryFile() as decoded:
+                p = subprocess.run([BIN / 'basenc', '--z85', '-d'], stdin=encoded,
+                                   stdout=decoded, stderr=subprocess.PIPE,
+                                   preexec_fn=before, timeout=120)
+                self.assertEqual((p.returncode, p.stderr), (0, b''))
+                self.assertEqual(decoded.tell(), len(data))
+                decoded.seek(0)
+                self.assertEqual(decoded.read(), data)
+
+
+if __name__ == '__main__':
+    unittest.main()

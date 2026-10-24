@@ -7,7 +7,7 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parent.parent
-TIER = os.environ.get("BORE_SPLITTER_TIER", "release")
+TIER = os.environ.get("BORE_SPLITTER_TIER", os.environ.get("BORE_TEXT_TIER", "release"))
 BIN = ROOT / "target" / TIER
 
 

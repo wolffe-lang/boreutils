@@ -18,7 +18,7 @@ fn quoted(word: str) -> str {
     }
     result + "'"
 }
-fn number(mut out: bore.Out, word: str, exponents: bool) -> int {
+fn number_impl(mut out: bore.Out, word: str, exponents: bool) -> int {
     var bad = false, large = false
     let value = numcli.unsigned(word) else |e| match e { parse => { bad = true; 0 as wrapping[u64] }, overflow => { large = true; 0 as wrapping[u64] } }
     if bad { bore.warn("factor", "{quoted(word)} is not a valid positive integer"); return 1 }
@@ -37,6 +37,9 @@ fn number(mut out: bore.Out, word: str, exponents: bool) -> int {
     }
     bore.put(mut out, "\n") else |_| { return 1 }
     0
+}
+fn number(mut out: bore.Out, word: str, exponents: bool) -> int {
+    region record { number_impl(mut out, word, exponents) }
 }
 fn main() -> int {
     var spec = List[bore.Opt]()
