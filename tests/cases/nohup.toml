@@ -1,0 +1,43 @@
+
+[[case]]
+name = "['--help']"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "['--version']"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "[]"
+args = []
+
+[[case]]
+name = "['/bin/true']"
+args = ["/bin/true"]
+
+[[case]]
+name = "['/bin/false']"
+args = ["/bin/false"]
+
+[[case]]
+name = "['/bin/sh', '-c', 'printf hello']"
+args = ["/bin/sh", "-c", "printf hello"]
+
+[[case]]
+name = "['no-such-command-bu34']"
+args = ["no-such-command-bu34"]
+
+[[case]]
+name = "['/']"
+args = ["/"]
+
+[[case]]
+name = "['--unknown']"
+args = ["--unknown"]
+
+[[case]]
+name = "POSIX missing command"
+args = []
+env = { POSIXLY_CORRECT = "1" }
