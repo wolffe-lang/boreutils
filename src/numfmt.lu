@@ -306,12 +306,11 @@ fn convert(word: str, o: Options, automatic_width: int) -> Conversion {
     Conversion { text: o.format.before + result + o.format.after, error: "" }
 }
 
-fn row(mut out: bore.Out, bs: List[byte], o: Options, line: int) -> Outcome {
+fn row_impl(out: bore.Out, bs: List[byte], o: Options, line: int) -> Outcome {
     if line < o.header {
-        bore.write_all(mut out, bs) else |_| { return Outcome { status: 1, stop: true } }
-        bore.put_byte(mut out, o.record as byte) else |_| {
-            return Outcome { status: 1, stop: true }
-        }
+        var copy = copy bs
+        (mut copy).push(o.record as byte)
+        bore.write_direct(out, copy) else |_| { bore.write_error(out, "numfmt", "write error"); return Outcome { status: 1, stop: true } }
         return Outcome { status: 0, stop: false }
     }
     var result = List[byte](), at = 0, field = 1, status = 0
@@ -340,9 +339,7 @@ fn row(mut out: bore.Out, bs: List[byte], o: Options, line: int) -> Outcome {
                 if o.invalid != 3 { bore.warn("numfmt", answer.error) }
                 if o.invalid <= 1 { status = 2 }
                 if o.invalid == 0 {
-                    bore.write_all(mut out, result) else |_| {
-                        return Outcome { status: 1, stop: true }
-                    }
+                    bore.write_direct(out, result) else |_| { bore.write_error(out, "numfmt", "write error"); return Outcome { status: 1, stop: true } }
                     return Outcome { status: status, stop: true }
                 }
                 for k in start..end { (mut result).push(bs[k]) }
@@ -356,9 +353,13 @@ fn row(mut out: bore.Out, bs: List[byte], o: Options, line: int) -> Outcome {
         if end == bs.len { break }
         if o.delimiter >= 0 { (mut result).push(bs[end]); at = end + 1 } else { at = end }
     }
-    bore.write_all(mut out, result) else |_| { return Outcome { status: 1, stop: true } }
-    bore.put_byte(mut out, o.record as byte) else |_| { return Outcome { status: 1, stop: true } }
+    (mut result).push(o.record as byte)
+    bore.write_direct(out, result) else |_| { bore.write_error(out, "numfmt", "write error"); return Outcome { status: 1, stop: true } }
     Outcome { status: status, stop: false }
+}
+
+fn row(out: bore.Out, bs: List[byte], o: Options, line: int) -> Outcome {
+    region record { row_impl(out, bs, o, line) }
 }
 
 fn main() -> int {
@@ -505,7 +506,7 @@ fn main() -> int {
     var status = 0, line = 0
     if p.operands.len > 0 {
         for word in p.operands {
-            let answer = row(mut out, word.bytes(), o, line)
+            let answer = row(out, word.bytes(), o, line)
             if answer.status != 0 { status = answer.status }
             if answer.stop { return bore.finish(mut out, "numfmt", status) }
             line += 1
@@ -518,6 +519,7 @@ fn main() -> int {
         defer bore.close_input(src)
         var bytes = List[byte](), done = false
         while !done {
+            region pass {
             let chunk = bore.read_chunk(src, 65536) else |e| match e {
                 eof => { done = true; List[byte]() },
                 io => { bore.warn("numfmt", "read error: {bore.io_error()}"); return 1 },
@@ -525,18 +527,19 @@ fn main() -> int {
             if chunk.len == 0 { done = true }
             for b in chunk {
                 if b as int == o.record {
-                    let answer = row(mut out, bytes, o, line)
+                    let answer = row(out, bytes, o, line)
                     if answer.status != 0 { status = answer.status }
-                    if answer.stop { return bore.finish(mut out, "numfmt", status) }
-                    bytes = List[byte]()
+                    if answer.stop { return status }
+                    (mut bytes).clear()
                     line += 1
                 } else {
                     (mut bytes).push(b)
                 }
             }
+            }
         }
         if bytes.len > 0 {
-            let answer = row(mut out, bytes, o, line)
+            let answer = row(out, bytes, o, line)
             if answer.status != 0 { status = answer.status }
         }
     }

@@ -47,6 +47,20 @@ class NumberRefusals(unittest.TestCase):
                          (0, b'18446744073709551557: 18446744073709551557\n', b''))
 
 
+class NumberStreaming(unittest.TestCase):
+    def test_numeric_record_regions_are_bounded(self):
+        data = b'1\n' * 100000
+        def cap():
+            resource.setrlimit(resource.RLIMIT_AS, (48 * 1024 * 1024, 48 * 1024 * 1024))
+        before = cap if os.uname().sysname == 'Linux' else None
+        for utility in ('numfmt', 'factor'):
+            with self.subTest(utility=utility), tempfile.TemporaryFile() as output:
+                p = subprocess.run([BIN / utility], input=data, stdout=output,
+                                   stderr=subprocess.PIPE, preexec_fn=before, timeout=120)
+                self.assertEqual((p.returncode, p.stderr), (0, b''))
+                self.assertEqual(output.tell(), len(data) if utility == 'numfmt' else 3 * 100000)
+
+
 class BasencRefusals(unittest.TestCase):
     def test_unrequested_base58_is_named(self):
         p = subprocess.run([BIN / 'basenc', '--base58'], input=b'a',
