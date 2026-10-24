@@ -171,7 +171,8 @@ fn paragraph(mut out: bore.Out, rows: List[Row], a: int, z: int, o: Options) -> 
             width += words[end].bytes.len
             if width > o.width && end > i { break }
             let distance = o.goal - width
-            var cost = distance * distance + 400
+            var cost = distance * distance + distance + 400
+            if end == i && end + 1 < words.len { cost += 100 }
             if end == words.len - 1 {
                 cost = 0
             } else {
