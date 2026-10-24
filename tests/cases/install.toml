@@ -253,3 +253,21 @@ skip = "strip/SELinux surface absent; refused by name"
 name = "gap --preserve-context"
 args = ["--preserve-context", "a", "b"]
 skip = "strip/SELinux surface absent; refused by name"
+
+[[case]]
+name = "D preserves existing parent permissions"
+args = ["-D", "a", "d/new"]
+scratch = { a = "abc" }
+scratch_dirs = ["d"]
+scratch_modes = { d = 0o700 }
+
+[[case]]
+name = "D creates explicit target directory"
+args = ["-D", "-t", "d/new", "a"]
+scratch = { a = "abc" }
+scratch_dirs = ["d"]
+
+[[case]]
+name = "directory trailing slash mode"
+args = ["-d", "-m", "700", "d/sub/"]
+scratch_dirs = ["d"]

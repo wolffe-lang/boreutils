@@ -15,10 +15,10 @@ fn parent(path: str) -> str {
     if at == 0 { return "/" }
     path[..at]
 }
-fn directories(path: str, mode: int, c: Config, mut out: bore.Out) -> bool {
+fn directories(path: str, mode: int, set_existing: bool, c: Config, mut out: bore.Out) -> bool {
     if path.len == 0 || path == "." || path == "/" { return true }
     var current = if path.starts_with("/") then "/" else ""
-    let parts = path.split("/")
+    let parts = bore.without_slashes(path).split("/")
     var i = 0
     for part in parts {
         i += 1
@@ -31,7 +31,7 @@ fn directories(path: str, mode: int, c: Config, mut out: bore.Out) -> bool {
             if c.verbose { bore.put(mut out, "install: creating directory {bore.quote_always(current)}\n") else |_| {} }
             fs_set_mode(current, desired) else |_| { bore.warn("install", "cannot change permissions of {bore.quote_always(current)}: {bore.io_error()}"); return false }
             if c.uid >= 0 || c.gid >= 0 { fs_set_owner(current, c.uid, c.gid, true) else |_| { bore.warn("install", "cannot change ownership of {bore.quote_always(current)}: {bore.io_error()}"); return false } }
-        } else if final {
+        } else if final && set_existing {
             if c.uid >= 0 || c.gid >= 0 { fs_set_owner(current, c.uid, c.gid, true) else |_| { return false } }
             fs_set_mode(current, desired) else |_| { return false }
         }
@@ -129,8 +129,8 @@ fn main() -> int {
     (mut opts).push(bore.optional("", "backup")); (mut opts).push(bore.optional("", "context"))
     let p = bore.parse(opts, env_args(), bore.permute())
     var out = bore.stdout()
-    var c = Config { mode: 493, uid: -1, gid: -1, preserve: false, verbose: false, compare: false, backup: "", suffix: env_get("SIMPLE_BACKUP_SUFFIX") else "~" }
-    var dirs = false, leading = false, nodir = false, target = ""
+    var c = Config { mode: 493, uid: -1, gid: os_egid() else -1, preserve: false, verbose: false, compare: false, backup: "", suffix: env_get("SIMPLE_BACKUP_SUFFIX") else "~" }
+    var dirs = false, leading = false, nodir = false, target = "", target_given = false
     var i = 0
     while i < p.keys.len {
         let k = p.keys[i], v = p.values[i]
@@ -147,7 +147,7 @@ fn main() -> int {
         if k == "directory" { dirs = true }
         if k == "D" { leading = true }
         if k == "no-target-directory" { nodir = true }
-        if k == "target-directory" { target = v }
+        if k == "target-directory" { target = v; target_given = true }
         if k == "preserve-timestamps" { c.preserve = true }
         if k == "verbose" { c.verbose = true }
         if k == "compare" { c.compare = true }
@@ -168,7 +168,7 @@ fn main() -> int {
     if nodir && target.len > 0 { return bore.usage_error("install", "cannot combine --target-directory (-t) and --no-target-directory (-T)") }
     var status = 0
     if dirs {
-        for path in p.operands { if !directories(path, c.mode, c, mut out) { status = 1 } }
+        for path in p.operands { if !directories(path, c.mode, true, c, mut out) { status = 1 } }
         return bore.finish(mut out, "install", status)
     }
     var n = p.operands.len
@@ -177,7 +177,8 @@ fn main() -> int {
         target = p.operands[n - 1]
         n -= 1
     }
-    if leading { if !directories(parent(target), 493, c, mut out) { return bore.finish(mut out, "install", 1) } }
+    if leading { if !directories(if target_given then target else parent(target), 493, false, c, mut out) { return bore.finish(mut out, "install", 1) } }
+    if target_given && !fs_is_dir(target) { bore.warn("install", "failed to access {bore.quote_always(target)}: No such file or directory"); return bore.finish(mut out, "install", 1) }
     let directory = !nodir && fs_is_dir(target)
     if n > 1 && !directory { bore.warn("install", "target {bore.quote_always(target)}: Not a directory"); return 1 }
     i = 0
