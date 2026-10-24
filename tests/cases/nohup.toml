@@ -41,3 +41,8 @@ args = ["--unknown"]
 name = "POSIX missing command"
 args = []
 env = { POSIXLY_CORRECT = "1" }
+
+[[case]]
+name = "exec inherits a closed stdout without remapping it"
+args = ["/bin/true"]
+stdout_closed = true

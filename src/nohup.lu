@@ -39,8 +39,8 @@ fn main() -> int {
     if terminal_err && !terminal_out { bore.warn("nohup", "redirecting stderr to stdout") }
     defer { if output != 1 { fs_close(output) else |_| {} } }
     var fds = List[int]()
-    (mut fds).push(0); (mut fds).push(input)
-    (mut fds).push(1); (mut fds).push(output)
-    (mut fds).push(2); (mut fds).push(if terminal_err then output else 2)
+    if terminal_in { (mut fds).push(0); (mut fds).push(input) }
+    if terminal_out { (mut fds).push(1); (mut fds).push(output) }
+    if terminal_err { (mut fds).push(2); (mut fds).push(output) }
     processwrap.run("nohup", p.operands, fds)
 }

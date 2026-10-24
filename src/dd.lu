@@ -261,7 +261,7 @@ fn main() -> int {
             var i = 0
             while i + 1 < chunk.len { let b = chunk[i]; chunk[i] = chunk[i + 1]; chunk[i + 1] = b; i += 2 }
         }
-        if bs_given && !c.block && !c.unblock {
+        if bs_given && !c.block && !c.unblock && !c.lower && !c.upper && !c.swab && c.table.len == 0 {
             var i = 0
             while i < chunk.len { chunk[i] = converted(chunk[i] as int, c, table); i += 1 }
             if !write_block(w.fd, mut w.sparse_end, chunk, c, mut s) { status = 1 }
