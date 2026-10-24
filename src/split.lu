@@ -191,11 +191,12 @@ fn main() -> int {
         if key == "numeric-suffixes" || key == "hex-suffixes" {
             if p.given[k] {
                 o.next = if key == "hex-suffixes" {
-                    fmt.parse_int_base(v, 16) else -1
+                    fmt.parse_int_base(if v.starts_with("0x") || v.starts_with("0X") then v[2..] else v, 16) else -1
                 } else {
-                    quantity(v)
+                    decimal_count(v)
                 }
                 o.fixed = true
+                explicit_start = true
                 if o.next < 0 {
                     return bore.usage_error("split", "{bore.quote_always(v)}: invalid start value for {if key == "hex-suffixes" then "hexadecimal" else "numerical"} suffix")
                 }
