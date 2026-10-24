@@ -99,6 +99,7 @@ class StreamAndRefusals(unittest.TestCase):
 _splitters = runpy.run_path(str(ROOT / 'tools/splittertest'))
 _numbers = runpy.run_path(str(ROOT / 'tools/numbertest'))
 SplitDivergences = _splitters['SplitDivergences']
+SplitStreaming = _splitters['SplitStreaming']
 NumberRefusals = _numbers['NumberRefusals']
 NumberStreaming = _numbers['NumberStreaming']
 BasencRefusals = _numbers['BasencRefusals']

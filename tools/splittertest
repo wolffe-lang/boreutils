@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Correct-behavior witnesses for R-bu33-1, not GNU expectation overrides."""
 import os
+import select
+import time
 from pathlib import Path
 import subprocess
 import tempfile
@@ -33,6 +35,48 @@ class SplitDivergences(unittest.TestCase):
                 self.assertEqual([p.name for p in files], ["xaa", "xab"])
                 self.assertTrue(all(p.stat().st_size > 0 for p in files))
                 self.assertEqual(b"".join(p.read_bytes() for p in files), data)
+
+
+class SplitStreaming(unittest.TestCase):
+    def _partial_record(self, selected):
+        for executable in [ROOT / '.gnu-bin/bin/split', BIN / 'split']:
+            with self.subTest(executable=str(executable)), tempfile.TemporaryDirectory(prefix='bore-split-live.') as top:
+                args = ['-u', '-n', 'r/1/2' if selected else 'r/2']
+                child = subprocess.Popen([executable] + args, stdin=subprocess.PIPE,
+                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                         cwd=top, start_new_session=True)
+                observed = False
+                prefix = b''
+                try:
+                    child.stdin.write(b'alpha')
+                    child.stdin.flush()
+                    deadline = time.monotonic() + 2
+                    while time.monotonic() < deadline:
+                        if selected:
+                            if select.select([child.stdout], [], [], .02)[0]:
+                                prefix += os.read(child.stdout.fileno(), 64)
+                                observed = prefix == b'alpha'
+                        else:
+                            file = Path(top) / 'xaa'
+                            observed = file.exists() and file.read_bytes() == b'alpha'
+                            if not observed:
+                                time.sleep(.01)
+                        if observed:
+                            break
+                finally:
+                    child.stdin.close()
+                    child.stdin = None
+                    out, err = child.communicate(timeout=5)
+                self.assertEqual((child.returncode, err), (0, b''))
+                self.assertTrue(observed, 'unbuffered round-robin must not wait for EOF or a newline')
+                if selected:
+                    self.assertEqual(prefix + out, b'alpha')
+
+    def test_round_robin_file_is_live_before_eof(self):
+        self._partial_record(False)
+
+    def test_selected_round_robin_stdout_is_live_before_eof(self):
+        self._partial_record(True)
 
 
 if __name__ == "__main__":
