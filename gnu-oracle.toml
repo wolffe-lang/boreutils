@@ -119,12 +119,12 @@ sha256 = "394024eda0a5955217ceda9cd1201e65dc8fa3aa29c2951135a49521d57c3cc3"
 # on macOS, CI run 38348626720: this build prints `\u0000` for `printf
 # '\u0000'` where Homebrew's prints a NUL) — and `tools/fetch-oracle`
 # stages the build for the missing programs alone.
-configure_args = "--disable-nls --without-selinux --enable-install-program=kill"
+configure_args = "--disable-nls --without-selinux --enable-install-program=kill,arch,hostname,uptime,chcon,runcon"
 
 # Programs the oracle must hold beyond coreutils' default set, each
 # asserted by its own first `--version` line (`kill (GNU coreutils)
 # 9.11`): a program of the same name from another package is no oracle.
-needs = "kill"
+needs = "kill arch hostname uptime chcon runcon"
 
 # What the field ships, for the record, measured 2026-09-18 and
 # re-measured 2026-09-24. Neither is the oracle; the first is why this
