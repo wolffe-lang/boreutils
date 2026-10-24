@@ -1,0 +1,7 @@
+//! Own witness: wolf byte IO does not use libc FILE streams.
+fn main() -> int {
+    fs_write_chunk(1, "A".bytes()) else |_| { return 1 }
+    time_sleep_ms(800)
+    fs_write_chunk(1, "B\n".bytes()) else |_| { return 1 }
+    0
+}

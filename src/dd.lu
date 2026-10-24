@@ -91,6 +91,15 @@ fn put(mut w: Writer, b: byte, c: Config, mut s: Stats) -> bool {
     }
     true
 }
+fn converted(b: int, c: Config, table: str) -> byte {
+    var n = b
+    if c.table == "ascii" { n = mapped(table, n) }
+    if c.lower && n >= 65 && n <= 90 { n += 32 }
+    if c.upper && n >= 97 && n <= 122 { n -= 32 }
+    if c.table.len > 0 && c.table != "ascii" { n = mapped(table, n) }
+    n as byte
+}
+
 fn main() -> int {
     var c = Config { input: "-", output: "standard output", ibs: 512, obs: 512, cbs: 0, count: -1, skip: 0, seek: 0, countbytes: false, skipbytes: false, seekbytes: false, full: false, pad: false, swab: false, lower: false, upper: false, block: false, unblock: false, sparse: false, notrunc: false, excl: false, nocreat: false, noerror: false, sync: false, append: false, inf: 0, outf: 0, status: 2, table: "" }
     var bs = 0, bs_given = false
@@ -244,12 +253,13 @@ fn main() -> int {
             var i = 0
             while i + 1 < chunk.len { let b = chunk[i]; chunk[i] = chunk[i + 1]; chunk[i + 1] = b; i += 2 }
         }
+        if bs_given && !c.block && !c.unblock {
+            var i = 0
+            while i < chunk.len { chunk[i] = converted(chunk[i] as int, c, table); i += 1 }
+            if !write_block(w.fd, mut w.sparse_end, chunk, c, mut s) { status = 1 }
+        } else {
         for octet in chunk {
-            var b = octet as int
-            if c.table == "ascii" { b = mapped(table, b) }
-            if c.lower && b >= 65 && b <= 90 { b += 32 }
-            if c.upper && b >= 97 && b <= 122 { b -= 32 }
-            if c.table.len > 0 && c.table != "ascii" { b = mapped(table, b) }
+            let b = converted(octet as int, c, table) as int
             if c.block {
                 if b == 10 {
                     while record < c.cbs { if !put(mut w, 32 as byte, c, mut s) { status = 1; break }; record += 1 }
@@ -267,6 +277,7 @@ fn main() -> int {
                 record += 1
                 if record == c.cbs { if !put(mut w, 10 as byte, c, mut s) { status = 1; break }; record = 0; spaces = 0 }
             } else if !put(mut w, b as byte, c, mut s) { status = 1; break }
+        }
         }
         }
         if status != 0 { break }

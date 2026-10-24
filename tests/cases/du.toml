@@ -340,3 +340,13 @@ name = "operands ['-s', 'd']"
 args = ["-s", "d"]
 tree = "links"
 env = { TZ = "UTC0" }
+
+[[case]]
+name = "exclude file"
+args = ["-ab", "-X", "exclude", "."]
+scratch = { a = "abc", b = "def", exclude = "a\nexclude\n" }
+
+[[case]]
+name = "dereference args spelling D"
+args = ["-D", "sym"]
+tree = "links"
