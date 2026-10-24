@@ -48,8 +48,8 @@ fn partname(mut o: Output) -> str {
     }
     if o.next >= capacity { return "" }
     // GNU reserves the last alphabet letter for extending an automatic suffix.
-    if !o.fixed && o.alphabet.len == 26 && o.next >= 25 * (capacity / 26) {
-        o.prefix += "z"
+    if !o.fixed && o.next >= (base - 1) * (capacity / base) {
+        o.prefix += o.alphabet[base - 1..base]
         o.digits += 1
         o.next = 0
     }
