@@ -91,6 +91,21 @@ fn number(s: str) -> int ! {invalid} {
     bore.count_value(n)
 }
 
+fn quantity(n: int, binary: bool) -> str {
+    let base = if binary then 1024 else 1000
+    if n < base { return "{n} B" }
+    let units = if binary then "KMGTPE" else "kMGTPE"
+    var div: int = base
+    var power = 0
+    while n / div >= base { div *= base; power += 1 }
+    let value = n as f64 / div as f64
+    var text = ""
+    if value < 10.0 {
+        let tenths = (value * 10.0 + 0.5) as int
+        if tenths >= 100 { text = "10" } else { text = "{tenths / 10}.{tenths % 10}" }
+    } else { text = "{(value + 0.5) as int}" }
+    "{text} {units[power..power + 1]}{if binary then "iB" else "B"}"
+}
 fn report(s: Stats, level: int, started: int) {
     if level == 0 { return }
     eprint("{s.wholein}+{s.partialin} records in\n{s.wholeout}+{s.partialout} records out")
@@ -99,9 +114,14 @@ fn report(s: Stats, level: int, started: int) {
         let elapsed = os_clock_ns() - started
         let seconds = elapsed as f64 / 1000000000.0
         let rate = if elapsed > 0 then s.bytes as f64 / seconds else 0.0
-        eprint(
-            "{s.bytes} {if s.bytes == 1 then "byte" else "bytes"} copied, {seconds} s, {rate} B/s",
-        )
+        let speed = if rate <= 0.0 then "0.0 kB/s" else "{quantity(if rate > bore.count_cap() as f64 then bore.count_cap() else rate as int, false)}/s"
+        var sizes = ""
+        if s.bytes >= 1000 {
+            sizes = " ({quantity(s.bytes, false)}"
+            if s.bytes >= 1024 { sizes += ", {quantity(s.bytes, true)}" }
+            sizes += ")"
+        }
+        eprint("{s.bytes} {if s.bytes == 1 then "byte" else "bytes"}{sizes} copied, {seconds} s, {speed}")
     }
 }
 

@@ -345,3 +345,71 @@ stdin = "ab\ncDeFghi\nxy"
 name = "cbs composition ibm,lcase"
 args = ["cbs=4", "ibs=3", "obs=5", "conv=ibm,lcase", "status=noxfer"]
 stdin = "ab\ncDeFghi\nxy"
+
+[[case]]
+name = "default summary 0 bytes"
+args = ["count=0"]
+mask = ["[0-9.e+-]+ s, [^\n]+/s"]
+
+[[case]]
+name = "default summary 1 bytes"
+args = []
+stdin = "x"
+stdin_repeat = 1
+mask = ["[0-9.e+-]+ s, [^\n]+/s"]
+
+[[case]]
+name = "default summary 999 bytes"
+args = []
+stdin = "x"
+stdin_repeat = 999
+mask = ["[0-9.e+-]+ s, [^\n]+/s"]
+
+[[case]]
+name = "default summary 1000 bytes"
+args = []
+stdin = "x"
+stdin_repeat = 1000
+mask = ["[0-9.e+-]+ s, [^\n]+/s"]
+
+[[case]]
+name = "default summary 1023 bytes"
+args = []
+stdin = "x"
+stdin_repeat = 1023
+mask = ["[0-9.e+-]+ s, [^\n]+/s"]
+
+[[case]]
+name = "default summary 1024 bytes"
+args = []
+stdin = "x"
+stdin_repeat = 1024
+mask = ["[0-9.e+-]+ s, [^\n]+/s"]
+
+[[case]]
+name = "default summary 1280 bytes"
+args = []
+stdin = "x"
+stdin_repeat = 1280
+mask = ["[0-9.e+-]+ s, [^\n]+/s"]
+
+[[case]]
+name = "default summary 1536 bytes"
+args = []
+stdin = "x"
+stdin_repeat = 1536
+mask = ["[0-9.e+-]+ s, [^\n]+/s"]
+
+[[case]]
+name = "default summary 9999 bytes"
+args = []
+stdin = "x"
+stdin_repeat = 9999
+mask = ["[0-9.e+-]+ s, [^\n]+/s"]
+
+[[case]]
+name = "default summary 10000 bytes"
+args = []
+stdin = "x"
+stdin_repeat = 10000
+mask = ["[0-9.e+-]+ s, [^\n]+/s"]
