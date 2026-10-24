@@ -3,6 +3,8 @@
 //! References consulted: POSIX.1-2024 du; GNU coreutils 9.11 documented
 //! invocation and black-box runs in Ubuntu 24.04, LC_ALL=C. No source.
 //! Directory order comes from fs_read_dir_entries; hard links use dev+ino.
+//! GNU 9.11 apparent size excludes directory st_size (measured on tmpfs
+//! and the lane filesystem); inode accounting still counts directories.
 //! Non-UTF-8 paths require wolf-lang#687. Custom time directives beyond
 //! the explicitly implemented set are refused, never silently printed.
 
@@ -134,7 +136,7 @@ fn walk(path: str, depth: int, device: int, c: Config, mut s: State, mut out: bo
     }
     if !c.links && (s.seen[key] else false) { return answer }
     s.seen[key] = true
-    answer.size = if c.inodes then 1 else if c.apparent then bore.rec_size(r) else bore.rec_blocks(r) * 512
+    answer.size = if c.inodes then 1 else if c.apparent then (if dir then 0 else bore.rec_size(r)) else bore.rec_blocks(r) * 512
     let which = if c.time < 0 then 0 else c.time
     answer.secs = bore.rec_secs(r, which)
     answer.nanos = bore.rec_nanos(r, which)
