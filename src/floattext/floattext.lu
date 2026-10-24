@@ -1109,10 +1109,11 @@ pub fn compare_integer(v: Number, n: int) -> int {
 /// Format a fixed decimal with explicit scaling-round semantics.
 /// modes: 0 away, 1 toward zero, 2 up, 3 down, 4 nearest-away, 5 nearest-even.
 pub fn fixed(v: Number, places: int, mode: int) -> str {
-    let scaled = bn_mul(v.m, bn_pow(10, places))
+    let scaled_value = rounded_number(Number { kind: 0, neg: v.neg, m: bn_mul(v.m, bn_pow(10, places)), e: v.e })
+    let scaled = copy scaled_value.m
     var q = List[int]()
-    if v.e >= 0 { q = bn_shl(scaled, v.e) } else {
-        let shift = -v.e
+    if scaled_value.e >= 0 { q = bn_shl(scaled, scaled_value.e) } else {
+        let shift = -scaled_value.e
         q = bn_shr(scaled, shift)
         let inexact = bn_low_nonzero(scaled, shift)
         var increment = false
@@ -1124,14 +1125,14 @@ pub fn fixed(v: Number, places: int, mode: int) -> str {
         if increment { q = bn_add_small(q, 1) }
     }
     var digits = bn_dec(q), result = List[byte]()
-    if v.neg { (mut result).push(45 as byte) }
+    if v.neg && q.len > 0 { (mut result).push(45 as byte) }
     var width = places + 1 - digits.len
     while width > 0 { (mut result).push(48 as byte); width -= 1 }
     for k in 0..digits.len { if places > 0 && digits.len - k == places { (mut result).push(46 as byte) }; (mut result).push(digits[k]) }
     // When zeros were prepended, the point belongs inside that prefix.
     if places >= digits.len {
         result = List[byte]()
-        if v.neg { (mut result).push(45 as byte) }
+        if v.neg && q.len > 0 { (mut result).push(45 as byte) }
         push_str(mut result, "0.")
         for _ in digits.len..places { (mut result).push(48 as byte) }
         for d in digits { (mut result).push(d) }
