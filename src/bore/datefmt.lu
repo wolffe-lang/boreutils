@@ -1,17 +1,20 @@
 //! datefmt — GNU date's C-locale output grammar, from the documented
 //! conversions and black-box GNU 9.11 runs. No implementation source.
 
+/// Floor division for a positive divisor.
 pub fn date_floor(a: int, b: int) -> int {
     let q = a / b
     if a % b < 0 { return q - 1 }
     q
 }
 
+/// Sunday-zero weekday of a valid Gregorian civil date.
 pub fn date_weekday(c: Civil) -> int {
     let d = epoch_of(c.year, c.month, c.day, 0, 0, 0) / 86400
     (d % 7 + 11) % 7
 }
 
+/// C-locale weekday name; w is in 0..6.
 pub fn date_dayname(w: int, full: bool) -> str {
     let short = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
     let long = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
@@ -45,6 +48,7 @@ fn date_pad(s: str, width: int, pad: str) -> str {
     fill + s
 }
 
+/// Numeric UTC offset, with zero to three colon modifiers.
 pub fn date_zone_text(offset: int, colons: int) -> str {
     if colons == 0 { return offset_text(offset) }
     let sign = if offset < 0 then "-" else "+"

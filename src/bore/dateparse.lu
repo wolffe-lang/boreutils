@@ -113,7 +113,7 @@ fn date_epoch(s: str) -> Instant ! {invalid, unread} {
 }
 
 /// Input parsing is independent of the clock: tests inject now explicitly.
-pub fn date_read(text: str, zone: Zone, now: Instant) -> Instant ! {invalid, unread} {
+pub fn date_read(text: str, zone: Zone, now: Instant) -> Instant ! DateFailed {
     var s = text.trim()
     var z = copy zone
     if s.starts_with("TZ=\"") {
