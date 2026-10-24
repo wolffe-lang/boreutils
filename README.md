@@ -219,6 +219,11 @@ the two CRCs and BSD/SysV sums compare with GNU on that input too.
 The disk/process pass adds `du`, `dd`, `install`, `mknod`, `shred`,
 `dir`, `vdir`, `dircolors`, `chroot`, `nice`, `nohup` and `stdbuf`:
 **317 new differential cases**, with 19 named surface/implementation skips.
+The complete rootless Ubuntu 24.04 run on hasu (CPUs 6–11) at
+`a443350` passed **10,516 cases, 0 failed, 181 skipped** on both
+release and dev; the full unit and auxiliary gates passed too. The
+separate four-CPU process integration passed **74 checks, 0 failed,
+0 skipped**.
 `ls`, `dir` and `vdir` share one listing engine; the latter two default to
 `-C -b` and `-l -b`. The color database is emitted with original comments;
 a separate semantic check feeds it to GNU and verifies identical color rules.
