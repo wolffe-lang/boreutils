@@ -191,7 +191,7 @@ fn main() -> int {
     var buffer = List[byte]()
     var b = 0
     while b < c.obs { (mut buffer).push(0 as byte); b += 1 }
-    var w = Writer { fd: fd, buf: take buffer, at: 0, sparse_end: false }
+    var w = Writer { fd: fd, buf: buffer, at: 0, sparse_end: false }
     var blocks: int = 0, consumed: int = 0, record: int = 0, spaces: int = 0
     var status = 0, stop = false, over = false
     while !stop && (c.count < 0 || (if c.countbytes then consumed else blocks) < c.count) {
