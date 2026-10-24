@@ -65,6 +65,14 @@ class NumberStreaming(unittest.TestCase):
                 self.assertEqual((p.returncode, p.stderr), (0, b''))
                 self.assertEqual(output.tell(), len(data) if utility == 'numfmt' else 3 * 100000)
 
+    def test_expr_regular_failure_uses_the_linear_prefilter(self):
+        p = subprocess.run([BIN / 'expr', 'a' * 5000, ':', r'\(a\|aa\)*b'],
+                           capture_output=True, timeout=5)
+        self.assertEqual((p.returncode, p.stdout, p.stderr), (1, b'\n', b''))
+        p = subprocess.run([BIN / 'expr', 'a' * 5000, ':', 'a*'],
+                           capture_output=True, timeout=5)
+        self.assertEqual((p.returncode, p.stdout, p.stderr), (0, b'5000\n', b''))
+
     def test_ptx_context_regions_are_bounded(self):
         data = b'x ' * 5000 + b'\n'
         def cap():
