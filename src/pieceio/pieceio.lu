@@ -68,6 +68,9 @@ pub fn open(prog: str, name: str, source: Identity, truncate: bool) -> int {
 /// attempted. This preserves GNU's read-error and zero-byte-limit behavior.
 pub error InputFailed = {not_found, denied, io}
 
+/// Read-only native input; `-` shares descriptor zero. Missing paths,
+/// access failures and other host errors retain their named row tags.
+/// Directories stay open so the attempted read supplies its own error.
 pub fn input(path: str) -> bore.In ! InputFailed {
     if path == "-" { return bore.In { fd: 0, name: "-" } }
     let fd = fs_open(path)?
