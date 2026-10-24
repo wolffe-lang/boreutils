@@ -149,6 +149,34 @@ fn escaped(bs: List[byte], tex: bool) -> List[byte] {
     }
     result
 }
+fn compare(a: Entry, b: Entry, texts: List[Text], fold: bool) -> int {
+    var i = a.lo, j = b.lo
+    while i < a.hi && j < b.hi {
+        var x = texts[a.file].raw[i] as int, y = texts[b.file].raw[j] as int
+        if fold { if x >= 97 && x <= 122 { x -= 32 }; if y >= 97 && y <= 122 { y -= 32 } }
+        if x < y { return -1 }; if x > y { return 1 }
+        i += 1; j += 1
+    }
+    if i < a.hi { return 1 }; if j < b.hi { return -1 }; 0
+}
+fn sorted(mut entries: List[Entry], texts: List[Text], fold: bool) {
+    var tmp = copy entries, width = 1
+    while width < entries.len {
+        var start = 0
+        while start < entries.len {
+            let middle = if start + width < entries.len then start + width else entries.len
+            let end = if middle + width < entries.len then middle + width else entries.len
+            var i = start, j = middle, out = start
+            while out < end {
+                if j >= end || i < middle && compare(entries[i], entries[j], texts, fold) <= 0 { tmp[out] = copy entries[i]; i += 1 } else { tmp[out] = copy entries[j]; j += 1 }
+                out += 1
+            }
+            start = end
+        }
+        for k in 0..entries.len { entries[k] = copy tmp[k] }
+        if width > entries.len / 2 { break }; width *= 2
+    }
+}
 fn main() -> int {
     var spec = List[bore.Opt]()
     for pair in [["A", "auto-reference"], ["f", "ignore-case"], ["O", ""], ["r", "references"], ["R", "right-side-refs"], ["T", ""], ["t", "typeset-mode"], ["G", "traditional"]] { (mut spec).push(bore.flag(pair[0], pair[1])) }
@@ -181,9 +209,8 @@ fn main() -> int {
         (mut texts).push(Text { bytes: normalized, raw: raw, name: if path == "-" then "" else path })
         if !index_text(mut entries, texts[texts.len - 1], texts.len - 1, o) { return 1 }
     }
-    // Stable insertion sort keeps occurrence order for identical keywords.
-    var i = 1
-    while i < entries.len { var j = i; while j > 0 && textio.cmp(bytes(texts[entries[j - 1].file].raw, entries[j - 1].lo, entries[j - 1].hi), bytes(texts[entries[j].file].raw, entries[j].lo, entries[j].hi), o.fold) > 0 { let old = copy entries[j - 1]; entries[j - 1] = copy entries[j]; entries[j] = old; j -= 1 }; i += 1 }
+    // Stable merge sort keeps equal keywords in occurrence order without per-comparison byte copies.
+    sorted(mut entries, texts, o.fold)
     var refwidth = 0
     for entry in entries { if entry.reference.len > refwidth { refwidth = entry.reference.len } }
     let references = o.auto || o.refs
