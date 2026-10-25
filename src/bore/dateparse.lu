@@ -222,8 +222,9 @@ pub fn date_read(text: str, zone: Zone, now: Instant) -> Instant ! DateReadFaile
         if word == "t" && has_date { k += 1; continue }
         if word == "now" || word == "today" || word == "yesterday" || word == "tomorrow" {
             relative = true
-            if word == "yesterday" { pending_days -= 1 }
-            if word == "tomorrow" { pending_days += 1 }
+            var delta = if word == "yesterday" then -1 else (if word == "tomorrow" then 1 else 0)
+            if k + 1 < n && tok[k + 1].text == "ago" { delta = -delta; k += 1 }
+            pending_days += delta
             k += 1
             continue
         }
@@ -238,10 +239,7 @@ pub fn date_read(text: str, zone: Zone, now: Instant) -> Instant ! DateReadFaile
             dow = date_dow(tok[k + 1].text)
             used = 2
         }
-        if (word == "-" || word == "+") && k + 2 < n && tok[k + 1].number && date_dow(tok[k + 2].text) >= 0 {
-            ord = date_num(tok[k + 1].text)? * (if word == "-" then -1 else 1)
-            dow = date_dow(tok[k + 2].text); used = 3
-        }
+        if (word == "-" || word == "+") && k + 2 < n && tok[k + 1].number && date_dow(tok[k + 2].text) >= 0 { return invalid }
         if dow >= 0 {
             if has_week { return invalid }
             has_week = true
@@ -250,12 +248,8 @@ pub fn date_read(text: str, zone: Zone, now: Instant) -> Instant ! DateReadFaile
             k += used
             continue
         }
-        // Relative items; ago negates the accumulated relative displacement.
-        if word == "ago" {
-            relmonths -= pending_months; reldays -= pending_days; relsecs -= pending_secs
-            pending_months = 0; pending_days = 0; pending_secs = 0
-            k += 1; continue
-        }
+        // Ago negates only the immediately preceding relative item.
+        if word == "ago" { return invalid }
         var unit = date_unit(word)
         var multiplier: int = 1
         used = 1
@@ -272,6 +266,7 @@ pub fn date_read(text: str, zone: Zone, now: Instant) -> Instant ! DateReadFaile
             used = 2
         }
         if unit != 0 {
+            if k + used < n && tok[k + used].text == "ago" { multiplier = -multiplier; used += 1 }
             relative = true
             if unit < 0 {
                 pending_months += multiplier * -unit
