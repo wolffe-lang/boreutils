@@ -27,16 +27,17 @@ fn too_long(path: str) -> bool {
 }
 
 fn missing_components(path: str) -> bool {
-    var ancestor = if path.starts_with("/") then "/" else "."
+    var ancestor = if path.starts_with("/") then "/" else ""
     var missing = false
     for part in path.split("/") {
         if part == "" { continue }
-        let probe = ancestor + "/" + part
+        let prefix = if ancestor == "" || ancestor.ends_with("/") then ancestor else ancestor + "/"
+        let probe = prefix + part
         if too_long(probe) {
             var lo = 0, hi = part.len
             while lo + 1 < hi {
                 let mid = (lo + hi) / 2
-                if too_long(ancestor + "/" + "a".repeat(mid)) { hi = mid } else { lo = mid }
+                if too_long(prefix + "a".repeat(mid)) { hi = mid } else { lo = mid }
             }
             bore.warn(
                 "pathchk",
