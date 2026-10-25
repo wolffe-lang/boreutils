@@ -42,11 +42,11 @@ fn predicate_binary(op: str) -> bool {
 
 fn predicate_access(r: List[int], bit: int) -> bool {
     let mode = rec_mode(r)
-    if os_euid() == 0 { return bit != 1 || mode % 2 == 1 || mode / 8 % 2 == 1 || mode / 64 % 2 == 1 }
+    if (os_euid() else -1) == 0 { return bit != 1 || mode % 2 == 1 || mode / 8 % 2 == 1 || mode / 64 % 2 == 1 }
     var shift = 1
-    if os_euid() == rec_uid(r) { shift = 64 }
+    if (os_euid() else -1) == rec_uid(r) { shift = 64 }
     else {
-        var group = os_egid() == rec_gid(r)
+        var group = (os_egid() else -1) == rec_gid(r)
         let groups = os_groups() else List[int]()
         for g in groups { if g == rec_gid(r) { group = true } }
         if group { shift = 8 }
@@ -78,8 +78,8 @@ fn predicate_one(op: str, word: str, mut scan: PredicateScan) -> bool {
     if op == "-g" { return mode / 1024 % 2 == 1 }
     if op == "-u" { return mode / 2048 % 2 == 1 }
     if op == "-k" { return mode / 512 % 2 == 1 }
-    if op == "-G" { return rec_gid(stat) == os_egid() }
-    if op == "-O" { return rec_uid(stat) == os_euid() }
+    if op == "-G" { return rec_gid(stat) == (os_egid() else -1) }
+    if op == "-O" { return rec_uid(stat) == (os_euid() else -1) }
     if op == "-r" { return predicate_access(stat, 4) }
     if op == "-w" { return predicate_access(stat, 2) }
     if op == "-x" { return predicate_access(stat, 1) }
