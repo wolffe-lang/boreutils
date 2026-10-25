@@ -5,7 +5,7 @@
 //! and utmp layouts are refused by name. Clock output is shape-tested.
 use bore
 
-fn read_text(path: str) -> str {
+fn proc_text(path: str) -> str {
     let b = fs_read_bytes(path) else List[byte]()
     str_from_utf8(b) else ""
 }
@@ -27,7 +27,7 @@ fn main() -> int {
     var users = 0, boot: int = -1
     for r in bore.login_records(path) { if r.kind == 7 && r.user != "" { users += 1 }; if r.kind == 2 { boot = r.secs } }
     var up: int = -1
-    if p.operands.len == 0 { up = read_text("/proc/uptime").split(".")[0].to_int() else -1 }
+    if p.operands.len == 0 { up = proc_text("/proc/uptime").split(".")[0].to_int() else -1 }
     else if boot >= 0 { up = now.secs - boot }
     var status = 0
     var duration = "???? days ??:??"
@@ -43,7 +43,7 @@ fn main() -> int {
     }
     let clock = bore.date_format("%H:%M:%S", now, bore.zone()) else "??:??:??"
     var text = " {clock}  up {duration},  {users} " + (if users == 1 then "user" else "users")
-    let load = read_text("/proc/loadavg").words()
+    let load = proc_text("/proc/loadavg").words()
     if load.len >= 3 { text += ",  load average: {load[0]}, {load[1]}, {load[2]}" }
     bore.put(mut out, text + "\n") else |_| {}
     bore.finish(mut out, "uptime", status)
