@@ -74,7 +74,15 @@ fn main() -> int {
     defer { if named { fs_close(fd) else |_| {} } }
     if !(os_isatty(fd) else false) {
         var why = "Inappropriate ioctl for device"
-        let _ = fs_fstat_record(fd) else |_| { why = bore.io_error(); List[int]() }
+        let r = fs_fstat_record(fd) else |_| { why = bore.io_error(); List[int]() }
+        if !bore.built_for_linux() && r.len > 0 {
+            // os.term does not retain errno (#682). These Darwin vnode
+            // diagnostics are measured in CI40155240203, not ENOTTY guesses.
+            if r[0] == bore.kind_char() { why = "Operation not supported by device" }
+            else if r[0] == bore.kind_fifo() || r[0] == bore.kind_socket() {
+                why = "Operation not supported on socket"
+            }
+        }
         bore.warn("stty", "{quoted}: {why}")
         return 1
     }
