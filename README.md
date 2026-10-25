@@ -1658,8 +1658,8 @@ boreutils has **107 command binaries, representing 103 of 104 units**;
 `chcon` and `runcon` are counted as reached only as the explicitly
 SELinux-disabled, field-only paths described above, never as GNU 9.11
 parity. `chroot`, priority-changing `nice`, and arbitrary-child `stdbuf`
-still lack their central operation; this is not an "all GNU tools reached"
-claim.
+still lack their central operation; source coverage does not imply full
+behavior coverage.
 
 Erratum: the earlier 103-unit denominator was off by one; 107 source
 binaries minus three SHA-2 duplicates and one bracket give 103 reached

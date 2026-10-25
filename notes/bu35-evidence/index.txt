@@ -1,0 +1,118 @@
+Footprint: cross-cutting
+
+Forbidden
+No GNU/gnulib/libc/other utility implementation source read. Inputs were
+GNU's installed manual/help and black-box binaries, POSIX, Linux manuals,
+and the org's own boreutils/std/spec. No Mac builds/tests/measurements,
+host packages, labels, merges, tags, issue filing/closing or CI waiting.
+The wrapper prohibits Markdown report files: this directory and the five
+PR-body sections are the report fallback, not a missing implementation note.
+
+Inputs, verified
+- wolf 0.2.35 tag cf0c13d38479f444b69bb8356ad5709d07eff323;
+  Linux x86-64 archive 4cc4045bbbb605c07835bc4f32685953c784eeef4cd3139a48b457dfc90dad1a.
+- lupin 0.1.56 tag 28547b4324524d5477a6e54e4f6888462461a21f;
+  binary build pin 294d626, as the pin's version_line requires;
+  archive ad703550ac4787e8e4bb26989d591a731410274d7332f2b4e8b9a64c878822cc.
+- std 2386522eb059cca5a84108562c2c0a0e72345d34, unchanged.
+- GNU 9.11 tarball 394024eda0a5955217ceda9cd1201e65dc8fa3aa29c2951135a49521d57c3cc3;
+  final configure --disable-nls --without-selinux
+  --enable-install-program=kill,arch,hostname,uptime.
+- Final GNU bin manifest digest dea35e7f1a8347b924c7200fc99171b0e9cdaaf3ea97e40922d74f5b18707b95.
+  /home/mfwolffe/lanes/bu35/ev/oracle-manifest.sha256;
+  /home/mfwolffe/lanes/bu35/ev/oracle-final-stage.log holds all optional
+  program --version/--help output. No GNU help prose is copied into ours.
+- Exact rejected configuration warnings in ev/oracle-configure.log:1107-8:
+  'chcon' and 'runcon' are not optionally-installable programs. Both are
+  absent from --without-selinux's stage; their separate field binary is 9.4.
+- Contract: wolf/sprints/boreutils/29-the-identity-and-terminal-tools/.
+  Rebased from 3340eb3 onto bu33's trunk 37e3825 before opening the PR.
+
+Prediction
+Original prediction committed before code (prediction.txt): broadly correct
+about named TZif zones, absent live utmp and no UTMP environment override;
+underestimated stty's unavailable settings (148 named settings/aliases,
+plus saved-state restore; 66 are flag/value names in the four flag fields).
+Its guessed 102/103 utility count was wrong: inventory and the denominator
+erratum give 107 binaries, 103/104 units, df the exact absent unit.
+
+Evidence index
+All full logs below are under hasu:/home/mfwolffe/lanes/bu35/ev/.
+- family-smoke-green.log: all 3,643 new differential cases pass at c4fa298;
+  date-manual-green.log separately has all 388 date cases green.
+- access-kernel-build.log: test and [ 2,980 passed after adopting fs_access.
+- identity-root-green.log: 297 independent checks, 0 failed/skip, both
+  ordinary access parity rows and both GNU-shared set-id limitations, and
+  all 15 SELinux field rows; identity-integration-final.log also has297/0;
+  complete pty state, 148 named stty refusals + restore, live/stale/default
+  utmp, raw-record refusals, date clock bounds and uptime bounds.
+- format-and-build.log: all fifteen family binaries build release;
+  SELinux field 15/0 (explicitly NOT GNU 9.11 parity).
+- logins-live-build.log: wolf test 34/0, one explicit native fallback.
+- access-real-vs-effective.log and access-setid-readonly.log record Uid/Gid,
+  capabilities and the measured GNU-shared differing-id access behavior.
+  The final access script asserts ordinary ACL/RO parity and both shared
+  limits, with actual read/open witnesses; never an invented GNU mismatch.
+- gap-*.log: E0301 for absent clock, full termios/char/window setters and
+  resolver names. effective-access is deliberately E0402 (2 args, not 3),
+  not proof of an absent real-id access call; the owned spec supplies the
+  effective-access gap. Positive two-argument witness is checked in.
+- date-plant-red.log: missing zero, FAIL date: conversion d, 361/11/0.
+- test-plant-red.log: broken conjunction, grammar118 ['', '-a', '='],
+  ours0/GNU1; 1482/5/0. Both local red logs are retained.
+- CI datepad plant PR55, head2ec2ea2, run40147370220 read ONCE queued.
+- CI testprecedence plant PR56, head8693ea0, run40147372825 read ONCE
+  in_progress. The orchestrator watches and closes unmerged after named red.
+- R-bu35-1=A: reuse TZif/POSIX, reject right/ leap tables by name/metadata.
+- R-bu35-2=A: exact termios surface; every refusal cites termios-issue.txt.
+- R-bu35-3=A: accept unclosed comments as the pinned binary does; the
+  manual's balance requirement is an erratum (date-first.log witness).
+- R-bu35-4=A: extend the one oracle pin, not fork it; cross-cutting class
+  and CI plants follow from that shared infrastructure change.
+- R-bu35-5=A: chcon/runcon SELinux-disabled field-only scope, runcon125.
+- R-bu35-6 amended: fs_access for equal ids, effective-id mode bits when
+  ids differ, matching GNU in both. Ordinary ACL/RO exceptions retired;
+  differing-id rows are GNU parity witnesses, not named parity exceptions.
+- Census erratum: the former 103 denominator was off by one. 107 source
+  binaries -3 SHA2 duplicates -1 bracket =103 reached units, +df =104.
+- Full gauntlet paths are reserved below, not a green claim:
+  /home/mfwolffe/lanes/bu35/ev/full.log;
+  /home/mfwolffe/lanes/bu35/full.pid;
+  /home/mfwolffe/lanes/bu35/full.exit.
+  Exit marker absent means PENDING; the job asserts its head and logs stages.
+
+Done-when
+[x] Fourteen units/fifteen binaries, headers, cases and source census.
+[x] No pin move: wolf/lupin/std unchanged; only GNU optional programs added.
+[x] README commands/counts/build/readiness refreshed, df remainder named.
+[x] Named surface/implementation limits have rows and witnesses.
+[x] Both requested plants seen red locally, logs retained.
+[ ] Both CI plants named red and closed unmerged (orchestrator watch).
+[ ] Final-head release/dev full gauntlet and root integration green.
+[ ] PR-tier green, orchestrator full-matrix label, final full tier green.
+[ ] lane-audit last line recorded in the PR/handoff; no lane CI wait.
+
+Issues to file or comment, never filed/closed by this lane
+- wolf-std: termios-issue.txt, exact title/list requested under R-bu35-2.
+- wolf-std: effective-access-issue.txt; acknowledges fs_access at the pin,
+  asks for AT_EACCESS beside it (spec gap R1, wolf-lang#633).
+- wolf-lang/std.time: clock-issue.txt; wall ns, resolution, privileged setter.
+- wolf-std/net: host-address resolver for DNS-only hostid, who/pinky --lookup;
+  current direct resolvers are absent (gap-dns.log plus net API census).
+- boreutils: date --debug parser trace and remaining named grammar shapes;
+  raw non-UTF-8 utmp text (raw filesystem paths are wolf-lang#687).
+- Existing references only: raw uname/hostname wolf-lang#907; df #686 and
+  boreutils#52; chroot wolf-lang#921, priority #922. Do not duplicate them.
+
+Prune list AFTER merge and evidence capture; keep ev/ and all red logs
+hasu: /home/mfwolffe/lanes/bu35/oracle-rejected-stage;
+      /home/mfwolffe/lanes/bu35/oracle-input;
+      /home/mfwolffe/lanes/bu35/toolchain-input;
+      /home/mfwolffe/lanes/bu35/tmp;
+      /home/mfwolffe/lanes/bu35/plants/date;
+      /home/mfwolffe/lanes/bu35/plants/testprecedence;
+      /home/mfwolffe/lanes/bu35/boreutils/target and tool/oracle caches.
+Mac worktrees: /Users/mfwolffe/lanes/bu35/plants/datepad;
+              /Users/mfwolffe/lanes/bu35/plants/testprecedence;
+              /Users/mfwolffe/lanes/bu35/boreutils.
+No shared caches, other lanes, models or maintainer directories are in scope.
