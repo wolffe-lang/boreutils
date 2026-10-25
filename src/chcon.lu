@@ -1,0 +1,53 @@
+//! member: false
+//! chcon — explicit SELinux-disabled failures, never change a label.
+//! References: GNU 9.11 manual; GNU 9.4 field binary black-box runs in
+//! SELinux-free Ubuntu. The pinned --without-selinux GNU 9.11 build
+//! omits chcon; configure's exact warning is retained in bu35 evidence.
+//! Only the measured, unlabeled-file field path is represented here.
+//! Recursion and SELinux-enabled kernels are refused by name.
+use bore
+fn main() -> int {
+    var opts = List[bore.Opt]()
+    for pair in [["u", "user"], ["r", "role"], ["t", "type"], ["l", "range"], ["", "reference"]] { (mut opts).push(bore.takes(pair[0], pair[1])) }
+    for pair in [["v", "verbose"], ["R", "recursive"], ["h", "no-dereference"], ["", "dereference"], ["H", ""], ["L", ""], ["P", ""], ["", "help"], ["", "version"]] { (mut opts).push(bore.flag(pair[0], pair[1])) }
+    let p = bore.parse(opts, env_args(), bore.permute())
+    var out = bore.stdout()
+    var partial = false, reference = "", verbose = false, follow = true
+    for i in 0..p.keys.len {
+        let key = p.keys[i]
+        if key == "help" { bore.put(mut out, "Usage: chcon [OPTION]... CONTEXT FILE...\nThe SELinux-free build reports failure for unlabeled files; no label is changed. -u, -r, -t and -l select partial contexts; --reference reads a reference label.\n") else |_| {}; return bore.finish(mut out, "chcon", 0) }
+        if key == "version" { bore.put(mut out, bore.version_text("chcon")) else |_| {}; return bore.finish(mut out, "chcon", 0) }
+        if key == "recursive" { bore.warn("chcon", "--recursive: unsupported without a SELinux surface"); return 1 }
+        if key == "user" || key == "role" || key == "type" || key == "range" { partial = true }
+        if key == "reference" { reference = p.values[i] }
+        if key == "verbose" { verbose = true }
+        if key == "no-dereference" { follow = false }
+    }
+    if !bore.ok(p) { return bore.usage_error("chcon", p.error) }
+    if fs_exists("/sys/fs/selinux/enforce") { bore.warn("chcon", "SELinux context changes unsupported by wolf"); return 1 }
+    var start = 0
+    var context = ""
+    if !partial && reference == "" {
+        if p.operands.len == 0 { return bore.usage_error("chcon", "missing operand") }
+        context = p.operands[0]; start = 1
+    }
+    if p.operands.len <= start {
+        return bore.usage_error("chcon", if start == 0 then "missing operand" else "missing operand after {bore.quote_always(context)}")
+    }
+    if reference != "" {
+        var why = "No data available"
+        let _ = fs_stat(reference) else |_| { why = bore.io_error(); List[int]() }
+        bore.warn("chcon", "failed to get security context of {bore.quote_always(reference)}: {why}")
+        return 1
+    }
+    for i in start..p.operands.len {
+        let file = p.operands[i]
+        let _ = (if follow then fs_stat(file) else fs_lstat(file)) else |_| { bore.warn("chcon", "cannot access {bore.quote_always(file)}: {bore.io_error()}"); continue }
+        if partial { bore.warn("chcon", "can't apply partial context to unlabeled file {bore.quote_always(file)}") }
+        else {
+            if verbose { bore.put(mut out, "changing security context of {bore.quote_always(file)}\n") else |_| {} }
+            bore.warn("chcon", "failed to change context of {bore.quote_always(file)} to {bore.quote_always(context)}: Operation not permitted")
+        }
+    }
+    bore.finish(mut out, "chcon", 1)
+}
