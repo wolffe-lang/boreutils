@@ -46,7 +46,7 @@ fn main() -> int {
     let packed = os_term_mode(fd) else |_| { bore.warn("stty", "{bore.quote_always(device)}: {bore.io_error()}"); return 1 }
     if all || save || settings.len == 0 {
         let option = if all then "--all" else (if save then "--save" else "default report")
-        bore.warn("stty", "{option}: unsupported: wolf exposes only a partial termios record")
+        bore.warn("stty", "{option}: unsupported: wolf exposes only a partial termios record; see notes/bu35-evidence/termios-issue.txt")
         return 1
     }
     var mode = term.unpack(packed)
@@ -77,7 +77,7 @@ fn main() -> int {
             let (rows, cols) = os_term_size(fd) else |_| { bore.warn("stty", "{bore.quote_always(device)}: {bore.io_error()}"); return 1 }
             bore.put(mut out, "{rows} {cols}\n") else |_| {}
         } else {
-            bore.warn("stty", "{bore.quote_always(word)}: unsupported: setting has no wolf termios surface")
+            bore.warn("stty", "{bore.quote_always(word)}: unsupported: setting has no wolf termios surface; see notes/bu35-evidence/termios-issue.txt")
             return 1
         }
         k += 1

@@ -1,0 +1,42 @@
+Repository: wolffe-lang/wolf-std
+Title: termios: the surface behind stty — the missing flags, special characters, speeds and TIOCSWINSZ
+
+At wolf 0.2.35 / lupin 0.1.56 / bundled std 2386522e, term.Mode can
+read/set only ICANON, ECHO, ISIG, IXON, IEXTEN, ICRNL (inverted raw_cr),
+OPOST (inverted raw_output), ISTRIP, VMIN and VTIME. term.size reads but
+cannot set winsize. term.chars reads twelve special characters but cannot
+set any. No raw, complete termios snapshot is available. GNU stty 9.11
+needs the following fields, with all unspecified fields preserved:
+
+c_iflag: BRKINT IGNBRK IGNCR IGNPAR IMAXBEL INLCR INPCK IUTF8 IUCLC IXANY
+         IXOFF PARMRK. stty tandem aliases IXOFF; decctlq inverts IXANY.
+c_oflag: BSDLY (bs0/bs1), CRDLY (cr0..cr3), FFDLY (ff0/ff1), NLDLY
+         (nl0/nl1), OCRNL OFDEL OFILL OLCUC ONLCR ONLRET ONOCR,
+         TABDLY (tab0..tab3, tabs/-tabs), VTDLY (vt0/vt1).
+c_cflag: CLOCAL CREAD CRTSCTS CSIZE (cs5..cs8) CSTOPB HUPCL (hup/hupcl)
+         PARENB PARODD CMSPAR, and input/output baud rate accessors.
+c_lflag: ECHOE (crterase/echoe), ECHOKE (crtkill/echoke), ECHOCTL
+         (ctlecho/echoctl), ECHOK ECHONL ECHOPRT (prterase/echoprt),
+         EXTPROC FLUSHO NOFLSH TOSTOP XCASE.
+c_cc setters: VDISCARD VEOF VEOL VEOL2 VERASE VINTR VKILL VLNEXT VQUIT
+         VREPRINT VSTART VSTOP VSUSP VSWTC VWERASE. VEOL, VEOL2 and VSWTC
+         are absent from the read record too. VMIN and VTIME already work.
+c_ispeed/c_ospeed: cfgetispeed/cfgetospeed and cfsetispeed/cfsetospeed,
+         independently and together, including 0 and platform baud constants.
+c_line: read/set line discipline (Linux stty line).
+winsize: TIOCSWINSZ for rows/cols/columns, preserving pixel dimensions.
+application: selectable TCSADRAIN/TCSANOW for drain/-drain.
+
+Without those fields GNU's raw, cooked/-raw, sane, crt, dec, ek, parity,
+evenp/oddp, pass8, litout, nl and lcase/LCASE combinations cannot be
+implemented without silently leaving part of the requested mode unchanged.
+A complete lossless -g/readable-restore record and a truthful -a/default
+report also need all flags, speeds, line discipline and characters.
+
+Witnesses: src/stty.lu only changes term.unpack(os_term_mode(fd))'s named
+fields, repacks them, and calls os_term_set_mode. The container integration
+checks all underlying Python termios fields before/after against GNU stty
+for every supported mode, and checks each unsupported setting refuses by
+name without changing the pty. tests/gaps/bu35 contains compile witnesses
+for the absent setters. No unsafe/raw ioctl/FFI surface is available at the
+pin. R-bu35-2=A: ship the exact supported settings, refuse all others.
