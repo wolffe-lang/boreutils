@@ -127,3 +127,18 @@ tty_stdin = true
 name = "25 ['-echo', '-icanon', 'min', '1', 'time', '0']"
 args = ["-echo", "-icanon", "min", "1", "time", "0"]
 tty_stdin = true
+
+[[case]]
+name = "noncreating nonblocking -F missing"
+args = ["-F", "missing", "size"]
+scratch = { }
+
+[[case]]
+name = "noncreating nonblocking -F file"
+args = ["-F", "file", "size"]
+scratch = { file = "unchanged" }
+
+[[case]]
+name = "noncreating nonblocking -F fifo"
+args = ["-F", "fifo", "size"]
+scratch_fifos = ["fifo"]

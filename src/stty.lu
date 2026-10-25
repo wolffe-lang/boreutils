@@ -65,7 +65,7 @@ fn main() -> int {
     }
     var fd = 0
     if named {
-        fd = fs_open_mode(device, 3) else |_| {
+        fd = fs_open_mode(device, 5) else |_| {
             bore.warn("stty", "{bore.quote_always(device)}: {bore.io_error()}")
             return 1
         }
