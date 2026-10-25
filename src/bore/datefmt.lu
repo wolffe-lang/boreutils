@@ -79,6 +79,13 @@ pub fn date_zone_text(offset: int, colons: int) -> str {
 /// Every specified directive, preserving unknown directives like strftime.
 /// Explicitly bound output widths to keep hostile formats bounded.
 pub fn date_format(fmt: str, t: Instant, z: Zone) -> str ! {unread} {
+    date_format_model(fmt, t, z, os_name() == "macos")?
+}
+
+/// The measured C-locale formatting model. A selectable Darwin model
+/// makes its %c year padding and default %-N precision testable on Linux;
+/// explicit widths and every other conversion keep the same semantics.
+pub fn date_format_model(fmt: str, t: Instant, z: Zone, darwin: bool) -> str ! {unread} {
     let c = civil_in(z, t.secs)
     let w = date_weekday(c)
     let yd = date_yday(c)
@@ -233,7 +240,8 @@ pub fn date_format(fmt: str, t: Instant, z: Zone) -> str ! {unread} {
             zero = true
         } else if d == "N" {
             let digits = zero_padded(t.nanos, 9)
-            let n = if width < 0 then 9 else width
+            var n = width
+            if n < 0 { n = if darwin && pad == "" then 6 else 9 }
             value = if n < 9 then digits[0..n] else digits
             if pad == "" && width >= 0 || pad == " " {
                 while value.len > 1 && value.ends_with("0") { value = value[0..value.len - 1] }
@@ -296,7 +304,7 @@ pub fn date_format(fmt: str, t: Instant, z: Zone) -> str ! {unread} {
                 " " +
                 time_text(c) +
                 " " +
-                year_text(c.year)
+                (if darwin then date_pad(year_text(c.year), 4, "0") else year_text(c.year))
             numeric = false
         } else if d == "n" {
             value = "\n"

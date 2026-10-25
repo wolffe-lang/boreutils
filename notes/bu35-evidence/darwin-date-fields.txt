@@ -1,0 +1,112 @@
+Run40165219687: isolated date fields; all three source-built GNU9.11 providers agree per key.
+GNU9.12 host is not a comparison provider.
+This fixes our measured platform differences rather than waiving them.
+
+{"exit": 0, "format": "%c", "input": "0001-01-02 03:04:05.000000001", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'Tue Jan  2 03:04:05 0001\\n'"}
+{"exit": 0, "format": "%c", "input": "0001-01-02 03:04:05.000000001", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'Tue Jan  2 03:04:05 1\\n'"}
+{"exit": 0, "format": "%Ec", "input": "0001-01-02 03:04:05.000000001", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'Tue Jan  2 03:04:05 0001\\n'"}
+{"exit": 0, "format": "%Ec", "input": "0001-01-02 03:04:05.000000001", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'Tue Jan  2 03:04:05 1\\n'"}
+{"exit": 0, "format": "%N", "input": "0001-01-02 03:04:05.000000001", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'000000001\\n'"}
+{"exit": 0, "format": "%N", "input": "0001-01-02 03:04:05.000000001", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'000000001\\n'"}
+{"exit": 0, "format": "%-N", "input": "0001-01-02 03:04:05.000000001", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'000000\\n'"}
+{"exit": 0, "format": "%-N", "input": "0001-01-02 03:04:05.000000001", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'000000001\\n'"}
+{"exit": 0, "format": "%-8N", "input": "0001-01-02 03:04:05.000000001", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'0\\n'"}
+{"exit": 0, "format": "%-8N", "input": "0001-01-02 03:04:05.000000001", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'0\\n'"}
+{"exit": 0, "format": "%_N", "input": "0001-01-02 03:04:05.000000001", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'000000001\\n'"}
+{"exit": 0, "format": "%_N", "input": "0001-01-02 03:04:05.000000001", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'000000001\\n'"}
+{"exit": 0, "format": "%Y", "input": "0001-01-02 03:04:05.000000001", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'0001\\n'"}
+{"exit": 0, "format": "%Y", "input": "0001-01-02 03:04:05.000000001", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'0001\\n'"}
+{"exit": 0, "format": "%F", "input": "0001-01-02 03:04:05.000000001", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'0001-01-02\\n'"}
+{"exit": 0, "format": "%F", "input": "0001-01-02 03:04:05.000000001", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'0001-01-02\\n'"}
+{"exit": 0, "format": "%G", "input": "0001-01-02 03:04:05.000000001", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'0001\\n'"}
+{"exit": 0, "format": "%G", "input": "0001-01-02 03:04:05.000000001", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'0001\\n'"}
+{"exit": 0, "format": "%c", "input": "0100-01-02", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'Sat Jan  2 00:00:00 0100\\n'"}
+{"exit": 0, "format": "%c", "input": "0100-01-02", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'Sat Jan  2 00:00:00 100\\n'"}
+{"exit": 0, "format": "%Ec", "input": "0100-01-02", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'Sat Jan  2 00:00:00 0100\\n'"}
+{"exit": 0, "format": "%Ec", "input": "0100-01-02", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'Sat Jan  2 00:00:00 100\\n'"}
+{"exit": 0, "format": "%N", "input": "0100-01-02", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'000000000\\n'"}
+{"exit": 0, "format": "%N", "input": "0100-01-02", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'000000000\\n'"}
+{"exit": 0, "format": "%-N", "input": "0100-01-02", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'000000\\n'"}
+{"exit": 0, "format": "%-N", "input": "0100-01-02", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'000000000\\n'"}
+{"exit": 0, "format": "%-8N", "input": "0100-01-02", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'0\\n'"}
+{"exit": 0, "format": "%-8N", "input": "0100-01-02", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'0\\n'"}
+{"exit": 0, "format": "%_N", "input": "0100-01-02", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'0        \\n'"}
+{"exit": 0, "format": "%_N", "input": "0100-01-02", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'0        \\n'"}
+{"exit": 0, "format": "%Y", "input": "0100-01-02", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'0100\\n'"}
+{"exit": 0, "format": "%Y", "input": "0100-01-02", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'0100\\n'"}
+{"exit": 0, "format": "%F", "input": "0100-01-02", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'0100-01-02\\n'"}
+{"exit": 0, "format": "%F", "input": "0100-01-02", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'0100-01-02\\n'"}
+{"exit": 0, "format": "%G", "input": "0100-01-02", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'0099\\n'"}
+{"exit": 0, "format": "%G", "input": "0100-01-02", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'0099\\n'"}
+{"exit": 0, "format": "%c", "input": "10000-01-02", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'Sun Jan  2 00:00:00 10000\\n'"}
+{"exit": 0, "format": "%c", "input": "10000-01-02", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'Sun Jan  2 00:00:00 10000\\n'"}
+{"exit": 0, "format": "%Ec", "input": "10000-01-02", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'Sun Jan  2 00:00:00 10000\\n'"}
+{"exit": 0, "format": "%Ec", "input": "10000-01-02", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'Sun Jan  2 00:00:00 10000\\n'"}
+{"exit": 0, "format": "%N", "input": "10000-01-02", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'000000000\\n'"}
+{"exit": 0, "format": "%N", "input": "10000-01-02", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'000000000\\n'"}
+{"exit": 0, "format": "%-N", "input": "10000-01-02", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'000000\\n'"}
+{"exit": 0, "format": "%-N", "input": "10000-01-02", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'000000000\\n'"}
+{"exit": 0, "format": "%-8N", "input": "10000-01-02", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'0\\n'"}
+{"exit": 0, "format": "%-8N", "input": "10000-01-02", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'0\\n'"}
+{"exit": 0, "format": "%_N", "input": "10000-01-02", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'0        \\n'"}
+{"exit": 0, "format": "%_N", "input": "10000-01-02", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'0        \\n'"}
+{"exit": 0, "format": "%Y", "input": "10000-01-02", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'10000\\n'"}
+{"exit": 0, "format": "%Y", "input": "10000-01-02", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'10000\\n'"}
+{"exit": 0, "format": "%F", "input": "10000-01-02", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'+10000-01-02\\n'"}
+{"exit": 0, "format": "%F", "input": "10000-01-02", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'+10000-01-02\\n'"}
+{"exit": 0, "format": "%G", "input": "10000-01-02", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'9999\\n'"}
+{"exit": 0, "format": "%G", "input": "10000-01-02", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'9999\\n'"}
+{"exit": 0, "format": "%c", "input": "@-62167219200", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'Sat Jan  1 00:00:00 0000\\n'"}
+{"exit": 0, "format": "%c", "input": "@-62167219200", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'Sat Jan  1 00:00:00 0\\n'"}
+{"exit": 0, "format": "%Ec", "input": "@-62167219200", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'Sat Jan  1 00:00:00 0000\\n'"}
+{"exit": 0, "format": "%Ec", "input": "@-62167219200", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'Sat Jan  1 00:00:00 0\\n'"}
+{"exit": 0, "format": "%N", "input": "@-62167219200", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'000000000\\n'"}
+{"exit": 0, "format": "%N", "input": "@-62167219200", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'000000000\\n'"}
+{"exit": 0, "format": "%-N", "input": "@-62167219200", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'000000\\n'"}
+{"exit": 0, "format": "%-N", "input": "@-62167219200", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'000000000\\n'"}
+{"exit": 0, "format": "%-8N", "input": "@-62167219200", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'0\\n'"}
+{"exit": 0, "format": "%-8N", "input": "@-62167219200", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'0\\n'"}
+{"exit": 0, "format": "%_N", "input": "@-62167219200", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'0        \\n'"}
+{"exit": 0, "format": "%_N", "input": "@-62167219200", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'0        \\n'"}
+{"exit": 0, "format": "%Y", "input": "@-62167219200", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'0000\\n'"}
+{"exit": 0, "format": "%Y", "input": "@-62167219200", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'0000\\n'"}
+{"exit": 0, "format": "%F", "input": "@-62167219200", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'0000-01-01\\n'"}
+{"exit": 0, "format": "%F", "input": "@-62167219200", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'0000-01-01\\n'"}
+{"exit": 0, "format": "%G", "input": "@-62167219200", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'-001\\n'"}
+{"exit": 0, "format": "%G", "input": "@-62167219200", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'-001\\n'"}
+{"exit": 0, "format": "%c", "input": "@946695845", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'Sat Jan  1 03:04:05 2000\\n'"}
+{"exit": 0, "format": "%c", "input": "@946695845", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'Sat Jan  1 03:04:05 2000\\n'"}
+{"exit": 0, "format": "%Ec", "input": "@946695845", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'Sat Jan  1 03:04:05 2000\\n'"}
+{"exit": 0, "format": "%Ec", "input": "@946695845", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'Sat Jan  1 03:04:05 2000\\n'"}
+{"exit": 0, "format": "%N", "input": "@946695845", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'000000000\\n'"}
+{"exit": 0, "format": "%N", "input": "@946695845", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'000000000\\n'"}
+{"exit": 0, "format": "%-N", "input": "@946695845", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'000000\\n'"}
+{"exit": 0, "format": "%-N", "input": "@946695845", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'000000000\\n'"}
+{"exit": 0, "format": "%-8N", "input": "@946695845", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'0\\n'"}
+{"exit": 0, "format": "%-8N", "input": "@946695845", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'0\\n'"}
+{"exit": 0, "format": "%_N", "input": "@946695845", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'0        \\n'"}
+{"exit": 0, "format": "%_N", "input": "@946695845", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'0        \\n'"}
+{"exit": 0, "format": "%Y", "input": "@946695845", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'2000\\n'"}
+{"exit": 0, "format": "%Y", "input": "@946695845", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'2000\\n'"}
+{"exit": 0, "format": "%F", "input": "@946695845", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'2000-01-01\\n'"}
+{"exit": 0, "format": "%F", "input": "@946695845", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'2000-01-01\\n'"}
+{"exit": 0, "format": "%G", "input": "@946695845", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'1999\\n'"}
+{"exit": 0, "format": "%G", "input": "@946695845", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'1999\\n'"}
+{"exit": 0, "format": "%c", "input": "@0.120000000", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'Thu Jan  1 00:00:00 1970\\n'"}
+{"exit": 0, "format": "%c", "input": "@0.120000000", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'Thu Jan  1 00:00:00 1970\\n'"}
+{"exit": 0, "format": "%Ec", "input": "@0.120000000", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'Thu Jan  1 00:00:00 1970\\n'"}
+{"exit": 0, "format": "%Ec", "input": "@0.120000000", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'Thu Jan  1 00:00:00 1970\\n'"}
+{"exit": 0, "format": "%N", "input": "@0.120000000", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'120000000\\n'"}
+{"exit": 0, "format": "%N", "input": "@0.120000000", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'120000000\\n'"}
+{"exit": 0, "format": "%-N", "input": "@0.120000000", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'120000\\n'"}
+{"exit": 0, "format": "%-N", "input": "@0.120000000", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'120000000\\n'"}
+{"exit": 0, "format": "%-8N", "input": "@0.120000000", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'12\\n'"}
+{"exit": 0, "format": "%-8N", "input": "@0.120000000", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'12\\n'"}
+{"exit": 0, "format": "%_N", "input": "@0.120000000", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'12       \\n'"}
+{"exit": 0, "format": "%_N", "input": "@0.120000000", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'12       \\n'"}
+{"exit": 0, "format": "%Y", "input": "@0.120000000", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'1970\\n'"}
+{"exit": 0, "format": "%Y", "input": "@0.120000000", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'1970\\n'"}
+{"exit": 0, "format": "%F", "input": "@0.120000000", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'1970-01-01\\n'"}
+{"exit": 0, "format": "%F", "input": "@0.120000000", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'1970-01-01\\n'"}
+{"exit": 0, "format": "%G", "input": "@0.120000000", "oracle": "trunk-config", "side": "GNU", "stderr": "b''", "stdout": "b'1970\\n'"}
+{"exit": 0, "format": "%G", "input": "@0.120000000", "oracle": "trunk-config", "side": "BORE", "stderr": "b''", "stdout": "b'1970\\n'"}

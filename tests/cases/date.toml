@@ -980,7 +980,6 @@ name = "flag - N"
 args = ["-d", "2000-01-02 03:04:05.123456789", "+%-N"]
 env = { TZ = "UTC0" }
 
-skip_on = { Darwin = "GNU9.11 Darwin default %-N emits six digits (CI40155240203:123456 vs123456789); explicit widths remain compared" }
 
 [[case]]
 name = "flag _ N"
@@ -1876,7 +1875,6 @@ env = { TZ = "UTC0" }
 name = "composite C-locale flags 0001-01-02 03:04:05.000000001"
 args = ["-d", "0001-01-02 03:04:05.000000001", "+%c|%8c|%12c|%-c|%-8c|%-12c|%_c|%_8c|%_12c|%0c|%08c|%012c|%^c|%^8c|%^12c|%#c|%#8c|%#12c|%+c|%+8c|%+12c"]
 env = { TZ = "UTC0" }
-skip_on = { Darwin = "GNU9.11 Darwin early-year %c field differs from Linux; CI40155240203 combined row differs by60bytes; isolated field diagnostics retained by the Darwin attribution probe" }
 
 [[case]]
 name = "nanosecond explicit flags 0001-01-02 03:04:05.000000001"
@@ -1887,7 +1885,6 @@ env = { TZ = "UTC0" }
 name = "nanosecond default no-padding 0001-01-02 03:04:05.000000001"
 args = ["-d", "0001-01-02 03:04:05.000000001", "+%-N"]
 env = { TZ = "UTC0" }
-skip_on = { Darwin = "GNU9.11 Darwin default %-N uses six digits, not the Linux nine-digit form; CI40155240203; other N flags and explicit widths still compare" }
 
 [[case]]
 name = "edge flags 10000-01-02 03:04:05"
@@ -1908,7 +1905,6 @@ env = { TZ = "UTC0" }
 name = "nanosecond default no-padding 10000-01-02 03:04:05"
 args = ["-d", "10000-01-02 03:04:05", "+%-N"]
 env = { TZ = "UTC0" }
-skip_on = { Darwin = "GNU9.11 Darwin default %-N uses six digits, not the Linux nine-digit form; CI40155240203; other N flags and explicit widths still compare" }
 
 [[case]]
 name = "edge flags @-62167219200"
@@ -1919,7 +1915,6 @@ env = { TZ = "UTC0" }
 name = "composite C-locale flags @-62167219200"
 args = ["-d", "@-62167219200", "+%c|%8c|%12c|%-c|%-8c|%-12c|%_c|%_8c|%_12c|%0c|%08c|%012c|%^c|%^8c|%^12c|%#c|%#8c|%#12c|%+c|%+8c|%+12c"]
 env = { TZ = "UTC0" }
-skip_on = { Darwin = "GNU9.11 Darwin early-year %c field differs from Linux; CI40155240203 combined row differs by60bytes; isolated field diagnostics retained by the Darwin attribution probe" }
 
 [[case]]
 name = "nanosecond explicit flags @-62167219200"
@@ -1930,7 +1925,6 @@ env = { TZ = "UTC0" }
 name = "nanosecond default no-padding @-62167219200"
 args = ["-d", "@-62167219200", "+%-N"]
 env = { TZ = "UTC0" }
-skip_on = { Darwin = "GNU9.11 Darwin default %-N uses six digits, not the Linux nine-digit form; CI40155240203; other N flags and explicit widths still compare" }
 
 [[case]]
 name = "edge flags @946695845"
@@ -1951,7 +1945,6 @@ env = { TZ = "UTC0" }
 name = "nanosecond default no-padding @946695845"
 args = ["-d", "@946695845", "+%-N"]
 env = { TZ = "UTC0" }
-skip_on = { Darwin = "GNU9.11 Darwin default %-N uses six digits, not the Linux nine-digit form; CI40155240203; other N flags and explicit widths still compare" }
 
 [[case]]
 name = "edge flags @0.120000000"
@@ -1972,7 +1965,6 @@ env = { TZ = "UTC0" }
 name = "nanosecond default no-padding @0.120000000"
 args = ["-d", "@0.120000000", "+%-N"]
 env = { TZ = "UTC0" }
-skip_on = { Darwin = "GNU9.11 Darwin default %-N uses six digits, not the Linux nine-digit form; CI40155240203; other N flags and explicit widths still compare" }
 
 [[case]]
 name = "colon-zone flags UTC0"
