@@ -1,0 +1,34 @@
+CI correction prediction, before the first fix
+
+Linux's four who failures reveal a real width defect: a five-character
+HH:MM idle field adds two columns before PID, while '?' had matched. A
+controlled pty probe on hasu reproduces it at idle120/3660 seconds and also
+shows 'old' shifted left. Fix the idle field to five columns (centered
+'.', '?', 'old') followed by the measured11-column PID. Keep nonexistent
+fixture terminals under a private short name rather than real tty8/tty9;
+add explicit real-pty active/minute/hour/old rows so this is not hidden.
+
+Darwin owns three further corrections: stty's non-tty diagnostics depend
+on vnode kind (null character device versus fifo versus regular file),
+and uname -p on arm64 is 'arm', not Linux's 'unknown'. The CI log gives the
+literal differences; no nominal-OS guess is used for its observed fields.
+
+Date: isolate the five wide flag rows. Keep all non-c/non-N conversions
+compared, keep explicit N widths and other N flags compared, and make
+only default %-N and early-year %c into loud Darwin-field exceptions.
+Observed default %-N is123456 in GNU9.11/Darwin vs123456789 here. The full
+early-year combined rows differ by60 bytes, and need isolated %c/%N/%-N
+field readings before claiming their exact individual strings.
+
+Attribution precedes any predecessor-family skip: CI-only2x2 probes will
+compare trunk37e3825c and head code against fresh trunk/head-config GNU9.11
+stages on one Darwin runner. No GNU source is read. The original ls gate
+is retained in the existing partial macos-suite job. Its isolated dispatch
+is not waited on by this lane; the orchestrator receives its run id.
+
+Full raw/sanitized job logs are private lane inputs:
+/Users/mfwolffe/lanes/bu35/ci-red/ubuntu-40155240203/
+/Users/mfwolffe/lanes/bu35/ci-red/macos-40155240203/
+Recorded failure counts: Ubuntu4(who); Darwin46(date6,stty3,uname7,
+dir/vdir11,numfmt7,od12). No inherited-family row is skipped before the
+required stage-versus-image/shared-code attribution.
