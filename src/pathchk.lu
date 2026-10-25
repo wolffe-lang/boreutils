@@ -6,6 +6,13 @@
 use bore
 
 fn bad_character(b: int) -> str {
+    if b == 7 { return "'\\a'" }
+    if b == 8 { return "'\\b'" }
+    if b == 9 { return "'\\t'" }
+    if b == 10 { return "'\\n'" }
+    if b == 11 { return "'\\v'" }
+    if b == 12 { return "'\\f'" }
+    if b == 13 { return "'\\r'" }
     if b < 32 || b >= 127 { return "'\\{b / 64}{b / 8 % 8}{b % 8}'" }
     bore.quote_always("{b as char}")
 }
