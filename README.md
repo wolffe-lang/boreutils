@@ -1399,7 +1399,7 @@ new security-sensitive designs.
 | `stdbuf` | not yet for arbitrary children; explicit environment-aware opt-in only | not benched |
 
 | `date` | C-locale conversions, flags/widths, ISO/RFC output, file/reference inputs, calendar/weekday/relative grammar and named TZif/POSIX zones; named limits below | not benched |
-| `test` | POSIX argument-count/precedence grammar, GNU predicates, arbitrary-size integer comparisons; mode-bit access exceptions below | not benched |
+| `test` | POSIX argument-count/precedence grammar, GNU predicates, arbitrary-size integer comparisons; kernel access with GNU-compatible differing-id behavior below | not benched |
 | `[` | shared test grammar plus the required closing bracket | not benched |
 | `hostname` | Linux nodename; setting and raw macOS fields refused | not benched |
 | `hostid` | Linux persisted ID or files-first hosts IPv4 derivation; DNS-only lookup refused | not benched |
