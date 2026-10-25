@@ -228,7 +228,7 @@ fn predicate_and(args: List[str], mut scan: PredicateScan) -> bool {
     while scan.error == "" && scan.at < args.len && args[scan.at] == "-a" {
         scan.at += 1
         let rhs = predicate_atom(args, mut scan)
-        result = result && rhs
+        result = result || rhs
     }
     result
 }
