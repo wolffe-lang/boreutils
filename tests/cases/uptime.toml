@@ -5,7 +5,7 @@ name = "0 []"
 args = []
 env = { TZ = "UTC0" }
 skip_on = { Darwin = "Linux utmp ABI/procfs or /etc/passwd account lookup lacks a macOS surface" }
-mask = ["[0-9]{2}:[0-9]{2}:[0-9]{2}"]
+mask = ["[0-9]{2}:[0-9]{2}:[0-9]{2}", "(?<= up )(?:[0-9]+ days? )? *[0-9]+:[0-9]{2}", "(?<=load average: )[0-9]+[.][0-9]{2}, [0-9]+[.][0-9]{2}, [0-9]+[.][0-9]{2}"]
 
 [[case]]
 name = "1 ['--help']"
@@ -30,7 +30,7 @@ name = "4 ['missingfile']"
 args = ["missingfile"]
 env = { TZ = "UTC0" }
 skip_on = { Darwin = "Linux utmp ABI/procfs or /etc/passwd account lookup lacks a macOS surface" }
-mask = ["[0-9]{2}:[0-9]{2}:[0-9]{2}"]
+mask = ["[0-9]{2}:[0-9]{2}:[0-9]{2}", "(?<= up )(?:[0-9]+ days? )? *[0-9]+:[0-9]{2}", "(?<=load average: )[0-9]+[.][0-9]{2}, [0-9]+[.][0-9]{2}, [0-9]+[.][0-9]{2}"]
 
 [[case]]
 name = "5 ['x', 'y']"
