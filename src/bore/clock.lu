@@ -77,12 +77,29 @@ fn no_edge() -> Edge {
 }
 
 fn no_rule() -> Rule {
-    Rule { ok: false, std: 0, dst: 0, has_dst: false, standard_name: "UTC", daylight_name: "", start: no_edge(), end: no_edge() }
+    Rule {
+        ok: false,
+        std: 0,
+        dst: 0,
+        has_dst: false,
+        standard_name: "UTC",
+        daylight_name: "",
+        start: no_edge(),
+        end: no_edge(),
+    }
 }
 
 /// UTC: no change, no offset.
 pub fn utc() -> Zone {
-    Zone { times: List[int](), offsets: List[int](), names: List[str](), first_name: "UTC", leap_table: false, first: 0, rule: no_rule() }
+    Zone {
+        times: List[int](),
+        offsets: List[int](),
+        names: List[str](),
+        first_name: "UTC",
+        leap_table: false,
+        first: 0,
+        rule: no_rule(),
+    }
 }
 
 /// Whether `TZ` is not in the environment at all.
@@ -217,7 +234,9 @@ fn parse_tzif(mut z: Zone, b: List[byte]) -> bool {
             (mut z.times).push(be32(b, times_at + k * 4))
         }
         (mut z.offsets).push(be32(b, types_at + kind * 6))
-        (mut z.names).push(tzif_name(b, types_at + typecnt * 6, charcnt, b[types_at + kind * 6 + 5] as int))
+        (mut z.names).push(
+            tzif_name(b, types_at + typecnt * 6, charcnt, b[types_at + kind * 6 + 5] as int),
+        )
         k += 1
     }
     z.first = be32(b, types_at)

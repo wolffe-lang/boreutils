@@ -2,5 +2,7 @@
 //! [ — test with a required closing bracket.
 //! References: POSIX.1-2024 test and GNU 9.11 manual/black-box runs.
 //! The grammar is shared with test in bore.predicate; no source read.
+
 use bore
+
 fn main() -> int { bore.predicate_main("[") }

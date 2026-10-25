@@ -3,20 +3,40 @@
 //! References: GNU coreutils 9.11 hostname manual/black-box runs;
 //! Linux proc(5). No implementation source. No setter builtin exists;
 //! macOS's raw nodename remains wolf-lang#907.
+
 use bore
+
 fn main() -> int {
     var opts = List[bore.Opt]()
-    (mut opts).push(bore.flag("", "help")); (mut opts).push(bore.flag("", "version"))
+    (mut opts).push(bore.flag("", "help"))
+    (mut opts).push(bore.flag("", "version"))
     let p = bore.parse(opts, env_args(), bore.permute())
     var out = bore.stdout()
     for key in p.keys {
-        if key == "help" { bore.put(mut out, "Usage: hostname\nPrint the host name. Setting a host name is not supported.\n") else |_| {}; return bore.finish(mut out, "hostname", 0) }
-        if key == "version" { bore.put(mut out, bore.version_text("hostname")) else |_| {}; return bore.finish(mut out, "hostname", 0) }
+        if key == "help" {
+            bore.put(
+                mut out,
+                "Usage: hostname\nPrint the host name. Setting a host name is not supported.\n",
+            ) else |_| {}
+            return bore.finish(mut out, "hostname", 0)
+        }
+        if key == "version" {
+            bore.put(mut out, bore.version_text("hostname")) else |_| {}
+            return bore.finish(mut out, "hostname", 0)
+        }
     }
     if !bore.ok(p) { return bore.usage_error("hostname", p.error) }
-    if p.operands.len > 1 { return bore.usage_error("hostname", "extra operand {bore.quote_always(p.operands[1])}") }
-    if p.operands.len > 0 { bore.warn("hostname", "setting the host name is unsupported: no wolf setter"); return 1 }
-    let name = bore.machine_field("hostname") else |_| { bore.warn("hostname", "raw host name unavailable (wolf-lang#907)"); return 1 }
+    if p.operands.len > 1 {
+        return bore.usage_error("hostname", "extra operand {bore.quote_always(p.operands[1])}")
+    }
+    if p.operands.len > 0 {
+        bore.warn("hostname", "setting the host name is unsupported: no wolf setter")
+        return 1
+    }
+    let name = bore.machine_field("hostname") else |_| {
+        bore.warn("hostname", "raw host name unavailable (wolf-lang#907)")
+        return 1
+    }
     bore.put(mut out, name + "\n") else |_| {}
     bore.finish(mut out, "hostname", 0)
 }

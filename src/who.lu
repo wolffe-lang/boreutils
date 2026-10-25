@@ -4,6 +4,7 @@
 //! black-box utmp records; Linux utmp(5), proc(5). No libc/GNU source.
 //! --lookup refuses a missing DNS resolver when a host must be resolved;
 //! non-Linux utmp layouts are a named gap, not an assumed empty session.
+
 use bore
 
 fn tty_name() -> str {
@@ -17,24 +18,65 @@ fn tty_name() -> str {
 fn main() -> int {
     var opts = List[bore.Opt]()
     let shorts = ["a", "b", "d", "H", "l", "m", "p", "q", "r", "s", "t", "T", "u", "w"]
-    let longs = ["all", "boot", "dead", "heading", "login", "", "process", "count", "runlevel", "short", "time", "mesg", "users", ""]
+    let longs = [
+        "all",
+        "boot",
+        "dead",
+        "heading",
+        "login",
+        "",
+        "process",
+        "count",
+        "runlevel",
+        "short",
+        "time",
+        "mesg",
+        "users",
+        "",
+    ]
     for i in 0..shorts.len { (mut opts).push(bore.flag(shorts[i], longs[i])) }
-    for word in ["message", "writable", "lookup", "help", "version"] { (mut opts).push(bore.flag("", word)) }
+    for word in ["message", "writable", "lookup", "help", "version"] {
+        (mut opts).push(bore.flag("", word))
+    }
     let p = bore.parse(opts, env_args(), bore.permute())
     var out = bore.stdout()
     var selected = [false, false, false, false, false, false, false, false, false, false]
-    var choose = false, heading = false, mine = false, count = false, mesg = false, idle = false, lookup = false
+    var choose = false,
+        heading = false,
+        mine = false,
+        count = false,
+        mesg = false,
+        idle = false,
+        lookup = false
     for key in p.keys {
-        if key == "help" { bore.put(mut out, "Usage: who [OPTION]... [FILE | am i]\nPrint login records. -a selects all record kinds; -b boot, -d dead, -l login prompts, -p init processes, -r run level, -t clock changes, -u users and idle time, -T message status, -H headings, -q names and count, -m this terminal.\n") else |_| {}; return bore.finish(mut out, "who", 0) }
-        if key == "version" { bore.put(mut out, bore.version_text("who")) else |_| {}; return bore.finish(mut out, "who", 0) }
-        if key == "all" { for i in [1, 2, 3, 5, 6, 7, 8] { selected[i] = true }; choose = true; mesg = true; idle = true }
+        if key == "help" {
+            bore.put(
+                mut out,
+                "Usage: who [OPTION]... [FILE | am i]\nPrint login records. -a selects all record kinds; -b boot, -d dead, -l login prompts, -p init processes, -r run level, -t clock changes, -u users and idle time, -T message status, -H headings, -q names and count, -m this terminal.\n",
+            ) else |_| {}
+            return bore.finish(mut out, "who", 0)
+        }
+        if key == "version" {
+            bore.put(mut out, bore.version_text("who")) else |_| {}
+            return bore.finish(mut out, "who", 0)
+        }
+        if key == "all" {
+            for i in [1, 2, 3, 5, 6, 7, 8] { selected[i] = true }
+            choose = true
+            mesg = true
+            idle = true
+        }
         if key == "boot" { selected[2] = true; choose = true }
         if key == "dead" { selected[8] = true; choose = true }
         if key == "login" { selected[6] = true; choose = true }
         if key == "process" { selected[5] = true; choose = true }
         if key == "runlevel" { selected[1] = true; choose = true }
         if key == "time" { selected[3] = true; choose = true }
-        if key == "users" { selected[7] = true; choose = true; idle = true }
+        if key == "users" {
+            selected[7] = true
+            choose = true
+            idle = true
+        }
         if key == "heading" { heading = true }
         if key == "m" { mine = true }
         if key == "count" { count = true }
@@ -42,8 +84,13 @@ fn main() -> int {
         if key == "lookup" { lookup = true }
     }
     if !bore.ok(p) { return bore.usage_error("who", p.error) }
-    if p.operands.len > 2 { return bore.usage_error("who", "extra operand {bore.quote_always(p.operands[2])}") }
-    if !bore.built_for_linux() { bore.warn("who", "utmp layout unsupported on this host"); return 1 }
+    if p.operands.len > 2 {
+        return bore.usage_error("who", "extra operand {bore.quote_always(p.operands[2])}")
+    }
+    if !bore.built_for_linux() {
+        bore.warn("who", "utmp layout unsupported on this host")
+        return 1
+    }
     if !choose { selected[7] = true }
     if p.operands.len == 2 { mine = true }
     let path = if p.operands.len == 1 then p.operands[0] else bore.login_path()
@@ -51,7 +98,13 @@ fn main() -> int {
     let terminal = if mine then tty_name() else ""
     var names = "", total = 0
     if count {
-        for r in rows { if r.kind == 7 && r.user != "" { if total > 0 { names += " " }; names += r.user; total += 1 } }
+        for r in rows {
+            if r.kind == 7 && r.user != "" {
+                if total > 0 { names += " " }
+                names += r.user
+                total += 1
+            }
+        }
         bore.put(mut out, names + "\n# users={total}\n") else |_| {}
         return bore.finish(mut out, "who", 0)
     }
@@ -69,7 +122,10 @@ fn main() -> int {
         if r.kind < 0 || r.kind >= selected.len || !selected[r.kind] { continue }
         if r.kind == 7 && r.user == "" { continue }
         if mine && (terminal == "" || r.line != terminal) { continue }
-        if lookup && r.host != "" { bore.warn("who", "--lookup: wolf has no host-address resolver"); return 1 }
+        if lookup && r.host != "" {
+            bore.warn("who", "--lookup: wolf has no host-address resolver")
+            return 1
+        }
         let user = if r.kind == 7 then r.user else (if r.kind == 6 then "LOGIN" else "")
         var line = r.line
         if r.kind == 2 { line = "system boot" }
@@ -79,10 +135,19 @@ fn main() -> int {
         if mesg { text += (if r.kind == 7 then bore.login_mesg(r.line) else " ") + " " }
         text += bore.login_pad(line, 12) + " " + bore.login_stamp(r.secs, z)
         if r.kind == 7 {
-            if idle { text += " " + bore.login_right(bore.login_idle(r.line, now), 3) + " " + bore.space_padded(r.pid, 13) }
+            if idle {
+                text += " " +
+                    bore.login_right(bore.login_idle(r.line, now), 3) +
+                    " " +
+                    bore.space_padded(r.pid, 13)
+            }
             if r.host != "" { text += " ({r.host})" }
         } else if r.kind == 5 || r.kind == 6 || r.kind == 8 {
-            text += " " + (if idle || r.kind == 6 || r.kind == 8 then "       " else "") + bore.space_padded(r.pid, 10) + " id=" + bore.login_pad(r.id, 4)
+            text += " " +
+                (if idle || r.kind == 6 || r.kind == 8 then "       " else "") +
+                bore.space_padded(r.pid, 10) +
+                " id=" +
+                bore.login_pad(r.id, 4)
             text = text.trim_end()
             if r.kind == 8 { text += "    term={r.termination} exit={r.exit_code}" }
         } else if r.kind == 1 {

@@ -5,8 +5,15 @@
 
 /// One Linux utmp record. kind values come from utmp(5).
 pub struct LoginRecord {
-    kind: int, pid: int, line: str, id: str, user: str, host: str,
-    secs: int, termination: int, exit_code: int,
+    kind: int,
+    pid: int,
+    line: str,
+    id: str,
+    user: str,
+    host: str,
+    secs: int,
+    termination: int,
+    exit_code: int,
 }
 
 fn login_word(b: List[byte], at: int, width: int) -> int {
@@ -30,10 +37,14 @@ pub fn login_records(path: str) -> List[LoginRecord] {
     var at = 0
     while at + 384 <= b.len {
         (mut rows).push(LoginRecord {
-            kind: login_word(b, at, 2), pid: login_word(b, at + 4, 4),
-            line: login_text(b, at + 8, 32), id: login_text(b, at + 40, 4),
-            user: login_text(b, at + 44, 32), host: login_text(b, at + 76, 256),
-            secs: login_word(b, at + 340, 4), termination: login_word(b, at + 332, 2),
+            kind: login_word(b, at, 2),
+            pid: login_word(b, at + 4, 4),
+            line: login_text(b, at + 8, 32),
+            id: login_text(b, at + 40, 4),
+            user: login_text(b, at + 44, 32),
+            host: login_text(b, at + 76, 256),
+            secs: login_word(b, at + 340, 4),
+            termination: login_word(b, at + 332, 2),
             exit_code: login_word(b, at + 334, 2),
         })
         at += 384

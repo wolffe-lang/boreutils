@@ -4,6 +4,7 @@
 //! utmp/account records; Linux utmp(5). No implementation source.
 //! Account details come from /etc/passwd; non-Linux login layouts and
 //! DNS canonicalization are named gaps, not guessed data.
+
 use bore
 
 fn full_name(fields: List[str]) -> str {
@@ -36,31 +37,69 @@ fn main() -> int {
     for key in ["lookup", "help", "version"] { (mut opts).push(bore.flag("", key)) }
     let p = bore.parse(opts, env_args(), bore.permute())
     var out = bore.stdout()
-    var long = false, directory = true, project = true, plan = true, heading = true, real = true, host = true, idle = true, lookup = false
+    var long = false,
+        directory = true,
+        project = true,
+        plan = true,
+        heading = true,
+        real = true,
+        host = true,
+        idle = true,
+        lookup = false
     for key in p.keys {
-        if key == "help" { bore.put(mut out, "Usage: pinky [OPTION]... [USERNAME]...\nShow login sessions, or -l account details. -b omits directories, -h projects, -p plans; -f omits headings, -w real names, -i real names and hosts, -q real names, hosts and idle times.\n") else |_| {}; return bore.finish(mut out, "pinky", 0) }
-        if key == "version" { bore.put(mut out, bore.version_text("pinky")) else |_| {}; return bore.finish(mut out, "pinky", 0) }
-        if key == "l" { long = true }; if key == "s" { long = false }
-        if key == "b" { directory = false }; if key == "h" { project = false }; if key == "p" { plan = false }
-        if key == "f" { heading = false }; if key == "w" || key == "i" || key == "q" { real = false }
-        if key == "i" || key == "q" { host = false }; if key == "q" { idle = false }
+        if key == "help" {
+            bore.put(
+                mut out,
+                "Usage: pinky [OPTION]... [USERNAME]...\nShow login sessions, or -l account details. -b omits directories, -h projects, -p plans; -f omits headings, -w real names, -i real names and hosts, -q real names, hosts and idle times.\n",
+            ) else |_| {}
+            return bore.finish(mut out, "pinky", 0)
+        }
+        if key == "version" {
+            bore.put(mut out, bore.version_text("pinky")) else |_| {}
+            return bore.finish(mut out, "pinky", 0)
+        }
+        if key == "l" { long = true }
+        if key == "s" { long = false }
+        if key == "b" { directory = false }
+        if key == "h" { project = false }
+        if key == "p" { plan = false }
+        if key == "f" { heading = false }
+        if key == "w" || key == "i" || key == "q" { real = false }
+        if key == "i" || key == "q" { host = false }
+        if key == "q" { idle = false }
         if key == "lookup" { lookup = true }
     }
     if !bore.ok(p) { return bore.usage_error("pinky", p.error) }
     if long {
-        if p.operands.len == 0 { return bore.usage_error("pinky", "no username specified; at least one must be specified when using -l") }
+        if p.operands.len == 0 {
+            return bore.usage_error(
+                "pinky",
+                "no username specified; at least one must be specified when using -l",
+            )
+        }
         for user in p.operands {
             let f = account(user)
-            bore.put(mut out, "Login name: " + bore.login_pad(user, 28) + "In real life:  " + full_name(f) + "\n") else |_| {}
+            bore.put(
+                mut out,
+                "Login name: " + bore.login_pad(user, 28) + "In real life:  " + full_name(f) + "\n",
+            ) else |_| {}
             if f.len < 7 { continue }
-            if directory { bore.put(mut out, "Directory: " + bore.login_pad(f[5], 29) + "Shell:  " + f[6] + "\n") else |_| {} }
+            if directory {
+                bore.put(
+                    mut out,
+                    "Directory: " + bore.login_pad(f[5], 29) + "Shell:  " + f[6] + "\n",
+                ) else |_| {}
+            }
             if project { extra_file(mut out, "{f[5]}/.project", "Project: ") }
             if plan { extra_file(mut out, "{f[5]}/.plan", "Plan:\n") }
             bore.put(mut out, "\n") else |_| {}
         }
         return bore.finish(mut out, "pinky", 0)
     }
-    if !bore.built_for_linux() { bore.warn("pinky", "utmp layout unsupported on this host"); return 1 }
+    if !bore.built_for_linux() {
+        bore.warn("pinky", "utmp layout unsupported on this host")
+        return 1
+    }
     if heading {
         var text = "Login    "
         if real { text += "Name                " }
@@ -73,16 +112,28 @@ fn main() -> int {
     let now = time_unix_ms() / 1000, z = bore.zone()
     for r in bore.login_records(bore.login_path()) {
         if r.kind != 7 || r.user == "" { continue }
-        if p.operands.len > 0 { var matched = false; for name in p.operands { if name == r.user { matched = true } }; if !matched { continue } }
-        if lookup && host && r.host != "" { bore.warn("pinky", "--lookup: wolf has no host-address resolver"); return 1 }
+        if p.operands.len > 0 {
+            var matched = false
+            for name in p.operands { if name == r.user { matched = true } }
+            if !matched { continue }
+        }
+        if lookup && host && r.host != "" {
+            bore.warn("pinky", "--lookup: wolf has no host-address resolver")
+            return 1
+        }
         var text = bore.login_pad(r.user, 8) + " "
         if real {
             let f = account(r.user)
             let name = full_name(f)
-            text += (if f.len == 0 then bore.login_right(name, 19) else bore.login_pad(name, 19)) + " "
+            text += (if f.len == 0 then bore.login_right(name, 19) else bore.login_pad(name, 19)) +
+                " "
         }
         text += bore.login_mesg(r.line) + bore.login_pad(r.line, 8) + " "
-        if idle { var field = bore.login_idle(r.line, now); if field == "?" { field = "?????" }; text += bore.login_right(field, 5) + "  " }
+        if idle {
+            var field = bore.login_idle(r.line, now)
+            if field == "?" { field = "?????" }
+            text += bore.login_right(field, 5) + "  "
+        }
         text += bore.login_stamp(r.secs, z)
         if host && r.host != "" { text += " " + r.host }
         bore.put(mut out, text + "\n") else |_| {}

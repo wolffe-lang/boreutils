@@ -23,29 +23,73 @@ fn predicate_compare(a: str, b: str) -> int {
     let aa = if an then a[1..] else a
     let bb = if bn then b[1..] else b
     var cmp = 0
-    if aa.len != bb.len { cmp = if aa.len < bb.len then -1 else 1 }
-    else if aa != bb { cmp = if aa < bb then -1 else 1 }
+    if aa.len != bb.len {
+        cmp = if aa.len < bb.len then -1 else 1
+    } else if aa != bb {
+        cmp = if aa < bb then -1 else 1
+    }
     if an then -cmp else cmp
 }
 
 fn predicate_unary(op: str) -> bool {
-    let words = ["-b", "-c", "-d", "-e", "-f", "-g", "-G", "-h", "-k", "-L", "-n", "-N", "-O", "-p", "-r", "-s", "-S", "-t", "-u", "-w", "-x", "-z"]
+    let words = [
+        "-b",
+        "-c",
+        "-d",
+        "-e",
+        "-f",
+        "-g",
+        "-G",
+        "-h",
+        "-k",
+        "-L",
+        "-n",
+        "-N",
+        "-O",
+        "-p",
+        "-r",
+        "-s",
+        "-S",
+        "-t",
+        "-u",
+        "-w",
+        "-x",
+        "-z",
+    ]
     for word in words { if word == op { return true } }
     false
 }
 
 fn predicate_binary(op: str) -> bool {
-    let words = ["=", "==", "!=", "<", ">", "-eq", "-ne", "-gt", "-ge", "-lt", "-le", "-nt", "-ot", "-ef"]
+    let words = [
+        "=",
+        "==",
+        "!=",
+        "<",
+        ">",
+        "-eq",
+        "-ne",
+        "-gt",
+        "-ge",
+        "-lt",
+        "-le",
+        "-nt",
+        "-ot",
+        "-ef",
+    ]
     for word in words { if word == op { return true } }
     false
 }
 
 fn predicate_access(r: List[int], bit: int) -> bool {
     let mode = rec_mode(r)
-    if (os_euid() else -1) == 0 { return bit != 1 || mode % 2 == 1 || mode / 8 % 2 == 1 || mode / 64 % 2 == 1 }
+    if (os_euid() else -1) == 0 {
+        return bit != 1 || mode % 2 == 1 || mode / 8 % 2 == 1 || mode / 64 % 2 == 1
+    }
     var shift = 1
-    if (os_euid() else -1) == rec_uid(r) { shift = 64 }
-    else {
+    if (os_euid() else -1) == rec_uid(r) {
+        shift = 64
+    } else {
         var group = (os_egid() else -1) == rec_gid(r)
         let groups = os_groups() else List[int]()
         for g in groups { if g == rec_gid(r) { group = true } }
@@ -58,7 +102,10 @@ fn predicate_one(op: str, word: str, mut scan: PredicateScan) -> bool {
     if op == "-n" { return word.len != 0 }
     if op == "-z" { return word.len == 0 }
     if op == "-t" {
-        let integer = predicate_integer(word) else |_| { scan.error = "invalid integer {quote_always(word)}"; return false }
+        let integer = predicate_integer(word) else |_| {
+            scan.error = "invalid integer {quote_always(word)}"
+            return false
+        }
         let fd = integer.to_int() else |_| { return false }
         if fd < 0 || fd > 2147483647 { return false }
         return os_isatty(fd) else false
@@ -98,11 +145,21 @@ fn predicate_two(a: str, op: str, b: str, mut scan: PredicateScan) -> bool {
         if op == "-ef" { return ar.len > 0 && br.len > 0 && ar[9] == br[9] && ar[10] == br[10] }
         if ar.len == 0 { return op == "-ot" && br.len > 0 }
         if br.len == 0 { return op == "-nt" }
-        let cmp = if ar[14] != br[14] then (if ar[14] < br[14] then -1 else 1) else (if ar[15] == br[15] then 0 else (if ar[15] < br[15] then -1 else 1))
+        let cmp = if ar[14] != br[14] {
+            (if ar[14] < br[14] then -1 else 1)
+        } else {
+            (if ar[15] == br[15] then 0 else (if ar[15] < br[15] then -1 else 1))
+        }
         return if op == "-nt" then cmp > 0 else cmp < 0
     }
-    let av = predicate_integer(a) else |_| { scan.error = "invalid integer {quote_always(a)}"; return false }
-    let bv = predicate_integer(b) else |_| { scan.error = "invalid integer {quote_always(b)}"; return false }
+    let av = predicate_integer(a) else |_| {
+        scan.error = "invalid integer {quote_always(a)}"
+        return false
+    }
+    let bv = predicate_integer(b) else |_| {
+        scan.error = "invalid integer {quote_always(b)}"
+        return false
+    }
     let cmp = predicate_compare(av, bv)
     if op == "-eq" { return cmp == 0 }
     if op == "-ne" { return cmp != 0 }
@@ -129,7 +186,9 @@ fn predicate_atom(args: List[str], mut scan: PredicateScan) -> bool {
         var depth = 0
         while end < args.len {
             if args[end] == ")" && depth == 0 && end > begin { break }
-            if args[end] == "(" && !(end == begin && end + 1 < args.len && args[end + 1] == ")") { depth += 1 }
+            if args[end] == "(" && !(end == begin && end + 1 < args.len && args[end + 1] == ")") {
+                depth += 1
+            }
             if args[end] == ")" && depth > 0 { depth -= 1 }
             end += 1
         }
@@ -139,7 +198,10 @@ fn predicate_atom(args: List[str], mut scan: PredicateScan) -> bool {
             return false
         }
         if scan.error != "" { return false }
-        if end == args.len { scan.error = if scan.bracket then "')' expected, found ']'" else "')' expected"; return false }
+        if end == args.len {
+            scan.error = if scan.bracket then "')' expected, found ']'" else "')' expected"
+            return false
+        }
         scan.at = end + 1
         return result
     }
@@ -188,21 +250,29 @@ fn predicate_eval(args: List[str], mut scan: PredicateScan) -> bool {
     if n == 2 {
         if args[0] == "!" { return args[1].len == 0 }
         if predicate_unary(args[0]) { return predicate_one(args[0], args[1], mut scan) }
-        if args[0].starts_with("-") { scan.error = "{quote_always(args[0])}: unary operator expected" }
-        else { predicate_missing(args, mut scan) }
+        if args[0].starts_with("-") {
+            scan.error = "{quote_always(args[0])}: unary operator expected"
+        } else {
+            predicate_missing(args, mut scan)
+        }
         return false
     }
     if n == 3 {
         if predicate_binary(args[1]) { return predicate_two(args[0], args[1], args[2], mut scan) }
         if args[0] == "!" { return !predicate_eval(args[1..], mut scan) }
         if args[0] == "(" && args[2] == ")" { return args[1].len != 0 }
-        if args[1] != "-a" && args[1] != "-o" { scan.error = "{quote_always(args[1])}: binary operator expected"; return false }
+        if args[1] != "-a" && args[1] != "-o" {
+            scan.error = "{quote_always(args[1])}: binary operator expected"
+            return false
+        }
     }
     if n == 4 && args[0] == "!" { return !predicate_eval(args[1..], mut scan) }
     if n == 4 && args[0] == "(" && args[3] == ")" { return predicate_eval(args[1..3], mut scan) }
     scan.at = 0
     let result = predicate_or(args, mut scan)
-    if scan.error == "" && scan.at < args.len { scan.error = "extra argument {quote_always(args[scan.at])}" }
+    if scan.error == "" && scan.at < args.len {
+        scan.error = "extra argument {quote_always(args[scan.at])}"
+    }
     result
 }
 
@@ -212,13 +282,28 @@ pub fn predicate_main(prog: str) -> int {
     if prog == "[" {
         if args.len == 1 && (args[0] == "--help" || args[0] == "--version") {
             var out = stdout()
-            put(mut out, if args[0] == "--version" then version_text("[") else "Usage: [ EXPRESSION ]\nTest a string, integer or file predicate. The final ] is required.\n") else |_| {}
+            put(
+                mut out,
+                if args[0] == "--version" {
+                    version_text("[")
+                } else {
+                    "Usage: [ EXPRESSION ]\nTest a string, integer or file predicate. The final ] is required.\n"
+                },
+            ) else |_| {}
             return finish(mut out, "[", 0)
         }
-        if args.len == 0 || args[args.len - 1] != "]" { warn("[", "missing ']' ".trim_end()); return 2 }
+        if args.len == 0 || args[args.len - 1] != "]" {
+            warn("[", "missing ']' ".trim_end())
+            return 2
+        }
         let _ = (mut args).pop() else ""
     }
-    var scan = PredicateScan { at: 0, error: "", bracket: prog == "[", last: if args.len == 0 then "" else args[args.len - 1] }
+    var scan = PredicateScan {
+        at: 0,
+        error: "",
+        bracket: prog == "[",
+        last: if args.len == 0 then "" else args[args.len - 1],
+    }
     let result = predicate_eval(args, mut scan)
     if scan.error != "" { warn(prog, scan.error); return 2 }
     if result then 0 else 1

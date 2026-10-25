@@ -4,23 +4,44 @@
 //! the SELinux-free Ubuntu container. The pinned --without-selinux
 //! build does not install this program (configure witness in bu35).
 //! These are FIELD rows, not a claim of GNU 9.11 differential parity.
+
 use bore
+
 fn main() -> int {
     var opts = List[bore.Opt]()
-    for pair in [["u", "user"], ["r", "role"], ["t", "type"], ["l", "range"]] { (mut opts).push(bore.takes(pair[0], pair[1])) }
-    (mut opts).push(bore.flag("c", "compute")); (mut opts).push(bore.flag("", "help")); (mut opts).push(bore.flag("", "version"))
+    for pair in [["u", "user"], ["r", "role"], ["t", "type"], ["l", "range"]] {
+        (mut opts).push(bore.takes(pair[0], pair[1]))
+    }
+    (mut opts).push(bore.flag("c", "compute"))
+    (mut opts).push(bore.flag("", "help"))
+    (mut opts).push(bore.flag("", "version"))
     let p = bore.parse(opts, env_args(), false)
     var out = bore.stdout()
     var modify = false
     for key in p.keys {
-        if key == "help" { bore.put(mut out, "Usage: runcon CONTEXT COMMAND [ARG]...\nThe SELinux-free build refuses context changes and never runs COMMAND. Failures of runcon itself use status 125.\n") else |_| {}; return bore.finish(mut out, "runcon", 0) }
-        if key == "version" { bore.put(mut out, bore.version_text("runcon")) else |_| {}; return bore.finish(mut out, "runcon", 0) }
+        if key == "help" {
+            bore.put(
+                mut out,
+                "Usage: runcon CONTEXT COMMAND [ARG]...\nThe SELinux-free build refuses context changes and never runs COMMAND. Failures of runcon itself use status 125.\n",
+            ) else |_| {}
+            return bore.finish(mut out, "runcon", 0)
+        }
+        if key == "version" {
+            bore.put(mut out, bore.version_text("runcon")) else |_| {}
+            return bore.finish(mut out, "runcon", 0)
+        }
         modify = true
     }
     if !bore.ok(p) { let _ = bore.usage_error("runcon", p.error); return 125 }
-    if p.operands.len == 0 && !modify { bore.warn("runcon", "failed to get current context: Invalid argument"); return 125 }
+    if p.operands.len == 0 && !modify {
+        bore.warn("runcon", "failed to get current context: Invalid argument")
+        return 125
+    }
     let needed = if modify then 1 else 2
-    if p.operands.len < needed { let _ = bore.usage_error("runcon", "no command specified"); return 125 }
+    if p.operands.len < needed {
+        let _ = bore.usage_error("runcon", "no command specified")
+        return 125
+    }
     bore.warn("runcon", "runcon may be used only on a SELinux kernel")
     125
 }
