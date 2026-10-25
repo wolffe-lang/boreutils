@@ -1,4 +1,13 @@
-//! Byte-level current-context output, independent of the active Linux LSM.
+//! Current Linux LSM context bytes and their exact output representation.
+
+/// Failure reading the process label: missing procfs, denied, or host IO.
+pub error ReadFailed = {not_found, denied, io}
+
+/// Read the current process's kernel-provided label without UTF-8 conversion.
+/// The failing builtin retains host errno for the caller's diagnostic.
+pub fn read_current() -> List[byte] ! ReadFailed {
+    fs_read_bytes("/proc/self/attr/current")?
+}
 
 /// GNU runcon appends one newline to the bytes returned by getcon. An
 /// AppArmor proc label already includes a newline; preserve it unchanged.

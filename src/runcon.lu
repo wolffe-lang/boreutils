@@ -35,7 +35,7 @@ fn main() -> int {
     }
     if !bore.ok(p) { let _ = bore.usage_error("runcon", p.error); return 125 }
     if p.operands.len == 0 && !modify {
-        let label = fs_read_bytes("/proc/self/attr/current") else |_| {
+        let label = lsmout.read_current() else |_| {
             bore.warn("runcon", "failed to get current context: {bore.io_error()}")
             return 125
         }
