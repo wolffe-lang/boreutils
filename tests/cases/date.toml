@@ -1914,3 +1914,33 @@ env = { TZ = "UTC0" }
 name = "UTF-8 boundary ma\u00f1ana%s"
 args = ["-d", "ma\u00f1ana", "+%s"]
 env = { TZ = "UTC0" }
+
+[[case]]
+name = "manual relative and dotted time 2022-11-14 8:02p.m."
+args = ["-d", "2022-11-14 8:02p.m.", "+%F %T.%N %s"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "manual relative and dotted time 2022-11-14 9a.m. U.T.C."
+args = ["-d", "2022-11-14 9a.m. U.T.C.", "+%F %T.%N %s"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "manual relative and dotted time 2022-11-14 1 day ago 2 hours ago"
+args = ["-d", "2022-11-14 1 day ago 2 hours ago", "+%F %T.%N %s"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "manual relative and dotted time 2022-11-14 2 months 1 week ago 1 day ago"
+args = ["-d", "2022-11-14 2 months 1 week ago 1 day ago", "+%F %T.%N %s"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "manual relative and dotted time 2022-11-14 1 day ago -2 hours"
+args = ["-d", "2022-11-14 1 day ago -2 hours", "+%F %T.%N %s"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "manual relative and dotted time 2022-11-14 -1 monday"
+args = ["-d", "2022-11-14 -1 monday", "+%F %T.%N %s"]
+env = { TZ = "UTC0" }

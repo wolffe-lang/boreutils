@@ -202,7 +202,8 @@ pub fn date_read(text: str, zone: Zone, now: Instant) -> Instant ! DateReadFaile
     }
     if z.leap_table { return leap_zone }
     if s.starts_with("@") { return date_epoch(s[1..]) }
-    let tok = date_tokens(s.lower())?
+    let normalized = s.lower().replace("a.m.", "am").replace("p.m.", "pm").replace("u.t.c.", "utc").replace("g.m.t.", "gmt").replace("u.t.", "ut")
+    let tok = date_tokens(normalized)?
     let n = tok.len
     let current = civil_in(z, now.secs)
     var year = current.year, month = current.month, day = current.day
@@ -212,6 +213,7 @@ pub fn date_read(text: str, zone: Zone, now: Instant) -> Instant ! DateReadFaile
     var weekday = 0, ordinal = 0
     var offset = 0
     var relmonths: int = 0, reldays: int = 0, relsecs: int = 0
+    var pending_months: int = 0, pending_days: int = 0, pending_secs: int = 0
     var relative = false
     var k = 0
     while k < n {
@@ -220,8 +222,8 @@ pub fn date_read(text: str, zone: Zone, now: Instant) -> Instant ! DateReadFaile
         if word == "t" && has_date { k += 1; continue }
         if word == "now" || word == "today" || word == "yesterday" || word == "tomorrow" {
             relative = true
-            if word == "yesterday" { reldays -= 1 }
-            if word == "tomorrow" { reldays += 1 }
+            if word == "yesterday" { pending_days -= 1 }
+            if word == "tomorrow" { pending_days += 1 }
             k += 1
             continue
         }
@@ -236,6 +238,10 @@ pub fn date_read(text: str, zone: Zone, now: Instant) -> Instant ! DateReadFaile
             dow = date_dow(tok[k + 1].text)
             used = 2
         }
+        if (word == "-" || word == "+") && k + 2 < n && tok[k + 1].number && date_dow(tok[k + 2].text) >= 0 {
+            ord = date_num(tok[k + 1].text)? * (if word == "-" then -1 else 1)
+            dow = date_dow(tok[k + 2].text); used = 3
+        }
         if dow >= 0 {
             if has_week { return invalid }
             has_week = true
@@ -246,11 +252,9 @@ pub fn date_read(text: str, zone: Zone, now: Instant) -> Instant ! DateReadFaile
         }
         // Relative items; ago negates the accumulated relative displacement.
         if word == "ago" {
-            relmonths = -relmonths
-            reldays = -reldays
-            relsecs = -relsecs
-            k += 1
-            continue
+            relmonths -= pending_months; reldays -= pending_days; relsecs -= pending_secs
+            pending_months = 0; pending_days = 0; pending_secs = 0
+            k += 1; continue
         }
         var unit = date_unit(word)
         var multiplier: int = 1
@@ -270,11 +274,11 @@ pub fn date_read(text: str, zone: Zone, now: Instant) -> Instant ! DateReadFaile
         if unit != 0 {
             relative = true
             if unit < 0 {
-                relmonths += multiplier * -unit
+                pending_months += multiplier * -unit
             } else if unit >= 86400 {
-                reldays += multiplier * (unit / 86400)
+                pending_days += multiplier * (unit / 86400)
             } else {
-                relsecs += multiplier * unit
+                pending_secs += multiplier * unit
             }
             k += used
             continue
@@ -435,6 +439,7 @@ pub fn date_read(text: str, zone: Zone, now: Instant) -> Instant ! DateReadFaile
         }
         return unread
     }
+    relmonths += pending_months; reldays += pending_days; relsecs += pending_secs
     if !has_time && (has_date || has_week || !relative) {
         hour = 0
         minute = 0
