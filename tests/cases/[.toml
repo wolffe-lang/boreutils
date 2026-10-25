@@ -7025,3 +7025,15 @@ name = "precedence ('missing', '-ot', 'file')"
 args = ["missing", "-ot", "file", "]"]
 scratch = { file = "x" }
 scratch_hardlinks = { hard = "file" }
+
+[[case]]
+name = "C-locale integer whitespace \u00a01"
+args = ["\u00a01", "-eq", "1", "]"]
+
+[[case]]
+name = "C-locale integer whitespace 1\u00a0"
+args = ["1\u00a0", "-eq", "1", "]"]
+
+[[case]]
+name = "C-locale integer whitespace \u20031"
+args = ["\u20031", "-eq", "1", "]"]

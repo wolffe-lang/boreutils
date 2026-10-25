@@ -10,6 +10,7 @@ fn date_tokens(s: str) -> List[DateToken] ! {invalid} {
     var depth = 0
     while k < s.len {
         let b = s.bytes()[k] as int
+        if b >= 128 { return invalid }
         if b == 40 {
             depth += 1
             k += 1
@@ -183,8 +184,10 @@ pub fn date_read(text: str, zone: Zone, now: Instant) -> Instant ! DateReadFaile
                 break
             }
             if b == 92 { k += 1; if k >= s.len { return invalid } }
-            label += s[k..k + 1]
-            k += 1
+            var end = k + 1
+            while end < s.len && s.bytes()[end] as int >= 128 && s.bytes()[end] as int < 192 { end += 1 }
+            label += s[k..end]
+            k = end
         }
         if !closed { return invalid }
         if label.starts_with("right/") ||

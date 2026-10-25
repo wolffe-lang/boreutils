@@ -35,6 +35,7 @@ fn main() -> int {
     let path = if p.operands.len == 0 then bore.login_path() else p.operands[0]
     var names = List[str]()
     for r in bore.login_records(path) {
+        if r.kind == 7 && !r.valid_text { bore.warn("users", "non-UTF-8 utmp text is unsupported (raw paths: wolf-lang#687)"); return 1 }
         if r.kind == 7 && r.user != "" && (p.operands.len > 0 || bore.login_live(r)) {
             (mut names).push(r.user)
         }

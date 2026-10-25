@@ -1904,3 +1904,13 @@ env = { TZ = "EST5" }
 name = "colon-zone flags <+0330>-3:30"
 args = ["-d", "@0", "+%:z|%::z|%:::z|%8:z|%8::z|%8:::z|%12:z|%12::z|%12:::z|%-:z|%-::z|%-:::z|%-8:z|%-8::z|%-8:::z|%-12:z|%-12::z|%-12:::z|%_:z|%_::z|%_:::z|%_8:z|%_8::z|%_8:::z|%_12:z|%_12::z|%_12:::z|%0:z|%0::z|%0:::z|%08:z|%08::z|%08:::z|%012:z|%012::z|%012:::z"]
 env = { TZ = "<+0330>-3:30" }
+
+[[case]]
+name = "UTF-8 boundary @0%\u00e9|literal-\u00e9|%8\u00e9|\u4f60\u597d"
+args = ["-d", "@0", "+%\u00e9|literal-\u00e9|%8\u00e9|\u4f60\u597d"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "UTF-8 boundary ma\u00f1ana%s"
+args = ["-d", "ma\u00f1ana", "+%s"]
+env = { TZ = "UTC0" }

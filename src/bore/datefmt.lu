@@ -135,6 +135,13 @@ pub fn date_format(fmt: str, t: Instant, z: Zone) -> str ! {unread} {
             for b in fmt[start..].bytes() { (mut bytes).push(b) }
             break
         }
+        if fmt.bytes()[k] as int >= 128 {
+            var end = k + 1
+            while end < fmt.len && fmt.bytes()[end] as int >= 128 && fmt.bytes()[end] as int < 192 { end += 1 }
+            for b in fmt[start..end].bytes() { (mut bytes).push(b) }
+            k = end
+            continue
+        }
         let d = fmt[k..k + 1]
         k += 1
         var value = ""

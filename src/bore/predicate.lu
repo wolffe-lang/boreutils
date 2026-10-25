@@ -9,7 +9,10 @@
 struct PredicateScan { at: int, error: str, last: str, bracket: bool }
 
 fn predicate_integer(s: str) -> str ! {invalid} {
-    var v = s.trim()
+    var begin = 0, end = s.len
+    while begin < end { let b = s.bytes()[begin] as int; if b == 32 || b >= 9 && b <= 13 { begin += 1 } else { break } }
+    while end > begin { let b = s.bytes()[end - 1] as int; if b == 32 || b >= 9 && b <= 13 { end -= 1 } else { break } }
+    var v = s[begin..end]
     var negative = false
     if v.starts_with("+") || v.starts_with("-") { negative = v.starts_with("-"); v = v[1..] }
     if v.len == 0 { return invalid }
