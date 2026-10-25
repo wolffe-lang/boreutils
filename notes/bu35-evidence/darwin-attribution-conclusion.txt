@@ -1,0 +1,63 @@
+Attribution of record: run40165219687, diagnostic headca50a04b
+
+The probe completed, and the original ls gate passed10/10. Success means
+attribution completed, NOT that its deliberately unwaived comparisons were
+all green. All comparison providers were pinned GNU9.11; host GNU9.12 was
+provenance only. Runner: macOS26.6.2 arm64/image20261013.0424.1, Apple clang21.
+
+Inherited30 rows, identically reproduced in all6 code/provider cells:
+             trunk/fresh-old  trunk/fresh-new  trunk/active
+ dir             17/1/0          17/1/0         17/1/0
+ vdir             8/10/0          8/10/0         8/10/0
+ numfmt         202/7/1         202/7/1        202/7/1
+ od             138/12/0        138/12/0       138/12/0
+The head-code row for each of these three providers is exactly the same.
+Failure-name sets were compared, not just totals. All dir/vdir stdout
+becomes identical by replacing only owner501 with runner; all od stdout
+becomes identical by replacing only -nan with equally wide space+nan.
+These are diagnostic checks, not new comparison masks.
+
+No cell supports blaming the extra install-program flags, the active
+cache rather than a fresh stage, or bu35's shared-clock additions for
+those30. They are inherited current-Darwin/source-built-oracle assumptions.
+The matrix does not further distinguish historical image/compiler/library
+drift from the old unsupported platform assumptions, and does not prove a
+GNU implementation defect. No inherited implementation is fixed here.
+
+Exactly those30 rows get loud Darwin qualifications; every other row stays
+live. No family-wide waiver is used. Exact cells, complete baseline case
+input/output bytes and issue-ready drafts (one per family) are:
+ tests/gaps/bu35/darwin-dir-vdir.txt (11 account-name rows)
+ tests/gaps/bu35/darwin-numfmt.txt (7 print/range/boundary rows)
+ tests/gaps/bu35/darwin-od.txt (12 negative-NaN text rows)
+No issues were filed by this lane; the orchestrator files the three drafts.
+
+Owned16 Darwin failures from40155240203:
+- stty3 and uname7 were ours, fixed by measured vnode errors and arm word.
+  All3 providers now show stty29/0/0 and uname18/0/80 on head code.
+- date6 were ours: all3 providers independently show default%-N six digits
+  and C-locale %c/%Ec early-year padding (0001,0100,0000). The split matrices
+  had temporarily qualified8 rows, not hidden remaining fields. The two
+  measured host rules are now implemented, all8 skips retired, and both
+  host models are testable in pure code without running a Mac locally.
+- who was absent at trunk and its original4 Linux failures were our real
+  idle/PID width defect, already reproduced/fixed with controlled ptys.
+  Matrix head who2/0/25 under all providers; no invented trunk comparison.
+
+Exact isolated date fields and all48 cells are separately retained:
+ notes/bu35-evidence/darwin-date-fields.txt
+ notes/bu35-evidence/darwin-matrix-cells.json
+
+Post-change hasu A / Ubuntu24 / pinned GNU9.11 validation:
+ date plus all4 inherited utility casefiles:798 passed /0 failed /1
+ pre-existing named skip EACH native tier. No Linux row was waived.
+ Pure date unit with both Linux and Darwin models: conform-run --checked
+ exit0, diagnostics=[], warnings=[]. Fmt passes. Native Darwin execution
+ remains the next CI run's evidence, not claimed locally.
+ Logs: /home/mfwolffe/lanes/bu35/ev/darwin-attributed-linux-check.log and
+ /home/mfwolffe/lanes/bu35/ev/darwin-date-model-unit.log.
+
+Census unchanged:107 binaries,103/104 units,df exact remainder;16495cases
+in105 files. The30 inherited Darwin skips replace neither Linux coverage
+nor the now-retired8 owned date skips. All earlier gap/ruling receipts and
+red logs remain. Production oracle configuration/pins are unchanged.
