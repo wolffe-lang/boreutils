@@ -66,7 +66,7 @@ fn main() -> int {
     if p.operands.len > 1 {
         return bore.usage_error("uptime", "extra operand {bore.quote_always(p.operands[1])}")
     }
-    if !bore.built_for_linux() {
+    if !bore.login_abi(os_name(), os_arch()) {
         bore.warn("uptime", "procfs uptime/load and utmp layout unsupported on this host")
         return 1
     }

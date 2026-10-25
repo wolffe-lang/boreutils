@@ -109,3 +109,9 @@ pub fn login_right(s: str, width: int) -> str {
 pub fn login_live(r: LoginRecord) -> bool {
     r.pid <= 0 || fs_exists("/proc/{r.pid}")
 }
+
+/// The measured 384-byte glibc ABI is qualified on Linux x86-64 only.
+/// Other layouts must be measured before reading them as these records.
+pub fn login_abi(system: str, machine: str) -> bool {
+    system == "linux" && machine == "x86_64"
+}

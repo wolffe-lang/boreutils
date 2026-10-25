@@ -87,7 +87,7 @@ fn main() -> int {
     if p.operands.len > 2 {
         return bore.usage_error("who", "extra operand {bore.quote_always(p.operands[2])}")
     }
-    if !bore.built_for_linux() {
+    if !bore.login_abi(os_name(), os_arch()) {
         bore.warn("who", "utmp layout unsupported on this host")
         return 1
     }

@@ -1494,7 +1494,7 @@ the exact list by termios field is `notes/bu35-evidence/termios-issue.txt`.
 No unsupported flag is silently left unchanged.
 
 `users`, `who`, `pinky` and `uptime` read the documented 384-byte Linux
-utmp ABI. An explicit FILE retains stale sessions; default `users`/`who`
+x86-64 utmp ABI; other layouts are explicitly refused. An explicit FILE retains stale sessions; default `users`/`who`
 and uptime counts omit positive pids absent from procfs. `pinky` keeps
 those sessions, as GNU does. Other host layouts, raw non-UTF-8 record text,
 DNS canonicalization and account services outside `/etc/passwd` are named

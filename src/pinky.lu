@@ -96,7 +96,7 @@ fn main() -> int {
         }
         return bore.finish(mut out, "pinky", 0)
     }
-    if !bore.built_for_linux() {
+    if !bore.login_abi(os_name(), os_arch()) {
         bore.warn("pinky", "utmp layout unsupported on this host")
         return 1
     }
