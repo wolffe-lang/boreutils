@@ -305,11 +305,17 @@ pub fn date_format(fmt: str, t: Instant, z: Zone) -> str ! {unread} {
                 "/" +
                 date_pad("{(c.year % 100 + 100) % 100}", 2, pad)
         }
-        if d == "z" && colons == 0 && (pad == " " || pad == "") {
+        if d == "z" && colons < 4 && (pad == " " || pad == "") {
             let magnitude = if c.offset < 0 then -c.offset else c.offset
-            value = (if c.offset < 0 then "-" else "+") +
-                "{magnitude / 3600 * 100 + magnitude / 60 % 60}"
-            natural = 5
+            let sign = if c.offset < 0 then "-" else "+"
+            if colons == 0 {
+                value = sign + "{magnitude / 3600 * 100 + magnitude / 60 % 60}"
+                natural = 5
+            } else {
+                let original = date_zone_text(c.offset, colons)
+                value = sign + "{magnitude / 3600}" + original[3..]
+                natural = original.len
+            }
         }
         // E/O are identity in the C locale for their documented conversions.
         if modifier == "E" && !"cCxXyY".contains(d) ||
