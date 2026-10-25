@@ -58,8 +58,10 @@ fn main() -> int {
     if heading {
         var head = "NAME     " + (if mesg then "  " else "") + "LINE         TIME        "
         if idle { head += " IDLE   " }
-        if choose { head += "       PID" }
-        head += " COMMENT\n"
+        if choose { head += if idle then "       PID" else "        PID" }
+        head += " COMMENT"
+        if selected[8] { head += "  EXIT" }
+        head += "\n"
         bore.put(mut out, head) else |_| {}
     }
     let z = bore.zone(), now = time_unix_ms() / 1000
@@ -77,7 +79,7 @@ fn main() -> int {
         if mesg { text += (if r.kind == 7 then bore.login_mesg(r.line) else " ") + " " }
         text += bore.login_pad(line, 12) + " " + bore.login_stamp(r.secs, z)
         if r.kind == 7 {
-            if idle { text += " " + bore.login_right(bore.login_idle(r.line, now), 5) + " " + bore.space_padded(r.pid, 10) }
+            if idle { text += " " + bore.login_right(bore.login_idle(r.line, now), 3) + " " + bore.space_padded(r.pid, 13) }
             if r.host != "" { text += " ({r.host})" }
         } else if r.kind == 5 || r.kind == 6 || r.kind == 8 {
             text += " " + (if idle || r.kind == 6 || r.kind == 8 then "       " else "") + bore.space_padded(r.pid, 10) + " id=" + bore.login_pad(r.id, 4)
