@@ -1,0 +1,42 @@
+Hosted runcon correction: CI40160489657, GNU9.4 field only, not9.11 parity.
+Observed hosted GNU bytes: b'docker-default (enforce)\n\n', exit0; old boreutils125/Invalid argument.
+Production now reads /proc/self/attr/current as bytes and appends exactly one LF; no trim or synthetic label.
+Context-changing forms remain refused; a current AppArmor label is not evidence of SELinux support.
+Host probes: hasu proc read EINVAL; packaged host GNU9.11 stub says Operation not supported (not our field oracle).
+Kasumi proc read EINVAL; host runcon absent; no host packages installed.
+Kasumi measurement: Ubuntu24.04 container, CPUs4-7 inside,12g, flock kasumi-cores-4-7.lock; reservation released.
+Original complete compiler job stopped AFTER runcon six rows passed because unchanged chcon was not built; not called a full15-row green.
+selection tests PASS: trunk4/head8/missing0;12 absent-at-trunk cells; no Darwin execution
+build: target/release/runcon
+build: target/dev/runcon
+{"commit":"cf0c13d","diagnostics":[],"file":"src/lsmout_test.lu","impl":"wolfgang","impl_version":"0.2.35","phase_reached":"run","protocol":1,"seeded":false,"stdout_inline":null,"stdout_sha256":null,"verdict":"exit(0)","warnings":[]}
+CONTAINER_LSM_ERROR 22 Invalid argument
+CURRENT_CONTEXT /usr/bin/runcon 125 b'' b'/usr/bin/runcon: failed to get current context: Invalid argument\n'
+CURRENT_CONTEXT target/release/runcon 125 b'' b'runcon: failed to get current context: Invalid argument\n'
+CURRENT_CONTEXT target/dev/runcon 125 b'' b'runcon: failed to get current context: Invalid argument\n'
+Final explicitly selected field measurements, both tiers:
+FIELD_LSM_READ_ERROR 22 Invalid argument
+FIELD runcon (GNU coreutils) 9.4
+FIELD_CURRENT_CONTEXT GNU (125, b'', b'PROG: failed to get current context: Invalid argument\n') BORE (125, b'', b'PROG: failed to get current context: Invalid argument\n')
+FIELD ok runcon []
+FIELD ok runcon ['u:r:t', '/usr/bin/true']
+FIELD ok runcon ['junk', '/usr/bin/true']
+FIELD ok runcon ['-t', 't', '/usr/bin/true']
+FIELD ok runcon ['-c', '/usr/bin/true']
+FIELD ok runcon ['u:r:t']
+SELinux field: 6 passed, 0 failed; NOT GNU 9.11 evidence
+FIELD_LSM_READ_ERROR 22 Invalid argument
+FIELD runcon (GNU coreutils) 9.4
+FIELD_CURRENT_CONTEXT GNU (125, b'', b'PROG: failed to get current context: Invalid argument\n') BORE (125, b'', b'PROG: failed to get current context: Invalid argument\n')
+FIELD ok runcon []
+FIELD ok runcon ['u:r:t', '/usr/bin/true']
+FIELD ok runcon ['junk', '/usr/bin/true']
+FIELD ok runcon ['-t', 't', '/usr/bin/true']
+FIELD ok runcon ['-c', '/usr/bin/true']
+FIELD ok runcon ['u:r:t']
+SELinux field: 6 passed, 0 failed; NOT GNU 9.11 evidence
+CONTEXT_MEASUREMENT_COMPLETE
+Final checked unit/format receipt:
+{"commit":"cf0c13d","diagnostics":[],"file":"src/lsmout_test.lu","impl":"wolfgang","impl_version":"0.2.35","phase_reached":"run","protocol":1,"seeded":false,"stdout_inline":null,"stdout_sha256":null,"verdict":"exit(0)","warnings":[]}
+No AppArmor success path was claimed on kasumi: it has no readable label; newline success is checked with explicit synthetic byte vectors and will be rechecked live by CI.
+Attribution script fix ca50a04: per-code present-tools build plan; absent at trunk is an explicit matrix cell, not exit2.
