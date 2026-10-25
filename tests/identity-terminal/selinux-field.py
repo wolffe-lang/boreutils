@@ -4,10 +4,12 @@
 Run inside a disposable Ubuntu container with BORE_UTMP_CONTAINER=1.
 Never call these field comparisons a 9.11 oracle verdict.
 """
-import os,re,subprocess,tempfile,pathlib
+import argparse,os,re,subprocess,tempfile,pathlib
 if os.environ.get('BORE_UTMP_CONTAINER')!='1':
     raise SystemExit('REFUSED: SELinux field cases require the lane container')
 root=pathlib.Path(__file__).resolve().parents[2]
+parser=argparse.ArgumentParser();parser.add_argument('--only',choices=['runcon','chcon']);parser.add_argument('--bin',default='target/release');options=parser.parse_args()
+bindir=(root/options.bin).resolve()
 cases={'runcon':[[],['u:r:t','/usr/bin/true'],['junk','/usr/bin/true'],['-t','t','/usr/bin/true'],['-c','/usr/bin/true'],['u:r:t']],
        'chcon':[[],['u:r:t','f'],['u:r:t','missing'],['--reference=f','g'],['--reference=missing','g'],['-t','t','f'],['-v','u:r:t','f'],['-f','u:r:t','f'],['junk','f']]}
 try:
@@ -18,6 +20,7 @@ except OSError as error:
     print('FIELD_LSM_READ_ERROR',error.errno,error.strerror,flush=True)
 passed=0
 for util,argslist in cases.items():
+    if options.only and util!=options.only:continue
     field='/usr/bin/'+util
     version=subprocess.run([field,'--version'],capture_output=True,check=True).stdout.splitlines()[0]
     print('FIELD',version.decode(),flush=True)
@@ -28,7 +31,7 @@ for util,argslist in cases.items():
                 p=subprocess.run([str(exe),*args],cwd=d,env={**os.environ,'LC_ALL':'C'},capture_output=True)
                 return p.returncode,p.stdout,p.stderr.replace(str(exe).encode(),b'PROG').replace(util.encode(),b'PROG')
             expected=run(field)
-            actual=run(root/'target/release'/util)
+            actual=run(bindir/util)
             if util=='runcon' and not args:
                 print('FIELD_CURRENT_CONTEXT','GNU',repr(expected),'BORE',repr(actual),flush=True)
                 if label is not None:
