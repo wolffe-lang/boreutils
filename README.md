@@ -168,7 +168,7 @@ derives no boreutils code from GPL source.
 
 Every shipped utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus, except where a case says otherwise and is
-skipped with its reason. The combined corpus holds **16,480 cases across 105 case files**; `kill` has
+skipped with its reason. The combined corpus holds **16,495 cases across 105 case files**; `kill` has
 365 more that SEND, each run in a container of its own (`tests/kill/`,
 `tools/killtest`: **365 passed, 0 failed** on hasu at bu30, groups,
 `kill 0` and `kill -1` among them), `timeout` 163 more that run a
@@ -235,7 +235,7 @@ No new utility has been speed-benchmarked.
 The identity/terminal family adds fifteen command binaries representing
 fourteen utility units: `date`, `test` and `[`, `uname`, `hostname`,
 `hostid`, `arch`, `uptime`, `users`, `who`, `pinky`, `pathchk`, `stty`,
-`chcon` and `runcon`. Its 3,643 differential cases use fixed date inputs,
+`chcon` and `runcon`. Its 3,658 differential cases use fixed date inputs,
 constructed Linux utmp records and input ptys. The container-only
 `tests/identity-terminal/check.py` compares complete termios state,
 not just exit status, and checks synthetic live/stale login records.
@@ -1468,6 +1468,10 @@ Widths above 1,000,000, calendar years above 2,000,000,000 and epochs beyond
 63,000,000,000,000,000 seconds are explicit implementation limits. Named
 zones use the existing TZif/POSIX reader; leap-second `right/` tables are
 refused, including a named table missing from the installed zone database.
+On Darwin, the field GNU9.11 default `%-N` uses six digits, unlike the
+Linux nine-digit form, and early-year `%c` is libc-dependent. These exact
+field rows are loud skips; explicit `%N` widths, other `%N` flags and the
+remaining year/format conversions continue to compare.
 GNU 9.11 accepts an unterminated date comment through end of input; this
 matches the binary, despite the manual saying parentheses must balance.
 
@@ -1620,7 +1624,7 @@ table answers it per utility, from the evidence and from nothing else.
 | `basenc` | 13 / 14, eight encodings | 404 / 1 | not benched (hasu) | drop-in for scripts that avoid `--base58`, refused by name |
 
 
-| `date` | scoped above | 388 / 0 | not benched (hasu) | drop-in for the named C-locale grammar, formatting and zone scope above; clock setting/resolution and debug are refused |
+| `date` | scoped above | 403 / 0 on Linux | not benched (hasu) | drop-in for the named C-locale grammar, formatting and zone scope above; clock setting/resolution and debug are refused |
 | `test` | grammar and predicates | 1,490 / 0 | not benched (hasu) | drop-in; kernel access for equal ids and mode-bit fallback for differing ids both match GNU 9.11 |
 | `[` | grammar and closing bracket | 1,490 / 0 | not benched (hasu) | drop-in; same measured access behavior as test |
 | `uname` | all documented switches | 98 / 0 | not benched (hasu) | drop-in for Linux raw fields; macOS raw fields are refused (#907) |
