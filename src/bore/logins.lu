@@ -89,3 +89,10 @@ pub fn login_right(s: str, width: int) -> str {
     if s.len >= width { return s }
     " ".repeat(width - s.len) + s
 }
+
+/// GNU checks USER_PROCESS pids for the default database, but not an
+/// explicit FILE. Zero/negative pids are kept; positive missing pids
+/// are omitted. procfs observes liveness without sending any signal.
+pub fn login_live(r: LoginRecord) -> bool {
+    r.pid <= 0 || fs_exists("/proc/{r.pid}")
+}

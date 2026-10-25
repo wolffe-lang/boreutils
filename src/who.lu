@@ -99,7 +99,7 @@ fn main() -> int {
     var names = "", total = 0
     if count {
         for r in rows {
-            if r.kind == 7 && r.user != "" {
+            if r.kind == 7 && r.user != "" && (p.operands.len == 1 || bore.login_live(r)) {
                 if total > 0 { names += " " }
                 names += r.user
                 total += 1
@@ -120,7 +120,7 @@ fn main() -> int {
     let z = bore.zone(), now = time_unix_ms() / 1000
     for r in rows {
         if r.kind < 0 || r.kind >= selected.len || !selected[r.kind] { continue }
-        if r.kind == 7 && r.user == "" { continue }
+        if r.kind == 7 && (r.user == "" || p.operands.len != 1 && !bore.login_live(r)) { continue }
         if mine && (terminal == "" || r.line != terminal) { continue }
         if lookup && r.host != "" {
             bore.warn("who", "--lookup: wolf has no host-address resolver")

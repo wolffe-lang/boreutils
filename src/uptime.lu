@@ -11,6 +11,34 @@ fn proc_text(path: str) -> str {
     str_from_utf8(b) else ""
 }
 
+// An existing utmp with no BOOT_TIME makes GNU 9.11 use init's
+// start, not host uptime. Read its documented procfs start_ticks and
+// AT_CLKTCK from auxv, never assume the host's tick frequency.
+fn init_boot() -> int {
+    let aux = fs_read_bytes("/proc/self/auxv") else List[byte]()
+    var hz: int = 0
+    var at = 0
+    while at + 16 <= aux.len {
+        var tag: int = 0, value: int = 0, power: int = 1
+        for j in 0..7 { tag += aux[at + j] as int * power; value += aux[at + 8 + j] as int * power; power *= 256 }
+        if tag == 17 { hz = value; break }
+        at += 16
+    }
+    if hz <= 0 { return -1 }
+    var boot: int = -1
+    for line in proc_text("/proc/stat").lines() {
+        if line.starts_with("btime ") { boot = line[6..].trim().to_int() else -1 }
+    }
+    let record = proc_text("/proc/1/stat")
+    let close = record.rfind(")") else -1
+    if close < 0 || boot < 0 { return -1 }
+    let fields = record[close + 1..].words()
+    if fields.len < 20 { return -1 }
+    let ticks = fields[19].to_int() else -1
+    if ticks < 0 { return -1 }
+    boot + ticks / hz
+}
+
 fn main() -> int {
     var opts = List[bore.Opt]()
     (mut opts).push(bore.flag("", "help"))
@@ -42,14 +70,15 @@ fn main() -> int {
     let path = if p.operands.len == 0 then bore.login_path() else p.operands[0]
     var users = 0, boot: int = -1
     for r in bore.login_records(path) {
-        if r.kind == 7 && r.user != "" { users += 1 }
+        if r.kind == 7 && r.user != "" && (p.operands.len > 0 || bore.login_live(r)) { users += 1 }
         if r.kind == 2 { boot = r.secs }
     }
     var up: int = -1
-    if p.operands.len == 0 {
+    if fs_exists(path) {
+        if boot < 0 { boot = init_boot() }
+        if boot >= 0 { up = now.secs - boot }
+    } else if p.operands.len == 0 {
         up = proc_text("/proc/uptime").split(".")[0].to_int() else -1
-    } else if boot >= 0 {
-        up = now.secs - boot
     }
     var status = 0
     var duration = "???? days ??:??"

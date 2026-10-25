@@ -115,6 +115,12 @@ ok('date refuses a leap table from metadata');ENV['TZ']='UTC0'
 if os.geteuid()!=0:raise SystemExit('REFUSED: synthetic live utmp requires container root')
 utmp=pathlib.Path('/var/run/utmp');previous=utmp.read_bytes() if utmp.exists() else None
 try:
+    # Default-database stale pid filtering differs from explicit FILE.
+    stale=bytearray((ROOT/'tests/fixtures/bu35-logins.utmp').read_bytes())
+    for at in range(0,len(stale),384):
+        if struct.unpack_from('<h',stale,at)[0]==7:struct.pack_into('<i',stale,at+4,999999)
+    utmp.write_bytes(stale)
+    for u in ['users','who','pinky']:compare(u,[])
     data=bytearray((ROOT/'tests/fixtures/bu35-logins.utmp').read_bytes())
     for at in range(0,len(data),384):
         if struct.unpack_from('<h',data,at)[0]==7:struct.pack_into('<i',data,at+4,os.getpid())
@@ -126,7 +132,8 @@ try:
     ENV['UTMP']=str(ROOT/'tests/fixtures/bu35-logins.utmp')
     for u in ['who','users']:compare(u,[])
     del ENV['UTMP']
-    # Current uptime is independently shaped, with a plausible /proc duration.
+    # Missing default database uses host /proc/uptime, not init's start.
+    utmp.unlink()
     r=run(BIN/'uptime',[])
     assert r[0]==0 and re.fullmatch(rb' [0-9]{2}:[0-9]{2}:[0-9]{2}  up (?:[0-9]+ days? )? *[0-9]+:[0-9]{2},  0 users,  load average: [0-9]+\.[0-9]{2}, [0-9]+\.[0-9]{2}, [0-9]+\.[0-9]{2}\n',r[1]),r
     match=re.search(rb'up (?:(\d+) days? )? *(\d+):(\d+),',r[1]);days,hours,minutes=match.groups();reported=(int(days or 0)*24+int(hours))*60+int(minutes)
