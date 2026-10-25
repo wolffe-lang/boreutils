@@ -4,7 +4,7 @@
 //! larger than intmax_t, so converting to a machine integer is incorrect.
 //! Access checks use effective ids and Unix mode bits; ACLs lack a surface.
 
-struct PredicateScan { at: int, error: str }
+struct PredicateScan { at: int, error: str, last: str }
 
 fn predicate_integer(s: str) -> str ! {invalid} {
     var v = s.trim()
@@ -113,8 +113,8 @@ fn predicate_two(a: str, op: str, b: str, mut scan: PredicateScan) -> bool {
 }
 
 fn predicate_missing(args: List[str], mut scan: PredicateScan) {
-    let word = if args.len == 0 then "" else args[args.len - 1]
-    scan.error = "missing argument after {quote_always(word)}"
+    let _ = args
+    scan.error = "missing argument after {quote_always(scan.last)}"
 }
 
 fn predicate_atom(args: List[str], mut scan: PredicateScan) -> bool {
@@ -123,11 +123,19 @@ fn predicate_atom(args: List[str], mut scan: PredicateScan) -> bool {
     scan.at += 1
     if word == "!" { return !predicate_atom(args, mut scan) }
     if word == "(" {
-        let result = predicate_or(args, mut scan)
+        let begin = scan.at
+        var end = begin
+        var depth = 0
+        while end < args.len {
+            if args[end] == ")" && depth == 0 { break }
+            if args[end] == "(" { depth += 1 }
+            if args[end] == ")" { depth -= 1 }
+            end += 1
+        }
+        let result = predicate_eval(args[begin..end], mut scan)
         if scan.error != "" { return false }
-        if scan.at >= args.len { predicate_missing(args, mut scan); return false }
-        if args[scan.at] != ")" { scan.error = "')' expected, found {quote_always(args[scan.at])}"; return false }
-        scan.at += 1
+        if end == args.len { scan.error = "')' expected"; return false }
+        scan.at = end + 1
         return result
     }
     if scan.at + 1 < args.len && predicate_binary(args[scan.at]) {
@@ -140,6 +148,10 @@ fn predicate_atom(args: List[str], mut scan: PredicateScan) -> bool {
         let value = args[scan.at]
         scan.at += 1
         return predicate_one(word, value, mut scan)
+    }
+    if word.len == 2 && word.starts_with("-") {
+        scan.error = "{quote_always(word)}: unary operator expected"
+        return false
     }
     word.len > 0
 }
@@ -201,7 +213,7 @@ pub fn predicate_main(prog: str) -> int {
         if args.len == 0 || args[args.len - 1] != "]" { warn("[", "missing ']' ".trim_end()); return 2 }
         let _ = (mut args).pop() else ""
     }
-    var scan = PredicateScan { at: 0, error: "" }
+    var scan = PredicateScan { at: 0, error: "", last: if args.len == 0 then "" else args[args.len - 1] }
     let result = predicate_eval(args, mut scan)
     if scan.error != "" { warn(prog, scan.error); return 2 }
     if result then 0 else 1
