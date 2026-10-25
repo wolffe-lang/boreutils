@@ -60,6 +60,9 @@ fn main() -> int {
             }
         } else if i == 4 {
             value = bore.machine_arch()
+        } else if i == 5 && !bore.built_for_linux() && bore.machine_arch() == "arm64" {
+            // GNU9.11's measured Darwin arm64 processor word, not -m.
+            value = "arm"
         } else if i == 7 {
             value = if bore.built_for_linux() then "GNU/Linux" else "Darwin"
         }
