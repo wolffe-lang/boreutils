@@ -1,0 +1,20 @@
+//! member: false
+//! arch — the uname -m field.
+//! References: GNU coreutils 9.11 arch manual and black-box runs.
+//! No implementation source. Uses wolf's architecture word unchanged
+//! except aarch64 -> arm64 on Darwin, whose kernel uses that spelling.
+use bore
+fn main() -> int {
+    var opts = List[bore.Opt]()
+    (mut opts).push(bore.flag("", "help")); (mut opts).push(bore.flag("", "version"))
+    let p = bore.parse(opts, env_args(), bore.permute())
+    var out = bore.stdout()
+    for key in p.keys {
+        if key == "help" { bore.put(mut out, "Usage: arch\nPrint the machine architecture.\n") else |_| {}; return bore.finish(mut out, "arch", 0) }
+        if key == "version" { bore.put(mut out, bore.version_text("arch")) else |_| {}; return bore.finish(mut out, "arch", 0) }
+    }
+    if !bore.ok(p) { return bore.usage_error("arch", p.error) }
+    if p.operands.len > 0 { return bore.usage_error("arch", "extra operand {bore.quote_always(p.operands[0])}") }
+    bore.put(mut out, bore.machine_arch() + "\n") else |_| {}
+    bore.finish(mut out, "arch", 0)
+}

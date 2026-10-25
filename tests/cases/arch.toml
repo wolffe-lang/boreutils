@@ -1,0 +1,23 @@
+# GNU 9.11 raw fields, in canonical option order.
+
+[[case]]
+name = "0 []"
+args = []
+
+[[case]]
+name = "1 ['--help']"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "2 ['--version']"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "3 ['-Q']"
+args = ["-Q"]
+
+[[case]]
+name = "4 ['x', 'y']"
+args = ["x", "y"]
