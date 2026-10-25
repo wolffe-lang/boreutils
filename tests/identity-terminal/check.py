@@ -124,6 +124,12 @@ try:
     data=bytearray((ROOT/'tests/fixtures/bu35-logins.utmp').read_bytes())
     for at in range(0,len(data),384):
         if struct.unpack_from('<h',data,at)[0]==7:struct.pack_into('<i',data,at+4,os.getpid())
+    malformed=bytearray(data);malformed[44]=255
+    utmp.write_bytes(malformed)
+    for u in ['users','who','uptime','pinky']:
+        result=run(BIN/u,[])
+        assert result[0]==1 and b'non-UTF-8 utmp' in result[2],(u,result)
+        ok('named raw-utmp text gap '+u)
     utmp.write_bytes(data)
     for u,options in [('users',[[]]),('who',[[],['-a'],['-H'],['-Hu'],['-HT'],['-Ha'],['-q'],['-b'],['-d'],['-l'],['-p'],['-r'],['-t'],['am','i']]),('pinky',[[],['-w'],['-i'],['-q'],['-f'],['-s'],['-fi'],['-w','zed'],['amy']])]:
         for a in options:compare(u,a)
