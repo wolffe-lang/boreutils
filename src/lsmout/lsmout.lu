@@ -1,0 +1,9 @@
+//! Byte-level current-context output, independent of the active Linux LSM.
+
+/// GNU runcon appends one newline to the bytes returned by getcon. An
+/// AppArmor proc label already includes a newline; preserve it unchanged.
+pub fn line(bytes: List[byte]) -> List[byte] {
+    var result = copy bytes
+    (mut result).push(10 as byte)
+    result
+}

@@ -10,6 +10,12 @@ if os.environ.get('BORE_UTMP_CONTAINER')!='1':
 root=pathlib.Path(__file__).resolve().parents[2]
 cases={'runcon':[[],['u:r:t','/usr/bin/true'],['junk','/usr/bin/true'],['-t','t','/usr/bin/true'],['-c','/usr/bin/true'],['u:r:t']],
        'chcon':[[],['u:r:t','f'],['u:r:t','missing'],['--reference=f','g'],['--reference=missing','g'],['-t','t','f'],['-v','u:r:t','f'],['-f','u:r:t','f'],['junk','f']]}
+try:
+    label=pathlib.Path('/proc/self/attr/current').read_bytes()
+    print('FIELD_LSM_READ',repr(label),flush=True)
+except OSError as error:
+    label=None
+    print('FIELD_LSM_READ_ERROR',error.errno,error.strerror,flush=True)
 passed=0
 for util,argslist in cases.items():
     field='/usr/bin/'+util
@@ -23,6 +29,10 @@ for util,argslist in cases.items():
                 return p.returncode,p.stdout,p.stderr.replace(str(exe).encode(),b'PROG').replace(util.encode(),b'PROG')
             expected=run(field)
             actual=run(root/'target/release'/util)
+            if util=='runcon' and not args:
+                print('FIELD_CURRENT_CONTEXT','GNU',repr(expected),'BORE',repr(actual),flush=True)
+                if label is not None:
+                    assert expected==(0,label+b'\n',b''),('GNU current label output is proc bytes plus one LF',label,expected)
             assert actual==expected,(util,args,actual,expected)
             passed+=1
             print('FIELD ok',util,repr(args),flush=True)

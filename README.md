@@ -1411,7 +1411,7 @@ new security-sensitive designs.
 | `pathchk` | portable character set, POSIX minimum limits, leading-hyphen rule and native read-only kernel checks | not benched |
 | `stty` | exact supported termios setters and size reader; all missing settings refused by name | not benched |
 | `chcon` | SELinux-disabled failure paths only; field-only GNU 9.4, not GNU 9.11 parity | not benched |
-| `runcon` | SELinux-disabled failure paths, status 125, never executes a command; field-only GNU 9.4 | not benched |
+| `runcon` | current LSM label from procfs; context changes refused, status 125 on failure; never executes a command; field-only GNU 9.4 | not benched |
 
 ## Differences from GNU
 
@@ -1638,7 +1638,7 @@ table answers it per utility, from the evidence and from nothing else.
 | `pathchk` | -p, -P, --portability | 75 / 0 | not benched (hasu) | portable limits and measured native kernel checks; no pathconf builtin |
 | `stty` | exact setters above | 29 / 0 plus full-state pty checks | not benched (hasu) | partial termios surface only; every other setting refused by name |
 | `chcon` | SELinux-disabled paths | 9 field rows | not benched (hasu) | field-only GNU 9.4; no GNU 9.11 parity claim |
-| `runcon` | SELinux-disabled paths | 6 field rows | not benched (hasu) | field-only GNU 9.4, status 125; no GNU 9.11 parity claim |
+| `runcon` | current label / refused changes | 6 field rows | not benched (hasu) | field-only GNU 9.4, status 125; no GNU 9.11 parity claim |
 
 **35 drop-in, 67 drop-in for scripts that avoid a named thing, 3 not yet, 2 SELinux-disabled field-only** (command rows, not the manual's grouped utility units; new checksum
 rows explicitly require UTF-8 names). (bu28: `kill`'s two named things became one, and `timeout`'s four
@@ -1661,7 +1661,9 @@ boreutils has **107 command binaries, representing 103 of 104 units**;
 **`df` is the exact remainder**, blocked on wolf-lang#686 (boreutils#52).
 `chcon` and `runcon` are counted as reached only as the explicitly
 SELinux-disabled, field-only paths described above, never as GNU 9.11
-parity. `chroot`, priority-changing `nice`, and arbitrary-child `stdbuf`
+parity. A current label can still exist under AppArmor: runcon reads the
+procfs bytes and appends one newline, preserving an existing newline; only
+a failed read produces the current-context error. `chroot`, priority-changing `nice`, and arbitrary-child `stdbuf`
 still lack their central operation; source coverage does not imply full
 behavior coverage.
 

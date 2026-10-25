@@ -1,11 +1,12 @@
 //! member: false
-//! runcon — the SELinux-disabled failure path; never execute a command.
+//! runcon — read the current Linux LSM label; refuse context changes.
 //! References: GNU 9.11 manual; GNU 9.4 field binary black-box runs on
 //! the SELinux-free Ubuntu container. The pinned --without-selinux
 //! build does not install this program (configure witness in bu35).
 //! These are FIELD rows, not a claim of GNU 9.11 differential parity.
 
 use bore
+use lsmout
 
 fn main() -> int {
     var opts = List[bore.Opt]()
@@ -22,7 +23,7 @@ fn main() -> int {
         if key == "help" {
             bore.put(
                 mut out,
-                "Usage: runcon CONTEXT COMMAND [ARG]...\nThe SELinux-free build refuses context changes and never runs COMMAND. Failures of runcon itself use status 125.\n",
+                "Usage: runcon CONTEXT COMMAND [ARG]...\nWithout operands, print the kernel-provided process label. Context changes are refused and COMMAND is never run. Failures of runcon itself use status 125.\n",
             ) else |_| {}
             return bore.finish(mut out, "runcon", 0)
         }
@@ -34,8 +35,13 @@ fn main() -> int {
     }
     if !bore.ok(p) { let _ = bore.usage_error("runcon", p.error); return 125 }
     if p.operands.len == 0 && !modify {
-        bore.warn("runcon", "failed to get current context: Invalid argument")
-        return 125
+        let label = fs_read_bytes("/proc/self/attr/current") else |_| {
+            bore.warn("runcon", "failed to get current context: {bore.io_error()}")
+            return 125
+        }
+        bore.write_all(mut out, lsmout.line(label)) else |_| {}
+        let status = bore.finish(mut out, "runcon", 0)
+        return if status == 0 then 0 else 125
     }
     let needed = if modify then 1 else 2
     if p.operands.len < needed {
