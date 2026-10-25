@@ -207,6 +207,7 @@ pub fn date_format(fmt: str, t: Instant, z: Zone) -> str ! {unread} {
             zero = true
         } else if d == "G" {
             value = "{iy}"
+            natural = 4
             zero = true
         } else if d == "y" {
             value = "{(c.year % 100 + 100) % 100}"
@@ -214,11 +215,16 @@ pub fn date_format(fmt: str, t: Instant, z: Zone) -> str ! {unread} {
             zero = true
         } else if d == "Y" {
             value = "{c.year}"
+            natural = 4
             zero = true
         } else if d == "N" {
             let digits = zero_padded(t.nanos, 9)
             let n = if width < 0 then 9 else width
-            value = if n < 9 then digits[0..n] else digits + "0".repeat(n - 9)
+            value = if n < 9 then digits[0..n] else digits
+            if pad == "" || pad == " " {
+                while value.len > 1 && value.ends_with("0") { value = value[0..value.len - 1] }
+                if pad == " " && n > value.len { value += " ".repeat(n - value.len) }
+            } else if n > 9 { value += "0".repeat(n - 9) }
             width = -1
             numeric = false
         } else if d == "p" || d == "P" {
@@ -232,12 +238,15 @@ pub fn date_format(fmt: str, t: Instant, z: Zone) -> str ! {unread} {
             value = zone_abbreviation(z, t.secs)
             numeric = false
         } else if d == "F" {
-            value = date_pad("{c.year}", 4, "0") +
-                "-" +
-                zero_padded(c.month, 2) +
-                "-" +
-                zero_padded(c.day, 2)
+            var year_width = if width < 0 then (if pad == "?" then 4 else 0) else width - 6
+            if year_width < 0 { year_width = 0 }
+            let signed = plus || pad == "?" && width < 0
+            var year = "{c.year}"
+            if signed && c.year >= 0 && (c.year > 9999 || year_width > 4) { year = "+" + year }
+            value = date_pad(year, year_width, if pad == "?" then "0" else pad) +
+                "-" + zero_padded(c.month, 2) + "-" + zero_padded(c.day, 2)
             numeric = false
+            width = -1
         } else if d == "D" || d == "x" {
             value = zero_padded(c.month, 2) +
                 "/" +
@@ -310,7 +319,11 @@ pub fn date_format(fmt: str, t: Instant, z: Zone) -> str ! {unread} {
             value = value.upper()
         }
         if opposite && (d == "p" || d == "P" || d == "Z") { value = value.lower() }
-        if plus && (d == "Y" || d == "G") && c.year > 9999 { value = "+" + value }
+        if plus && (d == "Y" || d == "G" || d == "C") {
+            let year = if d == "G" then iy else c.year
+            let threshold = if d == "C" then 2 else 4
+            if year >= 0 && (year > 9999 || width > threshold) { value = "+" + value }
+        }
         var fill = pad
         if fill == "?" { fill = if numeric && zero then "0" else " " }
         let n = if width < 0 then natural else width
