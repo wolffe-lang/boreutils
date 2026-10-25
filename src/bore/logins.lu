@@ -1,0 +1,80 @@
+//! logins — Linux utmp records, read as bytes from the utmp(5) layout.
+//! Documentation: man7 Linux utmp(5), GNU 9.11 manual and black-box
+//! constructed records. No glibc/GNU source. Linux x86-64 records are
+//! 384 bytes; time/session retain 32-bit ABI layout on 64-bit glibc.
+
+/// One Linux utmp record. kind values come from utmp(5).
+pub struct LoginRecord {
+    kind: int, pid: int, line: str, id: str, user: str, host: str,
+    secs: int, termination: int, exit_code: int,
+}
+
+fn login_word(b: List[byte], at: int, width: int) -> int {
+    var n: int = 0, power: int = 1
+    for k in 0..width { n += b[at + k] as int * power; power *= 256 }
+    if width == 4 && n >= 2147483648 { n -= 4294967296 }
+    n
+}
+
+fn login_text(b: List[byte], at: int, width: int) -> str {
+    var end = at
+    while end < at + width && b[end] as int != 0 { end += 1 }
+    str_from_utf8(b[at..end]) else ""
+}
+
+/// Read complete records; a missing file or a short trailing record
+/// yields no further entries, as measured on GNU 9.11.
+pub fn login_records(path: str) -> List[LoginRecord] {
+    var rows = List[LoginRecord]()
+    let b = fs_read_bytes(path) else |_| { return rows }
+    var at = 0
+    while at + 384 <= b.len {
+        (mut rows).push(LoginRecord {
+            kind: login_word(b, at, 2), pid: login_word(b, at + 4, 4),
+            line: login_text(b, at + 8, 32), id: login_text(b, at + 40, 4),
+            user: login_text(b, at + 44, 32), host: login_text(b, at + 76, 256),
+            secs: login_word(b, at + 340, 4), termination: login_word(b, at + 332, 2),
+            exit_code: login_word(b, at + 334, 2),
+        })
+        at += 384
+    }
+    rows
+}
+
+/// The Linux login database pathname specified by utmp(5).
+pub fn login_path() -> str { "/var/run/utmp" }
+
+/// Right padding without truncating a username or terminal line.
+pub fn login_pad(s: str, width: int) -> str {
+    if s.len >= width { return s }
+    s + " ".repeat(width - s.len)
+}
+
+/// Fixed C-locale login timestamp, independent of the current clock.
+pub fn login_stamp(secs: int, z: Zone) -> str {
+    let t = Instant { secs: secs, nanos: 0 }
+    date_format("%b %e %H:%M", t, z) else ""
+}
+
+/// Terminal idle field, or ? if no terminal record can be stat'ed.
+pub fn login_idle(line: str, now: int) -> str {
+    let path = if line.starts_with("/") then line else "/dev/{line}"
+    let r = fs_stat(path) else |_| { return "?" }
+    let elapsed = now - r[12]
+    if elapsed < 60 { return "." }
+    if elapsed >= 86400 { return "old" }
+    "{zero_padded(elapsed / 3600, 2)}:{zero_padded(elapsed / 60 % 60, 2)}"
+}
+
+/// Mesg mark read from the terminal's group-write mode bit.
+pub fn login_mesg(line: str) -> str {
+    let path = if line.starts_with("/") then line else "/dev/{line}"
+    let r = fs_stat(path) else |_| { return "?" }
+    if r[4] / 16 % 2 == 1 then "+" else "-"
+}
+
+/// Left padding for textual fields, without truncation.
+pub fn login_right(s: str, width: int) -> str {
+    if s.len >= width { return s }
+    " ".repeat(width - s.len) + s
+}

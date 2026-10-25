@@ -1,0 +1,28 @@
+//! member: false
+//! users — one sorted login name per USER_PROCESS record, duplicates kept.
+//! References: GNU 9.11 users manual/black-box runs; Linux utmp(5).
+//! No implementation source. Non-Linux utmp layouts are refused by name.
+use bore
+fn main() -> int {
+    var opts = List[bore.Opt]()
+    (mut opts).push(bore.flag("", "help")); (mut opts).push(bore.flag("", "version"))
+    let p = bore.parse(opts, env_args(), bore.permute())
+    var out = bore.stdout()
+    for key in p.keys {
+        if key == "help" { bore.put(mut out, "Usage: users [FILE]\nPrint sorted login names, including multiple sessions, from FILE or /var/run/utmp.\n") else |_| {}; return bore.finish(mut out, "users", 0) }
+        if key == "version" { bore.put(mut out, bore.version_text("users")) else |_| {}; return bore.finish(mut out, "users", 0) }
+    }
+    if !bore.ok(p) { return bore.usage_error("users", p.error) }
+    if p.operands.len > 1 { return bore.usage_error("users", "extra operand {bore.quote_always(p.operands[1])}") }
+    if !bore.built_for_linux() { bore.warn("users", "utmp layout unsupported on this host"); return 1 }
+    let path = if p.operands.len == 0 then bore.login_path() else p.operands[0]
+    var names = List[str]()
+    for r in bore.login_records(path) { if r.kind == 7 && r.user != "" { (mut names).push(r.user) } }
+    for i in 1..names.len {
+        var j = i
+        while j > 0 && names[j] < names[j - 1] { let t = names[j]; names[j] = names[j - 1]; names[j - 1] = t; j -= 1 }
+    }
+    for i in 0..names.len { if i > 0 { bore.put(mut out, " ") else |_| {} }; bore.put(mut out, names[i]) else |_| {} }
+    if names.len > 0 { bore.put(mut out, "\n") else |_| {} }
+    bore.finish(mut out, "users", 0)
+}
