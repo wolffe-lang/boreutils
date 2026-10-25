@@ -2,7 +2,9 @@
 //! documented predicates, measured black-box. Never implementation source.
 //! Integers compare normalized decimal strings: GNU 9.11 accepts values
 //! larger than intmax_t, so converting to a machine integer is incorrect.
-//! Access checks use effective ids and Unix mode bits; ACLs lack a surface.
+//! Access checks use effective ids and Unix mode bits. R-bu35-6=B keeps
+//! these useful predicates with named ACL/read-only-mount exceptions; see
+//! notes/bu35-evidence/effective-access-issue.txt (wolf-lang#685).
 
 struct PredicateScan { at: int, error: str, last: str, bracket: bool }
 

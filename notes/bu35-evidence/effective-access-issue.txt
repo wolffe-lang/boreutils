@@ -1,0 +1,30 @@
+Repository: wolffe-lang/wolf-std
+Title: faccessat(AT_EACCESS) / euidaccess: an effective-access builtin for test -r/-w/-x
+
+At wolf 0.2.35 / lupin 0.1.56 / bundled std 2386522e there is no access
+predicate for a path using effective uid/gid, supplementary groups, ACLs,
+capabilities and mount flags. fs_stat gives Unix permission bits, but this
+cannot express two documented GNU test behaviors:
+
+1. In an owned disposable Ubuntu 24.04 container, create a root-owned
+mode-000 file, setfacl -m u:1000:r--, then as uid/gid 1000 with no extra
+groups, run GNU 9.11 test -r FILE. GNU exits 0. boreutils' effective-id and
+mode-bit predicate exits 1. ACL metadata is itself absent (wolf-lang#685).
+2. In that container, bind the boreutils checkout read-only. As container
+root, GNU 9.11 test -w tests/fixtures/bu35-logins.utmp exits 1; boreutils'
+mode-bit predicate exits 0. faccessat sees the read-only mount (EROFS).
+
+The reproducible rows are tests/identity-terminal/access-not-yet.py.
+They assert and publish these disagreements as NOT-YET, never hide or
+rewrite the oracle's output. The absent-call compiler witness is
+ tests/gaps/bu35/effective-access/main.lu.
+
+Requested surface: an effective-access predicate, mapped to euidaccess or
+faccessat/faccessat2 with AT_EACCESS (and the host equivalent on Darwin),
+with read/write/execute/existence modes. Return false for ordinary denial;
+retain a named unsupported row where the host cannot make the distinction,
+and expose host errno for unexpected IO. Do not emulate ACLs by mode bits.
+
+R-bu35-6=B keeps the useful -r/-w/-x predicates and their correct ordinary
+mode-bit/root rules, with these two named exceptions. Root reads/writes
+regardless of mode, and executes only when some execute bit is present.
