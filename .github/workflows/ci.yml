@@ -516,6 +516,8 @@ jobs:
           echo "BORE_GNU_PREFIX=$prefix" >> "$GITHUB_ENV"
       - name: the pinned toolchain, by digest
         run: tools/fetch-toolchain
+      - name: Darwin oracle and code attribution before the unchanged ls gate
+        run: python3 -I tests/identity-terminal/darwin-attribution.py
       - name: build ls (release)
         run: tools/build ls
       - name: the ls suite, ten times; every run's verdict kept
