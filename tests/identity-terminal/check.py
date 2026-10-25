@@ -141,10 +141,16 @@ try:
     # Missing default database uses host /proc/uptime, not init's start.
     utmp.unlink()
     loads_before=[float(x) for x in pathlib.Path('/proc/loadavg').read_text().split()[:3]]
+    clock_before=time.time()
     r=run(BIN/'uptime',[])
+    clock_after=time.time()
     loads_after=[float(x) for x in pathlib.Path('/proc/loadavg').read_text().split()[:3]]
     assert r[0]==0 and re.fullmatch(rb' [0-9]{2}:[0-9]{2}:[0-9]{2}  up (?:[0-9]+ days? )? *[0-9]+:[0-9]{2},  0 users,  load average: [0-9]+\.[0-9]{2}, [0-9]+\.[0-9]{2}, [0-9]+\.[0-9]{2}\n',r[1]),r
+    clocks={time.strftime('%H:%M:%S',time.gmtime(t)).encode() for t in range(int(clock_before),int(clock_after)+1)}
+    assert r[1][1:9] in clocks,(clock_before,r[1],clock_after)
     match=re.search(rb'up (?:(\d+) days? )? *(\d+):(\d+),',r[1]);days,hours,minutes=match.groups();reported=(int(days or 0)*24+int(hours))*60+int(minutes)
+    canonical=(f'{int(days)} '+('day' if int(days)==1 else 'days')+f' {int(hours):2d}:{int(minutes):02d}') if days else f'{int(hours):3d}:{int(minutes):02d}'
+    assert r[1].split(b'  up ',1)[1].split(b',',1)[0]==canonical.encode(),r
     expected=float(pathlib.Path('/proc/uptime').read_text().split()[0])/60
     assert 0<=expected-reported<2,(reported,expected)
     loads=[float(x) for x in re.search(rb'load average: ([0-9.]+), ([0-9.]+), ([0-9.]+)',r[1]).groups()]
