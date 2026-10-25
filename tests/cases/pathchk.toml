@@ -1,0 +1,433 @@
+# POSIX portable limits and GNU 9.11 black-box paths.
+
+[[case]]
+name = "0 [] ''"
+args = [""]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "1 [] 'a'"
+args = ["a"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "2 [] 'a/b'"
+args = ["a/b"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "3 [] '/'"
+args = ["/"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "4 [] '//'"
+args = ["//"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "5 [] 'a/-b'"
+args = ["a/-b"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "6 [] 'a b'"
+args = ["a b"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "7 [] 'a\\nb'"
+args = ["a\nb"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "8 [] '\u00e9'"
+args = ["\u00e9"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "9 [] 'aaaaaaaaaaaaaa'"
+args = ["aaaaaaaaaaaaaa"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "10 [] 'aaaaaaaaaaaaaaa'"
+args = ["aaaaaaaaaaaaaaa"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "11 [] 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'"
+args = ["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "12 [] 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'"
+args = ["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "13 [] 'a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a'"
+args = ["a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "14 [] 'a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/'"
+args = ["a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "15 [] 'file/child'"
+args = ["file/child"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "16 [] 'dir/child'"
+args = ["dir/child"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "17 [] 'missing/child'"
+args = ["missing/child"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "18 ['-p'] ''"
+args = ["-p", ""]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "19 ['-p'] 'a'"
+args = ["-p", "a"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "20 ['-p'] 'a/b'"
+args = ["-p", "a/b"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "21 ['-p'] '/'"
+args = ["-p", "/"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "22 ['-p'] '//'"
+args = ["-p", "//"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "23 ['-p'] 'a/-b'"
+args = ["-p", "a/-b"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "24 ['-p'] 'a b'"
+args = ["-p", "a b"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "25 ['-p'] 'a\\nb'"
+args = ["-p", "a\nb"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "26 ['-p'] '\u00e9'"
+args = ["-p", "\u00e9"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "27 ['-p'] 'aaaaaaaaaaaaaa'"
+args = ["-p", "aaaaaaaaaaaaaa"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "28 ['-p'] 'aaaaaaaaaaaaaaa'"
+args = ["-p", "aaaaaaaaaaaaaaa"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "29 ['-p'] 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'"
+args = ["-p", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "30 ['-p'] 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'"
+args = ["-p", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "31 ['-p'] 'a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a'"
+args = ["-p", "a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "32 ['-p'] 'a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/'"
+args = ["-p", "a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "33 ['-p'] 'file/child'"
+args = ["-p", "file/child"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "34 ['-p'] 'dir/child'"
+args = ["-p", "dir/child"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "35 ['-p'] 'missing/child'"
+args = ["-p", "missing/child"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "36 ['-P'] ''"
+args = ["-P", ""]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "37 ['-P'] 'a'"
+args = ["-P", "a"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "38 ['-P'] 'a/b'"
+args = ["-P", "a/b"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "39 ['-P'] '/'"
+args = ["-P", "/"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "40 ['-P'] '//'"
+args = ["-P", "//"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "41 ['-P'] 'a/-b'"
+args = ["-P", "a/-b"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "42 ['-P'] 'a b'"
+args = ["-P", "a b"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "43 ['-P'] 'a\\nb'"
+args = ["-P", "a\nb"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "44 ['-P'] '\u00e9'"
+args = ["-P", "\u00e9"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "45 ['-P'] 'aaaaaaaaaaaaaa'"
+args = ["-P", "aaaaaaaaaaaaaa"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "46 ['-P'] 'aaaaaaaaaaaaaaa'"
+args = ["-P", "aaaaaaaaaaaaaaa"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "47 ['-P'] 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'"
+args = ["-P", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "48 ['-P'] 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'"
+args = ["-P", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "49 ['-P'] 'a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a'"
+args = ["-P", "a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "50 ['-P'] 'a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/'"
+args = ["-P", "a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "51 ['-P'] 'file/child'"
+args = ["-P", "file/child"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "52 ['-P'] 'dir/child'"
+args = ["-P", "dir/child"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "53 ['-P'] 'missing/child'"
+args = ["-P", "missing/child"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "54 ['--portability'] ''"
+args = ["--portability", ""]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "55 ['--portability'] 'a'"
+args = ["--portability", "a"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "56 ['--portability'] 'a/b'"
+args = ["--portability", "a/b"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "57 ['--portability'] '/'"
+args = ["--portability", "/"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "58 ['--portability'] '//'"
+args = ["--portability", "//"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "59 ['--portability'] 'a/-b'"
+args = ["--portability", "a/-b"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "60 ['--portability'] 'a b'"
+args = ["--portability", "a b"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "61 ['--portability'] 'a\\nb'"
+args = ["--portability", "a\nb"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "62 ['--portability'] '\u00e9'"
+args = ["--portability", "\u00e9"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "63 ['--portability'] 'aaaaaaaaaaaaaa'"
+args = ["--portability", "aaaaaaaaaaaaaa"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "64 ['--portability'] 'aaaaaaaaaaaaaaa'"
+args = ["--portability", "aaaaaaaaaaaaaaa"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "65 ['--portability'] 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'"
+args = ["--portability", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "66 ['--portability'] 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'"
+args = ["--portability", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "67 ['--portability'] 'a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a'"
+args = ["--portability", "a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "68 ['--portability'] 'a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/'"
+args = ["--portability", "a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/a/"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "69 ['--portability'] 'file/child'"
+args = ["--portability", "file/child"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "70 ['--portability'] 'dir/child'"
+args = ["--portability", "dir/child"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]
+
+[[case]]
+name = "71 ['--portability'] 'missing/child'"
+args = ["--portability", "missing/child"]
+scratch = { file = "x" }
+scratch_dirs = ["dir"]

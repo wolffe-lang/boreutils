@@ -1,0 +1,66 @@
+//! member: false
+//! pathchk — POSIX portable filenames and existing-path search checks.
+//! References: POSIX.1-2024 pathchk; GNU 9.11 manual and black-box runs.
+//! No implementation source. Nonportable mode asks the kernel by stat;
+//! filesystem-specific pathconf limits have no wolf surface.
+use bore
+
+fn bad_character(b: int) -> str {
+    if b < 32 || b >= 127 { return "'\\{b / 64}{b / 8 % 8}{b % 8}'" }
+    bore.quote_always("{b as char}")
+}
+
+fn check(path: str, portable: bool, leading: bool) -> bool {
+    if path == "" && (portable || leading) { bore.warn("pathchk", "empty file name"); return false }
+    if portable {
+        for b in path.bytes() {
+            let n = b as int
+            if !(n >= 65 && n <= 90 || n >= 97 && n <= 122 || n >= 48 && n <= 57 || n == 46 || n == 95 || n == 45 || n == 47) {
+                bore.warn("pathchk", "non-portable character {bad_character(n)} in file name {bore.quote_always(path)}")
+                return false
+            }
+        }
+    }
+    if leading {
+        for part in path.split("/") { if part.starts_with("-") { bore.warn("pathchk", "leading '-' in a component of file name {bore.quote_always(path)}"); return false } }
+    }
+    if portable {
+        if path.len > 255 { bore.warn("pathchk", "limit 255 exceeded by length {path.len} of file name {bore.quote_always(path)}"); return false }
+        for part in path.split("/") {
+            if part.len > 14 { bore.warn("pathchk", "limit 14 exceeded by length {part.len} of file name component {bore.quote_always(part)}"); return false }
+        }
+        return true
+    }
+    let _ = fs_stat(path) else |e| {
+        let why = bore.io_error()
+        match e {
+            not_found => {
+                if path != "" { return true }
+            },
+            _ => {},
+        }
+        bore.warn("pathchk", "{bore.quote_name(path)}: {why}")
+        return false
+    }
+    true
+}
+
+fn main() -> int {
+    var opts = List[bore.Opt]()
+    (mut opts).push(bore.flag("p", "")); (mut opts).push(bore.flag("P", ""))
+    (mut opts).push(bore.flag("", "portability")); (mut opts).push(bore.flag("", "help")); (mut opts).push(bore.flag("", "version"))
+    let p = bore.parse(opts, env_args(), false)
+    var out = bore.stdout()
+    var portable = false, leading = false
+    for key in p.keys {
+        if key == "help" { bore.put(mut out, "Usage: pathchk [OPTION]... NAME...\nCheck pathnames. -p checks the portable character set and POSIX minimum limits; -P rejects empty names and leading hyphens. --portability combines both.\n") else |_| {}; return bore.finish(mut out, "pathchk", 0) }
+        if key == "version" { bore.put(mut out, bore.version_text("pathchk")) else |_| {}; return bore.finish(mut out, "pathchk", 0) }
+        if key == "p" || key == "portability" { portable = true }
+        if key == "P" || key == "portability" { leading = true }
+    }
+    if !bore.ok(p) { return bore.usage_error("pathchk", p.error) }
+    if p.operands.len == 0 { return bore.usage_error("pathchk", "missing operand") }
+    var status = 0
+    for path in p.operands { if !check(path, portable, leading) { status = 1 } }
+    status
+}
