@@ -38,7 +38,10 @@ fn missing_components(path: str) -> bool {
                 let mid = (lo + hi) / 2
                 if too_long(ancestor + "/" + "a".repeat(mid)) { hi = mid } else { lo = mid }
             }
-            bore.warn("pathchk", "limit {lo} exceeded by length {part.len} of file name component {bore.quote_always(part)}")
+            bore.warn(
+                "pathchk",
+                "limit {lo} exceeded by length {part.len} of file name component {bore.quote_always(part)}",
+            )
             return false
         }
         if !missing {
