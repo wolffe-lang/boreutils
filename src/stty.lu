@@ -78,8 +78,9 @@ fn main() -> int {
         if !bore.built_for_linux() && r.len > 0 {
             // os.term does not retain errno (#682). These Darwin vnode
             // diagnostics are measured in CI40155240203, not ENOTTY guesses.
-            if r[0] == bore.kind_char() { why = "Operation not supported by device" }
-            else if r[0] == bore.kind_fifo() || r[0] == bore.kind_socket() {
+            if r[0] == bore.kind_char() {
+                why = "Operation not supported by device"
+            } else if r[0] == bore.kind_fifo() || r[0] == bore.kind_socket() {
                 why = "Operation not supported on socket"
             }
         }

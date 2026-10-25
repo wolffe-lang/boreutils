@@ -145,8 +145,11 @@ fn main() -> int {
         if r.kind == 7 {
             if idle {
                 var field = bore.login_idle(r.line, now)
-                if field == "." || field == "?" { field = "  {field}  " }
-                else if field == "old" { field = " old " }
+                if field == "." || field == "?" {
+                    field = "  {field}  "
+                } else if field == "old" {
+                    field = " old "
+                }
                 text += " " + field + " " + bore.space_padded(r.pid, 11)
             }
             if r.host != "" { text += " ({r.host})" }
