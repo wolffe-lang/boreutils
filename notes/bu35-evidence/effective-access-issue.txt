@@ -24,10 +24,16 @@ Witnesses, only in an owned disposable Ubuntu 24.04 container:
   GNU 9.11 test -r and boreutils both exit 0 (parity, no exception).
 - read-only source bind; actor root with equal ids: GNU and boreutils
   test -w both exit 1 (parity, no exception).
-- the ACL file with real uid/gid 0 but effective uid/gid 1000: GNU test
-  -r exits 0; boreutils' effective-id mode-bit fallback exits 1 (NOT-YET).
+- the ACL file with real uid/gid 1001 but effective uid/gid 1000: GNU
+  test -r and boreutils' mode-bit fallback both exit 1, despite a real
+  read (cat) succeeding under those same ids. GNU shares this limitation.
 - the read-only bind with real uid/gid 1000 but effective uid/gid 0:
-  GNU test -w exits 1; boreutils' fallback exits 0 (NOT-YET).
+  GNU test -w and boreutils' fallback both exit 0. A non-truncating
+  O_WRONLY open, with no bytes written, fails EROFS. GNU shares this too.
+
+These are measured shared limitations, NOT invented GNU-vs-boreutils
+NOT-YET rows. R-bu35-7 asks how to document the oracle's set-id limitation;
+the recommendation is keep compatibility and publish the witnesses.
 
 Reproducer: tests/identity-terminal/access-not-yet.py. The positive
 2-argument witness is tests/identity-terminal/access-real/main.lu.
