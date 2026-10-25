@@ -17,9 +17,9 @@
 //! most stop at the last change of RULE and carry a POSIX rule in a
 //! footer for everything after it, so the footer is read too.
 //!
-//! **What this does not do, named:** leap seconds (the `right/` zones:
-//! their table is skipped, so those zones read 27 seconds off), and a
-//! zones' special leap-second timescale.
+//! Leap-second corrections in right/ zones remain uninterpreted.
+//! date rejects such tables explicitly; older callers retain their
+//! documented limit. Zone abbreviations are retained for date %Z.
 //!
 //! References consulted: RFC 8536 (the TZif format); POSIX.1-2024 XBD
 //! 8.3 (the `TZ` variable); the days-from-civil arithmetic is the
@@ -67,6 +67,7 @@ pub struct Zone {
     offsets: List[int],
     names: List[str],
     first_name: str,
+    leap_table: bool,
     first: int,
     rule: Rule,
 }
@@ -81,7 +82,7 @@ fn no_rule() -> Rule {
 
 /// UTC: no change, no offset.
 pub fn utc() -> Zone {
-    Zone { times: List[int](), offsets: List[int](), names: List[str](), first_name: "UTC", first: 0, rule: no_rule() }
+    Zone { times: List[int](), offsets: List[int](), names: List[str](), first_name: "UTC", leap_table: false, first: 0, rule: no_rule() }
 }
 
 /// Whether `TZ` is not in the environment at all.
@@ -203,6 +204,7 @@ fn parse_tzif(mut z: Zone, b: List[byte]) -> bool {
     if typecnt == 0 || tail > b.len {
         return false
     }
+    z.leap_table = leaps > 0
     var k = 0
     while k < timecnt {
         let kind = b[kinds_at + k] as int

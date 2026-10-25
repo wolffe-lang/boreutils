@@ -113,8 +113,12 @@ fn date_epoch(s: str) -> Instant ! {invalid, unread} {
     Instant { secs: seconds, nanos: ns }
 }
 
+/// Date input failures: invalid syntax, a named unimplemented grammar,
+/// or a TZif leap table whose timescale is not supported.
+pub error DateReadFailed = {invalid, unread, leap_zone}
+
 /// Input parsing is independent of the clock: tests inject now explicitly.
-pub fn date_read(text: str, zone: Zone, now: Instant) -> Instant ! DateFailed {
+pub fn date_read(text: str, zone: Zone, now: Instant) -> Instant ! DateReadFailed {
     var s = text.trim()
     var z = copy zone
     if s.starts_with("TZ=\"") {
@@ -132,6 +136,7 @@ pub fn date_read(text: str, zone: Zone, now: Instant) -> Instant ! DateFailed {
         z = zone_named(label)
         s = s[k..].trim()
     }
+    if z.leap_table { return leap_zone }
     if s.starts_with("@") { return date_epoch(s[1..]) }
     let tok = date_tokens(s.lower())?
     let n = tok.len
