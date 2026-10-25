@@ -4,7 +4,7 @@
 //! larger than intmax_t, so converting to a machine integer is incorrect.
 //! Access checks use effective ids and Unix mode bits; ACLs lack a surface.
 
-struct PredicateScan { at: int, error: str, last: str }
+struct PredicateScan { at: int, error: str, last: str, bracket: bool }
 
 fn predicate_integer(s: str) -> str ! {invalid} {
     var v = s.trim()
@@ -124,17 +124,22 @@ fn predicate_atom(args: List[str], mut scan: PredicateScan) -> bool {
     if word == "!" { return !predicate_atom(args, mut scan) }
     if word == "(" {
         let begin = scan.at
+        if begin == args.len { predicate_missing(args, mut scan); return false }
         var end = begin
         var depth = 0
         while end < args.len {
-            if args[end] == ")" && depth == 0 { break }
-            if args[end] == "(" { depth += 1 }
-            if args[end] == ")" { depth -= 1 }
+            if args[end] == ")" && depth == 0 && end > begin { break }
+            if args[end] == "(" && !(end == begin && end + 1 < args.len && args[end + 1] == ")") { depth += 1 }
+            if args[end] == ")" && depth > 0 { depth -= 1 }
             end += 1
         }
         let result = predicate_eval(args[begin..end], mut scan)
+        if scan.error.starts_with("extra argument ") {
+            scan.error = "')' expected, found " + scan.error[15..]
+            return false
+        }
         if scan.error != "" { return false }
-        if end == args.len { scan.error = "')' expected"; return false }
+        if end == args.len { scan.error = if scan.bracket then "')' expected, found ']'" else "')' expected"; return false }
         scan.at = end + 1
         return result
     }
@@ -213,7 +218,7 @@ pub fn predicate_main(prog: str) -> int {
         if args.len == 0 || args[args.len - 1] != "]" { warn("[", "missing ']' ".trim_end()); return 2 }
         let _ = (mut args).pop() else ""
     }
-    var scan = PredicateScan { at: 0, error: "", last: if args.len == 0 then "" else args[args.len - 1] }
+    var scan = PredicateScan { at: 0, error: "", bracket: prog == "[", last: if args.len == 0 then "" else args[args.len - 1] }
     let result = predicate_eval(args, mut scan)
     if scan.error != "" { warn(prog, scan.error); return 2 }
     if result then 0 else 1
