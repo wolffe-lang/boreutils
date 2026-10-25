@@ -154,7 +154,7 @@ pub fn date_format(fmt: str, t: Instant, z: Zone) -> str ! {unread} {
             zero = true
         } else if d == "d" || d == "e" {
             value = "{c.day}"
-            natural = 2
+            natural = 1
             zero = d == "d"
         } else if d == "H" || d == "k" {
             value = "{c.hour}"
