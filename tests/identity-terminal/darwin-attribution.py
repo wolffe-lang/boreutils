@@ -13,6 +13,8 @@ FAMILIES=['dir','vdir','numfmt','od']
 base=pathlib.Path(tempfile.mkdtemp(prefix='bu35-darwin-',dir=os.environ['RUNNER_TEMP']))
 logs=base/'logs';logs.mkdir()
 print('ATTRIBUTION_ROOT',base,flush=True)
+print('RUNNER_PROVENANCE',json.dumps({k:os.environ.get(k,'') for k in ['ImageOS','ImageVersion','RUNNER_OS','RUNNER_ARCH']},sort_keys=True),platform.platform(),flush=True)
+print('COMPILER_PROVENANCE',subprocess.check_output(['clang','--version']).decode(),flush=True)
 def command(argv,cwd=ROOT,env=None,log=None):
     if log:
         with log.open('w') as f:r=subprocess.run(argv,cwd=cwd,env=env,stdout=f,stderr=subprocess.STDOUT)
