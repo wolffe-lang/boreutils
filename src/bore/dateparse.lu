@@ -185,7 +185,9 @@ pub fn date_read(text: str, zone: Zone, now: Instant) -> Instant ! DateReadFaile
             }
             if b == 92 { k += 1; if k >= s.len { return invalid } }
             var end = k + 1
-            while end < s.len && s.bytes()[end] as int >= 128 && s.bytes()[end] as int < 192 { end += 1 }
+            while end < s.len && s.bytes()[end] as int >= 128 && s.bytes()[end] as int < 192 {
+                end += 1
+            }
             label += s[k..end]
             k = end
         }

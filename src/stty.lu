@@ -57,6 +57,7 @@ fn main() -> int {
         }
         k += 1
     }
+    let quoted = if named then bore.quote_name(device) else bore.quote_always(device)
     if all && save {
         return bore.usage_error(
             "stty",
@@ -66,7 +67,7 @@ fn main() -> int {
     var fd = 0
     if named {
         fd = fs_open_mode(device, 5) else |_| {
-            bore.warn("stty", "{bore.quote_always(device)}: {bore.io_error()}")
+            bore.warn("stty", "{quoted}: {bore.io_error()}")
             return 1
         }
     }
@@ -74,11 +75,11 @@ fn main() -> int {
     if !(os_isatty(fd) else false) {
         var why = "Inappropriate ioctl for device"
         let _ = fs_fstat_record(fd) else |_| { why = bore.io_error(); List[int]() }
-        bore.warn("stty", "{bore.quote_always(device)}: {why}")
+        bore.warn("stty", "{quoted}: {why}")
         return 1
     }
     let packed = os_term_mode(fd) else |_| {
-        bore.warn("stty", "{bore.quote_always(device)}: {bore.io_error()}")
+        bore.warn("stty", "{quoted}: {bore.io_error()}")
         return 1
     }
     if all || save || settings.len == 0 {
@@ -145,7 +146,7 @@ fn main() -> int {
             changed = true
         } else if word == "size" {
             let (rows, cols) = os_term_size(fd) else |_| {
-                bore.warn("stty", "{bore.quote_always(device)}: {bore.io_error()}")
+                bore.warn("stty", "{quoted}: {bore.io_error()}")
                 return 1
             }
             bore.put(mut out, "{rows} {cols}\n") else |_| {}
@@ -160,7 +161,7 @@ fn main() -> int {
     }
     if changed {
         os_term_set_mode(fd, term.pack(mode)) else |_| {
-            bore.warn("stty", "{bore.quote_always(device)}: {bore.io_error()}")
+            bore.warn("stty", "{quoted}: {bore.io_error()}")
             return 1
         }
     }

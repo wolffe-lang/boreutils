@@ -55,7 +55,10 @@ pub fn login_records(path: str) -> List[LoginRecord] {
             secs: login_word(b, at + 340, 4),
             termination: login_word(b, at + 332, 2),
             exit_code: login_word(b, at + 334, 2),
-            valid_text: login_valid(b, at + 8, 32) && login_valid(b, at + 40, 4) && login_valid(b, at + 44, 32) && login_valid(b, at + 76, 256),
+            valid_text: login_valid(b, at + 8, 32) &&
+                login_valid(b, at + 40, 4) &&
+                login_valid(b, at + 44, 32) &&
+                login_valid(b, at + 76, 256),
         })
         at += 384
     }

@@ -10,8 +10,14 @@ struct PredicateScan { at: int, error: str, last: str, bracket: bool }
 
 fn predicate_integer(s: str) -> str ! {invalid} {
     var begin = 0, end = s.len
-    while begin < end { let b = s.bytes()[begin] as int; if b == 32 || b >= 9 && b <= 13 { begin += 1 } else { break } }
-    while end > begin { let b = s.bytes()[end - 1] as int; if b == 32 || b >= 9 && b <= 13 { end -= 1 } else { break } }
+    while begin < end {
+        let b = s.bytes()[begin] as int
+        if b == 32 || b >= 9 && b <= 13 { begin += 1 } else { break }
+    }
+    while end > begin {
+        let b = s.bytes()[end - 1] as int
+        if b == 32 || b >= 9 && b <= 13 { end -= 1 } else { break }
+    }
     var v = s[begin..end]
     var negative = false
     if v.starts_with("+") || v.starts_with("-") { negative = v.starts_with("-"); v = v[1..] }
@@ -108,7 +114,7 @@ fn predicate_one(op: str, word: str, mut scan: PredicateScan) -> bool {
     if op == "-z" { return word.len == 0 }
     if op == "-t" {
         let integer = predicate_integer(word) else |_| {
-            scan.error = "invalid integer {quote_always(word)}"
+            scan.error = "invalid integer {quote(word)}"
             return false
         }
         let fd = integer.to_int() else |_| { return false }
@@ -158,11 +164,11 @@ fn predicate_two(a: str, op: str, b: str, mut scan: PredicateScan) -> bool {
         return if op == "-nt" then cmp > 0 else cmp < 0
     }
     let av = predicate_integer(a) else |_| {
-        scan.error = "invalid integer {quote_always(a)}"
+        scan.error = "invalid integer {quote(a)}"
         return false
     }
     let bv = predicate_integer(b) else |_| {
-        scan.error = "invalid integer {quote_always(b)}"
+        scan.error = "invalid integer {quote(b)}"
         return false
     }
     let cmp = predicate_compare(av, bv)
@@ -176,7 +182,7 @@ fn predicate_two(a: str, op: str, b: str, mut scan: PredicateScan) -> bool {
 
 fn predicate_missing(args: List[str], mut scan: PredicateScan) {
     let _ = args
-    scan.error = "missing argument after {quote_always(scan.last)}"
+    scan.error = "missing argument after {quote(scan.last)}"
 }
 
 fn predicate_atom(args: List[str], mut scan: PredicateScan) -> bool {
@@ -222,7 +228,7 @@ fn predicate_atom(args: List[str], mut scan: PredicateScan) -> bool {
         return predicate_one(word, value, mut scan)
     }
     if word.len == 2 && word.starts_with("-") {
-        scan.error = "{quote_always(word)}: unary operator expected"
+        scan.error = "{quote(word)}: unary operator expected"
         return false
     }
     word.len > 0
@@ -256,7 +262,7 @@ fn predicate_eval(args: List[str], mut scan: PredicateScan) -> bool {
         if args[0] == "!" { return args[1].len == 0 }
         if predicate_unary(args[0]) { return predicate_one(args[0], args[1], mut scan) }
         if args[0].starts_with("-") {
-            scan.error = "{quote_always(args[0])}: unary operator expected"
+            scan.error = "{quote(args[0])}: unary operator expected"
         } else {
             predicate_missing(args, mut scan)
         }
@@ -267,7 +273,7 @@ fn predicate_eval(args: List[str], mut scan: PredicateScan) -> bool {
         if args[0] == "!" { return !predicate_eval(args[1..], mut scan) }
         if args[0] == "(" && args[2] == ")" { return args[1].len != 0 }
         if args[1] != "-a" && args[1] != "-o" {
-            scan.error = "{quote_always(args[1])}: binary operator expected"
+            scan.error = "{quote(args[1])}: binary operator expected"
             return false
         }
     }
@@ -276,7 +282,7 @@ fn predicate_eval(args: List[str], mut scan: PredicateScan) -> bool {
     scan.at = 0
     let result = predicate_or(args, mut scan)
     if scan.error == "" && scan.at < args.len {
-        scan.error = "extra argument {quote_always(args[scan.at])}"
+        scan.error = "extra argument {quote(args[scan.at])}"
     }
     result
 }

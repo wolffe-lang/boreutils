@@ -99,7 +99,10 @@ fn main() -> int {
     var names = "", total = 0
     if count {
         for r in rows {
-            if r.kind == 7 && !r.valid_text { bore.warn("who", "non-UTF-8 utmp text is unsupported (raw paths: wolf-lang#687)"); return 1 }
+            if r.kind == 7 && !r.valid_text {
+                bore.warn("who", "non-UTF-8 utmp text is unsupported (raw paths: wolf-lang#687)")
+                return 1
+            }
             if r.kind == 7 && r.user != "" && (p.operands.len == 1 || bore.login_live(r)) {
                 if total > 0 { names += " " }
                 names += r.user
@@ -120,7 +123,10 @@ fn main() -> int {
     }
     let z = bore.zone(), now = time_unix_ms() / 1000
     for r in rows {
-            if r.kind == 7 && !r.valid_text { bore.warn("who", "non-UTF-8 utmp text is unsupported (raw paths: wolf-lang#687)"); return 1 }
+        if r.kind == 7 && !r.valid_text {
+            bore.warn("who", "non-UTF-8 utmp text is unsupported (raw paths: wolf-lang#687)")
+            return 1
+        }
         if r.kind < 0 || r.kind >= selected.len || !selected[r.kind] { continue }
         if r.kind == 7 && (r.user == "" || p.operands.len != 1 && !bore.login_live(r)) { continue }
         if mine && (terminal == "" || r.line != terminal) { continue }

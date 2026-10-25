@@ -137,7 +137,14 @@ pub fn date_format(fmt: str, t: Instant, z: Zone) -> str ! {unread} {
         }
         if fmt.bytes()[k] as int >= 128 {
             var end = k + 1
-            while end < fmt.len && fmt.bytes()[end] as int >= 128 && fmt.bytes()[end] as int < 192 { end += 1 }
+            while end < fmt.len && fmt.bytes()[end] as int >= 128 && fmt.bytes()[end] as int < 192 {
+                end += 1
+            }
+            let directive = k + 1 - start
+            if width > directive && pad != "" {
+                let fill = if pad == "0" then "0" else " "
+                for b in fill.repeat(width - directive).bytes() { (mut bytes).push(b) }
+            }
             for b in fmt[start..end].bytes() { (mut bytes).push(b) }
             k = end
             continue
@@ -312,7 +319,7 @@ pub fn date_format(fmt: str, t: Instant, z: Zone) -> str ! {unread} {
                 "/" +
                 date_pad("{(c.year % 100 + 100) % 100}", 2, pad)
         }
-        if d == "z" && colons < 4 && (pad == " " || pad == "") {
+        if d == "z" && colons < 4 {
             let magnitude = if c.offset < 0 then -c.offset else c.offset
             let sign = if c.offset < 0 then "-" else "+"
             if colons == 0 {
@@ -320,7 +327,8 @@ pub fn date_format(fmt: str, t: Instant, z: Zone) -> str ! {unread} {
                 natural = 5
             } else {
                 let original = date_zone_text(c.offset, colons)
-                value = sign + "{magnitude / 3600}" + original[3..]
+                let colon = original.find(":") else original.len
+                value = sign + "{magnitude / 3600}" + original[colon..]
                 natural = original.len
             }
         }

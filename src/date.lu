@@ -12,9 +12,9 @@ use bore
 
 fn invalid_date(text: str, unread: bool) {
     if unread {
-        bore.warn("date", "--date: unsupported date grammar: {bore.quote_always(text)}")
+        bore.warn("date", "--date: unsupported date grammar: {bore.quote(text)}")
     } else {
-        bore.warn("date", "invalid date {bore.quote_always(text)}")
+        bore.warn("date", "invalid date {bore.quote(text)}")
     }
 }
 
