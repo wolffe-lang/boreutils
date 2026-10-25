@@ -8,7 +8,7 @@ import argparse,copy,fcntl,os,pathlib,pty,re,struct,subprocess,termios,time
 p=argparse.ArgumentParser();p.add_argument('--bin',default='target/release');args=p.parse_args()
 ROOT=pathlib.Path(__file__).resolve().parents[2]
 BIN=(ROOT/args.bin).resolve();GNU=ROOT/'.gnu-bin/bin'
-if os.environ.get('BORE_UTMP_CONTAINER')!='1' or not pathlib.Path('/run/.containerenv').exists():
+if os.environ.get('BORE_UTMP_CONTAINER')!='1' or not (pathlib.Path('/run/.containerenv').exists() or pathlib.Path('/.dockerenv').exists()):
     raise SystemExit('REFUSED: identity/terminal integration requires its disposable container')
 for u in ['date','test','[','uname','hostname','hostid','arch','users','who','uptime','pinky','pathchk','stty','chcon','runcon']:
     if not (BIN/u).is_file():raise SystemExit(f'REFUSED: missing {BIN/u}')

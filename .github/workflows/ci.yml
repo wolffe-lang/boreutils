@@ -221,6 +221,23 @@ jobs:
       - name: the differential suite against the oracle of record
         run: tools/difftest
 
+      # bu35. Only this container's ptys and login database are changed;
+      # complete termios state is compared, not merely successful exits.
+      - name: Identity and terminal state in a disposable container (bu35)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --memory 4g -e BORE_UTMP_CONTAINER=1 \
+            -v "$PWD:/lane:ro" -w /lane ubuntu:24.04 bash -c '
+              set -euo pipefail
+              ulimit -c 0
+              apt-get update -qq
+              apt-get install -y -qq python3 util-linux
+              taskset -c 0-3 python3 -I tests/identity-terminal/check.py
+              taskset -c 0-3 python3 -I tests/identity-terminal/selinux-field.py
+            '
+
       - name: Checksum vectors, interoperability and bounded memory (bu32)
         run: tools/checksumtest
 
