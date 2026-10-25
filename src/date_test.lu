@@ -24,7 +24,10 @@ fn main() {
     let early = bore.epoch_of(1, 1, 2, 3, 4, 5)
     assert(model("%c", early, 1, false) == "Tue Jan  2 03:04:05 1", "Linux C composite year")
     assert(model("%c", early, 1, true) == "Tue Jan  2 03:04:05 0001", "Darwin C composite year")
-    assert(model("%Ec", early, 1, true) == "Tue Jan  2 03:04:05 0001", "Darwin alternate C composite")
+    assert(
+        model("%Ec", early, 1, true) == "Tue Jan  2 03:04:05 0001",
+        "Darwin alternate C composite",
+    )
     assert(model("%-N", 0, 123456789, false) == "123456789", "Linux default precision")
     assert(model("%-N", 0, 123456789, true) == "123456", "Darwin default precision")
     assert(model("%-8N", 0, 123456789, true) == "12345678", "explicit precision unchanged")
