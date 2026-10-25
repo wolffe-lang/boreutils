@@ -73,6 +73,11 @@ enough on any host: no distribution's package holds coreutils' own
 your shell runs is its builtin), so `tools/fetch-oracle` builds the
 oracle with it and `tools/difftest` refuses any other `kill`.
 
+The oracle build also enables GNU's optional `arch`, `hostname` and
+`uptime`, and verifies their version identities. The `--without-selinux`
+build does not install `chcon` or `runcon`; those two have separate,
+explicitly field-only GNU 9.4 checks, not GNU 9.11 parity claims.
+
 **Windows is out of scope**: the oracle of record is a unix build of GNU
 coreutils, and CI runs on linux and macOS. (The reason used to be that
 the only byte-exact route to standard input and output was reopening
@@ -163,7 +168,7 @@ derives no boreutils code from GPL source.
 
 Every shipped utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus, except where a case says otherwise and is
-skipped with its reason. The combined corpus holds **12,837 cases across 92 case files**; `kill` has
+skipped with its reason. The combined corpus holds **16,480 cases across 105 case files**; `kill` has
 365 more that SEND, each run in a container of its own (`tests/kill/`,
 `tools/killtest`: **365 passed, 0 failed** on hasu at bu30, groups,
 `kill 0` and `kill -1` among them), `timeout` 163 more that run a
@@ -226,6 +231,18 @@ preservation, and bounded numeric/context-record allocations. Non-round-robin
 `split` partitions, `csplit`, `fmt`, `pr`, `ptx` and `od` currently retain
 input in memory; this pass makes no constant-memory claim for those readers.
 No new utility has been speed-benchmarked.
+
+The identity/terminal family adds fifteen command binaries representing
+fourteen utility units: `date`, `test` and `[`, `uname`, `hostname`,
+`hostid`, `arch`, `uptime`, `users`, `who`, `pinky`, `pathchk`, `stty`,
+`chcon` and `runcon`. Its 3,643 differential cases use fixed date inputs,
+constructed Linux utmp records and input ptys. The container-only
+`tests/identity-terminal/check.py` compares complete termios state,
+not just exit status, and checks synthetic live/stale login records.
+`selinux-field.py` separately labels every comparison against GNU 9.4;
+`access-not-yet.py` checks ordinary kernel-access parity and the two
+GNU-shared differing-id limitations.
+Linux CI runs all three inside a disposable Ubuntu 24.04 container.
 
 The preceding text-tool pass added `base64`, `base32`, `comm`, `join`, `tsort` and
 `shuf`. Both codecs stream in bounded chunks, including malformed padding
@@ -1366,7 +1383,7 @@ new security-sensitive designs.
 | `numfmt` | all unit families, field ranges, rounding, padding/formats, headers, invalid modes and NUL records; `--debug` refused | not benched |
 | `factor` | every unsigned 64-bit input, sorted factors and exponents; larger integers refused (wolf-std#100) | not benched |
 | `basenc` | eight encodings, decoding, garbage handling and wrapping; `--base58` refused | not benched |
-| `uname` | blocked on the listed surface: raw kernel fields; `os_name` and `os_arch` are normalized lowercase words, and node/release/version have no call | — |
+| `uname` | raw Linux kernel fields via procfs, canonical field order; raw macOS fields refused (#907) | not benched |
 | `df` | blocked by wolf-lang#686; compiler witness and proposed PAX row retained | — |
 | `du` | allocation/apparent/inode traversal; named files0/time-format limits | not benched |
 | `dd` | bounded block copies, conversions, EIO recovery and signal reports; named open limits | not benched |
@@ -1380,6 +1397,21 @@ new security-sensitive designs.
 | `nice` | not yet: Linux reader and explicit -n 0; priority changes refuse | not benched |
 | `nohup` | hangup ignored across exec; terminal streams and HOME fallback | not benched |
 | `stdbuf` | not yet for arbitrary children; explicit environment-aware opt-in only | not benched |
+
+| `date` | C-locale conversions, flags/widths, ISO/RFC output, file/reference inputs, calendar/weekday/relative grammar and named TZif/POSIX zones; named limits below | not benched |
+| `test` | POSIX argument-count/precedence grammar, GNU predicates, arbitrary-size integer comparisons; mode-bit access exceptions below | not benched |
+| `[` | shared test grammar plus the required closing bracket | not benched |
+| `hostname` | Linux nodename; setting and raw macOS fields refused | not benched |
+| `hostid` | Linux persisted ID or files-first hosts IPv4 derivation; DNS-only lookup refused | not benched |
+| `arch` | uname's machine field | not benched |
+| `uptime` | Linux procfs load/uptime and utmp boot/count precedence | not benched |
+| `users` | sorted Linux login names, duplicate sessions retained | not benched |
+| `who` | Linux utmp record kinds, options, headers, idle/message status and terminal selection | not benched |
+| `pinky` | Linux login summaries and /etc/passwd long output; DNS lookup refused | not benched |
+| `pathchk` | portable character set, POSIX minimum limits, leading-hyphen rule and native read-only kernel checks | not benched |
+| `stty` | exact supported termios setters and size reader; all missing settings refused by name | not benched |
+| `chcon` | SELinux-disabled failure paths only; field-only GNU 9.4, not GNU 9.11 parity | not benched |
+| `runcon` | SELinux-disabled failure paths, status 125, never executes a command; field-only GNU 9.4 | not benched |
 
 ## Differences from GNU
 
@@ -1420,6 +1452,55 @@ refusals are identified in each utility's row above.
   timeout, sending either to the group it leads, dies of it. This one
   dies of 32 and lives through 33, on which its process holds a handler
   it never installed (`SigCgt`, measured): one `tests/timeout/` row.
+
+
+### Date, access and terminal limits
+
+`date` implements every documented C-locale conversion, case/padding flag,
+field width and colonized zone form. The parser accepts the documented
+ISO, slash/dot/calendar-month, RFC-style, pure-number, weekday and relative
+items, `@seconds`, numeric zones, and an input `TZ="RULE"`. It refuses
+unsupported grammar by name, including obsolescent ambiguous zone words.
+`--debug`'s parser transcript is not yet implemented; `--set`, numeric
+clock setting and `--resolution` lack clock surfaces. The live clock has
+millisecond precision; fixed inputs and reference times retain nanoseconds.
+Widths above 1,000,000, calendar years above 2,000,000,000 and epochs beyond
+63,000,000,000,000,000 seconds are explicit implementation limits. Named
+zones use the existing TZif/POSIX reader; leap-second `right/` tables are
+refused, including a named table missing from the installed zone database.
+GNU 9.11 accepts an unterminated date comment through end of input; this
+matches the binary, despite the manual saying parentheses must balance.
+
+`test -r/-w/-x` ask the kernel's `fs_access` when real and effective uid/gid
+agree. Ordinary ACLs, read-only mounts, immutable files and root's execute
+rule therefore use the kernel's answer. When ids differ, the predicates
+use effective ids/groups and mode bits, matching the measured GNU 9.11
+fallback. GNU itself has this set-id limitation: both
+programs can reject an ACL-granted read or accept a read-only-mount write
+that the actual open would refuse. The independent witnesses distinguish
+these shared limits from ordinary parity; no GNU-vs-boreutils disagreement
+is invented. The effective-access API request is
+`notes/bu35-evidence/effective-access-issue.txt`; the real-id API already
+exists at the pin (wolf-lang#820).
+
+`stty` sets exactly `echo`, `icanon`, `isig`, `ixon`, `iexten`, `icrnl`,
+`opost`, `istrip`, `min` and `time`, plus the `cbreak` alias. `size` reads
+rows/columns; `-F` opens read-only and nonblocking without creating a file.
+Full reports/snapshots (`-a`, `-g`, default and restore), other flags,
+special-character setters, speeds, line discipline, rows/cols setters,
+combinations such as `raw`/`sane`, and drain selection are refused by name.
+The test names 148 unavailable settings/aliases, plus a saved restore form;
+the exact list by termios field is `notes/bu35-evidence/termios-issue.txt`.
+No unsupported flag is silently left unchanged.
+
+`users`, `who`, `pinky` and `uptime` read the documented 384-byte Linux
+utmp ABI. An explicit FILE retains stale sessions; default `users`/`who`
+and uptime counts omit positive pids absent from procfs. `pinky` keeps
+those sessions, as GNU does. Other host layouts, raw non-UTF-8 record text,
+DNS canonicalization and account services outside `/etc/passwd` are named
+limits. `uname`/`hostname` read Linux raw fields from procfs; the raw-field
+builtin remains missing on macOS (#907). `hostid` refuses DNS-only hosts
+rather than substitute a hash or an invented zero.
 
 ## Drop-in readiness
 
@@ -1538,7 +1619,24 @@ table answers it per utility, from the evidence and from nothing else.
 | `factor` | 3 / 3 | 59 / 1, including 10,000 random u64 values | not benched (hasu) | drop-in through 2^64−1; larger integers refused by name |
 | `basenc` | 13 / 14, eight encodings | 404 / 1 | not benched (hasu) | drop-in for scripts that avoid `--base58`, refused by name |
 
-**32 drop-in, 57 drop-in for scripts that avoid a named thing, 3 not yet** (command rows, not the manual's grouped utility units; new checksum
+
+| `date` | scoped above | 388 / 0 | not benched (hasu) | drop-in for the named C-locale grammar, formatting and zone scope above; clock setting/resolution and debug are refused |
+| `test` | grammar and predicates | 1,490 / 0 | not benched (hasu) | drop-in; kernel access for equal ids and mode-bit fallback for differing ids both match GNU 9.11 |
+| `[` | grammar and closing bracket | 1,490 / 0 | not benched (hasu) | drop-in; same measured access behavior as test |
+| `uname` | all documented switches | 98 / 0 | not benched (hasu) | drop-in for Linux raw fields; macOS raw fields are refused (#907) |
+| `hostname` | print only | 5 / 0 | not benched (hasu) | Linux print operation; setting and raw macOS name refused |
+| `hostid` | scoped above | 6 / 0 | not benched (hasu) | Linux persisted ID or files-first hosts address; missing resolver refused |
+| `arch` | common options | 5 / 0 | not benched (hasu) | drop-in |
+| `uptime` | scoped above | 6 / 0 plus clock shape | not benched (hasu) | Linux procfs/utmp, with independent elapsed-time bounds |
+| `users` | FILE and common options | 9 / 0 | not benched (hasu) | Linux utmp with UTF-8 text; default stale-pid filtering included |
+| `who` | scoped above | 27 / 0 | not benched (hasu) | Linux utmp with UTF-8 text; --lookup needs a resolver |
+| `pinky` | scoped above | 15 / 0 plus synthetic live sessions | not benched (hasu) | Linux utmp and /etc/passwd; --lookup needs a resolver |
+| `pathchk` | -p, -P, --portability | 75 / 0 | not benched (hasu) | portable limits and measured native kernel checks; no pathconf builtin |
+| `stty` | exact setters above | 29 / 0 plus full-state pty checks | not benched (hasu) | partial termios surface only; every other setting refused by name |
+| `chcon` | SELinux-disabled paths | 9 field rows | not benched (hasu) | field-only GNU 9.4; no GNU 9.11 parity claim |
+| `runcon` | SELinux-disabled paths | 6 field rows | not benched (hasu) | field-only GNU 9.4, status 125; no GNU 9.11 parity claim |
+
+**35 drop-in, 67 drop-in for scripts that avoid a named thing, 3 not yet, 2 SELinux-disabled field-only** (command rows, not the manual's grouped utility units; new checksum
 rows explicitly require UTF-8 names). (bu28: `kill`'s two named things became one, and `timeout`'s four
 became three narrower ones; bu27: `timeout` arrived with named things, and `kill`'s three
 became two narrower ones; bu24: the six identity tools arrived with a named thing each —
@@ -1552,22 +1650,24 @@ and both times now, and refuses only what it cannot keep, by name. The same evid
 and every skip that is this program's own names its missing surface and
 evidence, with an upstream issue where one is already filed.
 
-**How much of GNU coreutils this is.** GNU coreutils 9.11 documents
-**103 utilities** (its info manual's `invocation` nodes, the four SHA-2
-sums counted as one and `[` as `test`; Arch's build installs 102
-binaries and leaves out `arch`, `chcon`, `runcon`, `hostname`, `kill`
-and `uptime`; `kill` is built only when asked for, which the oracle of
-record now does). boreutils builds **92 command binaries**, representing
-**89 of those 103 utility units (86%)** in the source tree. Three entries
-(`chroot`, priority-changing `nice`, and arbitrary-child `stdbuf`) still
-lack their central operation; excluding them leaves **86 implemented
-utility units (83%)**. `df` is not counted. The four SHA-2 binaries occupy
-one unit in that denominator. Effort is not what
-blocks many of the other 14: some need missing wolf surfaces. Existing
-issues carry witnesses; newly measured gaps below are listed for upstream. The OS surface lane's first cut, s199's
-wolf-lang#426 and #424 (seek, tell, the positional read, and the
-standard descriptors), shipped in 0.2.22, and `tail`, `head` and `wc`
-use it (bu15).
+**How much of GNU coreutils this is.** The full GNU coreutils 9.11 Linux
+program set, including optional and SELinux commands, is **104 utility
+units** when the four SHA-2 sums count as one and `[` folds into `test`.
+boreutils has **107 command binaries, representing 103 of 104 units**;
+**`df` is the exact remainder**, blocked on wolf-lang#686 (boreutils#52).
+`chcon` and `runcon` are counted as reached only as the explicitly
+SELinux-disabled, field-only paths described above, never as GNU 9.11
+parity. `chroot`, priority-changing `nice`, and arbitrary-child `stdbuf`
+still lack their central operation; this is not an "all GNU tools reached"
+claim.
+
+Erratum: the earlier 103-unit denominator was off by one; 107 source
+binaries minus three SHA-2 duplicates and one bracket give 103 reached
+units, and the missing `df` makes the denominator 104.
+
+Existing issues carry witnesses; newly measured gaps below are listed for
+upstream. The seek/standard-descriptor surfaces (wolf-lang#426/#424)
+shipped in 0.2.22 and are used by `tail`, `head` and `wc`.
 
 - **#346** (closed, wolf 0.2.28, s230): a mode at creation
   (`fs_open_perm`, `fs_create_dir_mode`) and a change of one
@@ -1684,10 +1784,10 @@ Newly measured surface gaps (bu30, `notes/bu30/probes/surface.lu`):
 - **Bare `sync` / `sync -f`** need global `sync(2)` and per-filesystem
   `syncfs(2)`. `fs_sync(fd)` and `fs_sync_dir(path)` flush only one object;
   both missing operations are refused by name, not approximated.
-- **`uname`** needs raw sysname, nodename, release, version and machine
-  fields. `os_name()` prints `linux` rather than `Linux` (or `macos`
-  rather than `Darwin`), and `os_arch()` normalizes the machine word.
-  There is no call for `-n`, `-r` or `-v`. No `uname` program is shipped.
+- **Raw `uname` fields** still need a builtin (#907): `os_name()` and
+  `os_arch()` are normalized words, with no raw nodename/release/version.
+  The shipped `uname` reads Linux's procfs fields; raw macOS fields remain
+  refused by name. `hostname` uses the same Linux file, without a setter.
 - **wolf-lang#684, a second consumer:** `truncate -o` needs `st_blksize`,
   not allocated space (`st_blocks`, record word 8). Neither path nor
   handle's 20-word stat record has it, so `-o` is refused by name.
