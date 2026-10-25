@@ -37,6 +37,12 @@ fn main() -> int {
         fd = fs_open_mode(device, 3) else |_| { bore.warn("stty", "{bore.quote_always(device)}: {bore.io_error()}"); return 1 }
     }
     defer { if named { fs_close(fd) else |_| {} } }
+    if !(os_isatty(fd) else false) {
+        var why = "Inappropriate ioctl for device"
+        let _ = fs_fstat_record(fd) else |_| { why = bore.io_error(); List[int]() }
+        bore.warn("stty", "{bore.quote_always(device)}: {why}")
+        return 1
+    }
     let packed = os_term_mode(fd) else |_| { bore.warn("stty", "{bore.quote_always(device)}: {bore.io_error()}"); return 1 }
     if all || save || settings.len == 0 {
         let option = if all then "--all" else (if save then "--save" else "default report")
