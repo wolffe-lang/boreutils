@@ -18,6 +18,36 @@ fn bad_character(b: int) -> str {
     bore.quote_always("{b as char}")
 }
 
+// No pathconf surface is needed to ask the kernel if a candidate
+// component is too long under the last existing ancestor. Nothing is
+// created. Binary search the permitted byte length only after ENAMETOOLONG.
+fn too_long(path: str) -> bool {
+    let _ = fs_stat(path) else |_| { return bore.io_error() == "File name too long" }
+    false
+}
+
+fn missing_components(path: str) -> bool {
+    var ancestor = if path.starts_with("/") then "/" else "."
+    var missing = false
+    for part in path.split("/") {
+        if part == "" { continue }
+        let probe = ancestor + "/" + part
+        if too_long(probe) {
+            var lo = 0, hi = part.len
+            while lo + 1 < hi {
+                let mid = (lo + hi) / 2
+                if too_long(ancestor + "/" + "a".repeat(mid)) { hi = mid } else { lo = mid }
+            }
+            bore.warn("pathchk", "limit {lo} exceeded by length {part.len} of file name component {bore.quote_always(part)}")
+            return false
+        }
+        if !missing {
+            if fs_is_dir(probe) { ancestor = probe } else { missing = true }
+        }
+    }
+    true
+}
+
 fn check(path: str, portable: bool, leading: bool) -> bool {
     if path == "" && (portable || leading) { bore.warn("pathchk", "empty file name"); return false }
     if portable {
@@ -74,7 +104,7 @@ fn check(path: str, portable: bool, leading: bool) -> bool {
         let why = bore.io_error()
         match e {
             not_found => {
-                if path != "" { return true }
+                if path != "" { return missing_components(path) }
             },
             _ => {},
         }
