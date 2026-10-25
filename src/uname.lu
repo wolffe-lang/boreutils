@@ -1,0 +1,44 @@
+//! member: false
+//! uname — raw kernel information, read from Linux procfs.
+//! References: POSIX.1-2024 uname, GNU 9.11 manual/black-box runs,
+//! Linux proc(5). No implementation source. Raw fields on macOS are
+//! refused by name pending wolf-lang#907, not made from normalized names.
+use bore
+
+fn main() -> int {
+    var opts = List[bore.Opt]()
+    let longs = ["kernel-name", "nodename", "kernel-release", "kernel-version", "machine", "processor", "hardware-platform", "operating-system"]
+    let shorts = ["s", "n", "r", "v", "m", "p", "i", "o"]
+    for i in 0..longs.len { (mut opts).push(bore.flag(shorts[i], longs[i])) }
+    (mut opts).push(bore.flag("a", "all"))
+    (mut opts).push(bore.flag("", "help"))
+    (mut opts).push(bore.flag("", "version"))
+    let p = bore.parse(opts, env_args(), bore.permute())
+    var out = bore.stdout()
+    var selected = [false, false, false, false, false, false, false, false]
+    var any = false, all = false
+    for key in p.keys {
+        if key == "help" { bore.put(mut out, "Usage: uname [OPTION]...\nPrint selected kernel, host, architecture and operating-system fields; -a selects all available fields.\n") else |_| {}; return bore.finish(mut out, "uname", 0) }
+        if key == "version" { bore.put(mut out, bore.version_text("uname")) else |_| {}; return bore.finish(mut out, "uname", 0) }
+        if key == "all" { all = true }
+        for i in 0..longs.len { if key == longs[i] { selected[i] = true; any = true } }
+    }
+    if !bore.ok(p) { return bore.usage_error("uname", p.error) }
+    if p.operands.len > 0 { return bore.usage_error("uname", "extra operand {bore.quote_always(p.operands[0])}") }
+    if !any && !all { selected[0] = true }
+    let raw = ["ostype", "hostname", "osrelease", "version"]
+    var text = ""
+    for i in 0..8 {
+        if !all && !selected[i] { continue }
+        if all && (i == 5 || i == 6) { continue }
+        var value = "unknown"
+        if i < 4 {
+            value = bore.machine_field(raw[i]) else |_| { bore.warn("uname", "-{shorts[i]}: raw kernel field unavailable (wolf-lang#907)"); return 1 }
+        } else if i == 4 { value = bore.machine_arch() }
+        else if i == 7 { value = if bore.built_for_linux() then "GNU/Linux" else "Darwin" }
+        if text != "" { text += " " }
+        text += value
+    }
+    bore.put(mut out, text + "\n") else |_| {}
+    bore.finish(mut out, "uname", 0)
+}

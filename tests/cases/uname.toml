@@ -1,0 +1,475 @@
+# GNU 9.11 raw fields, in canonical option order.
+
+[[case]]
+name = "0 []"
+args = []
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "1 ['--help']"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "2 ['--version']"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "3 ['-Q']"
+args = ["-Q"]
+
+[[case]]
+name = "4 ['x', 'y']"
+args = ["x", "y"]
+
+[[case]]
+name = "5 ['-a']"
+args = ["-a"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "6 ['-s']"
+args = ["-s"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "7 ['-n']"
+args = ["-n"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "8 ['-r']"
+args = ["-r"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "9 ['-v']"
+args = ["-v"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "10 ['-m']"
+args = ["-m"]
+
+[[case]]
+name = "11 ['-p']"
+args = ["-p"]
+
+[[case]]
+name = "12 ['-i']"
+args = ["-i"]
+
+[[case]]
+name = "13 ['-o']"
+args = ["-o"]
+
+[[case]]
+name = "14 ['-sn']"
+args = ["-sn"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "15 ['-sr']"
+args = ["-sr"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "16 ['-sv']"
+args = ["-sv"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "17 ['-sm']"
+args = ["-sm"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "18 ['-sp']"
+args = ["-sp"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "19 ['-si']"
+args = ["-si"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "20 ['-so']"
+args = ["-so"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "21 ['-nr']"
+args = ["-nr"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "22 ['-nv']"
+args = ["-nv"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "23 ['-nm']"
+args = ["-nm"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "24 ['-np']"
+args = ["-np"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "25 ['-ni']"
+args = ["-ni"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "26 ['-no']"
+args = ["-no"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "27 ['-rv']"
+args = ["-rv"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "28 ['-rm']"
+args = ["-rm"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "29 ['-rp']"
+args = ["-rp"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "30 ['-ri']"
+args = ["-ri"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "31 ['-ro']"
+args = ["-ro"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "32 ['-vm']"
+args = ["-vm"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "33 ['-vp']"
+args = ["-vp"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "34 ['-vi']"
+args = ["-vi"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "35 ['-vo']"
+args = ["-vo"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "36 ['-mp']"
+args = ["-mp"]
+
+[[case]]
+name = "37 ['-mi']"
+args = ["-mi"]
+
+[[case]]
+name = "38 ['-mo']"
+args = ["-mo"]
+
+[[case]]
+name = "39 ['-pi']"
+args = ["-pi"]
+
+[[case]]
+name = "40 ['-po']"
+args = ["-po"]
+
+[[case]]
+name = "41 ['-io']"
+args = ["-io"]
+
+[[case]]
+name = "42 ['-snr']"
+args = ["-snr"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "43 ['-snv']"
+args = ["-snv"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "44 ['-snm']"
+args = ["-snm"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "45 ['-snp']"
+args = ["-snp"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "46 ['-sni']"
+args = ["-sni"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "47 ['-sno']"
+args = ["-sno"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "48 ['-srv']"
+args = ["-srv"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "49 ['-srm']"
+args = ["-srm"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "50 ['-srp']"
+args = ["-srp"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "51 ['-sri']"
+args = ["-sri"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "52 ['-sro']"
+args = ["-sro"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "53 ['-svm']"
+args = ["-svm"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "54 ['-svp']"
+args = ["-svp"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "55 ['-svi']"
+args = ["-svi"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "56 ['-svo']"
+args = ["-svo"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "57 ['-smp']"
+args = ["-smp"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "58 ['-smi']"
+args = ["-smi"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "59 ['-smo']"
+args = ["-smo"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "60 ['-spi']"
+args = ["-spi"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "61 ['-spo']"
+args = ["-spo"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "62 ['-sio']"
+args = ["-sio"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "63 ['-nrv']"
+args = ["-nrv"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "64 ['-nrm']"
+args = ["-nrm"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "65 ['-nrp']"
+args = ["-nrp"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "66 ['-nri']"
+args = ["-nri"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "67 ['-nro']"
+args = ["-nro"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "68 ['-nvm']"
+args = ["-nvm"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "69 ['-nvp']"
+args = ["-nvp"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "70 ['-nvi']"
+args = ["-nvi"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "71 ['-nvo']"
+args = ["-nvo"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "72 ['-nmp']"
+args = ["-nmp"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "73 ['-nmi']"
+args = ["-nmi"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "74 ['-nmo']"
+args = ["-nmo"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "75 ['-npi']"
+args = ["-npi"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "76 ['-npo']"
+args = ["-npo"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "77 ['-nio']"
+args = ["-nio"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "78 ['-rvm']"
+args = ["-rvm"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "79 ['-rvp']"
+args = ["-rvp"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "80 ['-rvi']"
+args = ["-rvi"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "81 ['-rvo']"
+args = ["-rvo"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "82 ['-rmp']"
+args = ["-rmp"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "83 ['-rmi']"
+args = ["-rmi"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "84 ['-rmo']"
+args = ["-rmo"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "85 ['-rpi']"
+args = ["-rpi"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "86 ['-rpo']"
+args = ["-rpo"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "87 ['-rio']"
+args = ["-rio"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "88 ['-vmp']"
+args = ["-vmp"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "89 ['-vmi']"
+args = ["-vmi"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "90 ['-vmo']"
+args = ["-vmo"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "91 ['-vpi']"
+args = ["-vpi"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "92 ['-vpo']"
+args = ["-vpo"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "93 ['-vio']"
+args = ["-vio"]
+skip_on = { Darwin = "raw kernel fields lack a pinned surface; wolf-lang#907" }
+
+[[case]]
+name = "94 ['-mpi']"
+args = ["-mpi"]
+
+[[case]]
+name = "95 ['-mpo']"
+args = ["-mpo"]
+
+[[case]]
+name = "96 ['-mio']"
+args = ["-mio"]
+
+[[case]]
+name = "97 ['-pio']"
+args = ["-pio"]

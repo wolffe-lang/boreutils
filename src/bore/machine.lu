@@ -1,0 +1,19 @@
+//! machine — raw Linux kernel fields as procfs file contents, not a
+//! capitalization guess applied to wolf's normalized os_name/os_arch.
+//! References: Linux proc(5), GNU coreutils 9.11 manual/black-box runs.
+
+/// A raw Linux uname field. unsupported means procfs is absent or this
+/// host has no raw-field surface; io means the kernel file could not read.
+pub fn machine_field(name: str) -> str ! {unsupported, io} {
+    if !built_for_linux() { return unsupported }
+    let b = fs_read_bytes("/proc/sys/kernel/{name}") else |_| { return io }
+    let s = str_from_utf8(b) else |_| { return io }
+    s.trim_end()
+}
+
+/// GNU machine spelling for the architectures the pinned compiler ships.
+pub fn machine_arch() -> str {
+    let a = os_arch()
+    if a == "aarch64" && !built_for_linux() { return "arm64" }
+    a
+}
