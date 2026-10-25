@@ -1,0 +1,180 @@
+Repository: wolffe-lang/boreutils
+Title: dir/vdir: Darwin file-backed owner names differ from native account lookup
+Issue draft for the orchestrator to file; no issue filed by bu35.
+
+Attribution run40165219687, job121084806176, diagnostic headca50a04bea0831c843b22569a4072c3c6e0ad51c.
+Trunk37e3825c1b7ba374e1480cdcddefd959f5ecdb51 and head code fail on exactly the same rows under ALL three GNU9.11 providers.
+Providers: fresh trunk-config(kill), fresh head-config(kill,arch,hostname,uptime), active head stage.
+Same pinned wolf0.2.35/lupin0.1.56/std2386522e on macOS26.6.2 arm64, image20261013.0424.1, Apple clang21.0.0.
+Host GNU9.12 was provenance only: every comparison selected source-built GNU9.11 and passed the version/profile assertions.
+The extra install-program flags and bu35 shared-code changes do not move these verdicts. Historical green versus current image/build drift is not further localized.
+Do not call this a proven GNU implementation bug. The inherited platform qualification needs a separate repair lane.
+Only the exact listed failing rows get a loud Darwin skip; all other rows remain live. No expected outputs or inherited implementations changed.
+
+MATRIX CELLS:
+{"code": "trunk-code", "exit": 1, "family": "dir", "oracle": "trunk-config", "summary": "difftest: 17 passed, 1 failed, 0 skipped"}
+{"code": "trunk-code", "exit": 1, "family": "vdir", "oracle": "trunk-config", "summary": "difftest: 8 passed, 10 failed, 0 skipped"}
+{"code": "trunk-code", "exit": 1, "family": "dir", "oracle": "head-config", "summary": "difftest: 17 passed, 1 failed, 0 skipped"}
+{"code": "trunk-code", "exit": 1, "family": "vdir", "oracle": "head-config", "summary": "difftest: 8 passed, 10 failed, 0 skipped"}
+{"code": "trunk-code", "exit": 1, "family": "dir", "oracle": "active-head-stage", "summary": "difftest: 17 passed, 1 failed, 0 skipped"}
+{"code": "trunk-code", "exit": 1, "family": "vdir", "oracle": "active-head-stage", "summary": "difftest: 8 passed, 10 failed, 0 skipped"}
+{"code": "head-code", "exit": 1, "family": "dir", "oracle": "trunk-config", "summary": "difftest: 17 passed, 1 failed, 0 skipped"}
+{"code": "head-code", "exit": 1, "family": "vdir", "oracle": "trunk-config", "summary": "difftest: 8 passed, 10 failed, 0 skipped"}
+{"code": "head-code", "exit": 1, "family": "dir", "oracle": "head-config", "summary": "difftest: 17 passed, 1 failed, 0 skipped"}
+{"code": "head-code", "exit": 1, "family": "vdir", "oracle": "head-config", "summary": "difftest: 8 passed, 10 failed, 0 skipped"}
+{"code": "head-code", "exit": 1, "family": "dir", "oracle": "active-head-stage", "summary": "difftest: 17 passed, 1 failed, 0 skipped"}
+{"code": "head-code", "exit": 1, "family": "vdir", "oracle": "active-head-stage", "summary": "difftest: 8 passed, 10 failed, 0 skipped"}
+
+All six cells per utility differ ONLY by owner501 versus native name runner; replacing that owner field alone makes stdout identical. This is the existing file-backed account lookup limitation, not a new listing-engine regression.
+
+EXACT BASELINE CASE DATA AND DIFFS (untruncated renderer; trunk-code/trunk-config):
+
+CASE_INPUT {"args": ["-l", "."], "env": {"COLUMNS": "80", "TZ": "UTC0"}, "name": "['-l', '.']", "scratch": {"alpha": "a", "back\\slash": "x", "d/file": "abc", "new\nline": "x", "space name": "abc"}, "scratch_dirs": ["d"], "scratch_links": {"sym": "alpha"}, "scratch_time_all": 1000000000}
+FAIL dir: ['-l', '.']  args=['-l', '.']
+    bore stdout: b'total 16\n-rw-r--r-- 1 501 staff  1 Sep  9  2001 alpha\n-rw-r--r-- 1 501 staff  1 Sep  9  2001 back\\\\slash\ndrwxr-xr-x 3 501 staff 96 Sep  9  2001 d\n-rw-r--r-- 1 501 staff  1 Sep  9  2001 new\\nline\n-rw-r--r-- 1 501 staff  3 Sep  9  2001 space\\ name\nlrwxr-xr-x 1 501 staff  5 Sep  9  2001 sym -> alpha\n'
+    bore stderr: b''
+    bore exit: 0
+    bore files: [('alpha', 'file', b'a'), ('back\\slash', 'file', b'x'), ('d', 'dir', b''), ('d/file', 'file', b'abc'), ('new\nline', 'file', b'x'), ('space name', 'file', b'abc'), ('sym', 'link', b'alpha')]
+    bore tree: [('.', 'dir', 493, None, None, 1000000000000000000), ('alpha', 'file', 420, 1, 1, 1000000000000000000), ('back\\slash', 'file', 420, 1, 1, 1000000000000000000), ('d', 'dir', 493, None, None, 1000000000000000000), ('d/file', 'file', 420, 1, 3, 1000000000000000000), ('new\nline', 'file', 420, 1, 1, 1000000000000000000), ('space name', 'file', 420, 1, 3, 1000000000000000000), ('sym', 'link', None, 1, None, 1000000000000000000)]
+    gnu  stdout: b'total 16\n-rw-r--r-- 1 runner staff  1 Sep  9  2001 alpha\n-rw-r--r-- 1 runner staff  1 Sep  9  2001 back\\\\slash\ndrwxr-xr-x 3 runner staff 96 Sep  9  2001 d\n-rw-r--r-- 1 runner staff  1 Sep  9  2001 new\\nline\n-rw-r--r-- 1 runner staff  3 Sep  9  2001 space\\ name\nlrwxr-xr-x 1 runner staff  5 Sep  9  2001 sym -> alpha\n'
+    gnu  stderr: b''
+    gnu  exit: 0
+    gnu  files: [('alpha', 'file', b'a'), ('back\\slash', 'file', b'x'), ('d', 'dir', b''), ('d/file', 'file', b'abc'), ('new\nline', 'file', b'x'), ('space name', 'file', b'abc'), ('sym', 'link', b'alpha')]
+    gnu  tree: [('.', 'dir', 493, None, None, 1000000000000000000), ('alpha', 'file', 420, 1, 1, 1000000000000000000), ('back\\slash', 'file', 420, 1, 1, 1000000000000000000), ('d', 'dir', 493, None, None, 1000000000000000000), ('d/file', 'file', 420, 1, 3, 1000000000000000000), ('new\nline', 'file', 420, 1, 1, 1000000000000000000), ('space name', 'file', 420, 1, 3, 1000000000000000000), ('sym', 'link', None, 1, None, 1000000000000000000)]
+
+CASE_INPUT {"args": ["."], "env": {"COLUMNS": "80", "TZ": "UTC0"}, "name": "['.']", "scratch": {"alpha": "a", "back\\slash": "x", "d/file": "abc", "new\nline": "x", "space name": "abc"}, "scratch_dirs": ["d"], "scratch_links": {"sym": "alpha"}, "scratch_time_all": 1000000000}
+FAIL vdir: ['.']  args=['.']
+    bore stdout: b'total 16\n-rw-r--r-- 1 501 staff  1 Sep  9  2001 alpha\n-rw-r--r-- 1 501 staff  1 Sep  9  2001 back\\\\slash\ndrwxr-xr-x 3 501 staff 96 Sep  9  2001 d\n-rw-r--r-- 1 501 staff  1 Sep  9  2001 new\\nline\n-rw-r--r-- 1 501 staff  3 Sep  9  2001 space\\ name\nlrwxr-xr-x 1 501 staff  5 Sep  9  2001 sym -> alpha\n'
+    bore stderr: b''
+    bore exit: 0
+    bore files: [('alpha', 'file', b'a'), ('back\\slash', 'file', b'x'), ('d', 'dir', b''), ('d/file', 'file', b'abc'), ('new\nline', 'file', b'x'), ('space name', 'file', b'abc'), ('sym', 'link', b'alpha')]
+    bore tree: [('.', 'dir', 493, None, None, 1000000000000000000), ('alpha', 'file', 420, 1, 1, 1000000000000000000), ('back\\slash', 'file', 420, 1, 1, 1000000000000000000), ('d', 'dir', 493, None, None, 1000000000000000000), ('d/file', 'file', 420, 1, 3, 1000000000000000000), ('new\nline', 'file', 420, 1, 1, 1000000000000000000), ('space name', 'file', 420, 1, 3, 1000000000000000000), ('sym', 'link', None, 1, None, 1000000000000000000)]
+    gnu  stdout: b'total 16\n-rw-r--r-- 1 runner staff  1 Sep  9  2001 alpha\n-rw-r--r-- 1 runner staff  1 Sep  9  2001 back\\\\slash\ndrwxr-xr-x 3 runner staff 96 Sep  9  2001 d\n-rw-r--r-- 1 runner staff  1 Sep  9  2001 new\\nline\n-rw-r--r-- 1 runner staff  3 Sep  9  2001 space\\ name\nlrwxr-xr-x 1 runner staff  5 Sep  9  2001 sym -> alpha\n'
+    gnu  stderr: b''
+    gnu  exit: 0
+    gnu  files: [('alpha', 'file', b'a'), ('back\\slash', 'file', b'x'), ('d', 'dir', b''), ('d/file', 'file', b'abc'), ('new\nline', 'file', b'x'), ('space name', 'file', b'abc'), ('sym', 'link', b'alpha')]
+    gnu  tree: [('.', 'dir', 493, None, None, 1000000000000000000), ('alpha', 'file', 420, 1, 1, 1000000000000000000), ('back\\slash', 'file', 420, 1, 1, 1000000000000000000), ('d', 'dir', 493, None, None, 1000000000000000000), ('d/file', 'file', 420, 1, 3, 1000000000000000000), ('new\nline', 'file', 420, 1, 1, 1000000000000000000), ('space name', 'file', 420, 1, 3, 1000000000000000000), ('sym', 'link', None, 1, None, 1000000000000000000)]
+
+CASE_INPUT {"args": ["-l", "."], "env": {"COLUMNS": "80", "TZ": "UTC0"}, "name": "['-l', '.']", "scratch": {"alpha": "a", "back\\slash": "x", "d/file": "abc", "new\nline": "x", "space name": "abc"}, "scratch_dirs": ["d"], "scratch_links": {"sym": "alpha"}, "scratch_time_all": 1000000000}
+FAIL vdir: ['-l', '.']  args=['-l', '.']
+    bore stdout: b'total 16\n-rw-r--r-- 1 501 staff  1 Sep  9  2001 alpha\n-rw-r--r-- 1 501 staff  1 Sep  9  2001 back\\\\slash\ndrwxr-xr-x 3 501 staff 96 Sep  9  2001 d\n-rw-r--r-- 1 501 staff  1 Sep  9  2001 new\\nline\n-rw-r--r-- 1 501 staff  3 Sep  9  2001 space\\ name\nlrwxr-xr-x 1 501 staff  5 Sep  9  2001 sym -> alpha\n'
+    bore stderr: b''
+    bore exit: 0
+    bore files: [('alpha', 'file', b'a'), ('back\\slash', 'file', b'x'), ('d', 'dir', b''), ('d/file', 'file', b'abc'), ('new\nline', 'file', b'x'), ('space name', 'file', b'abc'), ('sym', 'link', b'alpha')]
+    bore tree: [('.', 'dir', 493, None, None, 1000000000000000000), ('alpha', 'file', 420, 1, 1, 1000000000000000000), ('back\\slash', 'file', 420, 1, 1, 1000000000000000000), ('d', 'dir', 493, None, None, 1000000000000000000), ('d/file', 'file', 420, 1, 3, 1000000000000000000), ('new\nline', 'file', 420, 1, 1, 1000000000000000000), ('space name', 'file', 420, 1, 3, 1000000000000000000), ('sym', 'link', None, 1, None, 1000000000000000000)]
+    gnu  stdout: b'total 16\n-rw-r--r-- 1 runner staff  1 Sep  9  2001 alpha\n-rw-r--r-- 1 runner staff  1 Sep  9  2001 back\\\\slash\ndrwxr-xr-x 3 runner staff 96 Sep  9  2001 d\n-rw-r--r-- 1 runner staff  1 Sep  9  2001 new\\nline\n-rw-r--r-- 1 runner staff  3 Sep  9  2001 space\\ name\nlrwxr-xr-x 1 runner staff  5 Sep  9  2001 sym -> alpha\n'
+    gnu  stderr: b''
+    gnu  exit: 0
+    gnu  files: [('alpha', 'file', b'a'), ('back\\slash', 'file', b'x'), ('d', 'dir', b''), ('d/file', 'file', b'abc'), ('new\nline', 'file', b'x'), ('space name', 'file', b'abc'), ('sym', 'link', b'alpha')]
+    gnu  tree: [('.', 'dir', 493, None, None, 1000000000000000000), ('alpha', 'file', 420, 1, 1, 1000000000000000000), ('back\\slash', 'file', 420, 1, 1, 1000000000000000000), ('d', 'dir', 493, None, None, 1000000000000000000), ('d/file', 'file', 420, 1, 3, 1000000000000000000), ('new\nline', 'file', 420, 1, 1, 1000000000000000000), ('space name', 'file', 420, 1, 3, 1000000000000000000), ('sym', 'link', None, 1, None, 1000000000000000000)]
+
+CASE_INPUT {"args": ["-N", "."], "env": {"COLUMNS": "80", "TZ": "UTC0"}, "name": "['-N', '.']", "scratch": {"alpha": "a", "back\\slash": "x", "d/file": "abc", "new\nline": "x", "space name": "abc"}, "scratch_dirs": ["d"], "scratch_links": {"sym": "alpha"}, "scratch_time_all": 1000000000}
+FAIL vdir: ['-N', '.']  args=['-N', '.']
+    bore stdout: b'total 16\n-rw-r--r-- 1 501 staff  1 Sep  9  2001 alpha\n-rw-r--r-- 1 501 staff  1 Sep  9  2001 back\\slash\ndrwxr-xr-x 3 501 staff 96 Sep  9  2001 d\n-rw-r--r-- 1 501 staff  1 Sep  9  2001 new\nline\n-rw-r--r-- 1 501 staff  3 Sep  9  2001 space name\nlrwxr-xr-x 1 501 staff  5 Sep  9  2001 sym -> alpha\n'
+    bore stderr: b''
+    bore exit: 0
+    bore files: [('alpha', 'file', b'a'), ('back\\slash', 'file', b'x'), ('d', 'dir', b''), ('d/file', 'file', b'abc'), ('new\nline', 'file', b'x'), ('space name', 'file', b'abc'), ('sym', 'link', b'alpha')]
+    bore tree: [('.', 'dir', 493, None, None, 1000000000000000000), ('alpha', 'file', 420, 1, 1, 1000000000000000000), ('back\\slash', 'file', 420, 1, 1, 1000000000000000000), ('d', 'dir', 493, None, None, 1000000000000000000), ('d/file', 'file', 420, 1, 3, 1000000000000000000), ('new\nline', 'file', 420, 1, 1, 1000000000000000000), ('space name', 'file', 420, 1, 3, 1000000000000000000), ('sym', 'link', None, 1, None, 1000000000000000000)]
+    gnu  stdout: b'total 16\n-rw-r--r-- 1 runner staff  1 Sep  9  2001 alpha\n-rw-r--r-- 1 runner staff  1 Sep  9  2001 back\\slash\ndrwxr-xr-x 3 runner staff 96 Sep  9  2001 d\n-rw-r--r-- 1 runner staff  1 Sep  9  2001 new\nline\n-rw-r--r-- 1 runner staff  3 Sep  9  2001 space name\nlrwxr-xr-x 1 runner staff  5 Sep  9  2001 sym -> alpha\n'
+    gnu  stderr: b''
+    gnu  exit: 0
+    gnu  files: [('alpha', 'file', b'a'), ('back\\slash', 'file', b'x'), ('d', 'dir', b''), ('d/file', 'file', b'abc'), ('new\nline', 'file', b'x'), ('space name', 'file', b'abc'), ('sym', 'link', b'alpha')]
+    gnu  tree: [('.', 'dir', 493, None, None, 1000000000000000000), ('alpha', 'file', 420, 1, 1, 1000000000000000000), ('back\\slash', 'file', 420, 1, 1, 1000000000000000000), ('d', 'dir', 493, None, None, 1000000000000000000), ('d/file', 'file', 420, 1, 3, 1000000000000000000), ('new\nline', 'file', 420, 1, 1, 1000000000000000000), ('space name', 'file', 420, 1, 3, 1000000000000000000), ('sym', 'link', None, 1, None, 1000000000000000000)]
+
+
+CASE_INPUT {"args": ["-b", "."], "env": {"COLUMNS": "80", "TZ": "UTC0"}, "name": "['-b', '.']", "scratch": {"alpha": "a", "back\\slash": "x", "d/file": "abc", "new\nline": "x", "space name": "abc"}, "scratch_dirs": ["d"], "scratch_links": {"sym": "alpha"}, "scratch_time_all": 1000000000}
+FAIL vdir: ['-b', '.']  args=['-b', '.']
+    bore stdout: b'total 16\n-rw-r--r-- 1 501 staff  1 Sep  9  2001 alpha\n-rw-r--r-- 1 501 staff  1 Sep  9  2001 back\\\\slash\ndrwxr-xr-x 3 501 staff 96 Sep  9  2001 d\n-rw-r--r-- 1 501 staff  1 Sep  9  2001 new\\nline\n-rw-r--r-- 1 501 staff  3 Sep  9  2001 space\\ name\nlrwxr-xr-x 1 501 staff  5 Sep  9  2001 sym -> alpha\n'
+    bore stderr: b''
+    bore exit: 0
+    bore files: [('alpha', 'file', b'a'), ('back\\slash', 'file', b'x'), ('d', 'dir', b''), ('d/file', 'file', b'abc'), ('new\nline', 'file', b'x'), ('space name', 'file', b'abc'), ('sym', 'link', b'alpha')]
+    bore tree: [('.', 'dir', 493, None, None, 1000000000000000000), ('alpha', 'file', 420, 1, 1, 1000000000000000000), ('back\\slash', 'file', 420, 1, 1, 1000000000000000000), ('d', 'dir', 493, None, None, 1000000000000000000), ('d/file', 'file', 420, 1, 3, 1000000000000000000), ('new\nline', 'file', 420, 1, 1, 1000000000000000000), ('space name', 'file', 420, 1, 3, 1000000000000000000), ('sym', 'link', None, 1, None, 1000000000000000000)]
+    gnu  stdout: b'total 16\n-rw-r--r-- 1 runner staff  1 Sep  9  2001 alpha\n-rw-r--r-- 1 runner staff  1 Sep  9  2001 back\\\\slash\ndrwxr-xr-x 3 runner staff 96 Sep  9  2001 d\n-rw-r--r-- 1 runner staff  1 Sep  9  2001 new\\nline\n-rw-r--r-- 1 runner staff  3 Sep  9  2001 space\\ name\nlrwxr-xr-x 1 runner staff  5 Sep  9  2001 sym -> alpha\n'
+    gnu  stderr: b''
+    gnu  exit: 0
+    gnu  files: [('alpha', 'file', b'a'), ('back\\slash', 'file', b'x'), ('d', 'dir', b''), ('d/file', 'file', b'abc'), ('new\nline', 'file', b'x'), ('space name', 'file', b'abc'), ('sym', 'link', b'alpha')]
+    gnu  tree: [('.', 'dir', 493, None, None, 1000000000000000000), ('alpha', 'file', 420, 1, 1, 1000000000000000000), ('back\\slash', 'file', 420, 1, 1, 1000000000000000000), ('d', 'dir', 493, None, None, 1000000000000000000), ('d/file', 'file', 420, 1, 3, 1000000000000000000), ('new\nline', 'file', 420, 1, 1, 1000000000000000000), ('space name', 'file', 420, 1, 3, 1000000000000000000), ('sym', 'link', None, 1, None, 1000000000000000000)]
+
+
+CASE_INPUT {"args": ["-ab", "."], "env": {"COLUMNS": "80", "TZ": "UTC0"}, "name": "['-ab', '.']", "scratch": {"alpha": "a", "back\\slash": "x", "d/file": "abc", "new\nline": "x", "space name": "abc"}, "scratch_dirs": ["d"], "scratch_links": {"sym": "alpha"}, "scratch_time_all": 1000000000}
+FAIL vdir: ['-ab', '.']  args=['-ab', '.']
+    bore stdout: b'total 16\ndrwxr-xr-x 8 501 staff 256 Sep  9  2001 .\ndrwx------ 3 501 staff  96 Oct 25 05:37 ..\n-rw-r--r-- 1 501 staff   1 Sep  9  2001 alpha\n-rw-r--r-- 1 501 staff   1 Sep  9  2001 back\\\\slash\ndrwxr-xr-x 3 501 staff  96 Sep  9  2001 d\n-rw-r--r-- 1 501 staff   1 Sep  9  2001 new\\nline\n-rw-r--r-- 1 501 staff   3 Sep  9  2001 space\\ name\nlrwxr-xr-x 1 501 staff   5 Sep  9  2001 sym -> alpha\n'
+    bore stderr: b''
+    bore exit: 0
+    bore files: [('alpha', 'file', b'a'), ('back\\slash', 'file', b'x'), ('d', 'dir', b''), ('d/file', 'file', b'abc'), ('new\nline', 'file', b'x'), ('space name', 'file', b'abc'), ('sym', 'link', b'alpha')]
+    bore tree: [('.', 'dir', 493, None, None, 1000000000000000000), ('alpha', 'file', 420, 1, 1, 1000000000000000000), ('back\\slash', 'file', 420, 1, 1, 1000000000000000000), ('d', 'dir', 493, None, None, 1000000000000000000), ('d/file', 'file', 420, 1, 3, 1000000000000000000), ('new\nline', 'file', 420, 1, 1, 1000000000000000000), ('space name', 'file', 420, 1, 3, 1000000000000000000), ('sym', 'link', None, 1, None, 1000000000000000000)]
+    gnu  stdout: b'total 16\ndrwxr-xr-x 8 runner staff 256 Sep  9  2001 .\ndrwx------ 3 runner staff  96 Oct 25 05:37 ..\n-rw-r--r-- 1 runner staff   1 Sep  9  2001 alpha\n-rw-r--r-- 1 runner staff   1 Sep  9  2001 back\\\\slash\ndrwxr-xr-x 3 runner staff  96 Sep  9  2001 d\n-rw-r--r-- 1 runner staff   1 Sep  9  2001 new\\nline\n-rw-r--r-- 1 runner staff   3 Sep  9  2001 space\\ name\nlrwxr-xr-x 1 runner staff   5 Sep  9  2001 sym -> alpha\n'
+    gnu  stderr: b''
+    gnu  exit: 0
+    gnu  files: [('alpha', 'file', b'a'), ('back\\slash', 'file', b'x'), ('d', 'dir', b''), ('d/file', 'file', b'abc'), ('new\nline', 'file', b'x'), ('space name', 'file', b'abc'), ('sym', 'link', b'alpha')]
+    gnu  tree: [('.', 'dir', 493, None, None, 1000000000000000000), ('alpha', 'file', 420, 1, 1, 1000000000000000000), ('back\\slash', 'file', 420, 1, 1, 1000000000000000000), ('d', 'dir', 493, None, None, 1000000000000000000), ('d/file', 'file', 420, 1, 3, 1000000000000000000), ('new\nline', 'file', 420, 1, 1, 1000000000000000000), ('space name', 'file', 420, 1, 3, 1000000000000000000), ('sym', 'link', None, 1, None, 1000000000000000000)]
+
+CASE_INPUT {"args": ["-F", "."], "env": {"COLUMNS": "80", "TZ": "UTC0"}, "name": "['-F', '.']", "scratch": {"alpha": "a", "back\\slash": "x", "d/file": "abc", "new\nline": "x", "space name": "abc"}, "scratch_dirs": ["d"], "scratch_links": {"sym": "alpha"}, "scratch_time_all": 1000000000}
+FAIL vdir: ['-F', '.']  args=['-F', '.']
+    bore stdout: b'total 16\n-rw-r--r-- 1 501 staff  1 Sep  9  2001 alpha\n-rw-r--r-- 1 501 staff  1 Sep  9  2001 back\\\\slash\ndrwxr-xr-x 3 501 staff 96 Sep  9  2001 d/\n-rw-r--r-- 1 501 staff  1 Sep  9  2001 new\\nline\n-rw-r--r-- 1 501 staff  3 Sep  9  2001 space\\ name\nlrwxr-xr-x 1 501 staff  5 Sep  9  2001 sym -> alpha\n'
+    bore stderr: b''
+    bore exit: 0
+    bore files: [('alpha', 'file', b'a'), ('back\\slash', 'file', b'x'), ('d', 'dir', b''), ('d/file', 'file', b'abc'), ('new\nline', 'file', b'x'), ('space name', 'file', b'abc'), ('sym', 'link', b'alpha')]
+    bore tree: [('.', 'dir', 493, None, None, 1000000000000000000), ('alpha', 'file', 420, 1, 1, 1000000000000000000), ('back\\slash', 'file', 420, 1, 1, 1000000000000000000), ('d', 'dir', 493, None, None, 1000000000000000000), ('d/file', 'file', 420, 1, 3, 1000000000000000000), ('new\nline', 'file', 420, 1, 1, 1000000000000000000), ('space name', 'file', 420, 1, 3, 1000000000000000000), ('sym', 'link', None, 1, None, 1000000000000000000)]
+    gnu  stdout: b'total 16\n-rw-r--r-- 1 runner staff  1 Sep  9  2001 alpha\n-rw-r--r-- 1 runner staff  1 Sep  9  2001 back\\\\slash\ndrwxr-xr-x 3 runner staff 96 Sep  9  2001 d/\n-rw-r--r-- 1 runner staff  1 Sep  9  2001 new\\nline\n-rw-r--r-- 1 runner staff  3 Sep  9  2001 space\\ name\nlrwxr-xr-x 1 runner staff  5 Sep  9  2001 sym -> alpha\n'
+    gnu  stderr: b''
+    gnu  exit: 0
+    gnu  files: [('alpha', 'file', b'a'), ('back\\slash', 'file', b'x'), ('d', 'dir', b''), ('d/file', 'file', b'abc'), ('new\nline', 'file', b'x'), ('space name', 'file', b'abc'), ('sym', 'link', b'alpha')]
+    gnu  tree: [('.', 'dir', 493, None, None, 1000000000000000000), ('alpha', 'file', 420, 1, 1, 1000000000000000000), ('back\\slash', 'file', 420, 1, 1, 1000000000000000000), ('d', 'dir', 493, None, None, 1000000000000000000), ('d/file', 'file', 420, 1, 3, 1000000000000000000), ('new\nline', 'file', 420, 1, 1, 1000000000000000000), ('space name', 'file', 420, 1, 3, 1000000000000000000), ('sym', 'link', None, 1, None, 1000000000000000000)]
+
+
+CASE_INPUT {"args": ["-d", "space name"], "env": {"COLUMNS": "80", "TZ": "UTC0"}, "name": "['-d', 'space name']", "scratch": {"alpha": "a", "back\\slash": "x", "d/file": "abc", "new\nline": "x", "space name": "abc"}, "scratch_dirs": ["d"], "scratch_links": {"sym": "alpha"}, "scratch_time_all": 1000000000}
+FAIL vdir: ['-d', 'space name']  args=['-d', 'space name']
+    bore stdout: b'-rw-r--r-- 1 501 staff 3 Sep  9  2001 space\\ name\n'
+    bore stderr: b''
+    bore exit: 0
+    bore files: [('alpha', 'file', b'a'), ('back\\slash', 'file', b'x'), ('d', 'dir', b''), ('d/file', 'file', b'abc'), ('new\nline', 'file', b'x'), ('space name', 'file', b'abc'), ('sym', 'link', b'alpha')]
+    bore tree: [('.', 'dir', 493, None, None, 1000000000000000000), ('alpha', 'file', 420, 1, 1, 1000000000000000000), ('back\\slash', 'file', 420, 1, 1, 1000000000000000000), ('d', 'dir', 493, None, None, 1000000000000000000), ('d/file', 'file', 420, 1, 3, 1000000000000000000), ('new\nline', 'file', 420, 1, 1, 1000000000000000000), ('space name', 'file', 420, 1, 3, 1000000000000000000), ('sym', 'link', None, 1, None, 1000000000000000000)]
+    gnu  stdout: b'-rw-r--r-- 1 runner staff 3 Sep  9  2001 space\\ name\n'
+    gnu  stderr: b''
+    gnu  exit: 0
+    gnu  files: [('alpha', 'file', b'a'), ('back\\slash', 'file', b'x'), ('d', 'dir', b''), ('d/file', 'file', b'abc'), ('new\nline', 'file', b'x'), ('space name', 'file', b'abc'), ('sym', 'link', b'alpha')]
+    gnu  tree: [('.', 'dir', 493, None, None, 1000000000000000000), ('alpha', 'file', 420, 1, 1, 1000000000000000000), ('back\\slash', 'file', 420, 1, 1, 1000000000000000000), ('d', 'dir', 493, None, None, 1000000000000000000), ('d/file', 'file', 420, 1, 3, 1000000000000000000), ('new\nline', 'file', 420, 1, 1, 1000000000000000000), ('space name', 'file', 420, 1, 3, 1000000000000000000), ('sym', 'link', None, 1, None, 1000000000000000000)]
+
+
+CASE_INPUT {"args": ["-w", "20", "."], "env": {"COLUMNS": "80", "TZ": "UTC0"}, "name": "['-w', '20', '.']", "scratch": {"alpha": "a", "back\\slash": "x", "d/file": "abc", "new\nline": "x", "space name": "abc"}, "scratch_dirs": ["d"], "scratch_links": {"sym": "alpha"}, "scratch_time_all": 1000000000}
+FAIL vdir: ['-w', '20', '.']  args=['-w', '20', '.']
+    bore stdout: b'total 16\n-rw-r--r-- 1 501 staff  1 Sep  9  2001 alpha\n-rw-r--r-- 1 501 staff  1 Sep  9  2001 back\\\\slash\ndrwxr-xr-x 3 501 staff 96 Sep  9  2001 d\n-rw-r--r-- 1 501 staff  1 Sep  9  2001 new\\nline\n-rw-r--r-- 1 501 staff  3 Sep  9  2001 space\\ name\nlrwxr-xr-x 1 501 staff  5 Sep  9  2001 sym -> alpha\n'
+    bore stderr: b''
+    bore exit: 0
+    bore files: [('alpha', 'file', b'a'), ('back\\slash', 'file', b'x'), ('d', 'dir', b''), ('d/file', 'file', b'abc'), ('new\nline', 'file', b'x'), ('space name', 'file', b'abc'), ('sym', 'link', b'alpha')]
+    bore tree: [('.', 'dir', 493, None, None, 1000000000000000000), ('alpha', 'file', 420, 1, 1, 1000000000000000000), ('back\\slash', 'file', 420, 1, 1, 1000000000000000000), ('d', 'dir', 493, None, None, 1000000000000000000), ('d/file', 'file', 420, 1, 3, 1000000000000000000), ('new\nline', 'file', 420, 1, 1, 1000000000000000000), ('space name', 'file', 420, 1, 3, 1000000000000000000), ('sym', 'link', None, 1, None, 1000000000000000000)]
+    gnu  stdout: b'total 16\n-rw-r--r-- 1 runner staff  1 Sep  9  2001 alpha\n-rw-r--r-- 1 runner staff  1 Sep  9  2001 back\\\\slash\ndrwxr-xr-x 3 runner staff 96 Sep  9  2001 d\n-rw-r--r-- 1 runner staff  1 Sep  9  2001 new\\nline\n-rw-r--r-- 1 runner staff  3 Sep  9  2001 space\\ name\nlrwxr-xr-x 1 runner staff  5 Sep  9  2001 sym -> alpha\n'
+    gnu  stderr: b''
+    gnu  exit: 0
+    gnu  files: [('alpha', 'file', b'a'), ('back\\slash', 'file', b'x'), ('d', 'dir', b''), ('d/file', 'file', b'abc'), ('new\nline', 'file', b'x'), ('space name', 'file', b'abc'), ('sym', 'link', b'alpha')]
+    gnu  tree: [('.', 'dir', 493, None, None, 1000000000000000000), ('alpha', 'file', 420, 1, 1, 1000000000000000000), ('back\\slash', 'file', 420, 1, 1, 1000000000000000000), ('d', 'dir', 493, None, None, 1000000000000000000), ('d/file', 'file', 420, 1, 3, 1000000000000000000), ('new\nline', 'file', 420, 1, 1, 1000000000000000000), ('space name', 'file', 420, 1, 3, 1000000000000000000), ('sym', 'link', None, 1, None, 1000000000000000000)]
+
+
+CASE_INPUT {"args": ["-T", "0", "."], "env": {"COLUMNS": "80", "TZ": "UTC0"}, "name": "['-T', '0', '.']", "scratch": {"alpha": "a", "back\\slash": "x", "d/file": "abc", "new\nline": "x", "space name": "abc"}, "scratch_dirs": ["d"], "scratch_links": {"sym": "alpha"}, "scratch_time_all": 1000000000}
+FAIL vdir: ['-T', '0', '.']  args=['-T', '0', '.']
+    bore stdout: b'total 16\n-rw-r--r-- 1 501 staff  1 Sep  9  2001 alpha\n-rw-r--r-- 1 501 staff  1 Sep  9  2001 back\\\\slash\ndrwxr-xr-x 3 501 staff 96 Sep  9  2001 d\n-rw-r--r-- 1 501 staff  1 Sep  9  2001 new\\nline\n-rw-r--r-- 1 501 staff  3 Sep  9  2001 space\\ name\nlrwxr-xr-x 1 501 staff  5 Sep  9  2001 sym -> alpha\n'
+    bore stderr: b''
+    bore exit: 0
+    bore files: [('alpha', 'file', b'a'), ('back\\slash', 'file', b'x'), ('d', 'dir', b''), ('d/file', 'file', b'abc'), ('new\nline', 'file', b'x'), ('space name', 'file', b'abc'), ('sym', 'link', b'alpha')]
+    bore tree: [('.', 'dir', 493, None, None, 1000000000000000000), ('alpha', 'file', 420, 1, 1, 1000000000000000000), ('back\\slash', 'file', 420, 1, 1, 1000000000000000000), ('d', 'dir', 493, None, None, 1000000000000000000), ('d/file', 'file', 420, 1, 3, 1000000000000000000), ('new\nline', 'file', 420, 1, 1, 1000000000000000000), ('space name', 'file', 420, 1, 3, 1000000000000000000), ('sym', 'link', None, 1, None, 1000000000000000000)]
+    gnu  stdout: b'total 16\n-rw-r--r-- 1 runner staff  1 Sep  9  2001 alpha\n-rw-r--r-- 1 runner staff  1 Sep  9  2001 back\\\\slash\ndrwxr-xr-x 3 runner staff 96 Sep  9  2001 d\n-rw-r--r-- 1 runner staff  1 Sep  9  2001 new\\nline\n-rw-r--r-- 1 runner staff  3 Sep  9  2001 space\\ name\nlrwxr-xr-x 1 runner staff  5 Sep  9  2001 sym -> alpha\n'
+    gnu  stderr: b''
+    gnu  exit: 0
+    gnu  files: [('alpha', 'file', b'a'), ('back\\slash', 'file', b'x'), ('d', 'dir', b''), ('d/file', 'file', b'abc'), ('new\nline', 'file', b'x'), ('space name', 'file', b'abc'), ('sym', 'link', b'alpha')]
+    gnu  tree: [('.', 'dir', 493, None, None, 1000000000000000000), ('alpha', 'file', 420, 1, 1, 1000000000000000000), ('back\\slash', 'file', 420, 1, 1, 1000000000000000000), ('d', 'dir', 493, None, None, 1000000000000000000), ('d/file', 'file', 420, 1, 3, 1000000000000000000), ('new\nline', 'file', 420, 1, 1, 1000000000000000000), ('space name', 'file', 420, 1, 3, 1000000000000000000), ('sym', 'link', None, 1, None, 1000000000000000000)]
+
+CASE_INPUT {"args": ["-R", "."], "env": {"COLUMNS": "80", "TZ": "UTC0"}, "name": "['-R', '.']", "scratch": {"alpha": "a", "back\\slash": "x", "d/file": "abc", "new\nline": "x", "space name": "abc"}, "scratch_dirs": ["d"], "scratch_links": {"sym": "alpha"}, "scratch_time_all": 1000000000}
+FAIL vdir: ['-R', '.']  args=['-R', '.']
+    bore stdout: b'.:\ntotal 16\n-rw-r--r-- 1 501 staff  1 Sep  9  2001 alpha\n-rw-r--r-- 1 501 staff  1 Sep  9  2001 back\\\\slash\ndrwxr-xr-x 3 501 staff 96 Sep  9  2001 d\n-rw-r--r-- 1 501 staff  1 Sep  9  2001 new\\nline\n-rw-r--r-- 1 501 staff  3 Sep  9  2001 space\\ name\nlrwxr-xr-x 1 501 staff  5 Sep  9  2001 sym -> alpha\n\n./d:\ntotal 4\n-rw-r--r-- 1 501 staff 3 Sep  9  2001 file\n'
+    bore stderr: b''
+    bore exit: 0
+    bore files: [('alpha', 'file', b'a'), ('back\\slash', 'file', b'x'), ('d', 'dir', b''), ('d/file', 'file', b'abc'), ('new\nline', 'file', b'x'), ('space name', 'file', b'abc'), ('sym', 'link', b'alpha')]
+    bore tree: [('.', 'dir', 493, None, None, 1000000000000000000), ('alpha', 'file', 420, 1, 1, 1000000000000000000), ('back\\slash', 'file', 420, 1, 1, 1000000000000000000), ('d', 'dir', 493, None, None, 1000000000000000000), ('d/file', 'file', 420, 1, 3, 1000000000000000000), ('new\nline', 'file', 420, 1, 1, 1000000000000000000), ('space name', 'file', 420, 1, 3, 1000000000000000000), ('sym', 'link', None, 1, None, 1000000000000000000)]
+    gnu  stdout: b'.:\ntotal 16\n-rw-r--r-- 1 runner staff  1 Sep  9  2001 alpha\n-rw-r--r-- 1 runner staff  1 Sep  9  2001 back\\\\slash\ndrwxr-xr-x 3 runner staff 96 Sep  9  2001 d\n-rw-r--r-- 1 runner staff  1 Sep  9  2001 new\\nline\n-rw-r--r-- 1 runner staff  3 Sep  9  2001 space\\ name\nlrwxr-xr-x 1 runner staff  5 Sep  9  2001 sym -> alpha\n\n./d:\ntotal 4\n-rw-r--r-- 1 runner staff 3 Sep  9  2001 file\n'
+    gnu  stderr: b''
+    gnu  exit: 0
+    gnu  files: [('alpha', 'file', b'a'), ('back\\slash', 'file', b'x'), ('d', 'dir', b''), ('d/file', 'file', b'abc'), ('new\nline', 'file', b'x'), ('space name', 'file', b'abc'), ('sym', 'link', b'alpha')]
+    gnu  tree: [('.', 'dir', 493, None, None, 1000000000000000000), ('alpha', 'file', 420, 1, 1, 1000000000000000000), ('back\\slash', 'file', 420, 1, 1, 1000000000000000000), ('d', 'dir', 493, None, None, 1000000000000000000), ('d/file', 'file', 420, 1, 3, 1000000000000000000), ('new\nline', 'file', 420, 1, 1, 1000000000000000000), ('space name', 'file', 420, 1, 3, 1000000000000000000), ('sym', 'link', None, 1, None, 1000000000000000000)]
+difftest: 8 passed, 10 failed, 0 skipped
+

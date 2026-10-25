@@ -1468,10 +1468,10 @@ Widths above 1,000,000, calendar years above 2,000,000,000 and epochs beyond
 63,000,000,000,000,000 seconds are explicit implementation limits. Named
 zones use the existing TZif/POSIX reader; leap-second `right/` tables are
 refused, including a named table missing from the installed zone database.
-On Darwin, the field GNU9.11 default `%-N` uses six digits, unlike the
-Linux nine-digit form, and early-year `%c` is libc-dependent. These exact
-field rows are loud skips; explicit `%N` widths, other `%N` flags and the
-remaining year/format conversions continue to compare.
+Darwin's measured GNU9.11 default `%-N` uses six digits, unlike Linux's
+nine, and its C-locale `%c`/`%Ec` zero-pad early years to four digits.
+The formatter selects these measured host rules; all eight former field
+skips are retired. Explicit `%N` widths and other flags remain unchanged.
 GNU 9.11 accepts an unterminated date comment through end of input; this
 matches the binary, despite the manual saying parentheses must balance.
 
@@ -1861,3 +1861,15 @@ boreutils refuses it with status 1 and the same issue. Values through
 primality controls near that endpoint. `tools/numbertest`, included in
 `tools/texttest`, checks both the refusals and the supported side of the
 boundary.
+
+### Inherited Darwin qualification
+
+Attribution run40165219687 compared trunk37e3825 and the identity-tool
+head under fresh trunk/head GNU9.11 configurations and the active stage.
+All six cells reproduce the same30 inherited failures: dir/vdir owner
+names(11), numfmt print/range boundaries(7), od negative-NaN text(12).
+Only those exact rows are loud Darwin skips; every other row stays live.
+No inherited implementation or expected output was changed. The cells,
+complete differences and issue drafts are in `tests/gaps/bu35/darwin-*.txt`.
+Host GNU9.12 was not selected as the oracle. The extra install-program
+flags and the identity pass's shared code do not move these verdicts.
