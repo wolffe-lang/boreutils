@@ -144,10 +144,10 @@ fn main() -> int {
         text += bore.login_pad(line, 12) + " " + bore.login_stamp(r.secs, z)
         if r.kind == 7 {
             if idle {
-                text += " " +
-                    bore.login_right(bore.login_idle(r.line, now), 3) +
-                    " " +
-                    bore.space_padded(r.pid, 13)
+                var field = bore.login_idle(r.line, now)
+                if field == "." || field == "?" { field = "  {field}  " }
+                else if field == "old" { field = " old " }
+                text += " " + field + " " + bore.space_padded(r.pid, 11)
             }
             if r.host != "" { text += " ({r.host})" }
         } else if r.kind == 5 || r.kind == 6 || r.kind == 8 {

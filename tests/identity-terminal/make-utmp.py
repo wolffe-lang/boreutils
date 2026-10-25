@@ -15,8 +15,8 @@ def record(kind, user='', line='', host='', pid=42, ident='ab', seconds=94681824
 
 if __name__ == '__main__':
     root=Path(__file__).resolve().parents[1]/'fixtures'
-    rows=[record(7,'zed','pts/999','host.example:0'),record(7,'amy','tty9'),
-          record(7,'zed','tty8'),record(6,line='tty1'),record(5,line='tty2'),
+    rows=[record(7,'zed','pts/999','host.example:0'),record(7,'amy','bu35t9'),
+          record(7,'zed','bu35t8'),record(6,line='tty1'),record(5,line='tty2'),
           record(8,'old','tty3'),record(2,'reboot','~'),
           record(1,'runlevel','~',pid=ord('5')+ord('3')*256),
           record(3,'date','|'),record(4,'date','{')]

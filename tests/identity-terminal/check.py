@@ -88,6 +88,24 @@ try:
 finally:
     os.close(master);os.close(slave)
 
+# Existing terminals expose all four idle forms and a fixed PID column.
+# Their access time is set by this test; no hosted tty8/tty9 assumptions.
+master,slave=pty.openpty()
+try:
+    tty_path=os.ttyname(slave);line=tty_path.removeprefix('/dev/')
+    import tempfile
+    with tempfile.TemporaryDirectory(prefix='bu35-idle-') as directory:
+        fixture=pathlib.Path(directory)/'utmp'
+        for age in [0,120,3660,90000]:
+            data=bytearray(384);struct.pack_into('<h',data,0,7);struct.pack_into('<i',data,4,42)
+            data[8:8+len(line)]=line.encode();data[44:47]=b'amy';struct.pack_into('<i',data,340,946818245)
+            fixture.write_bytes(data)
+            for flags in ['-u','-Hu','-a','-Ha']:
+                now=time.time();os.utime(tty_path,(now-age,now-age))
+                compare('who',[flags,str(fixture)])
+finally:
+    os.close(master);os.close(slave)
+
 # Neither side observes another run's random clock. Named zones and
 # all fixed epoch conversions compare against the actual pinned binary.
 for zone in ['UTC0','EST5EDT','Europe/Berlin','Asia/Kathmandu','<+0330>-3:30']:
