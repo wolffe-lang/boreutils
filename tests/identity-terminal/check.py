@@ -115,7 +115,10 @@ ok('date refuses a leap table from metadata');ENV['TZ']='UTC0'
 if os.geteuid()!=0:raise SystemExit('REFUSED: synthetic live utmp requires container root')
 utmp=pathlib.Path('/var/run/utmp');previous=utmp.read_bytes() if utmp.exists() else None
 try:
-    utmp.write_bytes((ROOT/'tests/fixtures/bu35-logins.utmp').read_bytes())
+    data=bytearray((ROOT/'tests/fixtures/bu35-logins.utmp').read_bytes())
+    for at in range(0,len(data),384):
+        if struct.unpack_from('<h',data,at)[0]==7:struct.pack_into('<i',data,at+4,os.getpid())
+    utmp.write_bytes(data)
     for u,options in [('users',[[]]),('who',[[],['-a'],['-H'],['-Hu'],['-HT'],['-Ha'],['-q'],['-b'],['-d'],['-l'],['-p'],['-r'],['-t'],['am','i']]),('pinky',[[],['-w'],['-i'],['-q'],['-f'],['-s'],['-fi'],['-w','zed'],['amy']])]:
         for a in options:compare(u,a)
     # UTMP is not a supported GNU environment override, independently witnessed.
