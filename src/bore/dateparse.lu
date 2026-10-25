@@ -202,7 +202,10 @@ pub fn date_read(text: str, zone: Zone, now: Instant) -> Instant ! DateReadFaile
     }
     if z.leap_table { return leap_zone }
     if s.starts_with("@") { return date_epoch(s[1..]) }
-    let normalized = s.lower().replace("a.m.", "am").replace("p.m.", "pm").replace("u.t.c.", "utc").replace("g.m.t.", "gmt").replace("u.t.", "ut")
+    let normalized = s.lower().replace(
+        "a.m.",
+        "am",
+    ).replace("p.m.", "pm").replace("u.t.c.", "utc").replace("g.m.t.", "gmt").replace("u.t.", "ut")
     let tok = date_tokens(normalized)?
     let n = tok.len
     let current = civil_in(z, now.secs)
@@ -239,7 +242,12 @@ pub fn date_read(text: str, zone: Zone, now: Instant) -> Instant ! DateReadFaile
             dow = date_dow(tok[k + 1].text)
             used = 2
         }
-        if (word == "-" || word == "+") && k + 2 < n && tok[k + 1].number && date_dow(tok[k + 2].text) >= 0 { return invalid }
+        if (word == "-" || word == "+") &&
+            k + 2 < n &&
+            tok[k + 1].number &&
+            date_dow(tok[k + 2].text) >= 0 {
+            return invalid
+        }
         if dow >= 0 {
             if has_week { return invalid }
             has_week = true
@@ -434,7 +442,9 @@ pub fn date_read(text: str, zone: Zone, now: Instant) -> Instant ! DateReadFaile
         }
         return unread
     }
-    relmonths += pending_months; reldays += pending_days; relsecs += pending_secs
+    relmonths += pending_months
+    reldays += pending_days
+    relsecs += pending_secs
     if !has_time && (has_date || has_week || !relative) {
         hour = 0
         minute = 0
