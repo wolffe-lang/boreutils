@@ -1,0 +1,91 @@
+# GNU 9.11 C-locale utmp records, from Linux utmp(5).
+
+[[case]]
+name = "0 []"
+args = []
+env = { TZ = "UTC0" }
+skip_on = { Darwin = "Linux utmp ABI/procfs or /etc/passwd account lookup lacks a macOS surface" }
+
+[[case]]
+name = "1 ['--help']"
+args = ["--help"]
+env = { TZ = "UTC0" }
+compare = ["exit"]
+
+[[case]]
+name = "2 ['--version']"
+args = ["--version"]
+env = { TZ = "UTC0" }
+compare = ["exit"]
+
+[[case]]
+name = "3 ['-Q']"
+args = ["-Q"]
+env = { TZ = "UTC0" }
+skip_on = { Darwin = "Linux utmp ABI/procfs or /etc/passwd account lookup lacks a macOS surface" }
+
+[[case]]
+name = "4 ['-w']"
+args = ["-w"]
+env = { TZ = "UTC0" }
+skip_on = { Darwin = "Linux utmp ABI/procfs or /etc/passwd account lookup lacks a macOS surface" }
+
+[[case]]
+name = "5 ['-i']"
+args = ["-i"]
+env = { TZ = "UTC0" }
+skip_on = { Darwin = "Linux utmp ABI/procfs or /etc/passwd account lookup lacks a macOS surface" }
+
+[[case]]
+name = "6 ['-q']"
+args = ["-q"]
+env = { TZ = "UTC0" }
+skip_on = { Darwin = "Linux utmp ABI/procfs or /etc/passwd account lookup lacks a macOS surface" }
+
+[[case]]
+name = "7 ['-f']"
+args = ["-f"]
+env = { TZ = "UTC0" }
+skip_on = { Darwin = "Linux utmp ABI/procfs or /etc/passwd account lookup lacks a macOS surface" }
+
+[[case]]
+name = "8 ['-l']"
+args = ["-l"]
+env = { TZ = "UTC0" }
+skip_on = { Darwin = "Linux utmp ABI/procfs or /etc/passwd account lookup lacks a macOS surface" }
+
+[[case]]
+name = "9 ['--lookup']"
+args = ["--lookup"]
+env = { TZ = "UTC0" }
+skip_on = { Darwin = "Linux utmp ABI/procfs or /etc/passwd account lookup lacks a macOS surface" }
+
+[[case]]
+name = "10 ['-l', 'not-a-real-user']"
+args = ["-l", "not-a-real-user"]
+env = { TZ = "UTC0" }
+skip_on = { Darwin = "Linux utmp ABI/procfs or /etc/passwd account lookup lacks a macOS surface" }
+
+[[case]]
+name = "11 ['-lbph', 'root']"
+args = ["-lbph", "root"]
+env = { TZ = "UTC0" }
+skip_on = { Darwin = "Linux utmp ABI/procfs or /etc/passwd account lookup lacks a macOS surface" }
+
+[[case]]
+name = "12 ['-l', 'root', 'not-a-real-user']"
+args = ["-l", "root", "not-a-real-user"]
+env = { TZ = "UTC0" }
+skip_on = { Darwin = "Linux utmp ABI/procfs or /etc/passwd account lookup lacks a macOS surface" }
+
+[[case]]
+name = "13 ['-l', '-s']"
+args = ["-l", "-s"]
+env = { TZ = "UTC0" }
+skip_on = { Darwin = "Linux utmp ABI/procfs or /etc/passwd account lookup lacks a macOS surface" }
+
+[[case]]
+name = "14 ['-s', '-l']"
+args = ["-s", "-l"]
+env = { TZ = "UTC0" }
+skip_on = { Darwin = "Linux utmp ABI/procfs or /etc/passwd account lookup lacks a macOS surface" }
