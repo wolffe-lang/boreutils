@@ -1,0 +1,21 @@
+Repository: wolffe-lang/wolf-lang (with a std.time facade)
+Title: Clock surfaces for date: wall-clock nanoseconds, resolution and setting
+
+At wolf 0.2.35 / lupin 0.1.56 / bundled std 2386522e, time_unix_ms provides
+only millisecond wall-clock precision, while time.monotonic_ns is not an
+Epoch clock. No pinned public surface obtains CLOCK_REALTIME resolution or
+sets CLOCK_REALTIME. GNU date needs wall seconds/nanoseconds for the live
+%N, clock_getres for --resolution, and clock_settime for --set/numeric clock
+setting. Fixed parsed times and fs_stat modification times already retain
+nanoseconds, so the formatter itself is not the gap.
+
+Requested: wall seconds/nanoseconds without floating conversion; a named
+clock-resolution result; a privileged clock setter with explicit denied,
+invalid and unsupported rows. A setter must not be exercised on a shared
+host; any future test belongs in a disposable time namespace or equivalent.
+
+Current witnesses: tests/gaps/bu35/clock-resolution/main.lu and clock-set/
+main.lu give E0301 at the pin. The std.time public function census contains
+unix_ms/monotonic_ns but neither operation. date refuses --resolution and
+--set by option name and never attempts a host clock change. --debug is a
+separate boreutils parser-trace implementation gap, not a missing syscall.
