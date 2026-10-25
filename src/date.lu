@@ -146,6 +146,11 @@ fn main() -> int {
         bore.warn("date", "--resolution: unsupported: wolf has no clock-resolution surface")
         return 1
     }
+    let tz = env_get("TZ") else ""
+    if !utc && (tz.starts_with("right/") || tz.starts_with(":right/") || tz.contains("/right/")) {
+        bore.warn("date", "TZ: leap-second TZif tables (right/ zones) are unsupported")
+        return 1
+    }
     let z = if utc then bore.utc() else bore.zone()
     if z.leap_table {
         bore.warn("date", "TZ: leap-second TZif tables (right/ zones) are unsupported")
