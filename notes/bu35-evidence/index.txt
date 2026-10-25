@@ -75,11 +75,46 @@ All full logs below are under hasu:/home/mfwolffe/lanes/bu35/ev/.
   differing-id rows are GNU parity witnesses, not named parity exceptions.
 - Census erratum: the former 103 denominator was off by one. 107 source
   binaries -3 SHA2 duplicates -1 bracket =103 reached units, +df =104.
-- Full gauntlet paths are reserved below, not a green claim:
-  /home/mfwolffe/lanes/bu35/ev/full.log;
-  /home/mfwolffe/lanes/bu35/full.pid;
-  /home/mfwolffe/lanes/bu35/full.exit.
-  Exit marker absent means PENDING; the job asserts its head and logs stages.
+- Final-code-head full gauntlet GREEN: 4a18192d85eb476825f419875516015b0f48302b.
+  /home/mfwolffe/lanes/bu35/ev/full.log starts 2026-10-25 02:05:17 UTC,
+  ends 02:29:45 UTC (24m28s); /home/mfwolffe/lanes/bu35/full.exit is 0.
+  The same code head is asserted at start/end. PID2611220 has finished.
+  Closeout changes only notes; no code, tests, pin or CI files changed.
+- Input recheck: full-inputs-recheck.txt copies the actual receipt.
+  Both release archives were hashed twice against their pins; wolf,
+  libwolf_rt.a and lupin members match the active stage. The std2386522e
+  source key sets match BOTH ways: all55 modules match their Git blobs.
+  GNU's pinned tarball and every bin-manifest entry match; census rechecked
+  as107 binaries,103/104 units,105 casefiles,16480 cases; df alone absent.
+- Stage results (all stage commands exited0):
+  fmt: PASS; release107/107 builds; dev107/107 builds.
+  unit:35 passed,0 failed/rejected/unsupported/filtered; logins_test.lu's
+    pure ABI test passes. checksum_stream_test.lu alone explicitly falls
+    back to native because the checked step budget is exhausted. This is
+    NOT a claim that all35 ran checked; full-unit-checkpoint.txt preserves it.
+  diff-release:16288 passed /0 failed /192 named skips.
+  diff-dev:16288 passed /0 failed /192 named skips.
+    All16480 verdict rows match exactly between the two lists.
+  harness selftest:5 agreements and11 deliberately failing plants,
+    all expected differences seen;15 unsafe operand and2 unsafe root
+    refusals. Its embedded smalltest runs6 cases, one loud non-Darwin skip.
+  text:23 tests PASS; checksum:10 tests PASS (release SHA256 RSS21420KiB
+    on both8MiB and256MiB inputs, no growth with input size).
+  evidence:PASS, broken-child pipe survives and a killed harness has
+    already delivered its report (one case,404 bytes, below4096-byte block).
+  small:6 cases PASS, one loud macOS-only skip (5 executed).
+  field:PASS, all9 success lines including real SIGPIPE141 despite the
+    shell pipeline status0; refusal/death remains loud, differences advisory.
+  disk integration:78 passed /0 failed /0 skipped, both native tiers.
+  gaps:7 expected compile errors, six E0301 absent-name rows and the
+    explicitly described E0402 effective-access arity row (not absence).
+  identity-root:297/0/0 release AND297/0/0 dev; same148 stty refusal rows
+    and saved-state restore on each, complete pty state and live utmp.
+    SELinux field15/0 (GNU9.4 only, NOT9.11); two ordinary access parity
+    rows and two GNU-shared differing-id limitations, zero unexpected failures.
+  These are /home/mfwolffe/lanes/bu35/ev/full-<stage>.log, indexed by full.log.
+  Expected FAIL lines in full-harness.log are the intentional red selftest,
+  not a failing full stage.
 
 Done-when
 [x] Fourteen units/fifteen binaries, headers, cases and source census.
@@ -88,9 +123,12 @@ Done-when
 [x] Named surface/implementation limits have rows and witnesses.
 [x] Both requested plants seen red locally, logs retained.
 [ ] Both CI plants named red and closed unmerged (orchestrator watch).
-[ ] Final-head release/dev full gauntlet and root integration green.
-[ ] PR-tier green, orchestrator full-matrix label, final full tier green.
-[ ] lane-audit last line recorded in the PR/handoff; no lane CI wait.
+[x] Final code-head release/dev full gauntlet and root integration green.
+[x] Orchestrator applied full-matrix; lane added no label.
+[ ] PR/full CI green at the notes closeout head (orchestrator watch).
+[x] Audit last line recorded in PR/handoff; no lane CI wait.
+    Prior code-head audit failed only on pending CI/label; final metadata-head
+    audit and once-read CI run id are recorded in the PR closeout.
 
 Issues to file or comment, never filed/closed by this lane
 - wolf-std: termios-issue.txt, exact title/list requested under R-bu35-2.
