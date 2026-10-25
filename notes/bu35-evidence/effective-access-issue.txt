@@ -32,8 +32,8 @@ Witnesses, only in an owned disposable Ubuntu 24.04 container:
   O_WRONLY open, with no bytes written, fails EROFS. GNU shares this too.
 
 These are measured shared limitations, NOT invented GNU-vs-boreutils
-NOT-YET rows. R-bu35-7 asks how to document the oracle's set-id limitation;
-the recommendation is keep compatibility and publish the witnesses.
+NOT-YET rows. The amended R-bu35-6 keeps compatibility and publishes the
+witnesses; the predicates have no remaining access parity exception.
 
 Reproducer: tests/identity-terminal/access-not-yet.py. The positive
 2-argument witness is tests/identity-terminal/access-real/main.lu.
