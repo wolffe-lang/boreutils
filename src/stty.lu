@@ -1,0 +1,81 @@
+//! member: false
+//! stty — the termios settings wolf can represent, refused by name otherwise.
+//! References: POSIX.1-2024 stty; GNU 9.11 manual/help and pty black-box
+//! runs; Linux termios(3). No implementation source. Mode reads and
+//! writes preserve every unrepresented field. Full -a/-g, save/restore,
+//! speeds, control characters and window setters lack pinned surfaces.
+use bore
+use std.term
+
+fn main() -> int {
+    var out = bore.stdout()
+    let args = env_args()
+    var settings = List[str]()
+    var device = "standard input"
+    var named = false, all = false, save = false
+    var k = 0
+    while k < args.len {
+        let word = args[k]
+        if word == "--help" {
+            bore.put(mut out, "Usage: stty [-F DEVICE] [SETTING]...\nRead size or set echo, icanon, isig, ixon, iexten, icrnl, opost, istrip, min and time. Full termios snapshots, speeds and other settings are refused by name because wolf cannot represent them.\n") else |_| {}
+            return bore.finish(mut out, "stty", 0)
+        }
+        if word == "--version" { bore.put(mut out, bore.version_text("stty")) else |_| {}; return bore.finish(mut out, "stty", 0) }
+        if word == "-F" || word == "--file" {
+            if k + 1 == args.len { return bore.usage_error("stty", if word == "-F" then "option requires an argument -- 'F'" else "option '--file' requires an argument") }
+            k += 1; device = args[k]; named = true
+        } else if word.starts_with("--file=") { device = word[7..]; named = true }
+        else if word.starts_with("-F") && word.len > 2 { device = word[2..]; named = true }
+        else if word == "-a" || word == "--all" { all = true }
+        else if word == "-g" || word == "--save" { save = true }
+        else if word != "--" { (mut settings).push(word) }
+        k += 1
+    }
+    if all && save { return bore.usage_error("stty", "the options for verbose and stty-readable output styles are mutually exclusive") }
+    var fd = 0
+    if named {
+        fd = fs_open_mode(device, 3) else |_| { bore.warn("stty", "{bore.quote_always(device)}: {bore.io_error()}"); return 1 }
+    }
+    defer { if named { fs_close(fd) else |_| {} } }
+    let packed = os_term_mode(fd) else |_| { bore.warn("stty", "{bore.quote_always(device)}: {bore.io_error()}"); return 1 }
+    if all || save || settings.len == 0 {
+        let option = if all then "--all" else (if save then "--save" else "default report")
+        bore.warn("stty", "{option}: unsupported: wolf exposes only a partial termios record")
+        return 1
+    }
+    var mode = term.unpack(packed)
+    var changed = false
+    k = 0
+    while k < settings.len {
+        let word = settings[k]
+        let minus = word.starts_with("-")
+        let name = if minus then word[1..] else word
+        let on = !minus
+        if name == "echo" { mode.echo = on; changed = true }
+        else if name == "icanon" { mode.canonical = on; changed = true }
+        else if name == "cbreak" { mode.canonical = minus; changed = true }
+        else if name == "isig" { mode.signals = on; changed = true }
+        else if name == "ixon" { mode.flow = on; changed = true }
+        else if name == "iexten" { mode.extended = on; changed = true }
+        else if name == "icrnl" { mode.raw_cr = minus; changed = true }
+        else if name == "opost" { mode.raw_output = minus; changed = true }
+        else if name == "istrip" { mode.strip8 = on; changed = true }
+        else if word == "min" || word == "time" {
+            if k + 1 == settings.len { return bore.usage_error("stty", "missing argument to {bore.quote_always(word)}") }
+            k += 1
+            let n = settings[k].to_int() else |_| { return bore.usage_error("stty", "invalid integer argument: {bore.quote_always(settings[k])}") }
+            if n < 0 || n > 255 { return bore.usage_error("stty", "invalid integer argument: {bore.quote_always(settings[k])}") }
+            if word == "min" { mode.min = n } else { mode.time = n }
+            changed = true
+        } else if word == "size" {
+            let (rows, cols) = os_term_size(fd) else |_| { bore.warn("stty", "{bore.quote_always(device)}: {bore.io_error()}"); return 1 }
+            bore.put(mut out, "{rows} {cols}\n") else |_| {}
+        } else {
+            bore.warn("stty", "{bore.quote_always(word)}: unsupported: setting has no wolf termios surface")
+            return 1
+        }
+        k += 1
+    }
+    if changed { os_term_set_mode(fd, term.pack(mode)) else |_| { bore.warn("stty", "{bore.quote_always(device)}: {bore.io_error()}"); return 1 } }
+    bore.finish(mut out, "stty", 0)
+}

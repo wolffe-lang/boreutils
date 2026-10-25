@@ -1,0 +1,129 @@
+# Supported termios modes on an input pty; no made-up snapshot format.
+
+[[case]]
+name = "0 ['--help']"
+args = ["--help"]
+compare = ["exit"]
+
+[[case]]
+name = "1 ['--version']"
+args = ["--version"]
+compare = ["exit"]
+
+[[case]]
+name = "2 []"
+args = []
+
+[[case]]
+name = "3 ['size']"
+args = ["size"]
+
+[[case]]
+name = "4 ['echo']"
+args = ["echo"]
+tty_stdin = true
+
+[[case]]
+name = "5 ['-echo']"
+args = ["-echo"]
+tty_stdin = true
+
+[[case]]
+name = "6 ['icanon']"
+args = ["icanon"]
+tty_stdin = true
+
+[[case]]
+name = "7 ['-icanon']"
+args = ["-icanon"]
+tty_stdin = true
+
+[[case]]
+name = "8 ['isig']"
+args = ["isig"]
+tty_stdin = true
+
+[[case]]
+name = "9 ['-isig']"
+args = ["-isig"]
+tty_stdin = true
+
+[[case]]
+name = "10 ['ixon']"
+args = ["ixon"]
+tty_stdin = true
+
+[[case]]
+name = "11 ['-ixon']"
+args = ["-ixon"]
+tty_stdin = true
+
+[[case]]
+name = "12 ['iexten']"
+args = ["iexten"]
+tty_stdin = true
+
+[[case]]
+name = "13 ['-iexten']"
+args = ["-iexten"]
+tty_stdin = true
+
+[[case]]
+name = "14 ['icrnl']"
+args = ["icrnl"]
+tty_stdin = true
+
+[[case]]
+name = "15 ['-icrnl']"
+args = ["-icrnl"]
+tty_stdin = true
+
+[[case]]
+name = "16 ['opost']"
+args = ["opost"]
+tty_stdin = true
+
+[[case]]
+name = "17 ['-opost']"
+args = ["-opost"]
+tty_stdin = true
+
+[[case]]
+name = "18 ['istrip']"
+args = ["istrip"]
+tty_stdin = true
+
+[[case]]
+name = "19 ['-istrip']"
+args = ["-istrip"]
+tty_stdin = true
+
+[[case]]
+name = "20 ['cbreak']"
+args = ["cbreak"]
+tty_stdin = true
+
+[[case]]
+name = "21 ['-cbreak']"
+args = ["-cbreak"]
+tty_stdin = true
+
+[[case]]
+name = "22 ['min', '0']"
+args = ["min", "0"]
+tty_stdin = true
+
+[[case]]
+name = "23 ['time', '5']"
+args = ["time", "5"]
+tty_stdin = true
+
+[[case]]
+name = "24 ['size']"
+args = ["size"]
+tty_stdin = true
+
+[[case]]
+name = "25 ['-echo', '-icanon', 'min', '1', 'time', '0']"
+args = ["-echo", "-icanon", "min", "1", "time", "0"]
+tty_stdin = true
