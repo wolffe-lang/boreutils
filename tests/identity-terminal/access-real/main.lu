@@ -1,0 +1,8 @@
+// Positive witness: the pin has real-id access(2), not effective access.
+fn main() -> int {
+    let args = env_args()
+    if args.len != 2 { return 2 }
+    let mode = args[1].to_int() else |_| { return 2 }
+    fs_access(args[0], mode) else |_| { return 1 }
+    0
+}

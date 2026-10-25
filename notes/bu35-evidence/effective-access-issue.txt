@@ -1,10 +1,16 @@
 Repository: wolffe-lang/wolf-std
 Title: faccessat(AT_EACCESS) / euidaccess: an effective-access builtin for test -r/-w/-x
 
-At wolf 0.2.35 / lupin 0.1.56 / bundled std 2386522e there is no access
-predicate for a path using effective uid/gid, supplementary groups, ACLs,
-capabilities and mount flags. fs_stat gives Unix permission bits, but this
-cannot express two documented GNU test behaviors:
+At wolf 0.2.35 / lupin 0.1.56 / bundled std 2386522e, fs_access(path, mode)
+EXISTS (wolf-lang#820, s254): it is access(2), using REAL ids, and handles
+ACLs and read-only mounts. It returns () ! {denied, invalid, io, not_found,
+unsupported}, not bool. The missing surface is EFFECTIVE access, as the
+owned spec [os.fs.access] explicitly states; it matters to set-id and
+capability-shaped callers. A three-argument call is an arity error, not
+proof that fs_access is absent. The positive 2-arg compiler/runtime witness
+is tests/identity-terminal/access-real/main.lu.
+
+The original mode-bit implementation's two documented discrepancies were:
 
 1. In an owned disposable Ubuntu 24.04 container, create a root-owned
 mode-000 file, setfacl -m u:1000:r--, then as uid/gid 1000 with no extra
