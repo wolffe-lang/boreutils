@@ -20,7 +20,11 @@ fn init_boot() -> int {
     var at = 0
     while at + 16 <= aux.len {
         var tag: int = 0, value: int = 0, power: int = 1
-        for j in 0..7 { tag += aux[at + j] as int * power; value += aux[at + 8 + j] as int * power; power *= 256 }
+        for j in 0..7 {
+            tag += aux[at + j] as int * power
+            value += aux[at + 8 + j] as int * power
+            power *= 256
+        }
         if tag == 17 { hz = value; break }
         at += 16
     }

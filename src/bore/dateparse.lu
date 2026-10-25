@@ -187,7 +187,11 @@ pub fn date_read(text: str, zone: Zone, now: Instant) -> Instant ! DateReadFaile
             k += 1
         }
         if !closed { return invalid }
-        if label.starts_with("right/") || label.starts_with(":right/") || label.contains("/right/") { return leap_zone }
+        if label.starts_with("right/") ||
+            label.starts_with(":right/") ||
+            label.contains("/right/") {
+            return leap_zone
+        }
         z = zone_named(label)
         s = s[k..].trim()
     }
