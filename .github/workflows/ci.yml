@@ -162,7 +162,10 @@ jobs:
         # full tier, linux alone in a pull request's.
         include: ${{ fromJSON(needs.plan.outputs.matrix_gauntlet || '[]') }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    # Run 40168612318: release alone took 33m Linux / 34m macOS.
+    # Darwin's projected full job is 54m29 (completed tail from
+    # 40097789140); 66m leaves 21% headroom. Keep all per-case bounds.
+    timeout-minutes: ${{ matrix.os == 'macos-latest' && 66 || 90 }}
     steps:
       - uses: actions/checkout@v4
 
@@ -426,7 +429,8 @@ jobs:
     # lives on the one step that earns it — the differential run, whose
     # exit 1 is a divergence and is DATA — and `tools/field-verdict`
     # decides which of the two a given exit code is.
-    timeout-minutes: 30
+    # The same release build exceeded the old 30m cap in 40168612318.
+    timeout-minutes: 45
     env:
       BORE_GNU_PREFIX: ""
       BORE_ORACLE_ANY: "1"
