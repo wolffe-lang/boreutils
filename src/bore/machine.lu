@@ -2,9 +2,12 @@
 //! capitalization guess applied to wolf's normalized os_name/os_arch.
 //! References: Linux proc(5), GNU coreutils 9.11 manual/black-box runs.
 
+/// Failures reading a raw kernel field.
+pub error MachineFailed = {unsupported, io}
+
 /// A raw Linux uname field. unsupported means procfs is absent or this
 /// host has no raw-field surface; io means the kernel file could not read.
-pub fn machine_field(name: str) -> str ! {unsupported, io} {
+pub fn machine_field(name: str) -> str ! MachineFailed {
     if !built_for_linux() { return unsupported }
     let b = fs_read_bytes("/proc/sys/kernel/{name}") else |_| { return io }
     let s = str_from_utf8(b) else |_| { return io }
