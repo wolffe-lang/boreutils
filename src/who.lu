@@ -72,7 +72,7 @@ fn main() -> int {
         var line = r.line
         if r.kind == 2 { line = "system boot" }
         if r.kind == 3 { line = "clock change" }
-        if r.kind == 1 { line = "run-level {r.pid % 256 as char}" }
+        if r.kind == 1 { line = "run-level {(r.pid % 256) as char}" }
         var text = bore.login_pad(user, 8) + " "
         if mesg { text += (if r.kind == 7 then bore.login_mesg(r.line) else " ") + " " }
         text += bore.login_pad(line, 12) + " " + bore.login_stamp(r.secs, z)
@@ -84,7 +84,7 @@ fn main() -> int {
             text = text.trim_end()
             if r.kind == 8 { text += "    term={r.termination} exit={r.exit_code}" }
         } else if r.kind == 1 {
-            text += "                   last={r.pid / 256 as char}"
+            text += "                   last={(r.pid / 256) as char}"
         }
         bore.put(mut out, text + "\n") else |_| {}
     }
