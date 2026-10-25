@@ -9,7 +9,13 @@ ROOT=pathlib.Path(__file__).resolve().parents[2]
 if os.environ.get('GITHUB_ACTIONS')!='true' or platform.system()!='Darwin':
     raise SystemExit('REFUSED: this probe runs only on the disposable Darwin CI runner')
 TRUNK='37e3825c1b7ba374e1480cdcddefd959f5ecdb51'
-FAMILIES=['dir','vdir','numfmt','od']
+LEGACY=['dir','vdir','numfmt','od']
+FAMILIES=[*LEGACY,'stty','uname','who','date']
+def present_tools(code,candidates):
+    return [name for name in candidates if (code/'src'/(name+'.lu')).is_file()]
+def absent_cell(code_name,stage_name,family):
+    where='trunk' if code_name=='trunk-code' else 'head'
+    return {'code':code_name,'oracle':stage_name,'family':family,'exit':None,'status':'absent at '+where,'summary':'source entry not present; no comparison attempted'}
 base=pathlib.Path(tempfile.mkdtemp(prefix='bu35-darwin-',dir=os.environ['RUNNER_TEMP']))
 logs=base/'logs';logs.mkdir()
 print('ATTRIBUTION_ROOT',base,flush=True)
@@ -27,8 +33,12 @@ print('CODE_HEAD',subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT).d
 headpin=tomllib.loads((ROOT/'wolf-toolchain.toml').read_text());oldpin=tomllib.loads((trunk/'wolf-toolchain.toml').read_text())
 assert [(headpin[k]['version'] if k!='std' else headpin[k]['rev']) for k in ['wolf','lupin','std']]==[(oldpin[k]['version'] if k!='std' else oldpin[k]['rev']) for k in ['wolf','lupin','std']]
 compiler={**os.environ,'WOLF_BIN':str(ROOT/'.wolf-bin/wolf'),'LUPIN_BIN':str(ROOT/'.wolf-bin/lupin'),'WOLF_STD':str(ROOT/'.wolf-bin/std')}
-command(['tools/build',*FAMILIES,'date'],cwd=trunk,env=compiler,log=logs/'build-trunk.log')
-command(['tools/build',*FAMILIES,'date'],env=compiler,log=logs/'build-head.log')
+available={}
+for code_name,code in [('trunk-code',trunk),('head-code',ROOT)]:
+    available[code_name]=present_tools(code,FAMILIES)
+    print('BUILD_PLAN',json.dumps({'code':code_name,'present':available[code_name],'absent':[x for x in FAMILIES if x not in available[code_name]]},sort_keys=True),flush=True)
+    # Never pass a nonexistent entry, or an empty list (which means all).
+    if available[code_name]:command(['tools/build',*available[code_name]],cwd=code,env=compiler,log=logs/('build-'+code_name+'.log'))
 stages={}
 for name,code in [('trunk-config',trunk),('head-config',ROOT)]:
     # Fresh stage prevents a matching host GNU or an old cache from
@@ -41,7 +51,7 @@ for name,code in [('trunk-config',trunk),('head-config',ROOT)]:
     command(['tools/fetch-oracle'],cwd=stage_root,env={**os.environ,'BORE_GNU_PREFIX':'bu35-force-fresh-'},log=logs/(name+'-build.log'))
     stages[name]=stage_root/'.gnu-bin/bin'
     print((logs/(name+'-build.log')).read_text(),flush=True)
-    for util in [*FAMILIES,'true','uniq','date']:
+    for util in dict.fromkeys([*LEGACY,'true','uniq','date']):
         exe=stages[name]/util;assert exe.is_file() and os.access(exe,os.X_OK),exe
         print('ORACLE_MEMBER',name,util,hashlib.sha256(exe.read_bytes()).hexdigest(),flush=True)
 # Keep the originally selected head stage as a cache/build-drift control.
@@ -58,6 +68,14 @@ for code_name,code in [('trunk-code',trunk),('head-code',ROOT)]:
     for stage_name,stage in stages.items():
         os.environ['PATH']=str(stage)+os.pathsep+compiler['PATH'];os.environ['BORE_GNU_PREFIX']='';os.environ.pop('BORE_ORACLE_ANY',None)
         for family in FAMILIES:
+            if family not in available[code_name]:
+                row=absent_cell(code_name,stage_name,family);results.append(row)
+                print('ATTRIBUTION_CELL',json.dumps(row,sort_keys=True),flush=True)
+                continue
+            if not (stage/family).is_file():
+                row={'code':code_name,'oracle':stage_name,'family':family,'exit':None,'status':'oracle program absent','summary':'configured GNU stage does not install this program'};results.append(row)
+                print('ATTRIBUTION_CELL',json.dumps(row,sort_keys=True),flush=True)
+                continue
             out=logs/(code_name+'--'+stage_name+'--'+family+'.log')
             with out.open('w') as stream,contextlib.redirect_stdout(stream):
                 result=module.main(['--bin',str(code/'target/release'),family])
