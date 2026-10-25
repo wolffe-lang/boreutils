@@ -1,36 +1,38 @@
 Repository: wolffe-lang/wolf-std
-Title: faccessat(AT_EACCESS) / euidaccess: an effective-access builtin for test -r/-w/-x
+Title: faccessat(AT_EACCESS): an effective-ids access query beside fs_access
 
 At wolf 0.2.35 / lupin 0.1.56 / bundled std 2386522e, fs_access(path, mode)
-EXISTS (wolf-lang#820, s254): it is access(2), using REAL ids, and handles
-ACLs and read-only mounts. It returns () ! {denied, invalid, io, not_found,
-unsupported}, not bool. The missing surface is EFFECTIVE access, as the
-owned spec [os.fs.access] explicitly states; it matters to set-id and
-capability-shaped callers. A three-argument call is an arity error, not
-proof that fs_access is absent. The positive 2-arg compiler/runtime witness
-is tests/identity-terminal/access-real/main.lu.
+EXISTS (wolf-lang#820, s254). The owned spec [os.fs.access] says it is
+access(2), using REAL ids. It handles ACLs, immutable files, read-only
+mounts (denied on EROFS), root's execute rule and the host's other access
+rules. It returns () ! {denied, invalid, io, not_found, unsupported}.
 
-The original mode-bit implementation's two documented discrepancies were:
+The missing surface is EFFECTIVE access, requested but not added under R1
+in [os.fs.gaps.note]. Ids are observable (wolf-lang#633 is the id-surface
+reference), so boreutils can choose the real-id call when uid == euid and
+gid == egid, which is every ordinary test. For set-id callers only, it
+retains a mode-bit computation using effective ids/groups until the host
+can answer this query. GNU test/euidaccess is the first consumer.
 
-1. In an owned disposable Ubuntu 24.04 container, create a root-owned
-mode-000 file, setfacl -m u:1000:r--, then as uid/gid 1000 with no extra
-groups, run GNU 9.11 test -r FILE. GNU exits 0. boreutils' effective-id and
-mode-bit predicate exits 1. ACL metadata is itself absent (wolf-lang#685).
-2. In that container, bind the boreutils checkout read-only. As container
-root, GNU 9.11 test -w tests/fixtures/bu35-logins.utmp exits 1; boreutils'
-mode-bit predicate exits 0. faccessat sees the read-only mount (EROFS).
+Requested surface: faccessat/faccessat2 with AT_EACCESS, or euidaccess and
+the corresponding host operation on Darwin. Preserve the current mode
+bits and rows, but ask with effective credentials. A boolean grant/denial
+would also work if exceptional failures retain named rows and host errno.
 
-The reproducible rows are tests/identity-terminal/access-not-yet.py.
-They assert and publish these disagreements as NOT-YET, never hide or
-rewrite the oracle's output. The absent-call compiler witness is
- tests/gaps/bu35/effective-access/main.lu.
+Witnesses, only in an owned disposable Ubuntu 24.04 container:
+- root-owned mode-000 file; setfacl -m u:1000:r--; actor uid/euid 1000:
+  GNU 9.11 test -r and boreutils both exit 0 (parity, no exception).
+- read-only source bind; actor root with equal ids: GNU and boreutils
+  test -w both exit 1 (parity, no exception).
+- the ACL file with real uid/gid 0 but effective uid/gid 1000: GNU test
+  -r exits 0; boreutils' effective-id mode-bit fallback exits 1 (NOT-YET).
+- the read-only bind with real uid/gid 1000 but effective uid/gid 0:
+  GNU test -w exits 1; boreutils' fallback exits 0 (NOT-YET).
 
-Requested surface: an effective-access predicate, mapped to euidaccess or
-faccessat/faccessat2 with AT_EACCESS (and the host equivalent on Darwin),
-with read/write/execute/existence modes. Return false for ordinary denial;
-retain a named unsupported row where the host cannot make the distinction,
-and expose host errno for unexpected IO. Do not emulate ACLs by mode bits.
-
-R-bu35-6=B keeps the useful -r/-w/-x predicates and their correct ordinary
-mode-bit/root rules, with these two named exceptions. Root reads/writes
-regardless of mode, and executes only when some execute bit is present.
+Reproducer: tests/identity-terminal/access-not-yet.py. The positive
+2-argument witness is tests/identity-terminal/access-real/main.lu.
+The requested third-argument shape in tests/gaps/bu35/effective-access/
+main.lu gives E0402 (takes 2 arguments, not 3): this is an ARITY witness,
+not an absent-name claim. [os.fs.access] is the authority for the missing
+effective-id variant. R-bu35-6 amended accordingly; ordinary ACL/read-only
+exceptions retired. No host ids or host-owned files are changed by a test.
