@@ -1,0 +1,50 @@
+//! member: false
+//! uptime — Linux procfs uptime/load and utmp user/boot records.
+//! References: GNU coreutils 9.11 manual and black-box boundary runs;
+//! Linux proc(5), utmp(5). No implementation source. Non-Linux procfs
+//! and utmp layouts are refused by name. Clock output is shape-tested.
+use bore
+
+fn read_text(path: str) -> str {
+    let b = fs_read_bytes(path) else List[byte]()
+    str_from_utf8(b) else ""
+}
+
+fn main() -> int {
+    var opts = List[bore.Opt]()
+    (mut opts).push(bore.flag("", "help")); (mut opts).push(bore.flag("", "version"))
+    let p = bore.parse(opts, env_args(), bore.permute())
+    var out = bore.stdout()
+    for key in p.keys {
+        if key == "help" { bore.put(mut out, "Usage: uptime [FILE]\nPrint the clock, uptime, login count and one-, five- and fifteen-minute loads. FILE supplies Linux utmp boot and login records.\n") else |_| {}; return bore.finish(mut out, "uptime", 0) }
+        if key == "version" { bore.put(mut out, bore.version_text("uptime")) else |_| {}; return bore.finish(mut out, "uptime", 0) }
+    }
+    if !bore.ok(p) { return bore.usage_error("uptime", p.error) }
+    if p.operands.len > 1 { return bore.usage_error("uptime", "extra operand {bore.quote_always(p.operands[1])}") }
+    if !bore.built_for_linux() { bore.warn("uptime", "procfs uptime/load and utmp layout unsupported on this host"); return 1 }
+    let now = bore.Instant { secs: time_unix_ms() / 1000, nanos: 0 }
+    let path = if p.operands.len == 0 then bore.login_path() else p.operands[0]
+    var users = 0, boot: int = -1
+    for r in bore.login_records(path) { if r.kind == 7 && r.user != "" { users += 1 }; if r.kind == 2 { boot = r.secs } }
+    var up: int = -1
+    if p.operands.len == 0 { up = read_text("/proc/uptime").split(".")[0].to_int() else -1 }
+    else if boot >= 0 { up = now.secs - boot }
+    var status = 0
+    var duration = "???? days ??:??"
+    if up >= 0 {
+        let days = up / 86400
+        let hours = up / 3600 % 24
+        duration = bore.space_padded(hours, 3) + ":" + bore.zero_padded(up / 60 % 60, 2)
+        if days > 0 { duration = "{days} " + (if days == 1 then "day" else "days") + " " + bore.space_padded(hours, 2) + ":" + bore.zero_padded(up / 60 % 60, 2) }
+    } else {
+        if !fs_exists(path) { bore.warn("uptime", "couldn't get boot time: No such file or directory") }
+        else { bore.warn("uptime", "couldn't get boot time") }
+        status = 1
+    }
+    let clock = bore.date_format("%H:%M:%S", now, bore.zone()) else "??:??:??"
+    var text = " {clock}  up {duration},  {users} " + (if users == 1 then "user" else "users")
+    let load = read_text("/proc/loadavg").words()
+    if load.len >= 3 { text += ",  load average: {load[0]}, {load[1]}, {load[2]}" }
+    bore.put(mut out, text + "\n") else |_| {}
+    bore.finish(mut out, "uptime", status)
+}
