@@ -47,7 +47,7 @@ fn predicate_access(r: List[int], bit: int) -> bool {
     if os_euid() == rec_uid(r) { shift = 64 }
     else {
         var group = os_egid() == rec_gid(r)
-        let groups = os_groups()
+        let groups = os_groups() else List[int]()
         for g in groups { if g == rec_gid(r) { group = true } }
         if group { shift = 8 }
     }
