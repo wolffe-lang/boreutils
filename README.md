@@ -168,7 +168,7 @@ derives no boreutils code from GPL source.
 
 Every shipped utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus, except where a case says otherwise and is
-skipped with its reason. The combined corpus holds **16,574 cases across 105 case files**; `kill` has
+skipped with its reason. The combined corpus holds **16,579 cases across 105 case files**; `kill` has
 365 more that SEND, each run in a container of its own (`tests/kill/`,
 `tools/killtest`: **365 passed, 0 failed** on hasu at bu30, groups,
 `kill 0` and `kill -1` among them), `timeout` 163 more that run a
@@ -474,7 +474,7 @@ items, English month names and `MM/DD/YYYY`, plus independent `-r -d`
 reference times. Its four remaining skips are `touch -` twice (times by
 handle, wolf-lang#714), noon and unknown grammar. See
 [the date grammar](docs/touch-date-grammar.txt). `ln`'s three backup gaps (`-b`, `--backup`, `-S`) are retired (bu36). `rm`'s three: `--no-preserve-root` twice, refused on
-purpose, and `--preserve-root=all`, not written yet. `mv`'s eight:
+purpose, and `--preserve-root=all` now checks each operand's device against its parent before removal (bu36). `mv`'s eight:
 `--exchange` (no rename that swaps, #706) and seven for `-u`, `-b`,
 `-S` and `--debug`, not written yet. `cp`'s nineteen: `-a`, `-d` and
 `--preserve=links`, `xattr`, `context`, `all` (hard links among the
@@ -1339,7 +1339,7 @@ new security-sensitive designs.
 | `cp` | done: bytes by `fs_copy_chunk`, a new file with its source's mode from the first instant, `-r`, `-L`, `-H`, `-P`, a link under `-r` copied as a link, `-p`, `--preserve=mode,timestamps`, `--no-preserve`, `-f`, `-i`, `-n`, `-v`, `-T`, `-t`, `--remove-destination`; not the owner (#701), `-a`, `-d`, `--preserve=links/xattr/context/all`, `-s`, `-l`, a fifo under `-r` (#705), `--sparse`/`--reflink` beyond `auto` (#703) | start-up 0.92x; 1 GiB 1.00x; `-r` of 100,000 files 0.72x to 0.75x (linux, btrfs; bu21's figures, not re-taken) |
 | `chmod` | done: octal and symbolic modes, a mode given as an option, `-c`, `-f`, `-v`, `-R`, `-H`, `-L`, `-P`, `-h`, `--reference`, `--preserve-root` | not benched |
 | `touch` | done: `-a`, `-m`, `--time`, `-c`, `-h`, `-r`, `-t`, `-d` for epoch, ISO, relative/calendar items, weekdays, English month names and slash dates, including `-r -d`, both times to the nanosecond; not `touch -` (#714), leap-second zones or unnamed grammar | not benched |
-| `ln` | done: hard and symbolic, `-f` (a replace that never leaves the name missing), `-i`, `-n`, `-T`, `-t`, `-v`, `-P`, `-L`, `-r`, `-d`/`-F`; not `-b` | not benched |
+| `ln` | done: hard and symbolic, `-f` (a replace that never leaves the name missing), `-i`, `-n`, `-T`, `-t`, `-v`, `-P`, `-L`, `-r`, `-d`/`-F`, simple and numbered backups (`-b`, `--backup`, `-S`) | not benched |
 | `kill` | done: `-s`, `--signal`, `-SIGNAL` by name or by this host's number, `-n`, signal 0, `-l`, `-t`/`-L` with the host's words, signal 0's included, exit statuses as signals, GNU's option rules; every signal the host numbers, real-time and host-only included; one process, a group (`-- -PGID`), this process's group (`0`) and every process (`-1`); not group 1 (`kill 0` from it) | not benched |
 | `timeout` | done: `-f`/`--foreground`, `-k`/`--kill-after`, `-p`/`--preserve-status`, `-s`/`--signal`, `-v`/`--verbose`; 124/125/126/127/137 as GNU; timeout leads its own group and signals it at the expiry, then CONT, any signal (a fault's and a host signal's ignored in timeout first); signals sent to it passed on; a stopped command continued; ends by the signal its command died of; `the monitored command dumped core`; not passing on a fault or host signal sent to timeout itself | not benched |
 | `id` | done: `-u`, `-g`, `-G`, `-n`, `-r`, `-z`, `-a`, the default line with `euid=`/`egid=`, USER operands by name or number; `-Z` refused as the oracle (no SELinux) refuses it; names from `/etc/passwd` and `/etc/group` only | not benched |
@@ -1561,12 +1561,12 @@ table answers it per utility, from the evidence and from nothing else.
 | `env` | 8 / 14 | 90 / 13 | `env true` 0.78x | drop-in for scripts that avoid `-S`, `-v` and the signal options (each refused by name), and do not read the ORDER of the environment they did not start from `-i` (wolf-lang#535) |
 | `mkdir` | 7 / 7 | 262 / 0 | start-up 0.72x; a thousand deep 0.37x | drop-in |
 | `rmdir` | 5 / 5 | 70 / 0 | start-up 0.72x | drop-in |
-| `rm` | 11 / 12 | 218 / 3 | start-up 0.87x; `-r` 0.94x to 1.02x | drop-in for scripts that avoid `--no-preserve-root` (refused on purpose: this `rm` does not remove `/`) and `--preserve-root=all`; at a terminal, "write-protected" is the owner's write bit (#633); a tree deeper than the host's path limit is not removed (#707) |
+| `rm` | 12 / 12 | 224 / 2 (hasu bu36) | start-up 0.87x; `-r` 0.94x to 1.02x | drop-in for scripts that avoid `--no-preserve-root` (refused on purpose: this `rm` does not remove `/`); at a terminal, "write-protected" is the owner's write bit (#633); a tree deeper than the host's path limit is not removed (#707) |
 | `mv` | 11 / 18 | 134 / 8 | start-up 1.01x | drop-in for scripts that stay on ONE file system (a move to another is refused, where GNU copies and removes) and avoid `-u`, `-b`, `-S`, `--exchange` and `--debug`, each refused by name; `-n` is a look and then a rename (#706) |
 | `cp` | 19 / 36 | 228 / 19 | start-up 0.92x; 1 GiB 1.00x; `-r` 0.72x to 0.75x | drop-in for scripts that avoid `-a`, `-d`, `--preserve=links`/`xattr`/`context`/`all`, `-s`, `-l`, a special file met under `-r`, `--sparse`/`--reflink` beyond `auto`, `-u`, `-b`, `--parents`, `--attributes-only` and `-x`, each refused by name, and do not `-p` a file owned by someone else (the owner is refused by name, #701) |
 | `chmod` | 14 / 14 | 532 / 0 | not benched | drop-in on linux; on macOS a link named by `-h`/`-P` or met by `-R` is left alone where GNU changes its own mode |
 | `touch` | 11 / 11 | 181 / 4 (hasu bu36) | not benched | drop-in for scripts whose `-d` dates fit the [documented grammar](docs/touch-date-grammar.txt); `touch -` (#714), leap-second zones, noon and unknown date words remain named refusals |
-| `ln` | 13 / 16 | 145 / 3 | not benched | drop-in for scripts that avoid `-b`/`--backup`/`-S` (refused by name) |
+| `ln` | 16 / 16 | 173 / 0 (hasu bu36) | not benched | drop-in on the tested hard/symbolic link and backup surface |
 | `kill` | 5 / 5 | 894 / 1, and 365 / 0 that send | not benched | drop-in for scripts that do not `kill 0` from process group 1 (a container's first process and what it starts without job control; refused by name) |
 | `timeout` | 7 / 7 | 116 / 0 (7 skipped on macOS), and 150 / 0 that run a command (13 skipped on kasumi, run on CI) | not benched | drop-in for scripts that do not send timeout itself a fault or host-only signal, nor `-s 33` its group (glibc's own: GNU's timeout dies of it, this one lives) |
 | `id` | 7 / 8 | 64 / 0, and 428 / 0 as root and as users | not benched | drop-in where the accounts are in `/etc/passwd` and `/etc/group` (not macOS's directory service, LDAP or NIS); `-Z` is refused as GNU without SELinux refuses it |

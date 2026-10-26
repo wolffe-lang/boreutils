@@ -1182,7 +1182,6 @@ skip = "this rm refuses --no-preserve-root by name, status 1: it does not remove
 name = "--preserve-root=all"
 args = ["-r", "--preserve-root=all", "d"]
 scratch = { "d/a" = "a\n", "d/sub/b" = "b\n", "d/sub/deep/c" = "c\n" }
-skip = "--preserve-root=all is not written yet: refused by name, status 1"
 
 # --- options
 [[case]]
@@ -1261,3 +1260,33 @@ name = "stdout closed under -v"
 args = ["-v", "f"]
 scratch = { "f" = "hi\n" }
 stdout_closed = true
+
+[[case]]
+name = "bu36 rm preserve all 0"
+args = ["--preserve-root=all", "f"]
+scratch = { f = "x", "d/sub/file" = "child" }
+scratch_links = { link = "d" }
+
+[[case]]
+name = "bu36 rm preserve all 1"
+args = ["-rv", "--preserve-root=all", "d"]
+scratch = { f = "x", "d/sub/file" = "child" }
+scratch_links = { link = "d" }
+
+[[case]]
+name = "bu36 rm preserve all 2"
+args = ["--preserve-root=all", "--preserve-root", "f"]
+scratch = { f = "x", "d/sub/file" = "child" }
+scratch_links = { link = "d" }
+
+[[case]]
+name = "bu36 rm preserve all 3"
+args = ["-f", "--preserve-root=all", "missing"]
+scratch = { f = "x", "d/sub/file" = "child" }
+scratch_links = { link = "d" }
+
+[[case]]
+name = "bu36 rm preserve all 4"
+args = ["--preserve-root=all", "link"]
+scratch = { f = "x", "d/sub/file" = "child" }
+scratch_links = { link = "d" }
