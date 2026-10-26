@@ -168,7 +168,7 @@ derives no boreutils code from GPL source.
 
 Every shipped utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus, except where a case says otherwise and is
-skipped with its reason. The combined corpus holds **16,607 cases across 105 case files**; `kill` has
+skipped with its reason. The combined corpus holds **16,644 cases across 105 case files**; `kill` has
 365 more that SEND, each run in a container of its own (`tests/kill/`,
 `tools/killtest`: **365 passed, 0 failed** on hasu at bu30, groups,
 `kill 0` and `kill -1` among them), `timeout` 163 more that run a
@@ -477,9 +477,9 @@ handle, wolf-lang#714), noon and unknown grammar. See
 purpose, and `--preserve-root=all` now checks each operand's device against its parent before removal (bu36). `mv` now reads update modes, backups and debug; only
 `--exchange` remains skipped (no rename that swaps, #706). `cp`'s nineteen: `-a`, `-d` and
 `--preserve=links`, `xattr`, `context`, `all` (hard links among the
-sources are not tracked; no extended attribute, #685); `-s` and `-l`,
-not written; one fifo (#705); five for `--sparse` and `--reflink` with
-anything but `auto` (#703); and five options not written yet. The
+sources are not tracked; no extended attribute, #685); `-s` and `-l` now create links (bu36); one fifo (#705); five for `--sparse` and `--reflink` with
+anything but `auto` (#703); the five former option gaps `-u`, `-b`/`-S`, `--parents`,
+`--attributes-only` and `-x` now run (bu36). The
 OWNER is the one thing `cp -p` cannot keep (#701): a copy whose owner
 or group came out other than its source's says so by name, status 1.
 Every refusal is BY NAME, status 1, and leaves nothing wrong behind.
@@ -1335,7 +1335,7 @@ new security-sensitive designs.
 | `rmdir` | done: `-p`, `-v`, `--ignore-fail-on-non-empty` | start-up 0.72x (linux) |
 | `rm` | done: `-f`, `-r`, `-d`, `-v`, `-i`, `-I`, `--interactive`, `--one-file-system`; a link never followed; `/`, `.` and `..` refused; not `--no-preserve-root` (on purpose) or `--preserve-root=all` | start-up 0.87x; `-r` of 100,000 files 0.94x to 1.02x (linux) |
 | `mv` | done: one rename, into a directory, `-f`, `-i`, `-n`, `-v`, `-T`, `-t`, `--strip-trailing-slashes`, `--no-copy`; ANOTHER FILE SYSTEM REFUSED by name (a copy would lose the mode, the times, the owner, the links); not `-u`, `-b`, `--exchange` (#706) | start-up 1.01x (linux) |
-| `cp` | done: bytes by `fs_copy_chunk`, a new file with its source's mode from the first instant, `-r`, `-L`, `-H`, `-P`, a link under `-r` copied as a link, `-p`, `--preserve=mode,timestamps`, `--no-preserve`, `-f`, `-i`, `-n`, `-v`, `-T`, `-t`, `--remove-destination`; not the owner (#701), `-a`, `-d`, `--preserve=links/xattr/context/all`, `-s`, `-l`, a fifo under `-r` (#705), `--sparse`/`--reflink` beyond `auto` (#703) | start-up 0.92x; 1 GiB 1.00x; `-r` of 100,000 files 0.72x to 0.75x (linux, btrfs; bu21's figures, not re-taken) |
+| `cp` | done: bytes by `fs_copy_chunk`, a new file with its source's mode from the first instant, `-r`, `-L`, `-H`, `-P`, a link under `-r` copied as a link, `-p`, `--preserve=mode,timestamps`, `--no-preserve`, `-f`, `-i`, `-n`, `-v`, `-T`, `-t`, `--remove-destination`, `-s`, `-l`, `-u`, backups, `--parents`, `--attributes-only`, `-x`; not the owner (#701), `-a`, `-d`, `--preserve=links/xattr/context/all`, a fifo under `-r` (#705), `--sparse`/`--reflink` beyond `auto` (#703) | start-up 0.92x; 1 GiB 1.00x; `-r` of 100,000 files 0.72x to 0.75x (linux, btrfs; bu21's figures, not re-taken) |
 | `chmod` | done: octal and symbolic modes, a mode given as an option, `-c`, `-f`, `-v`, `-R`, `-H`, `-L`, `-P`, `-h`, `--reference`, `--preserve-root` | not benched |
 | `touch` | done: `-a`, `-m`, `--time`, `-c`, `-h`, `-r`, `-t`, `-d` for epoch, ISO, relative/calendar items, weekdays, English month names and slash dates, including `-r -d`, both times to the nanosecond; not `touch -` (#714), leap-second zones or unnamed grammar | not benched |
 | `ln` | done: hard and symbolic, `-f` (a replace that never leaves the name missing), `-i`, `-n`, `-T`, `-t`, `-v`, `-P`, `-L`, `-r`, `-d`/`-F`, simple and numbered backups (`-b`, `--backup`, `-S`) | not benched |
@@ -1562,7 +1562,7 @@ table answers it per utility, from the evidence and from nothing else.
 | `rmdir` | 5 / 5 | 70 / 0 | start-up 0.72x | drop-in |
 | `rm` | 12 / 12 | 224 / 2 (hasu bu36) | start-up 0.87x; `-r` 0.94x to 1.02x | drop-in for scripts that avoid `--no-preserve-root` (refused on purpose: this `rm` does not remove `/`); at a terminal, "write-protected" is the owner's write bit (#633); a tree deeper than the host's path limit is not removed (#707) |
 | `mv` | 17 / 18 | 169 / 1 (hasu bu36) | start-up 1.01x | drop-in for scripts that stay on ONE file system (a move to another is refused, where GNU copies and removes) and avoid `--exchange` (refused by name); update modes, backups and debug are implemented; `-n` is a look and then a rename (#706) |
-| `cp` | 19 / 36 | 228 / 19 | start-up 0.92x; 1 GiB 1.00x; `-r` 0.72x to 0.75x | drop-in for scripts that avoid `-a`, `-d`, `--preserve=links`/`xattr`/`context`/`all`, `-s`, `-l`, a special file met under `-r`, `--sparse`/`--reflink` beyond `auto`, `-u`, `-b`, `--parents`, `--attributes-only` and `-x`, each refused by name, and do not `-p` a file owned by someone else (the owner is refused by name, #701) |
+| `cp` | 26 / 36 | 272 / 12 (hasu bu36) | start-up 0.92x; 1 GiB 1.00x; `-r` 0.72x to 0.75x | drop-in for scripts that avoid `-a`, `-d`, `--preserve=links`/`xattr`/`context`/`all`, a special file met under `-r`, `--sparse`/`--reflink` beyond `auto`, each refused by name; explicit links, updates, backups, parents, attributes-only and one-file-system are implemented, and do not `-p` a file owned by someone else (the owner is refused by name, #701) |
 | `chmod` | 14 / 14 | 532 / 0 | not benched | drop-in on linux; on macOS a link named by `-h`/`-P` or met by `-R` is left alone where GNU changes its own mode |
 | `touch` | 11 / 11 | 181 / 4 (hasu bu36) | not benched | drop-in for scripts whose `-d` dates fit the [documented grammar](docs/touch-date-grammar.txt); `touch -` (#714), leap-second zones, noon and unknown date words remain named refusals |
 | `ln` | 16 / 16 | 173 / 0 (hasu bu36) | not benched | drop-in on the tested hard/symbolic link and backup surface |

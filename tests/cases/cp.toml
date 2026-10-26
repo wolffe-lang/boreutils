@@ -408,13 +408,11 @@ skip = "-d preserves hard links among the sources, which this cp does not track:
 name = "-s"
 args = ["-s", "a", "new"]
 scratch = { "a" = "A\n", "b" = "B\n" }
-skip = "-s (--symbolic-link) is not written yet: refused by name, status 1"
 
 [[case]]
 name = "-l"
 args = ["-l", "a", "new"]
 scratch = { "a" = "A\n", "b" = "B\n" }
-skip = "-l (--link) is not written yet: refused by name, status 1"
 
 [[case]]
 name = "-L: a link to a file"
@@ -1031,32 +1029,27 @@ name = "-u"
 args = ["-u", "a", "b"]
 scratch = { "a" = "A\n", "b" = "B\n" }
 scratch_times = { "a" = 2000000000, "b" = 1000000000 }
-skip = "-u (--update) is not written yet: refused by name, status 1"
 
 [[case]]
 name = "-b"
 args = ["-b", "a", "b"]
 scratch = { "a" = "A\n", "b" = "B\n" }
-skip = "-b (--backup, -S) is not written yet: refused by name, status 1"
 
 [[case]]
 name = "--parents"
 args = ["--parents", "d/c", "e"]
 scratch = { "d/c" = "c\n", "d/sub/s" = "s\n", "d/sub/deep/z" = "z\n" }
 scratch_dirs = ["e"]
-skip = "--parents is not written yet: refused by name, status 1"
 
 [[case]]
 name = "--attributes-only"
 args = ["--attributes-only", "a", "new"]
 scratch = { "a" = "A\n", "b" = "B\n" }
-skip = "--attributes-only is not written yet: refused by name, status 1"
 
 [[case]]
 name = "-x"
 args = ["-rx", "d", "e"]
 scratch = { "d/c" = "c\n", "d/sub/s" = "s\n", "d/sub/deep/z" = "z\n" }
-skip = "--one-file-system is not written yet: refused by name, status 1"
 
 [[case]]
 name = "-Z is accepted"
@@ -1589,3 +1582,225 @@ name = "--preserve=all"
 args = ["--preserve=all", "a", "b"]
 scratch = { "a" = "x\n" }
 skip = "hard links among the sources are not tracked, and wolf reads no extended attribute (wolf-lang#685): --preserve=all is refused by name, status 1"
+
+[[case]]
+name = "bu36 cp 0 True"
+args = ["-s", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1500000000.000000001", b = "1600000000.000000002" }
+
+[[case]]
+name = "bu36 cp 0 False"
+args = ["-s", "a", "new"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1500000000.000000001", b = "1600000000.000000002" }
+
+[[case]]
+name = "bu36 cp 1 True"
+args = ["-l", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1500000000.000000001", b = "1600000000.000000002" }
+
+[[case]]
+name = "bu36 cp 1 False"
+args = ["-l", "a", "new"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1500000000.000000001", b = "1600000000.000000002" }
+
+[[case]]
+name = "bu36 cp 2 True"
+args = ["-sf", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1500000000.000000001", b = "1600000000.000000002" }
+
+[[case]]
+name = "bu36 cp 2 False"
+args = ["-sf", "a", "new"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1500000000.000000001", b = "1600000000.000000002" }
+
+[[case]]
+name = "bu36 cp 3 True"
+args = ["-lf", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1500000000.000000001", b = "1600000000.000000002" }
+
+[[case]]
+name = "bu36 cp 3 False"
+args = ["-lf", "a", "new"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1500000000.000000001", b = "1600000000.000000002" }
+
+[[case]]
+name = "bu36 cp 4 True"
+args = ["-sv", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1500000000.000000001", b = "1600000000.000000002" }
+
+[[case]]
+name = "bu36 cp 4 False"
+args = ["-sv", "a", "new"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1500000000.000000001", b = "1600000000.000000002" }
+
+[[case]]
+name = "bu36 cp 5 True"
+args = ["-lv", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1500000000.000000001", b = "1600000000.000000002" }
+
+[[case]]
+name = "bu36 cp 5 False"
+args = ["-lv", "a", "new"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1500000000.000000001", b = "1600000000.000000002" }
+
+[[case]]
+name = "bu36 cp 6 True"
+args = ["-u", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1500000000.000000001", b = "1600000000.000000002" }
+
+[[case]]
+name = "bu36 cp 6 False"
+args = ["-u", "a", "new"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1500000000.000000001", b = "1600000000.000000002" }
+
+[[case]]
+name = "bu36 cp 7 True"
+args = ["--update=none", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1500000000.000000001", b = "1600000000.000000002" }
+
+[[case]]
+name = "bu36 cp 7 False"
+args = ["--update=none", "a", "new"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1500000000.000000001", b = "1600000000.000000002" }
+
+[[case]]
+name = "bu36 cp 8 True"
+args = ["--update=none-fail", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1500000000.000000001", b = "1600000000.000000002" }
+
+[[case]]
+name = "bu36 cp 8 False"
+args = ["--update=none-fail", "a", "new"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1500000000.000000001", b = "1600000000.000000002" }
+
+[[case]]
+name = "bu36 cp 9 True"
+args = ["-b", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1500000000.000000001", b = "1600000000.000000002" }
+
+[[case]]
+name = "bu36 cp 9 False"
+args = ["-b", "a", "new"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1500000000.000000001", b = "1600000000.000000002" }
+
+[[case]]
+name = "bu36 cp 10 True"
+args = ["-vb", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1500000000.000000001", b = "1600000000.000000002" }
+
+[[case]]
+name = "bu36 cp 10 False"
+args = ["-vb", "a", "new"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1500000000.000000001", b = "1600000000.000000002" }
+
+[[case]]
+name = "bu36 cp 11 True"
+args = ["-S", ".bak", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1500000000.000000001", b = "1600000000.000000002" }
+
+[[case]]
+name = "bu36 cp 11 False"
+args = ["-S", ".bak", "a", "new"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1500000000.000000001", b = "1600000000.000000002" }
+
+[[case]]
+name = "bu36 cp 12 True"
+args = ["--backup=numbered", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1500000000.000000001", b = "1600000000.000000002" }
+
+[[case]]
+name = "bu36 cp 12 False"
+args = ["--backup=numbered", "a", "new"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1500000000.000000001", b = "1600000000.000000002" }
+
+[[case]]
+name = "bu36 cp 13 True"
+args = ["--attributes-only", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1500000000.000000001", b = "1600000000.000000002" }
+
+[[case]]
+name = "bu36 cp 13 False"
+args = ["--attributes-only", "a", "new"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1500000000.000000001", b = "1600000000.000000002" }
+
+[[case]]
+name = "bu36 cp 14 True"
+args = ["--attributes-only", "-p", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1500000000.000000001", b = "1600000000.000000002" }
+
+[[case]]
+name = "bu36 cp 14 False"
+args = ["--attributes-only", "-p", "a", "new"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1500000000.000000001", b = "1600000000.000000002" }
+
+[[case]]
+name = "bu36 cp 15 True"
+args = ["--attributes-only", "-b", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1500000000.000000001", b = "1600000000.000000002" }
+
+[[case]]
+name = "bu36 cp 15 False"
+args = ["--attributes-only", "-b", "a", "new"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1500000000.000000001", b = "1600000000.000000002" }
+
+[[case]]
+name = "bu36 cp tree 0"
+args = ["--parents", "d/sub/f", "e"]
+scratch = { "d/sub/f" = "child", "d/a" = "root" }
+scratch_dirs = ["e"]
+
+[[case]]
+name = "bu36 cp tree 1"
+args = ["--parents", "-v", "d/sub/f", "e"]
+scratch = { "d/sub/f" = "child", "d/a" = "root" }
+scratch_dirs = ["e"]
+
+[[case]]
+name = "bu36 cp tree 2"
+args = ["-rx", "d", "e"]
+scratch = { "d/sub/f" = "child", "d/a" = "root" }
+scratch_dirs = ["e"]
+
+[[case]]
+name = "bu36 cp tree 3"
+args = ["-rl", "d", "e"]
+scratch = { "d/sub/f" = "child", "d/a" = "root" }
+scratch_dirs = ["e"]
+
+[[case]]
+name = "bu36 cp tree 4"
+args = ["-r", "--attributes-only", "d", "e"]
+scratch = { "d/sub/f" = "child", "d/a" = "root" }
+scratch_dirs = ["e"]

@@ -96,6 +96,14 @@ struct Cfg {
     keep_times: bool,
     keep_owner: bool,
     umask: int,
+    link_mode: int,
+    update: int,
+    backup: int,
+    suffix: str,
+    saved_backup: str,
+    parents: bool,
+    attrs: bool,
+    one_fs: bool,
 }
 
 /// How one copy ended.
@@ -133,6 +141,14 @@ fn main() -> int {
         keep_times: false,
         keep_owner: false,
         umask: bore.current_umask(),
+        link_mode: 0,
+        update: 0,
+        backup: 0,
+        suffix: bore.backup_suffix(),
+        saved_backup: "",
+        parents: false,
+        attrs: false,
+        one_fs: false,
     }
     var target = ""
     var into = false
@@ -215,6 +231,35 @@ fn main() -> int {
                 refused.len == 0 {
                 refused = "--{k} is not supported: wolf 0.2.27 can neither find a hole nor ask for a clone (wolf-lang#703)"
             }
+        } else if k == "symbolic-link" || k == "link" {
+            c.link_mode = if k == "symbolic-link" then 1 else 2
+        } else if k == "update" || k == "u" {
+            let word = if k == "update" && p.given[i] then p.values[i] else "older"
+            c.update = bore.argmatch(word, ["all", "older", "none", "none-fail"], [0, 1, 2, 3])
+            if c.update < 0 {
+                return bore.argmatch_error(
+                    "cp",
+                    word,
+                    "update",
+                    ["all", "older", "none", "none-fail"],
+                    [0, 1, 2, 3],
+                    c.update == -2,
+                )
+            }
+        } else if k == "backup" || k == "b" || k == "suffix" {
+            if k == "suffix" { c.suffix = p.values[i] }
+            c.backup = if k == "backup" && p.given[i] {
+                bore.backup_kind(p.values[i])
+            } else {
+                bore.backup_default()
+            }
+            if c.backup < 0 { refused = "invalid backup type {bore.quote(p.values[i])}" }
+        } else if k == "parents" {
+            c.parents = true
+        } else if k == "attributes-only" {
+            c.attrs = true
+        } else if k == "one-file-system" {
+            c.one_fs = true
         } else if refused.len == 0 {
             refused = refusal(k)
         }
@@ -226,6 +271,12 @@ fn main() -> int {
     if refused.len > 0 {
         bore.warn("cp", refused)
         return 1
+    }
+    if c.backup > 0 && (c.over == 3 || c.update == 3) {
+        return bore.usage_error(
+            "cp",
+            "--backup is mutually exclusive with -n or --update=none-fail",
+        )
     }
     if context {
         bore.warn("cp", "warning: ignoring --context; it requires an SELinux-enabled kernel")
@@ -270,6 +321,9 @@ fn main() -> int {
     } else if !is_directory(target) {
         return not_a_target(target, "target directory")
     }
+    if c.parents && !into {
+        return bore.usage_error("cp", "with --parents, the destination must be a directory")
+    }
     // The directories this run has made, as device and inode pairs: a
     // source directory that IS one of them is the copy being copied
     // into itself.
@@ -277,7 +331,13 @@ fn main() -> int {
     var status = 0
     if into {
         for n in names {
-            let dest = bore.join_name(target, bore.last_name(n))
+            var dest = bore.join_name(target, bore.last_name(n))
+            if c.parents {
+                var relative = n
+                while relative.starts_with("/") { relative = relative[1..] }
+                dest = bore.join_name(target, relative)
+                if !make_parents(mut out, c, target, n) { status = 1; continue }
+            }
             if !operand(mut out, c, n, dest, mut made) {
                 status = 1
             }
@@ -394,7 +454,15 @@ fn confirm(mut out: bore.Out, question: str) -> bool {
 
 fn say(mut out: bore.Out, c: Cfg, src: str, dst: str) {
     if c.verbose {
-        bore.put(mut out, "{bore.quote_always(src)} -> {bore.quote_always(dst)}\n") else |_| {}
+        let suffix = if c.saved_backup.len > 0 {
+            " (backup: {bore.quote_always(c.saved_backup)})"
+        } else {
+            ""
+        }
+        bore.put(
+            mut out,
+            "{bore.quote_always(src)} -> {bore.quote_always(dst)}{suffix}\n",
+        ) else |_| {}
     }
 }
 
@@ -454,17 +522,60 @@ fn any(
         }
         return directory(mut out, c, src, dst, rec, mut made, mut above)
     }
-    if kind == bore.kind_link() {
-        return link(mut out, c, src, dst, rec)
+    var cfg = copy c
+    cfg.saved_backup = ""
+    let to = fs_lstat(dst) else List[int]()
+    if to.len > 0 {
+        if c.update == 3 {
+            bore.warn("cp", "not replacing {bore.quote_always(dst)}")
+            return failed()
+        }
+        if c.update == 2 ||
+            c.update == 1 &&
+                (
+                    bore.rec_secs(rec, 0) < bore.rec_secs(to, 0) ||
+                        bore.rec_secs(rec, 0) == bore.rec_secs(to, 0) &&
+                            bore.rec_nanos(rec, 0) <= bore.rec_nanos(to, 0)
+                ) {
+            return skipped()
+        }
+        if c.backup > 0 && c.over != 3 && bore.rec_kind(to) != bore.kind_dir() {
+            if c.over == 2 && !confirm(mut out, "overwrite {bore.quote_always(dst)}") {
+                return failed()
+            }
+            cfg.saved_backup = bore.backup_name(dst, c.backup, c.suffix)
+            if cfg.saved_backup == src || cfg.saved_backup == dst {
+                bore.warn(
+                    "cp",
+                    "backup name {bore.quote_always(cfg.saved_backup)} would overwrite a source or destination",
+                )
+                return failed()
+            }
+            fs_rename(dst, cfg.saved_backup) else |_| {
+                bore.warn("cp", "cannot backup {bore.quote_always(dst)}: {bore.io_error()}")
+                return failed()
+            }
+        }
     }
-    if kind != bore.kind_file() && c.recursive {
+    var result = copied()
+    if c.link_mode > 0 && (kind != bore.kind_link() || c.link_mode == 1) {
+        result = make_link(mut out, cfg, src, dst, rec)
+    } else if kind == bore.kind_link() {
+        result = link(mut out, cfg, src, dst, rec)
+    } else if kind != bore.kind_file() && c.recursive {
         bore.warn(
             "cp",
             "cannot copy the special file {bore.quote_always(src)} to {bore.quote_always(dst)}: wolf cannot create a fifo, a socket or a device (wolf-lang#705)",
         )
-        return failed()
+        result = failed()
+    } else {
+        result = file(mut out, cfg, src, dst, rec)
     }
-    file(mut out, c, src, dst, rec)
+    if result == failed() && cfg.saved_backup.len > 0 {
+        fs_remove(dst) else |_| {}
+        fs_rename(cfg.saved_backup, dst) else |_| {}
+    }
+    result
 }
 
 /// Copy the bytes of the file `src` (record `rec`) to `dst`.
@@ -516,12 +627,20 @@ fn file(mut out: bore.Out, c: Cfg, src: str, dst: str, rec: List[int]) -> int {
             }
         }
     }
-    var reason = ""
-    let from = fs_open(src) else |_| {
-        reason = bore.io_error()
-        -1
+    if c.attrs && there {
+        say(mut out, c, src, dst)
+        return keep(c, dst, rec, true)
     }
-    if from < 0 {
+    var reason = ""
+    let from = if c.attrs {
+        -1
+    } else {
+        fs_open(src) else |_| {
+            reason = bore.io_error()
+            -1
+        }
+    }
+    if from < 0 && !c.attrs {
         bore.warn("cp", "cannot open {bore.quote_always(src)} for reading: {reason}")
         return failed()
     }
@@ -575,7 +694,7 @@ fn file(mut out: bore.Out, c: Cfg, src: str, dst: str, rec: List[int]) -> int {
         bore.warn("cp", "cannot create regular file {bore.quote_always(dst)}: {reason}")
         return failed()
     }
-    var done = false
+    var done = c.attrs
     var code = 0
     while !done {
         let _ = fs_copy_chunk(from, into, 1073741824) else |e| {
@@ -789,9 +908,13 @@ fn directory(
     }
     // Listed AFTER its copy exists, as GNU does: a directory copied
     // into itself then finds its own copy among its entries.
-    let entries = fs_read_dir_entries(src) else |_| {
-        why = bore.io_error()
+    let entries = if c.one_fs && above.len > 0 && bore.rec_dev(rec) != above[0] {
         List[List[byte]]()
+    } else {
+        fs_read_dir_entries(src) else |_| {
+            why = bore.io_error()
+            List[List[byte]]()
+        }
     }
     var status = copied()
     if why.len > 0 {
@@ -882,18 +1005,9 @@ fn directory(
         }
     }
     if c.keep_times || c.keep_owner {
-        let quiet = Cfg {
-            recursive: c.recursive,
-            follow: c.follow,
-            over: c.over,
-            verbose: false,
-            remove_first: false,
-            source_mode: c.source_mode,
-            keep_mode: false,
-            keep_times: c.keep_times,
-            keep_owner: c.keep_owner,
-            umask: c.umask,
-        }
+        var quiet = copy c
+        quiet.verbose = false
+        quiet.keep_mode = false
         if keep(quiet, dst, rec, true) == failed() && status == copied() {
             status = failed()
         }
@@ -980,4 +1094,96 @@ fn help() -> str {
 
     boreutils: https://github.com/wolffe-lang/boreutils
     """
+}
+
+// Create requested links, never copy file bytes. Relative symbolic targets
+// only work in the current directory, as GNU documents.
+fn make_link(mut out: bore.Out, c: Cfg, src: str, dst: str, rec: List[int]) -> int {
+    if c.link_mode == 1 && !src.starts_with("/") {
+        let cut = dst.rfind("/") else -1
+        let parent = if cut < 0 then "." else (if cut == 0 then "/" else dst[0..cut])
+        let here = fs_stat(".") else List[int]()
+        let there = fs_stat(parent) else List[int]()
+        if here.len > 0 && there.len > 0 && !bore.same_file(here, there) {
+            bore.warn(
+                "cp",
+                "{bore.quote_always(dst)}: can make relative symbolic links only in current directory",
+            )
+            return failed()
+        }
+    }
+    let old = fs_lstat(dst) else List[int]()
+    if old.len > 0 && bore.same_file(rec, old) {
+        bore.warn("cp", "{bore.quote_always(src)} and {bore.quote_always(dst)} are the same file")
+        return failed()
+    }
+    if old.len > 0 {
+        if c.over == 3 { return skipped() }
+        if c.over == 2 && !confirm(mut out, "overwrite {bore.quote_always(dst)}") {
+            return failed()
+        }
+        if bore.rec_kind(old) == bore.kind_dir() {
+            bore.warn(
+                "cp",
+                "cannot overwrite directory {bore.quote_always(dst)} with non-directory {bore.quote_always(src)}",
+            )
+            return failed()
+        }
+        if c.over == 1 || c.remove_first {
+            fs_remove(dst) else |_| {
+                bore.warn("cp", "cannot remove {bore.quote_always(dst)}: {bore.io_error()}")
+                return failed()
+            }
+        }
+    }
+    say(mut out, c, src, dst)
+    var why = ""
+    if c.link_mode == 1 {
+        fs_symlink(src, dst) else |_| { why = bore.io_error() }
+    } else {
+        var target = src
+        if c.follow > 0 {
+            let r = bore.canonical(src, bore.existing())
+            if r.ok { target = r.path }
+        }
+        fs_link(target, dst) else |_| { why = bore.io_error() }
+    }
+    if why.len > 0 {
+        let what = if c.link_mode == 1 then "symbolic" else "hard"
+        bore.warn(
+            "cp",
+            "cannot create {what} link {bore.quote_always(dst)} to {bore.quote_always(src)}: {why}",
+        )
+        return failed()
+    }
+    copied()
+}
+
+// Build the source's parent components under the requested destination.
+fn make_parents(mut out: bore.Out, c: Cfg, target: str, source: str) -> bool {
+    let parts = source.split("/")
+    var onto = target
+    var from = if source.starts_with("/") then "/" else ""
+    for i in 0..parts.len - 1 {
+        let part = parts[i]
+        if part.len == 0 || part == "." { continue }
+        from = if from.len == 0 then part else bore.join_name(from, part)
+        onto = bore.join_name(onto, part)
+        if is_directory(onto) { continue }
+        let rec = fs_stat(from) else |_| {
+            bore.warn(
+                "cp",
+                "failed to get attributes of {bore.quote_always(from)}: {bore.io_error()}",
+            )
+            return false
+        }
+        fs_create_dir_mode(onto, bore.rec_mode(rec) % 512) else |_| {
+            bore.warn("cp", "cannot make directory {bore.quote_always(onto)}: {bore.io_error()}")
+            return false
+        }
+        if c.verbose {
+            bore.put(mut out, "{bore.quote_name(from)} -> {bore.quote_name(onto)}\n") else |_| {}
+        }
+    }
+    true
 }
