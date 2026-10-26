@@ -1,0 +1,22 @@
+//! env's measured oracle-query boundary, not a per-signal action getter.
+//! Wolf0.2.35 exposes only the listenable ignored-meaning set. It cannot
+//! query KILL/STOP actions or return that query's error. The read-only
+//! sigaction probes in notes/bu36/signal-action-query-{darwin,linux}.jsonl
+//! show Darwin rejects both queries with EINVAL, whereas Linux reads them
+//! successfully and only the subsequent setter fails. This pure platform
+//! model stands in for that missing getter; retire it when one is exposed.
+
+use std.signal
+
+/// Whether the measured Darwin action query rejects this meaning before
+/// any setter runs. All other meanings/platforms reach the real setter.
+pub fn env_signal_query_refused(meaning: int, darwin: bool) -> bool {
+    darwin && (meaning == signal.kill() || meaning == signal.stop())
+}
+
+/// The observed EINVAL diagnostic, naming the phase that actually failed.
+/// `query` true is the modeled query rejection; false is a real set failure.
+pub fn env_signal_action_failure(query: bool, number: int) -> str {
+    let phase = if query then "get" else "set"
+    "failed to {phase} signal action for signal {number}: Invalid argument"
+}

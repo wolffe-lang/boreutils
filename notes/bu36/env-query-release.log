@@ -1,0 +1,141 @@
+difftest: gnu = true (GNU coreutils) 9.11 (prefix '') on Linux x86_64
+difftest: bore = /lane/boreutils/target/release
+difftest: oracle environment, LC_ALL=C _POSIX2_VERSION=200112
+difftest: oracle of record, GNU coreutils 9.11
+difftest: oracle profile OK — `uniq +1 /dev/null` exits 1 (the obsolete +N operand form is off, so +1 is a file name (B73))
+difftest: scratch root /lane/tmp
+ok   env: -i alone prints nothing
+ok   env: -i and two entries, in the host's order
+ok   env: -i orders new entries as the host does, never by the alphabet
+ok   env: a name given twice keeps its first place and its last value
+ok   env: a lone - is -i
+ok   env: -i and -
+ok   env: --ignore-environment
+ok   env: an empty value
+ok   env: a value holding =
+ok   env: a name holding a space
+ok   env: a value holding a space and a newline
+ok   env: an entry with an empty name is printed
+ok   env: -0 ends each entry with NUL
+ok   env: --null
+ok   env: -i0
+ok   env: -u of a name set later still sets it
+ok   env: -u after -i of nothing
+ok   env: -- ends the options
+ok   env: -u removes an inherited variable, seen by the command
+ok   env: --unset=
+ok   env: two -u
+ok   env: -u of a variable that is not set
+ok   env: -u of an empty name is refused, status 125
+ok   env: -u of a name holding = is refused
+ok   env: -u needs an argument
+ok   env: an inherited variable is replaced
+ok   env: an inherited variable is kept
+ok   env: the command sees the variable
+ok   env: the command's status is the status
+ok   env: false is 1
+ok   env: true with arguments
+ok   env: the last value of a name given twice
+ok   env: a variable with an empty value is set
+ok   env: -i empties the environment the command sees
+ok   env: a command killed by a signal
+ok   env: a command ended by TERM
+ok   env: options after the first assignment are the command
+ok   env: -i after an assignment is the command
+ok   env: -0 after an assignment is the command
+ok   env: a word with no = after assignments is the command
+ok   env: -- and then a dash word is the command
+ok   env: a second - is the command
+ok   env: env runs env
+ok   env: env runs printenv
+ok   env: the command's output and status
+ok   env: standard input reaches the command
+ok   env: no PATH at all: the default one
+ok   env: an empty PATH is the working directory
+ok   env: a PATH with no such program
+ok   env: a new PATH replaces the inherited one
+ok   env: the PATH the command sees
+ok   env: -u PATH: the default one finds sh
+ok   env: -u PATH and no such program
+ok   env: a command that is not found is 127
+ok   env: -i and a command that is not found
+ok   env: a command with a slash is used as written
+ok   env: an empty PATH component finds it in the working directory
+ok   env: an empty component between two others
+ok   env: PATH=. finds it
+ok   env: a file with no execute bit is 126
+ok   env: a directory is 126
+ok   env: a file that is no program is 126
+ok   env: a script whose interpreter is missing is 127
+ok   env: a script with no #! line runs under sh
+ok   env: the same under -i
+ok   env: the same found along PATH
+ok   env: a script with no #! line and no execute bit is 126
+ok   env: -C changes the directory first
+ok   env: --chdir=
+ok   env: -C with -i and an assignment
+ok   env: -iC
+ok   env: -C of a missing directory is 125
+ok   env: -C of a file is 125
+ok   env: -C with no command is a usage error
+ok   env: -C needs an argument
+ok   env: -C twice: the last
+ok   env: -C twice: the last, which is missing
+ok   env: -C and a relative command
+ok   env: -a names the program to itself
+ok   env: --argv0=
+ok   env: -a needs an argument
+ok   env: -a and a script
+ok   env: -0 with a command is a usage error
+ok   env: an unknown option is 125
+ok   env: an unknown long option
+ok   env: --help
+ok   env: --version
+ok   env: a closed standard output with nothing to print
+ok   env: a closed standard output and an entry to print
+ok   env: a full device
+SKIP env: the inherited environment, as it is (wolf 0.2.27 lists the environment only through env_vars(), which answers it SORTED; GNU prints the order the process received, and the harness hands every case PATH before LC_ALL (wolf-lang#535))
+SKIP env: the inherited environment and one more (wolf 0.2.27 lists the environment only through env_vars(), which answers it SORTED; GNU prints the order the process received, and the harness hands every case PATH before LC_ALL (wolf-lang#535))
+SKIP env: the inherited environment less one (wolf 0.2.27 lists the environment only through env_vars(), which answers it SORTED; GNU prints the order the process received, and the harness hands every case PATH before LC_ALL (wolf-lang#535))
+SKIP env: the inherited environment under -0 (wolf 0.2.27 lists the environment only through env_vars(), which answers it SORTED; GNU prints the order the process received, and the harness hands every case PATH before LC_ALL (wolf-lang#535))
+SKIP env: what a command inherits, in order (wolf 0.2.27 lists the environment only through env_vars(), which answers it SORTED; GNU prints the order the process received, and the harness hands every case PATH before LC_ALL (wolf-lang#535))
+SKIP env: an entry with an empty name, handed to a command (os_exec refuses an environment entry with an empty name as `invalid` ([os.proc.exec]); GNU hands it on. Status 125 here, said so)
+SKIP env: the name a script found through an empty PATH component is started by (os_exec runs ./hello for an empty PATH component where execvp runs hello, and the script prints it as $0 (wolf-lang#689))
+ok   env: -S splits a string into the command
+ok   env: -v says what it runs
+ok   env: --default-signal
+ok   env: --ignore-signal
+SKIP env: --block-signal (wolf has no signal-mask setter: --block-signal is refused by name, status 125)
+ok   env: --list-signal-handling
+ok   env: bu36 env 0
+ok   env: bu36 env 1
+ok   env: bu36 env 2
+ok   env: bu36 env 3
+ok   env: bu36 env 4
+ok   env: bu36 env 5
+ok   env: bu36 env 6
+ok   env: bu36 env 7
+ok   env: bu36 env 8
+ok   env: bu36 env 9
+ok   env: bu36 env 10
+ok   env: bu36 env 11
+ok   env: bu36 env 12
+ok   env: bu36 env 13
+ok   env: bu36 env 14
+ok   env: bu36 env 15
+ok   env: bu36 env 16
+ok   env: bu36 env 17
+ok   env: bu36 env 18
+ok   env: bu36 env 19
+ok   env: bu36 env 20
+ok   env: bu36 env 21
+ok   env: bu36 env 22
+ok   env: bu36 env 23
+ok   env: bu36 env 24
+ok   env: bu36 env 25
+ok   env: bu36 env Linux mask 0
+ok   env: bu36 env Linux mask 1
+ok   env: bu36 env Linux mask 2
+ok   env: bu36 env Linux mask 3
+ok   env: bu36 env query STOP boundary
+difftest: 126 passed, 0 failed, 8 skipped

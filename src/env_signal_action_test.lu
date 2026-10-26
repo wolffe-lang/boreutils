@@ -1,0 +1,38 @@
+//! Query versus setter diagnostics from the paired native sigaction probes.
+//! Pure platform models run under conform-run --checked on both hosts.
+
+use bore
+use std.signal
+
+fn main() {
+    assert(bore.env_signal_query_refused(signal.kill(), true), "Darwin KILL query rejects")
+    assert(bore.env_signal_query_refused(signal.stop(), true), "Darwin STOP query rejects")
+    assert(
+        !bore.env_signal_query_refused(signal.terminate(), true),
+        "Darwin ordinary query control",
+    )
+    assert(!bore.env_signal_query_refused(signal.kill(), false), "Linux KILL query succeeds")
+    assert(!bore.env_signal_query_refused(signal.stop(), false), "Linux STOP query succeeds")
+    assert(
+        !bore.env_signal_query_refused(signal.terminate(), false),
+        "Linux ordinary query control",
+    )
+    let number = os_signal_number(signal.kill()) else 0
+    assert(
+        "env: " + bore.env_signal_action_failure(true, number) + "\n" ==
+            "env: failed to get signal action for signal 9: Invalid argument\n",
+        "measured Darwin query failure bytes",
+    )
+    assert(
+        "env: " + bore.env_signal_action_failure(false, number) + "\n" ==
+            "env: failed to set signal action for signal 9: Invalid argument\n",
+        "measured Linux setter failure bytes",
+    )
+    let query = bore.env_signal_query_refused(signal.kill(), os_name() == "macos")
+    let expected = if os_name() == "macos" then "get" else "set"
+    assert(
+        bore.env_signal_action_failure(query, number) ==
+            "failed to {expected} signal action for signal {number}: Invalid argument",
+        "the active host selects the measured phase",
+    )
+}

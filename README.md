@@ -168,7 +168,7 @@ derives no boreutils code from GPL source.
 
 Every shipped utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus, except where a case says otherwise and is
-skipped with its reason. The combined corpus holds **16,802 cases across 105 case files**; `kill` has
+skipped with its reason. The combined corpus holds **16,803 cases across 105 case files**; `kill` has
 365 more that SEND, each run in a container of its own (`tests/kill/`,
 `tools/killtest`: **365 passed, 0 failed** on hasu at bu30, groups,
 `kill 0` and `kill -1` among them), `timeout` 163 more that run a
@@ -186,11 +186,16 @@ release and dev (before: 7,020 / 0 / 130). Six utilities add 1,012 cases:
 alphabet, object kind and private mode, never compared byte for byte.
 `tty` has standard-input pty cases, separate from standard-output ptys.
 
-The latest option pass adds **307 registered rows**, without adding a utility
+The latest option pass adds **308 registered rows**, without adding a utility
 or moving a pin. On hasu block B (Linux x86-64, Ubuntu 24.04), the seven
-requested families measure **2,006 passed / 0 failed / 41 named skips** on
+requested families at the first full checkpoint measure **2,006 passed / 0 failed / 41 named skips** on
 both native tiers, versus **1,663 / 0 / 77** before the pass. These are scoped
-family counts, not a new full-repository green. The independent container
+family counts. The later query-boundary repair adds one STOP row; `env`
+now measures **126 / 0 / 8** on both Linux native tiers. Darwin KILL/STOP
+query errors are modeled from paired native read-only probes because the
+pin has no per-signal getter, with exact checked diagnostic rows on Mac
+and Linux; no getter call is claimed. Full-repository results before that
+repair are historical, not a fresh full green at the repaired head. The independent container
 witness checks complete device-boundary, date and signal-mask state; the
 identity gauntlet measures **1,098 passed / 0 failed / 28 named CI-runner-only
 skips**. No speed numbers were re-measured.
@@ -429,7 +434,7 @@ Display-size environment variables are not read; explicit sizes are supported.
 **`stat`, `readlink` and `env` have sixteen Linux skips in these families.**
 `stat`'s eight retain their named filesystem-record (#686), handle-record
 (#536), I/O-block-size (#684), context (#685) and device qualifications.
-`readlink` has none. `env` now measures **125 / 0 / 8**: five inherited-order
+`readlink` has none. `env` now measures **126 / 0 / 8**: five inherited-order
 rows (#535), the empty environment-entry name, the empty PATH component
 (#689), and nonempty `--block-signal`. `-S`, `-v` and ignore actions run;
 Linux `/proc/self/status` supplies complete blocked/ignored mask listings.
@@ -1562,7 +1567,7 @@ table answers it per utility, from the evidence and from nothing else.
 | `ls` | 51 / 60 | 734 / 14 (hasu bu36) | 0.60x to 1.99x; the long format 1.22x beside a GNU that also asks for each name's ACL | drop-in for scripts that avoid `-v`, quoting styles beyond `-N`/`-b`/`-Q`, `-Z`, the colour and filtering options (each refused by name), do not list files with ACLs in the long format (no `+`, wolf-lang#685), and do not need `.` and `..` placed by `-f` on ext4 (#692); owners named from `/etc/passwd` and `/etc/group` only; on a terminal, one 80 wide or reporting no size (#643) |
 | `stat` | 7 / 8 | 152 / 8 | start-up 0.77x; 0.69x to 0.75x over many operands | drop-in for scripts that avoid `-f` (wolf-lang#686), `-` (#536), `%C`, and `%o` or the default format's `IO Block:` field, which prints `?` (#684) |
 | `readlink` | 10 / 10 | 100 / 0 | start-up 0.77x | drop-in |
-| `env` | 11 / 14 complete; 2 partial | 125 / 8 (Linux bu36) | `env true` 0.78x | drop-in for scripts that avoid nonempty `--block-signal`; `--default-signal` needs a known, already unblocked Linux mask and `--list-signal-handling` needs Linux /proc; these limits are refused by name, and do not read the ORDER of the environment they did not start from `-i` (wolf-lang#535) |
+| `env` | 11 / 14 complete; 2 partial | 126 / 8 (Linux bu36) | `env true` 0.78x | drop-in for scripts that avoid nonempty `--block-signal`; `--default-signal` needs a known, already unblocked Linux mask and `--list-signal-handling` needs Linux /proc; these limits are refused by name, and do not read the ORDER of the environment they did not start from `-i` (wolf-lang#535) |
 | `mkdir` | 7 / 7 | 262 / 0 | start-up 0.72x; a thousand deep 0.37x | drop-in |
 | `rmdir` | 5 / 5 | 70 / 0 | start-up 0.72x | drop-in |
 | `rm` | 12 / 12 | 224 / 2 (hasu bu36) | start-up 0.87x; `-r` 0.94x to 1.02x | drop-in for scripts that avoid `--no-preserve-root` (refused on purpose: this `rm` does not remove `/`); at a terminal, "write-protected" is the owner's write bit (#633); a tree deeper than the host's path limit is not removed (#707) |

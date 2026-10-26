@@ -1,0 +1,54 @@
+bu36 CI40376244635 repair: query boundary, not a claimed getter
+
+Prediction was committed before edits in bb627e5. Linux CI at da79faf6 was
+green; Darwin had one failing env row (ignore KILL): GNU9.11 named GET,
+bore named SET. No GNU or libc implementation source was read.
+
+Measured inputs: signal-action-query-probe.py calls the documented native
+sigaction(sig,NULL,&old), read-only, for KILL/STOP and TERM/PIPE controls.
+Darwin26.4.1 arm64: KILL9/STOP17 return -1, errno22; controls return0.
+Linux7.2.4 x86-64/glibc2.39: KILL9/STOP19 and controls all return0.
+Exact outputs: signal-action-query-darwin.jsonl and
+signal-action-query-linux.jsonl. No dispositions or masks are changed and
+no signal is sent by this probe.
+
+src/bore/envsignals.lu explicitly models that measured oracle-query
+boundary because wolf0.2.35 has no per-signal action getter/error. On
+Darwin KILL/STOP, env reports "failed to get signal action" before reaching
+any setter. Every other case still calls the actual setter; its failure
+alone reports "failed to set signal action". This is an attributed
+platform model, not an actual per-signal GET in wolf. It is to be retired
+when the requested builtin is released. Existing mask refusals remain.
+
+Mac: pinned complete wolf0.2.35/lupin0.1.56/std2386522e archives staged and
+verified by fetch-toolchain. No native Mac build. The guarded Mac
+conform-run --json --checked src/env_signal_action_test.lu reached run,
+exit(0), diagnostics/warnings empty. Memory floor14.37GB >=8GB at launch.
+Both query models and full Darwin GET/Linux SET diagnostic bytes are
+asserted, plus the actual host selector. Exact receipt:
+signal-action-checked-darwin.json. Linux's same checked row also exit(0),
+empty diagnostics/warnings: signal-action-checked-linux.json.
+
+The existing KILL case is kept unchanged; STOP gets an additional GNU9.11
+differential case. Linux env now126 passed/0 failed/8 named skips EACH
+native tier: env-query-dev.log and env-query-release.log. All units38
+passed:37 checked and one native checksum-stream fallback (step budget),
+not all-checked. Formatter passes. No Darwin native GNU9.11 comparison is
+claimed locally; CI supplies it. PR stays a draft; no label or CI wait.
+
+The original full-repository run DID finish green at da79faf6:
+full.exit=0, both native tiers16654 passed/0 failed/148 skips. This is
+historical evidence at that head, NOT a full run covering this repair.
+
+Upstream need (recommendation; coordinator files it, not this lane):
+Add os_signal_action_one(meaning: int) -> int ! {invalid, unsupported,
+QueryFailed(int)} as a read-only query of one sending-shape meaning,
+including fault/KILL/STOP meanings and host -N forms. Return0 for SIG_DFL,
+1 for SIG_IGN and2 for another installed handler, never exposing a handler
+pointer. invalid names a malformed/out-of-range meaning; unsupported
+names a host without the operation; QueryFailed(errno) carries the native
+query failure for a well-formed signal (notably Darwin KILL/STOP EINVAL),
+without collapsing it into a shape error or losing its diagnostic words.
+The query must change neither dispositions nor masks. A later pin can
+replace this model with the real query and print GET versus SET failures
+from the operation that actually failed.
