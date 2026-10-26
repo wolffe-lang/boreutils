@@ -168,7 +168,7 @@ derives no boreutils code from GPL source.
 
 Every shipped utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus, except where a case says otherwise and is
-skipped with its reason. The combined corpus holds **16,644 cases across 105 case files**; `kill` has
+skipped with its reason. The combined corpus holds **16,674 cases across 105 case files**; `kill` has
 365 more that SEND, each run in a container of its own (`tests/kill/`,
 `tools/killtest`: **365 passed, 0 failed** on hasu at bu30, groups,
 `kill 0` and `kill -1` among them), `timeout` 163 more that run a
@@ -433,8 +433,11 @@ host lacks. `readlink` has none. `env`'s thirteen: five listings that
 start from the inherited environment, which wolf lists only sorted
 (#535); an entry with an empty name, which `os_exec` refuses; a script
 found through an empty `PATH` component, which sees `./name` where
-GNU's sees `name` (#689); and six options not written yet (`-S`, `-v`,
-the four signal options), refused by name.
+GNU's sees `name` (#689); and the remaining signal-mask setter refusal. `-S` and `-v` now run,
+as do ignore actions and Linux mask listings. A default action is supported
+only after proving the inherited mask is known and unblocked; blocked or
+unknown masks are explicitly refused because wolf cannot unblock them.
+Darwin mask query/default paths remain qualified, not reported as parity.
 
 **`kill` adds one skip, a non-UTF-8 argument (#406)** (bu27). Until
 bu27 it added 143 on linux: every case naming a signal the host has and
@@ -1330,7 +1333,7 @@ new security-sensitive designs.
 | `ls` | done: the formats, the long format and its family (`-l -g -n -o -G --full-time --time-style`), `-s`, `-i`, `-u`, `-c`, `--time`, sorting and the unsorted orders, every mark of `-F`, `-q`, `-N`, `-R`, `-L`/`-H`, GNU's terminal defaults; not the `+`/`.` after a mode (wolf-lang#685), a terminal's own width (#643), or where `.` and `..` stand under `-f` (#692) | **1.22x to 1.99x** plain, in columns and long; 0.60x to 0.91x where each name is stat'ed and GNU asks nothing more (linux) |
 | `stat` | done: the default and terse formats, `-c`/`--printf` with every directive but `%o` and `%C`, `-L`; not `-f` (wolf-lang#686) or `-` (#536) | start-up 0.77x; 10,000 operands 0.69x to 0.75x (linux) |
 | `readlink` | done: the target, and `-f`, `-e`, `-m` by a walk written here | start-up 0.77x (linux) |
-| `env` | done by exec: `-i`, `-u`, `NAME=VALUE`, `-C`, `-a`, `-0`, 125/126/127; the inherited environment in sorted order (wolf-lang#535); not `-S`, `-v` or the signal options | `env true` 0.78x (linux) |
+| `env` | done by exec: `-i`, `-u`, `NAME=VALUE`, `-C`, `-a`, `-0`, 125/126/127; the inherited environment in sorted order (wolf-lang#535); `-S` splitting, `-v` tracing and ignore actions; blocked/unknown-mask default actions and nonempty block actions are refused, mask listing is Linux only | `env true` 0.78x (linux) |
 | `mkdir` | done: `-p`, `-v`, `-Z`, `-m` (as GNU makes it: under no mask, fixed after only where the MODE says) | start-up 0.72x; `-p` a thousand deep 0.37x (linux) |
 | `rmdir` | done: `-p`, `-v`, `--ignore-fail-on-non-empty` | start-up 0.72x (linux) |
 | `rm` | done: `-f`, `-r`, `-d`, `-v`, `-i`, `-I`, `--interactive`, `--one-file-system`; a link never followed; `/`, `.` and `..` refused; not `--no-preserve-root` (on purpose) or `--preserve-root=all` | start-up 0.87x; `-r` of 100,000 files 0.94x to 1.02x (linux) |
@@ -1557,7 +1560,7 @@ table answers it per utility, from the evidence and from nothing else.
 | `ls` | 51 / 60 | 734 / 14 (hasu bu36) | 0.60x to 1.99x; the long format 1.22x beside a GNU that also asks for each name's ACL | drop-in for scripts that avoid `-v`, quoting styles beyond `-N`/`-b`/`-Q`, `-Z`, the colour and filtering options (each refused by name), do not list files with ACLs in the long format (no `+`, wolf-lang#685), and do not need `.` and `..` placed by `-f` on ext4 (#692); owners named from `/etc/passwd` and `/etc/group` only; on a terminal, one 80 wide or reporting no size (#643) |
 | `stat` | 7 / 8 | 152 / 8 | start-up 0.77x; 0.69x to 0.75x over many operands | drop-in for scripts that avoid `-f` (wolf-lang#686), `-` (#536), `%C`, and `%o` or the default format's `IO Block:` field, which prints `?` (#684) |
 | `readlink` | 10 / 10 | 100 / 0 | start-up 0.77x | drop-in |
-| `env` | 8 / 14 | 90 / 13 | `env true` 0.78x | drop-in for scripts that avoid `-S`, `-v` and the signal options (each refused by name), and do not read the ORDER of the environment they did not start from `-i` (wolf-lang#535) |
+| `env` | 11 / 14 complete; 2 partial | 125 / 8 (Linux bu36) | `env true` 0.78x | drop-in for scripts that avoid nonempty `--block-signal`; `--default-signal` needs a known, already unblocked Linux mask and `--list-signal-handling` needs Linux /proc; these limits are refused by name, and do not read the ORDER of the environment they did not start from `-i` (wolf-lang#535) |
 | `mkdir` | 7 / 7 | 262 / 0 | start-up 0.72x; a thousand deep 0.37x | drop-in |
 | `rmdir` | 5 / 5 | 70 / 0 | start-up 0.72x | drop-in |
 | `rm` | 12 / 12 | 224 / 2 (hasu bu36) | start-up 0.87x; `-r` 0.94x to 1.02x | drop-in for scripts that avoid `--no-preserve-root` (refused on purpose: this `rm` does not remove `/`); at a terminal, "write-protected" is the owner's write bit (#633); a tree deeper than the host's path limit is not removed (#707) |
