@@ -2301,3 +2301,135 @@ scratch = { a = "new", b = "old" }
 name = "bu36 cp backup precedence 10"
 args = ["--backup=n", "a", "b"]
 scratch = { a = "new", b = "old" }
+
+[[case]]
+name = "bu36 cp version 0 existing"
+args = ["--backup=existing", "a", "b"]
+scratch = { a = "new", b = "old", "b.~0003~" = "version" }
+
+[[case]]
+name = "bu36 cp version 0 numbered"
+args = ["--backup=numbered", "a", "b"]
+scratch = { a = "new", b = "old", "b.~0003~" = "version" }
+
+[[case]]
+name = "bu36 cp version 1 existing"
+args = ["--backup=existing", "a", "b"]
+scratch = { a = "new", b = "old", "b.~0~" = "version" }
+
+[[case]]
+name = "bu36 cp version 1 numbered"
+args = ["--backup=numbered", "a", "b"]
+scratch = { a = "new", b = "old", "b.~0~" = "version" }
+
+[[case]]
+name = "bu36 cp version 2 existing"
+args = ["--backup=existing", "a", "b"]
+scratch = { a = "new", b = "old", "b.~9999999999999999999999999~" = "version" }
+
+[[case]]
+name = "bu36 cp version 2 numbered"
+args = ["--backup=numbered", "a", "b"]
+scratch = { a = "new", b = "old", "b.~9999999999999999999999999~" = "version" }
+
+[[case]]
+name = "bu36 cp parents permissions 365 False False"
+args = ["--parents", "d/sub/f", "e"]
+scratch = { "d/sub/f" = "child" }
+scratch_dirs = ["e"]
+scratch_modes = { d = 365, "d/sub" = 365 }
+scratch_times = { d = "1500000000.123456789", "d/sub" = "1500000001.123456789", "d/sub/f" = "1500000002.123456789" }
+
+[[case]]
+name = "bu36 cp parents permissions 365 False True"
+args = ["--parents", "d/sub/f", "e"]
+scratch = { "d/sub/f" = "child" }
+scratch_dirs = ["e", "e/d", "e/d/sub"]
+scratch_modes = { d = 365, "d/sub" = 365 }
+scratch_times = { d = "1500000000.123456789", "d/sub" = "1500000001.123456789", "d/sub/f" = "1500000002.123456789" }
+
+[[case]]
+name = "bu36 cp parents permissions 365 True False"
+args = ["--parents", "-p", "d/sub/f", "e"]
+scratch = { "d/sub/f" = "child" }
+scratch_dirs = ["e"]
+scratch_modes = { d = 365, "d/sub" = 365 }
+scratch_times = { d = "1500000000.123456789", "d/sub" = "1500000001.123456789", "d/sub/f" = "1500000002.123456789" }
+times = true
+
+[[case]]
+name = "bu36 cp parents permissions 365 True True"
+args = ["--parents", "-p", "d/sub/f", "e"]
+scratch = { "d/sub/f" = "child" }
+scratch_dirs = ["e", "e/d", "e/d/sub"]
+scratch_modes = { d = 365, "d/sub" = 365 }
+scratch_times = { d = "1500000000.123456789", "d/sub" = "1500000001.123456789", "d/sub/f" = "1500000002.123456789" }
+times = true
+
+[[case]]
+name = "bu36 cp parents permissions 448 False False"
+args = ["--parents", "d/sub/f", "e"]
+scratch = { "d/sub/f" = "child" }
+scratch_dirs = ["e"]
+scratch_modes = { d = 448, "d/sub" = 448 }
+scratch_times = { d = "1500000000.123456789", "d/sub" = "1500000001.123456789", "d/sub/f" = "1500000002.123456789" }
+
+[[case]]
+name = "bu36 cp parents permissions 448 False True"
+args = ["--parents", "d/sub/f", "e"]
+scratch = { "d/sub/f" = "child" }
+scratch_dirs = ["e", "e/d", "e/d/sub"]
+scratch_modes = { d = 448, "d/sub" = 448 }
+scratch_times = { d = "1500000000.123456789", "d/sub" = "1500000001.123456789", "d/sub/f" = "1500000002.123456789" }
+
+[[case]]
+name = "bu36 cp parents permissions 448 True False"
+args = ["--parents", "-p", "d/sub/f", "e"]
+scratch = { "d/sub/f" = "child" }
+scratch_dirs = ["e"]
+scratch_modes = { d = 448, "d/sub" = 448 }
+scratch_times = { d = "1500000000.123456789", "d/sub" = "1500000001.123456789", "d/sub/f" = "1500000002.123456789" }
+times = true
+
+[[case]]
+name = "bu36 cp parents permissions 448 True True"
+args = ["--parents", "-p", "d/sub/f", "e"]
+scratch = { "d/sub/f" = "child" }
+scratch_dirs = ["e", "e/d", "e/d/sub"]
+scratch_modes = { d = 448, "d/sub" = 448 }
+scratch_times = { d = "1500000000.123456789", "d/sub" = "1500000001.123456789", "d/sub/f" = "1500000002.123456789" }
+times = true
+
+[[case]]
+name = "bu36 cp parents permissions 488 False False"
+args = ["--parents", "d/sub/f", "e"]
+scratch = { "d/sub/f" = "child" }
+scratch_dirs = ["e"]
+scratch_modes = { d = 488, "d/sub" = 488 }
+scratch_times = { d = "1500000000.123456789", "d/sub" = "1500000001.123456789", "d/sub/f" = "1500000002.123456789" }
+
+[[case]]
+name = "bu36 cp parents permissions 488 False True"
+args = ["--parents", "d/sub/f", "e"]
+scratch = { "d/sub/f" = "child" }
+scratch_dirs = ["e", "e/d", "e/d/sub"]
+scratch_modes = { d = 488, "d/sub" = 488 }
+scratch_times = { d = "1500000000.123456789", "d/sub" = "1500000001.123456789", "d/sub/f" = "1500000002.123456789" }
+
+[[case]]
+name = "bu36 cp parents permissions 488 True False"
+args = ["--parents", "-p", "d/sub/f", "e"]
+scratch = { "d/sub/f" = "child" }
+scratch_dirs = ["e"]
+scratch_modes = { d = 488, "d/sub" = 488 }
+scratch_times = { d = "1500000000.123456789", "d/sub" = "1500000001.123456789", "d/sub/f" = "1500000002.123456789" }
+times = true
+
+[[case]]
+name = "bu36 cp parents permissions 488 True True"
+args = ["--parents", "-p", "d/sub/f", "e"]
+scratch = { "d/sub/f" = "child" }
+scratch_dirs = ["e", "e/d", "e/d/sub"]
+scratch_modes = { d = 488, "d/sub" = 488 }
+scratch_times = { d = "1500000000.123456789", "d/sub" = "1500000001.123456789", "d/sub/f" = "1500000002.123456789" }
+times = true

@@ -72,8 +72,7 @@
 //! - A failed copy is `error copying 'A' to 'B'`: the builtin's `io`
 //!   row does not say which side failed (wolf-lang#642), where GNU says
 //!   `error reading` or `error writing`.
-//! - `-s`, `-l`, `-u`, `-b`, `--parents`, `--attributes-only`, `-x`,
-//!   `--copy-contents`, `--keep-directory-symlink` and `--debug` are
+//! - `--copy-contents`, `--keep-directory-symlink` and `--debug` are
 //!   not written yet, and are refused by name. `-Z` does nothing on a
 //!   host without SELinux, as GNU's does there.
 
@@ -105,6 +104,8 @@ struct Cfg {
     attrs: bool,
     one_fs: bool,
 }
+
+struct ParentAttrs { dst: str, rec: List[int] }
 
 /// How one copy ended.
 fn copied() -> int {
@@ -342,16 +343,16 @@ fn main() -> int {
     var status = 0
     if into {
         for n in names {
+            var parents = List[ParentAttrs]()
             var dest = bore.join_name(target, bore.last_name(n))
             if c.parents {
                 var relative = n
                 while relative.starts_with("/") { relative = relative[1..] }
                 dest = bore.join_name(target, relative)
-                if !make_parents(mut out, c, target, n) { status = 1; continue }
+                if !make_parents(mut out, c, target, n, mut parents) { status = 1; continue }
             }
-            if !operand(mut out, c, n, dest, mut made) {
-                status = 1
-            }
+            if !operand(mut out, c, n, dest, mut made) { status = 1 }
+            if !finish_parents(c, parents) { status = 1 }
         }
     } else if !operand(mut out, c, names[0], names[1], mut made) {
         status = 1
@@ -1167,7 +1168,13 @@ fn make_link(mut out: bore.Out, c: Cfg, src: str, dst: str, rec: List[int]) -> i
 }
 
 // Build the source's parent components under the requested destination.
-fn make_parents(mut out: bore.Out, c: Cfg, target: str, source: str) -> bool {
+fn make_parents(
+    mut out: bore.Out,
+    c: Cfg,
+    target: str,
+    source: str,
+    mut parents: List[ParentAttrs],
+) -> bool {
     let parts = source.split("/")
     var onto = target
     var from = if source.starts_with("/") then "/" else ""
@@ -1176,7 +1183,8 @@ fn make_parents(mut out: bore.Out, c: Cfg, target: str, source: str) -> bool {
         if part.len == 0 || part == "." { continue }
         from = if from.len == 0 then part else bore.join_name(from, part)
         onto = bore.join_name(onto, part)
-        if is_directory(onto) { continue }
+        let present = is_directory(onto)
+        if present { continue }
         let rec = fs_stat(from) else |_| {
             bore.warn(
                 "cp",
@@ -1184,13 +1192,37 @@ fn make_parents(mut out: bore.Out, c: Cfg, target: str, source: str) -> bool {
             )
             return false
         }
-        fs_create_dir_mode(onto, bore.rec_mode(rec) % 512) else |_| {
+        fs_create_dir_mode(onto, bore.rec_mode(rec) % 512 | 448) else |_| {
             bore.warn("cp", "cannot make directory {bore.quote_always(onto)}: {bore.io_error()}")
             return false
         }
+        (mut parents).push(ParentAttrs { dst: onto, rec: copy rec })
         if c.verbose {
             bore.put(mut out, "{bore.quote_name(from)} -> {bore.quote_name(onto)}\n") else |_| {}
         }
     }
     true
+}
+
+// Restore newly made parent permissions after the copy, deepest first;
+// --preserve restores new parents; existing parents are untouched.
+fn finish_parents(c: Cfg, parents: List[ParentAttrs]) -> bool {
+    var ok = true
+    var k = parents.len
+    while k > 0 {
+        k -= 1
+        let parent = copy parents[k]
+        if keep(c, parent.dst, parent.rec, true) == failed() { ok = false }
+        if !c.keep_mode {
+            let bits = bore.rec_mode(parent.rec) % 512 & 511 - c.umask % 512
+            fs_set_mode(parent.dst, bits) else |_| {
+                bore.warn(
+                    "cp",
+                    "preserving permissions for {bore.quote_always(parent.dst)}: {bore.io_error()}",
+                )
+                ok = false
+            }
+        }
+    }
+    ok
 }
