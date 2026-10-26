@@ -168,7 +168,7 @@ derives no boreutils code from GPL source.
 
 Every shipped utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus, except where a case says otherwise and is
-skipped with its reason. The combined corpus holds **16,533 cases across 105 case files**; `kill` has
+skipped with its reason. The combined corpus holds **16,549 cases across 105 case files**; `kill` has
 365 more that SEND, each run in a container of its own (`tests/kill/`,
 `tools/killtest`: **365 passed, 0 failed** on hasu at bu30, groups,
 `kill 0` and `kill -1` among them), `timeout` 163 more that run a
@@ -469,11 +469,11 @@ cannot do to a file or an option not written** (bu21, bu22). Since wolf
 either kind made, a time set and the umask read, and `chmod`, `touch`,
 `ln`, `mkdir -m` and `cp -p` are written on them (bu22). `mkdir` and
 `rmdir` have none. `chmod` has none on linux (on macOS, seven: GNU
-changes a link's own mode there and wolf has no call for it). `touch`'s
-thirteen: eleven `-d` strings GNU's free-form grammar takes and this
-one does not read — relative items, month names, `MM/DD/YYYY` — each
-refused by name rather than guessed at, and `touch -` twice (times by
-handle, wolf-lang#714). `ln`'s three: `-b`, `--backup`, `-S`, not
+changes a link's own mode there and wolf has no call for it). `touch` now shares date's clean-room free-form grammar, including relative
+items, English month names and `MM/DD/YYYY`, plus independent `-r -d`
+reference times. Its four remaining skips are `touch -` twice (times by
+handle, wolf-lang#714), noon and unknown grammar. See
+[the date grammar](docs/touch-date-grammar.txt). `ln`'s three: `-b`, `--backup`, `-S`, not
 written. `rm`'s three: `--no-preserve-root` twice, refused on
 purpose, and `--preserve-root=all`, not written yet. `mv`'s eight:
 `--exchange` (no rename that swaps, #706) and seven for `-u`, `-b`,
@@ -1339,7 +1339,7 @@ new security-sensitive designs.
 | `mv` | done: one rename, into a directory, `-f`, `-i`, `-n`, `-v`, `-T`, `-t`, `--strip-trailing-slashes`, `--no-copy`; ANOTHER FILE SYSTEM REFUSED by name (a copy would lose the mode, the times, the owner, the links); not `-u`, `-b`, `--exchange` (#706) | start-up 1.01x (linux) |
 | `cp` | done: bytes by `fs_copy_chunk`, a new file with its source's mode from the first instant, `-r`, `-L`, `-H`, `-P`, a link under `-r` copied as a link, `-p`, `--preserve=mode,timestamps`, `--no-preserve`, `-f`, `-i`, `-n`, `-v`, `-T`, `-t`, `--remove-destination`; not the owner (#701), `-a`, `-d`, `--preserve=links/xattr/context/all`, `-s`, `-l`, a fifo under `-r` (#705), `--sparse`/`--reflink` beyond `auto` (#703) | start-up 0.92x; 1 GiB 1.00x; `-r` of 100,000 files 0.72x to 0.75x (linux, btrfs; bu21's figures, not re-taken) |
 | `chmod` | done: octal and symbolic modes, a mode given as an option, `-c`, `-f`, `-v`, `-R`, `-H`, `-L`, `-P`, `-h`, `--reference`, `--preserve-root` | not benched |
-| `touch` | done: `-a`, `-m`, `--time`, `-c`, `-h`, `-r`, `-t`, `-d` for `@SECONDS`, ISO 8601, a time of day and now/today/yesterday/tomorrow, both times to the nanosecond; not `touch -` (#714) or the rest of GNU's date grammar | not benched |
+| `touch` | done: `-a`, `-m`, `--time`, `-c`, `-h`, `-r`, `-t`, `-d` for epoch, ISO, relative/calendar items, weekdays, English month names and slash dates, including `-r -d`, both times to the nanosecond; not `touch -` (#714), leap-second zones or unnamed grammar | not benched |
 | `ln` | done: hard and symbolic, `-f` (a replace that never leaves the name missing), `-i`, `-n`, `-T`, `-t`, `-v`, `-P`, `-L`, `-r`, `-d`/`-F`; not `-b` | not benched |
 | `kill` | done: `-s`, `--signal`, `-SIGNAL` by name or by this host's number, `-n`, signal 0, `-l`, `-t`/`-L` with the host's words, signal 0's included, exit statuses as signals, GNU's option rules; every signal the host numbers, real-time and host-only included; one process, a group (`-- -PGID`), this process's group (`0`) and every process (`-1`); not group 1 (`kill 0` from it) | not benched |
 | `timeout` | done: `-f`/`--foreground`, `-k`/`--kill-after`, `-p`/`--preserve-status`, `-s`/`--signal`, `-v`/`--verbose`; 124/125/126/127/137 as GNU; timeout leads its own group and signals it at the expiry, then CONT, any signal (a fault's and a host signal's ignored in timeout first); signals sent to it passed on; a stopped command continued; ends by the signal its command died of; `the monitored command dumped core`; not passing on a fault or host signal sent to timeout itself | not benched |
@@ -1566,7 +1566,7 @@ table answers it per utility, from the evidence and from nothing else.
 | `mv` | 11 / 18 | 134 / 8 | start-up 1.01x | drop-in for scripts that stay on ONE file system (a move to another is refused, where GNU copies and removes) and avoid `-u`, `-b`, `-S`, `--exchange` and `--debug`, each refused by name; `-n` is a look and then a rename (#706) |
 | `cp` | 19 / 36 | 228 / 19 | start-up 0.92x; 1 GiB 1.00x; `-r` 0.72x to 0.75x | drop-in for scripts that avoid `-a`, `-d`, `--preserve=links`/`xattr`/`context`/`all`, `-s`, `-l`, a special file met under `-r`, `--sparse`/`--reflink` beyond `auto`, `-u`, `-b`, `--parents`, `--attributes-only` and `-x`, each refused by name, and do not `-p` a file owned by someone else (the owner is refused by name, #701) |
 | `chmod` | 14 / 14 | 532 / 0 | not benched | drop-in on linux; on macOS a link named by `-h`/`-P` or met by `-R` is left alone where GNU changes its own mode |
-| `touch` | 11 / 11 | 156 / 13 | not benched | drop-in for scripts whose `-d` dates are `@SECONDS`, ISO 8601, a time of day or now/today/yesterday/tomorrow (any other is refused by name), that do not `touch -` (#714) or combine `-r` with `-d` |
+| `touch` | 11 / 11 | 181 / 4 (hasu bu36) | not benched | drop-in for scripts whose `-d` dates fit the [documented grammar](docs/touch-date-grammar.txt); `touch -` (#714), leap-second zones, noon and unknown date words remain named refusals |
 | `ln` | 13 / 16 | 145 / 3 | not benched | drop-in for scripts that avoid `-b`/`--backup`/`-S` (refused by name) |
 | `kill` | 5 / 5 | 894 / 1, and 365 / 0 that send | not benched | drop-in for scripts that do not `kill 0` from process group 1 (a container's first process and what it starts without job control; refused by name) |
 | `timeout` | 7 / 7 | 116 / 0 (7 skipped on macOS), and 150 / 0 that run a command (13 skipped on kasumi, run on CI) | not benched | drop-in for scripts that do not send timeout itself a fault or host-only signal, nor `-s 33` its group (glibc's own: GNU's timeout dies of it, this one lives) |

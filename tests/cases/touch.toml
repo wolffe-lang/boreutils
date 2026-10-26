@@ -471,7 +471,6 @@ times = true
 [[case]]
 name = "-r with -d"
 args = ["-r", "r", "-d", "@5", "f"]
-skip = "-d with -r (a date relative to the reference's times) is not written: refused by name, status 1"
 scratch = { "f" = "x\n", "r" = "y\n" }
 scratch_times = { "f" = "1000000000.000000000", "r" = "1234567890.123456789" }
 scratch_atimes = { "r" = "1111111111.987654321" }
@@ -889,64 +888,60 @@ scratch = { "f" = "x\n" }
 compare = ["stdout", "stderr", "exit", "files"]
 
 [[case]]
-name = "-d '1 day ago' is not read here"
-args = ["-d", "1 day ago", "f"]
+name = "-d '1 day ago'"
+args = ["-r", "r", "-d", "1 day ago", "f"]
 env = { "TZ" = "UTC0" }
-skip = "GNU's date grammar takes this; boreutils reads part of it and refuses the rest by name, status 1, nothing touched"
-scratch = { "f" = "x\n" }
-scratch_times = { "f" = "1000000000.000000000" }
+scratch = { "f" = "x\n", "r" = "reference" }
+scratch_times = { "f" = "1000000000.000000000", "r" = "946684800.123456789" }
+scratch_atimes = { "r" = "1577836800.987654321" }
 times = true
 
 [[case]]
-name = "-d 'next monday' is not read here"
-args = ["-d", "next monday", "f"]
+name = "-d 'next monday'"
+args = ["-r", "r", "-d", "next monday", "f"]
 env = { "TZ" = "UTC0" }
-skip = "GNU's date grammar takes this; boreutils reads part of it and refuses the rest by name, status 1, nothing touched"
-scratch = { "f" = "x\n" }
-scratch_times = { "f" = "1000000000.000000000" }
+scratch = { "f" = "x\n", "r" = "reference" }
+scratch_times = { "f" = "1000000000.000000000", "r" = "946684800.123456789" }
+scratch_atimes = { "r" = "1577836800.987654321" }
 times = true
 
 [[case]]
-name = "-d '+1 day' is not read here"
-args = ["-d", "+1 day", "f"]
+name = "-d '+1 day'"
+args = ["-r", "r", "-d", "+1 day", "f"]
 env = { "TZ" = "UTC0" }
-skip = "GNU's date grammar takes this; boreutils reads part of it and refuses the rest by name, status 1, nothing touched"
-scratch = { "f" = "x\n" }
-scratch_times = { "f" = "1000000000.000000000" }
+scratch = { "f" = "x\n", "r" = "reference" }
+scratch_times = { "f" = "1000000000.000000000", "r" = "946684800.123456789" }
+scratch_atimes = { "r" = "1577836800.987654321" }
 times = true
 
 [[case]]
-name = "-d 'Jan 2 2020' is not read here"
+name = "-d 'Jan 2 2020'"
 args = ["-d", "Jan 2 2020", "f"]
 env = { "TZ" = "UTC0" }
-skip = "GNU's date grammar takes this; boreutils reads part of it and refuses the rest by name, status 1, nothing touched"
 scratch = { "f" = "x\n" }
 scratch_times = { "f" = "1000000000.000000000" }
 times = true
 
 [[case]]
-name = "-d '2 January 2020' is not read here"
+name = "-d '2 January 2020'"
 args = ["-d", "2 January 2020", "f"]
 env = { "TZ" = "UTC0" }
-skip = "GNU's date grammar takes this; boreutils reads part of it and refuses the rest by name, status 1, nothing touched"
 scratch = { "f" = "x\n" }
 scratch_times = { "f" = "1000000000.000000000" }
 times = true
 
 [[case]]
-name = "-d '1/2/2020' is not read here"
+name = "-d '1/2/2020'"
 args = ["-d", "1/2/2020", "f"]
 env = { "TZ" = "UTC0" }
-skip = "GNU's date grammar takes this; boreutils reads part of it and refuses the rest by name, status 1, nothing touched"
 scratch = { "f" = "x\n" }
 scratch_times = { "f" = "1000000000.000000000" }
 times = true
 
 [[case]]
-name = "-d '20200102' is not read here"
+name = "-d '20200102'"
 args = ["-d", "20200102", "f"]
 env = { "TZ" = "UTC0" }
-skip = "GNU's date grammar takes this; boreutils reads part of it and refuses the rest by name, status 1, nothing touched"
 scratch = { "f" = "x\n" }
 scratch_times = { "f" = "1000000000.000000000" }
 times = true
@@ -961,10 +956,9 @@ scratch_times = { "f" = "1000000000.000000000" }
 times = true
 
 [[case]]
-name = "-d '2020-01-02 3pm' is not read here"
+name = "-d '2020-01-02 3pm'"
 args = ["-d", "2020-01-02 3pm", "f"]
 env = { "TZ" = "UTC0" }
-skip = "GNU's date grammar takes this; boreutils reads part of it and refuses the rest by name, status 1, nothing touched"
 scratch = { "f" = "x\n" }
 scratch_times = { "f" = "1000000000.000000000" }
 times = true
@@ -1323,4 +1317,148 @@ args = ["-c", "-t", "202001020304", "g"]
 env = { "TZ" = "UTC0" }
 scratch = { "f" = "x\n" }
 scratch_times = { "f" = "1000000000.000000000" }
+times = true
+
+[[case]]
+name = "bu36 touch reference 0 yesterday"
+args = ["-r", "r", "-d", "yesterday", "f"]
+env = { TZ = "UTC0" }
+scratch = { f = "x", r = "reference" }
+scratch_times = { f = "1000000000.000000000", r = "1577836800.123456789" }
+scratch_atimes = { r = "946684800.987654321" }
+times = true
+
+[[case]]
+name = "bu36 touch reference 1 2 days ago"
+args = ["-r", "r", "-d", "2 days ago", "f"]
+env = { TZ = "UTC0" }
+scratch = { f = "x", r = "reference" }
+scratch_times = { f = "1000000000.000000000", r = "1577836800.123456789" }
+scratch_atimes = { r = "946684800.987654321" }
+times = true
+
+[[case]]
+name = "bu36 touch reference 2 next monday"
+args = ["-r", "r", "-d", "next monday", "f"]
+env = { TZ = "UTC0" }
+scratch = { f = "x", r = "reference" }
+scratch_times = { f = "1000000000.000000000", r = "1577836800.123456789" }
+scratch_atimes = { r = "946684800.987654321" }
+times = true
+
+[[case]]
+name = "bu36 touch reference 3 last friday"
+args = ["-r", "r", "-d", "last friday", "f"]
+env = { TZ = "UTC0" }
+scratch = { f = "x", r = "reference" }
+scratch_times = { f = "1000000000.000000000", r = "1577836800.123456789" }
+scratch_atimes = { r = "946684800.987654321" }
+times = true
+
+[[case]]
+name = "bu36 touch reference 4 +1 month"
+args = ["-r", "r", "-d", "+1 month", "f"]
+env = { TZ = "UTC0" }
+scratch = { f = "x", r = "reference" }
+scratch_times = { f = "1000000000.000000000", r = "1577836800.123456789" }
+scratch_atimes = { r = "946684800.987654321" }
+times = true
+
+[[case]]
+name = "bu36 touch reference 5 1 year ago"
+args = ["-r", "r", "-d", "1 year ago", "f"]
+env = { TZ = "UTC0" }
+scratch = { f = "x", r = "reference" }
+scratch_times = { f = "1000000000.000000000", r = "1577836800.123456789" }
+scratch_atimes = { r = "946684800.987654321" }
+times = true
+
+[[case]]
+name = "bu36 touch reference 6 January 2 2020"
+args = ["-r", "r", "-d", "January 2 2020", "f"]
+env = { TZ = "UTC0" }
+scratch = { f = "x", r = "reference" }
+scratch_times = { f = "1000000000.000000000", r = "1577836800.123456789" }
+scratch_atimes = { r = "946684800.987654321" }
+times = true
+
+[[case]]
+name = "bu36 touch reference 7 2 Jan 2020"
+args = ["-r", "r", "-d", "2 Jan 2020", "f"]
+env = { TZ = "UTC0" }
+scratch = { f = "x", r = "reference" }
+scratch_times = { f = "1000000000.000000000", r = "1577836800.123456789" }
+scratch_atimes = { r = "946684800.987654321" }
+times = true
+
+[[case]]
+name = "bu36 touch reference 8 01/02/2020"
+args = ["-r", "r", "-d", "01/02/2020", "f"]
+env = { TZ = "UTC0" }
+scratch = { f = "x", r = "reference" }
+scratch_times = { f = "1000000000.000000000", r = "1577836800.123456789" }
+scratch_atimes = { r = "946684800.987654321" }
+times = true
+
+[[case]]
+name = "bu36 touch reference 9 2020-01-02 3pm"
+args = ["-r", "r", "-d", "2020-01-02 3pm", "f"]
+env = { TZ = "UTC0" }
+scratch = { f = "x", r = "reference" }
+scratch_times = { f = "1000000000.000000000", r = "1577836800.123456789" }
+scratch_atimes = { r = "946684800.987654321" }
+times = true
+
+[[case]]
+name = "bu36 touch reference 10 2020-01-02 12:34:56.123456789 UTC"
+args = ["-r", "r", "-d", "2020-01-02 12:34:56.123456789 UTC", "f"]
+env = { TZ = "UTC0" }
+scratch = { f = "x", r = "reference" }
+scratch_times = { f = "1000000000.000000000", r = "1577836800.123456789" }
+scratch_atimes = { r = "946684800.987654321" }
+times = true
+
+[[case]]
+name = "bu36 touch reference 11 TZ=\"America/New_York\" 2020-03-08 12:00 1 day ago"
+args = ["-r", "r", "-d", "TZ=\"America/New_York\" 2020-03-08 12:00 1 day ago", "f"]
+env = { TZ = "UTC0" }
+scratch = { f = "x", r = "reference" }
+scratch_times = { f = "1000000000.000000000", r = "1577836800.123456789" }
+scratch_atimes = { r = "946684800.987654321" }
+times = true
+
+[[case]]
+name = "bu36 touch reference 12 @123.456"
+args = ["-r", "r", "-d", "@123.456", "f"]
+env = { TZ = "UTC0" }
+scratch = { f = "x", r = "reference" }
+scratch_times = { f = "1000000000.000000000", r = "1577836800.123456789" }
+scratch_atimes = { r = "946684800.987654321" }
+times = true
+
+[[case]]
+name = "bu36 touch reference 13 tomorrow"
+args = ["-r", "r", "-d", "tomorrow", "f"]
+env = { TZ = "UTC0" }
+scratch = { f = "x", r = "reference" }
+scratch_times = { f = "1000000000.000000000", r = "1577836800.123456789" }
+scratch_atimes = { r = "946684800.987654321" }
+times = true
+
+[[case]]
+name = "bu36 touch reference 14 now"
+args = ["-r", "r", "-d", "now", "f"]
+env = { TZ = "UTC0" }
+scratch = { f = "x", r = "reference" }
+scratch_times = { f = "1000000000.000000000", r = "1577836800.123456789" }
+scratch_atimes = { r = "946684800.987654321" }
+times = true
+
+[[case]]
+name = "bu36 touch reference 15 today"
+args = ["-r", "r", "-d", "today", "f"]
+env = { TZ = "UTC0" }
+scratch = { f = "x", r = "reference" }
+scratch_times = { f = "1000000000.000000000", r = "1577836800.123456789" }
+scratch_atimes = { r = "946684800.987654321" }
 times = true

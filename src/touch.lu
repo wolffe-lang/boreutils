@@ -36,8 +36,8 @@
 //!   name only (`fs_set_times`; the handle form is wolf-lang#714).
 //! - **`-d` reads part of GNU's date grammar** (`bore.dates`); every
 //!   other string is refused by name rather than guessed at.
-//! - **`-r` with `-d`** (a date relative to the reference's times) is
-//!   not written, and is refused by name.
+//! - `-r` with `-d` evaluates each reference time independently.
+//!   The shared clean-room grammar is documented in docs/touch-date-grammar.txt.
 //! - A file is made by opening it (`fs_open_perm`) and its times are
 //!   then set by name: GNU sets them through the descriptor it opened.
 
@@ -131,13 +131,6 @@ fn main() -> int {
     if has_date && has_stamp || has_stamp && has_reference {
         return bore.usage_error("touch", "cannot specify times from more than one source")
     }
-    if has_date && has_reference {
-        bore.warn(
-            "touch",
-            "-d with -r (a date relative to the reference file's times) is not written yet",
-        )
-        return 1
-    }
     if !c.access && !c.modify {
         c.access = true
         c.modify = true
@@ -169,20 +162,27 @@ fn main() -> int {
         }
         c.atime = copy at
         c.mtime = copy at
-    } else if has_date {
+    }
+    if has_date {
+        if !has_reference {
+            let ms = time_unix_ms()
+            c.atime = bore.Instant { secs: bore.date_floor(ms, 1000), nanos: ms % 1000 * 1000000 }
+        }
+        let zone = bore.zone()
         var unread = false
         var bad = false
-        let d = bore.parse_date(date, bore.zone()) else |e| {
+        let d = bore.date_read(date, zone, c.atime) else |e| {
             match e {
                 invalid => { bad = true },
                 unread => { unread = true },
+                leap_zone => { unread = true },
             }
             bore.instant_now()
         }
         if unread {
             bore.warn(
                 "touch",
-                "cannot read the date {bore.quote_always(date)}: this touch reads @SECONDS, an ISO 8601 date and time, a time of day, now, today, yesterday and tomorrow, not the whole of GNU's date grammar",
+                "cannot read the date {bore.quote_always(date)}: unsupported date grammar or leap-second zone (docs/touch-date-grammar.txt)",
             )
             return 1
         }
@@ -190,8 +190,18 @@ fn main() -> int {
             bore.warn("touch", "invalid date format {bore.quote_always(date)}")
             return 1
         }
+        if has_reference {
+            c.mtime = bore.date_read(date, zone, c.mtime) else |_| {
+                bore.warn(
+                    "touch",
+                    "cannot read the date {bore.quote_always(date)}: unsupported date grammar or leap-second zone (docs/touch-date-grammar.txt)",
+                )
+                return 1
+            }
+        } else {
+            c.mtime = copy d
+        }
         c.atime = copy d
-        c.mtime = copy d
     }
     if p.operands.len == 0 {
         return bore.usage_error("touch", "missing file operand")

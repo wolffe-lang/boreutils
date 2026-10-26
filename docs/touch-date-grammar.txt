@@ -1,0 +1,34 @@
+Touch date grammar (C locale)
+
+This is boreutils' own token grammar, shared with date in bore/dateparse.lu.
+Inputs were GNU coreutils 9.11's Date input formats documentation and binary
+answers, never implementation source. Tokens are ASCII words, digit runs,
+punctuation and balanced comments (a final unclosed comment consumes the rest,
+as the pinned oracle does). Case is folded. A leading TZ="ZONE" selects a
+TZif/POSIX zone. Local calendar conversion is bore/clock.lu, not libc parsing.
+
+Accepted forms, composable unless conflicting:
+- @[-]SECONDS[.FRACTION] selects epoch seconds; nine fractional digits kept.
+- YYYY-MM-DD; MM/DD[/YYYY]; DD.MM.YYYY; YYYYMMDD; month-name DAY[, YEAR];
+  DAY[-]month-name[-YEAR]. Month words may be full or three-letter English.
+- HH:MM[:SS[.FRACTION]], numeric HHMM, H am/pm (dotted forms accepted).
+- UTC, UT, GMT, Z or signed numeric offsets; a named TZ uses its zone file.
+- now, today, yesterday, tomorrow; signed/count/ordinal relative years,
+  months, fortnights, weeks, days, hours, minutes and seconds, with ago.
+- English weekday words, optionally next/last/this or an ordinal.
+
+The clock is supplied, not read by the parser. Without -r it is touch's
+startup instant. With -r the access and modification times are parsed
+INDEPENDENTLY relative to the corresponding reference times, preserving
+nanoseconds for relative expressions. Calendar dates without a time select
+midnight; a weekday without an explicit date selects the calculated weekday
+at midnight. Calendar month/day arithmetic is performed before elapsed seconds.
+Tests anchor relative cases with -r so GNU and boreutils get identical clocks.
+
+Named refusals remain: leap-second right/ TZif tables, non-ASCII date words,
+ambiguous obsolete zone abbreviations, GNU grammar outside the token rules
+(including noon), and unknown words. Invalid dates inside the supported
+syntax are diagnosed as invalid date format, not silently normalized.
+The -t POSIX timestamp parser is unchanged. touch '-' still lacks handle-based
+set-times (wolf-lang#714). This grammar is not a promise to accept every GNU
+free-form date; unsupported input returns status 1 before touching any path.
