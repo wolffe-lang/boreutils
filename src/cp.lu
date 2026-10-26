@@ -154,6 +154,8 @@ fn main() -> int {
     var into = false
     var no_target = false
     var strip = false
+    var backup_enabled = false
+    var backup_word = ""
     var refused = ""
     var context = false
     var i = 0
@@ -247,13 +249,9 @@ fn main() -> int {
                 )
             }
         } else if k == "backup" || k == "b" || k == "suffix" {
-            if k == "suffix" { c.suffix = p.values[i] }
-            c.backup = if k == "backup" && p.given[i] {
-                bore.backup_kind(p.values[i])
-            } else {
-                bore.backup_default()
-            }
-            if c.backup < 0 { refused = "invalid backup type {bore.quote(p.values[i])}" }
+            backup_enabled = true
+            if k == "suffix" { c.suffix = if p.values[i].len == 0 then "~" else p.values[i] }
+            if k == "backup" && p.given[i] { backup_word = p.values[i] }
         } else if k == "parents" {
             c.parents = true
         } else if k == "attributes-only" {
@@ -267,6 +265,19 @@ fn main() -> int {
     }
     if !bore.ok(p) {
         return bore.usage_error("cp", p.error)
+    }
+    if backup_enabled {
+        c.backup = if backup_word.len > 0 {
+            bore.backup_kind(backup_word)
+        } else {
+            bore.backup_default()
+        }
+        if c.backup < 0 {
+            return bore.backup_error(
+                "cp",
+                if backup_word.len > 0 then backup_word else (env_get("VERSION_CONTROL") else ""),
+            )
+        }
     }
     if refused.len > 0 {
         bore.warn("cp", refused)
@@ -369,24 +380,7 @@ fn refusal(k: str) -> str {
     if k == "archive" || k == "d" {
         return "-a and -d are not supported: they preserve hard links among the sources, which this cp does not track"
     }
-    if k == "symbolic-link" {
-        return "-s (--symbolic-link) is not written yet"
-    }
-    if k == "link" {
-        return "-l (--link) is not written yet"
-    }
-    if k == "update" || k == "u" {
-        return "-u (--update) is not written yet"
-    }
-    if k == "backup" || k == "b" || k == "suffix" {
-        return "-b (--backup, -S) is not written yet"
-    }
-    if k == "parents" ||
-        k == "attributes-only" ||
-        k == "one-file-system" ||
-        k == "copy-contents" ||
-        k == "keep-directory-symlink" ||
-        k == "debug" {
+    if k == "copy-contents" || k == "keep-directory-symlink" || k == "debug" {
         return "--{k} is not written yet"
     }
     ""
@@ -526,6 +520,18 @@ fn any(
     cfg.saved_backup = ""
     let to = fs_lstat(dst) else List[int]()
     if to.len > 0 {
+        if bore.same_file(rec, to) {
+            if c.link_mode == 2 { return copied() }
+            let a = bore.canonical(src, bore.existing())
+            let b = bore.canonical(dst, bore.existing())
+            if a.ok && b.ok && a.path == b.path {
+                bore.warn(
+                    "cp",
+                    "{bore.quote_always(src)} and {bore.quote_always(dst)} are the same file",
+                )
+                return failed()
+            }
+        }
         if c.update == 3 {
             bore.warn("cp", "not replacing {bore.quote_always(dst)}")
             return failed()
@@ -1114,6 +1120,7 @@ fn make_link(mut out: bore.Out, c: Cfg, src: str, dst: str, rec: List[int]) -> i
     }
     let old = fs_lstat(dst) else List[int]()
     if old.len > 0 && bore.same_file(rec, old) {
+        if c.link_mode == 2 { return copied() }
         bore.warn("cp", "{bore.quote_always(src)} and {bore.quote_always(dst)} are the same file")
         return failed()
     }

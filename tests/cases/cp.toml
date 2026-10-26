@@ -1804,3 +1804,500 @@ name = "bu36 cp tree 4"
 args = ["-r", "--attributes-only", "d", "e"]
 scratch = { "d/sub/f" = "child", "d/a" = "root" }
 scratch_dirs = ["e"]
+
+[[case]]
+name = "bu36 cp interaction 0 link-source"
+args = ["-s", "a", "b"]
+stdin = "y\n"
+scratch = {"b" = "BBB", "original" = "source"}
+scratch_links = {"a" = "original"}
+
+[[case]]
+name = "bu36 cp interaction 0 link-dest"
+args = ["-s", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA", "original" = "old target"}
+scratch_links = {"b" = "original"}
+
+[[case]]
+name = "bu36 cp interaction 0 dangling-dest"
+args = ["-s", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA"}
+scratch_links = {"b" = "absent"}
+
+[[case]]
+name = "bu36 cp interaction 0 same-entry"
+args = ["-s", "a", "a"]
+stdin = "y\n"
+scratch = {"a" = "AAA", "b" = "BBB"}
+
+[[case]]
+name = "bu36 cp interaction 0 hard-alias"
+args = ["-s", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA"}
+scratch_hardlinks = {"b" = "a"}
+
+[[case]]
+name = "bu36 cp interaction 1 link-source"
+args = ["-l", "a", "b"]
+stdin = "y\n"
+scratch = {"b" = "BBB", "original" = "source"}
+scratch_links = {"a" = "original"}
+
+[[case]]
+name = "bu36 cp interaction 1 link-dest"
+args = ["-l", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA", "original" = "old target"}
+scratch_links = {"b" = "original"}
+
+[[case]]
+name = "bu36 cp interaction 1 dangling-dest"
+args = ["-l", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA"}
+scratch_links = {"b" = "absent"}
+
+[[case]]
+name = "bu36 cp interaction 1 same-entry"
+args = ["-l", "a", "a"]
+stdin = "y\n"
+scratch = {"a" = "AAA", "b" = "BBB"}
+
+[[case]]
+name = "bu36 cp interaction 1 hard-alias"
+args = ["-l", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA"}
+scratch_hardlinks = {"b" = "a"}
+
+[[case]]
+name = "bu36 cp interaction 2 link-source"
+args = ["-sf", "a", "b"]
+stdin = "y\n"
+scratch = {"b" = "BBB", "original" = "source"}
+scratch_links = {"a" = "original"}
+
+[[case]]
+name = "bu36 cp interaction 2 link-dest"
+args = ["-sf", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA", "original" = "old target"}
+scratch_links = {"b" = "original"}
+
+[[case]]
+name = "bu36 cp interaction 2 dangling-dest"
+args = ["-sf", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA"}
+scratch_links = {"b" = "absent"}
+
+[[case]]
+name = "bu36 cp interaction 2 same-entry"
+args = ["-sf", "a", "a"]
+stdin = "y\n"
+scratch = {"a" = "AAA", "b" = "BBB"}
+
+[[case]]
+name = "bu36 cp interaction 2 hard-alias"
+args = ["-sf", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA"}
+scratch_hardlinks = {"b" = "a"}
+
+[[case]]
+name = "bu36 cp interaction 3 link-source"
+args = ["-lf", "a", "b"]
+stdin = "y\n"
+scratch = {"b" = "BBB", "original" = "source"}
+scratch_links = {"a" = "original"}
+
+[[case]]
+name = "bu36 cp interaction 3 link-dest"
+args = ["-lf", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA", "original" = "old target"}
+scratch_links = {"b" = "original"}
+
+[[case]]
+name = "bu36 cp interaction 3 dangling-dest"
+args = ["-lf", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA"}
+scratch_links = {"b" = "absent"}
+
+[[case]]
+name = "bu36 cp interaction 3 same-entry"
+args = ["-lf", "a", "a"]
+stdin = "y\n"
+scratch = {"a" = "AAA", "b" = "BBB"}
+
+[[case]]
+name = "bu36 cp interaction 3 hard-alias"
+args = ["-lf", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA"}
+scratch_hardlinks = {"b" = "a"}
+
+[[case]]
+name = "bu36 cp interaction 4 link-source"
+args = ["-s", "-b", "a", "b"]
+stdin = "y\n"
+scratch = {"b" = "BBB", "original" = "source"}
+scratch_links = {"a" = "original"}
+
+[[case]]
+name = "bu36 cp interaction 4 link-dest"
+args = ["-s", "-b", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA", "original" = "old target"}
+scratch_links = {"b" = "original"}
+
+[[case]]
+name = "bu36 cp interaction 4 dangling-dest"
+args = ["-s", "-b", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA"}
+scratch_links = {"b" = "absent"}
+
+[[case]]
+name = "bu36 cp interaction 4 same-entry"
+args = ["-s", "-b", "a", "a"]
+stdin = "y\n"
+scratch = {"a" = "AAA", "b" = "BBB"}
+
+[[case]]
+name = "bu36 cp interaction 4 hard-alias"
+args = ["-s", "-b", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA"}
+scratch_hardlinks = {"b" = "a"}
+
+[[case]]
+name = "bu36 cp interaction 5 link-source"
+args = ["-l", "-b", "a", "b"]
+stdin = "y\n"
+scratch = {"b" = "BBB", "original" = "source"}
+scratch_links = {"a" = "original"}
+
+[[case]]
+name = "bu36 cp interaction 5 link-dest"
+args = ["-l", "-b", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA", "original" = "old target"}
+scratch_links = {"b" = "original"}
+
+[[case]]
+name = "bu36 cp interaction 5 dangling-dest"
+args = ["-l", "-b", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA"}
+scratch_links = {"b" = "absent"}
+
+[[case]]
+name = "bu36 cp interaction 5 same-entry"
+args = ["-l", "-b", "a", "a"]
+stdin = "y\n"
+scratch = {"a" = "AAA", "b" = "BBB"}
+
+[[case]]
+name = "bu36 cp interaction 5 hard-alias"
+args = ["-l", "-b", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA"}
+scratch_hardlinks = {"b" = "a"}
+
+[[case]]
+name = "bu36 cp interaction 6 link-source"
+args = ["--attributes-only", "a", "b"]
+stdin = "y\n"
+scratch = {"b" = "BBB", "original" = "source"}
+scratch_links = {"a" = "original"}
+
+[[case]]
+name = "bu36 cp interaction 6 link-dest"
+args = ["--attributes-only", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA", "original" = "old target"}
+scratch_links = {"b" = "original"}
+
+[[case]]
+name = "bu36 cp interaction 6 dangling-dest"
+args = ["--attributes-only", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA"}
+scratch_links = {"b" = "absent"}
+
+[[case]]
+name = "bu36 cp interaction 6 same-entry"
+args = ["--attributes-only", "a", "a"]
+stdin = "y\n"
+scratch = {"a" = "AAA", "b" = "BBB"}
+
+[[case]]
+name = "bu36 cp interaction 6 hard-alias"
+args = ["--attributes-only", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA"}
+scratch_hardlinks = {"b" = "a"}
+
+[[case]]
+name = "bu36 cp interaction 7 link-source"
+args = ["--attributes-only", "-p", "a", "b"]
+stdin = "y\n"
+scratch = {"b" = "BBB", "original" = "source"}
+scratch_links = {"a" = "original"}
+
+[[case]]
+name = "bu36 cp interaction 7 link-dest"
+args = ["--attributes-only", "-p", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA", "original" = "old target"}
+scratch_links = {"b" = "original"}
+
+[[case]]
+name = "bu36 cp interaction 7 dangling-dest"
+args = ["--attributes-only", "-p", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA"}
+scratch_links = {"b" = "absent"}
+
+[[case]]
+name = "bu36 cp interaction 7 same-entry"
+args = ["--attributes-only", "-p", "a", "a"]
+stdin = "y\n"
+scratch = {"a" = "AAA", "b" = "BBB"}
+
+[[case]]
+name = "bu36 cp interaction 7 hard-alias"
+args = ["--attributes-only", "-p", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA"}
+scratch_hardlinks = {"b" = "a"}
+
+[[case]]
+name = "bu36 cp interaction 8 link-source"
+args = ["-ub", "a", "b"]
+stdin = "y\n"
+scratch = {"b" = "BBB", "original" = "source"}
+scratch_links = {"a" = "original"}
+
+[[case]]
+name = "bu36 cp interaction 8 link-dest"
+args = ["-ub", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA", "original" = "old target"}
+scratch_links = {"b" = "original"}
+
+[[case]]
+name = "bu36 cp interaction 8 dangling-dest"
+args = ["-ub", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA"}
+scratch_links = {"b" = "absent"}
+
+[[case]]
+name = "bu36 cp interaction 8 same-entry"
+args = ["-ub", "a", "a"]
+stdin = "y\n"
+scratch = {"a" = "AAA", "b" = "BBB"}
+
+[[case]]
+name = "bu36 cp interaction 8 hard-alias"
+args = ["-ub", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA"}
+scratch_hardlinks = {"b" = "a"}
+
+[[case]]
+name = "bu36 cp interaction 9 link-source"
+args = ["-b", "-i", "a", "b"]
+stdin = "y\n"
+scratch = {"b" = "BBB", "original" = "source"}
+scratch_links = {"a" = "original"}
+
+[[case]]
+name = "bu36 cp interaction 9 link-dest"
+args = ["-b", "-i", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA", "original" = "old target"}
+scratch_links = {"b" = "original"}
+
+[[case]]
+name = "bu36 cp interaction 9 dangling-dest"
+args = ["-b", "-i", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA"}
+scratch_links = {"b" = "absent"}
+
+[[case]]
+name = "bu36 cp interaction 9 same-entry"
+args = ["-b", "-i", "a", "a"]
+stdin = "y\n"
+scratch = {"a" = "AAA", "b" = "BBB"}
+
+[[case]]
+name = "bu36 cp interaction 9 hard-alias"
+args = ["-b", "-i", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA"}
+scratch_hardlinks = {"b" = "a"}
+
+[[case]]
+name = "bu36 cp interaction 10 link-source"
+args = ["--backup=none", "a", "b"]
+stdin = "y\n"
+scratch = {"b" = "BBB", "original" = "source"}
+scratch_links = {"a" = "original"}
+
+[[case]]
+name = "bu36 cp interaction 10 link-dest"
+args = ["--backup=none", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA", "original" = "old target"}
+scratch_links = {"b" = "original"}
+
+[[case]]
+name = "bu36 cp interaction 10 dangling-dest"
+args = ["--backup=none", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA"}
+scratch_links = {"b" = "absent"}
+
+[[case]]
+name = "bu36 cp interaction 10 same-entry"
+args = ["--backup=none", "a", "a"]
+stdin = "y\n"
+scratch = {"a" = "AAA", "b" = "BBB"}
+
+[[case]]
+name = "bu36 cp interaction 10 hard-alias"
+args = ["--backup=none", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA"}
+scratch_hardlinks = {"b" = "a"}
+
+[[case]]
+name = "bu36 cp interaction 11 link-source"
+args = ["--backup=existing", "a", "b"]
+stdin = "y\n"
+scratch = {"b" = "BBB", "original" = "source"}
+scratch_links = {"a" = "original"}
+
+[[case]]
+name = "bu36 cp interaction 11 link-dest"
+args = ["--backup=existing", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA", "original" = "old target"}
+scratch_links = {"b" = "original"}
+
+[[case]]
+name = "bu36 cp interaction 11 dangling-dest"
+args = ["--backup=existing", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA"}
+scratch_links = {"b" = "absent"}
+
+[[case]]
+name = "bu36 cp interaction 11 same-entry"
+args = ["--backup=existing", "a", "a"]
+stdin = "y\n"
+scratch = {"a" = "AAA", "b" = "BBB"}
+
+[[case]]
+name = "bu36 cp interaction 11 hard-alias"
+args = ["--backup=existing", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA"}
+scratch_hardlinks = {"b" = "a"}
+
+[[case]]
+name = "bu36 cp interaction 12 link-source"
+args = ["-b", "-S", ".save", "a", "b"]
+stdin = "y\n"
+scratch = {"b" = "BBB", "original" = "source"}
+scratch_links = {"a" = "original"}
+
+[[case]]
+name = "bu36 cp interaction 12 link-dest"
+args = ["-b", "-S", ".save", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA", "original" = "old target"}
+scratch_links = {"b" = "original"}
+
+[[case]]
+name = "bu36 cp interaction 12 dangling-dest"
+args = ["-b", "-S", ".save", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA"}
+scratch_links = {"b" = "absent"}
+
+[[case]]
+name = "bu36 cp interaction 12 same-entry"
+args = ["-b", "-S", ".save", "a", "a"]
+stdin = "y\n"
+scratch = {"a" = "AAA", "b" = "BBB"}
+
+[[case]]
+name = "bu36 cp interaction 12 hard-alias"
+args = ["-b", "-S", ".save", "a", "b"]
+stdin = "y\n"
+scratch = {"a" = "AAA"}
+scratch_hardlinks = {"b" = "a"}
+
+[[case]]
+name = "bu36 cp backup precedence 0"
+args = ["--backup=numbered", "-S", ".bak", "a", "b"]
+scratch = { a = "new", b = "old" }
+
+[[case]]
+name = "bu36 cp backup precedence 1"
+args = ["-S", ".bak", "--backup=numbered", "a", "b"]
+scratch = { a = "new", b = "old" }
+
+[[case]]
+name = "bu36 cp backup precedence 2"
+args = ["--backup=none", "-S", ".bak", "a", "b"]
+scratch = { a = "new", b = "old" }
+
+[[case]]
+name = "bu36 cp backup precedence 3"
+args = ["-S", ".bak", "--backup=none", "a", "b"]
+scratch = { a = "new", b = "old" }
+
+[[case]]
+name = "bu36 cp backup precedence 4"
+args = ["-b", "-S", "", "a", "b"]
+scratch = { a = "new", b = "old" }
+
+[[case]]
+name = "bu36 cp backup precedence 5"
+args = ["--backup=numbered", "-b", "a", "b"]
+scratch = { a = "new", b = "old" }
+
+[[case]]
+name = "bu36 cp backup precedence 6"
+args = ["--backup=numbered", "--backup", "a", "b"]
+scratch = { a = "new", b = "old" }
+
+[[case]]
+name = "bu36 cp backup precedence 7"
+args = ["--backup=none", "-b", "a", "b"]
+scratch = { a = "new", b = "old" }
+
+[[case]]
+name = "bu36 cp backup precedence 8"
+args = ["--backup=bogus", "--backup=simple", "a", "b"]
+scratch = { a = "new", b = "old" }
+
+[[case]]
+name = "bu36 cp backup precedence 9"
+args = ["--backup=bogus", "a", "b"]
+scratch = { a = "new", b = "old" }
+
+[[case]]
+name = "bu36 cp backup precedence 10"
+args = ["--backup=n", "a", "b"]
+scratch = { a = "new", b = "old" }
