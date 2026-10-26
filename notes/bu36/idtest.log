@@ -1,0 +1,1129 @@
+idtest: gnu = GNU coreutils 9.11 (/home/mfwolffe/lanes/bu36/boreutils/.gnu-bin/bin)
+idtest: /home/mfwolffe/lanes/bu36/podman-idtest, image localhost/bu30-ubuntu:latest, one fresh container a case, no mount, no network; the accounts are the image's own
+ok   id: (none) as root
+ok   id: -u as root
+ok   id: -un as root
+ok   id: -ur as root
+ok   id: -urn as root
+ok   id: -g as root
+ok   id: -gn as root
+ok   id: -gr as root
+ok   id: -grn as root
+ok   id: -G as root
+ok   id: -Gn as root
+ok   id: -Gr as root
+ok   id: -Grn as root
+ok   id: -Gz as root
+ok   id: -Gnz as root
+ok   id: -uz as root
+ok   id: -unz as root
+ok   id: -gz as root
+ok   id: -a as root
+ok   id: --user --name as root
+ok   id: -G --zero --name as root
+ok   whoami: (none) as root
+ok   groups: (none) as root
+ok   logname: (none) as root
+ok   id: (none) as rootgroups
+ok   id: -u as rootgroups
+ok   id: -un as rootgroups
+ok   id: -ur as rootgroups
+ok   id: -urn as rootgroups
+ok   id: -g as rootgroups
+ok   id: -gn as rootgroups
+ok   id: -gr as rootgroups
+ok   id: -grn as rootgroups
+ok   id: -G as rootgroups
+ok   id: -Gn as rootgroups
+ok   id: -Gr as rootgroups
+ok   id: -Grn as rootgroups
+ok   id: -Gz as rootgroups
+ok   id: -Gnz as rootgroups
+ok   id: -uz as rootgroups
+ok   id: -unz as rootgroups
+ok   id: -gz as rootgroups
+ok   id: -a as rootgroups
+ok   id: --user --name as rootgroups
+ok   id: -G --zero --name as rootgroups
+ok   whoami: (none) as rootgroups
+ok   groups: (none) as rootgroups
+ok   logname: (none) as rootgroups
+ok   id: (none) as alice
+ok   id: -u as alice
+ok   id: -un as alice
+ok   id: -ur as alice
+ok   id: -urn as alice
+ok   id: -g as alice
+ok   id: -gn as alice
+ok   id: -gr as alice
+ok   id: -grn as alice
+ok   id: -G as alice
+ok   id: -Gn as alice
+ok   id: -Gr as alice
+ok   id: -Grn as alice
+ok   id: -Gz as alice
+ok   id: -Gnz as alice
+ok   id: -uz as alice
+ok   id: -unz as alice
+ok   id: -gz as alice
+ok   id: -a as alice
+ok   id: --user --name as alice
+ok   id: -G --zero --name as alice
+ok   whoami: (none) as alice
+ok   groups: (none) as alice
+ok   logname: (none) as alice
+ok   id: (none) as bob
+ok   id: -u as bob
+ok   id: -un as bob
+ok   id: -ur as bob
+ok   id: -urn as bob
+ok   id: -g as bob
+ok   id: -gn as bob
+ok   id: -gr as bob
+ok   id: -grn as bob
+ok   id: -G as bob
+ok   id: -Gn as bob
+ok   id: -Gr as bob
+ok   id: -Grn as bob
+ok   id: -Gz as bob
+ok   id: -Gnz as bob
+ok   id: -uz as bob
+ok   id: -unz as bob
+ok   id: -gz as bob
+ok   id: -a as bob
+ok   id: --user --name as bob
+ok   id: -G --zero --name as bob
+ok   whoami: (none) as bob
+ok   groups: (none) as bob
+ok   logname: (none) as bob
+ok   id: (none) as carol
+ok   id: -u as carol
+ok   id: -un as carol
+ok   id: -ur as carol
+ok   id: -urn as carol
+ok   id: -g as carol
+ok   id: -gn as carol
+ok   id: -gr as carol
+ok   id: -grn as carol
+ok   id: -G as carol
+ok   id: -Gn as carol
+ok   id: -Gr as carol
+ok   id: -Grn as carol
+ok   id: -Gz as carol
+ok   id: -Gnz as carol
+ok   id: -uz as carol
+ok   id: -unz as carol
+ok   id: -gz as carol
+ok   id: -a as carol
+ok   id: --user --name as carol
+ok   id: -G --zero --name as carol
+ok   whoami: (none) as carol
+ok   groups: (none) as carol
+ok   logname: (none) as carol
+ok   id: (none) as dotty
+ok   id: -u as dotty
+ok   id: -un as dotty
+ok   id: -ur as dotty
+ok   id: -urn as dotty
+ok   id: -g as dotty
+ok   id: -gn as dotty
+ok   id: -gr as dotty
+ok   id: -grn as dotty
+ok   id: -G as dotty
+ok   id: -Gn as dotty
+ok   id: -Gr as dotty
+ok   id: -Grn as dotty
+ok   id: -Gz as dotty
+ok   id: -Gnz as dotty
+ok   id: -uz as dotty
+ok   id: -unz as dotty
+ok   id: -gz as dotty
+ok   id: -a as dotty
+ok   id: --user --name as dotty
+ok   id: -G --zero --name as dotty
+ok   whoami: (none) as dotty
+ok   groups: (none) as dotty
+ok   logname: (none) as dotty
+ok   id: (none) as nobody
+ok   id: -u as nobody
+ok   id: -un as nobody
+ok   id: -ur as nobody
+ok   id: -urn as nobody
+ok   id: -g as nobody
+ok   id: -gn as nobody
+ok   id: -gr as nobody
+ok   id: -grn as nobody
+ok   id: -G as nobody
+ok   id: -Gn as nobody
+ok   id: -Gr as nobody
+ok   id: -Grn as nobody
+ok   id: -Gz as nobody
+ok   id: -Gnz as nobody
+ok   id: -uz as nobody
+ok   id: -unz as nobody
+ok   id: -gz as nobody
+ok   id: -a as nobody
+ok   id: --user --name as nobody
+ok   id: -G --zero --name as nobody
+ok   whoami: (none) as nobody
+ok   groups: (none) as nobody
+ok   logname: (none) as nobody
+ok   id: (none) as gid4242
+ok   id: -u as gid4242
+ok   id: -un as gid4242
+ok   id: -ur as gid4242
+ok   id: -urn as gid4242
+ok   id: -g as gid4242
+ok   id: -gn as gid4242
+ok   id: -gr as gid4242
+ok   id: -grn as gid4242
+ok   id: -G as gid4242
+ok   id: -Gn as gid4242
+ok   id: -Gr as gid4242
+ok   id: -Grn as gid4242
+ok   id: -Gz as gid4242
+ok   id: -Gnz as gid4242
+ok   id: -uz as gid4242
+ok   id: -unz as gid4242
+ok   id: -gz as gid4242
+ok   id: -a as gid4242
+ok   id: --user --name as gid4242
+ok   id: -G --zero --name as gid4242
+ok   whoami: (none) as gid4242
+ok   groups: (none) as gid4242
+ok   logname: (none) as gid4242
+ok   id: (none) as split
+ok   id: -u as split
+ok   id: -un as split
+ok   id: -ur as split
+ok   id: -urn as split
+ok   id: -g as split
+ok   id: -gn as split
+ok   id: -gr as split
+ok   id: -grn as split
+ok   id: -G as split
+ok   id: -Gn as split
+ok   id: -Gr as split
+ok   id: -Grn as split
+ok   id: -Gz as split
+ok   id: -Gnz as split
+ok   id: -uz as split
+ok   id: -unz as split
+ok   id: -gz as split
+ok   id: -a as split
+ok   id: --user --name as split
+ok   id: -G --zero --name as split
+ok   whoami: (none) as split
+ok   groups: (none) as split
+ok   logname: (none) as split
+ok   id: (none) as splitg
+ok   id: -u as splitg
+ok   id: -un as splitg
+ok   id: -ur as splitg
+ok   id: -urn as splitg
+ok   id: -g as splitg
+ok   id: -gn as splitg
+ok   id: -gr as splitg
+ok   id: -grn as splitg
+ok   id: -G as splitg
+ok   id: -Gn as splitg
+ok   id: -Gr as splitg
+ok   id: -Grn as splitg
+ok   id: -Gz as splitg
+ok   id: -Gnz as splitg
+ok   id: -uz as splitg
+ok   id: -unz as splitg
+ok   id: -gz as splitg
+ok   id: -a as splitg
+ok   id: --user --name as splitg
+ok   id: -G --zero --name as splitg
+ok   whoami: (none) as splitg
+ok   groups: (none) as splitg
+ok   logname: (none) as splitg
+ok   id: (none) as nogroups
+ok   id: -u as nogroups
+ok   id: -un as nogroups
+ok   id: -ur as nogroups
+ok   id: -urn as nogroups
+ok   id: -g as nogroups
+ok   id: -gn as nogroups
+ok   id: -gr as nogroups
+ok   id: -grn as nogroups
+ok   id: -G as nogroups
+ok   id: -Gn as nogroups
+ok   id: -Gr as nogroups
+ok   id: -Grn as nogroups
+ok   id: -Gz as nogroups
+ok   id: -Gnz as nogroups
+ok   id: -uz as nogroups
+ok   id: -unz as nogroups
+ok   id: -gz as nogroups
+ok   id: -a as nogroups
+ok   id: --user --name as nogroups
+ok   id: -G --zero --name as nogroups
+ok   whoami: (none) as nogroups
+ok   groups: (none) as nogroups
+ok   logname: (none) as nogroups
+ok   id: (none) as twin
+ok   id: -u as twin
+ok   id: -un as twin
+ok   id: -ur as twin
+ok   id: -urn as twin
+ok   id: -g as twin
+ok   id: -gn as twin
+ok   id: -gr as twin
+ok   id: -grn as twin
+ok   id: -G as twin
+ok   id: -Gn as twin
+ok   id: -Gr as twin
+ok   id: -Grn as twin
+ok   id: -Gz as twin
+ok   id: -Gnz as twin
+ok   id: -uz as twin
+ok   id: -unz as twin
+ok   id: -gz as twin
+ok   id: -a as twin
+ok   id: --user --name as twin
+ok   id: -G --zero --name as twin
+ok   whoami: (none) as twin
+ok   groups: (none) as twin
+ok   logname: (none) as twin
+ok   id: alice as root
+ok   groups: alice as root
+ok   id: bob as root
+ok   groups: bob as root
+ok   id: carol as root
+ok   groups: carol as root
+ok   id: dot.ty as root
+ok   groups: dot.ty as root
+ok   id: twin as root
+ok   groups: twin as root
+ok   id: root as root
+ok   groups: root as root
+ok   id: 1001 as root
+ok   groups: 1001 as root
+ok   id: +1001 as root
+ok   groups: +1001 as root
+ok   id: 1002 as root
+ok   groups: 1002 as root
+ok   id: 0 as root
+ok   groups: 0 as root
+ok   id: 007 as root
+ok   groups: 007 as root
+ok   id: 4242 as root
+ok   groups: 4242 as root
+ok   id: nosuch as root
+ok   groups: nosuch as root
+ok   id: '' as root
+ok   groups: '' as root
+ok   id: - as root
+ok   groups: - as root
+ok   id: 4294967295 as root
+ok   groups: 4294967295 as root
+ok   id: 4294967294 as root
+ok   groups: 4294967294 as root
+ok   id: 99999999999 as root
+ok   groups: 99999999999 as root
+ok   id: ghost as root
+ok   groups: ghost as root
+ok   id: pack as root
+ok   groups: pack as root
+ok   id: -u alice as root
+ok   id: -u bob as root
+ok   id: -u carol as root
+ok   id: -u twin as root
+ok   id: -u 1001 as root
+ok   id: -un alice as root
+ok   id: -un bob as root
+ok   id: -un carol as root
+ok   id: -un twin as root
+ok   id: -un 1001 as root
+ok   id: -g alice as root
+ok   id: -g bob as root
+ok   id: -g carol as root
+ok   id: -g twin as root
+ok   id: -g 1001 as root
+ok   id: -gn alice as root
+ok   id: -gn bob as root
+ok   id: -gn carol as root
+ok   id: -gn twin as root
+ok   id: -gn 1001 as root
+ok   id: -G alice as root
+ok   id: -G bob as root
+ok   id: -G carol as root
+ok   id: -G twin as root
+ok   id: -G 1001 as root
+ok   id: -Gn alice as root
+ok   id: -Gn bob as root
+ok   id: -Gn carol as root
+ok   id: -Gn twin as root
+ok   id: -Gn 1001 as root
+ok   id: -Gnz alice as root
+ok   id: -Gnz bob as root
+ok   id: -Gnz carol as root
+ok   id: -Gnz twin as root
+ok   id: -Gnz 1001 as root
+ok   id: -ur alice as root
+ok   id: -ur bob as root
+ok   id: -ur carol as root
+ok   id: -ur twin as root
+ok   id: -ur 1001 as root
+ok   id: -Grn alice as root
+ok   id: -Grn bob as root
+ok   id: -Grn carol as root
+ok   id: -Grn twin as root
+ok   id: -Grn 1001 as root
+ok   id: alice bob as root
+ok   id: alice nosuch bob as root
+ok   id: -- alice as root
+ok   id: -u -- -alice as root
+ok   groups: alice bob carol as root
+ok   groups: alice nosuch bob as root
+ok   groups: -- alice as root
+ok   id: alice as alice
+ok   groups: alice as alice
+ok   id: bob as alice
+ok   groups: bob as alice
+ok   id: carol as alice
+ok   groups: carol as alice
+ok   id: dot.ty as alice
+ok   groups: dot.ty as alice
+ok   id: twin as alice
+ok   groups: twin as alice
+ok   id: root as alice
+ok   groups: root as alice
+ok   id: 1001 as alice
+ok   groups: 1001 as alice
+ok   id: +1001 as alice
+ok   groups: +1001 as alice
+ok   id: 1002 as alice
+ok   groups: 1002 as alice
+ok   id: 0 as alice
+ok   groups: 0 as alice
+ok   id: 007 as alice
+ok   groups: 007 as alice
+ok   id: 4242 as alice
+ok   groups: 4242 as alice
+ok   id: nosuch as alice
+ok   groups: nosuch as alice
+ok   id: '' as alice
+ok   groups: '' as alice
+ok   id: - as alice
+ok   groups: - as alice
+ok   id: 4294967295 as alice
+ok   groups: 4294967295 as alice
+ok   id: 4294967294 as alice
+ok   groups: 4294967294 as alice
+ok   id: 99999999999 as alice
+ok   groups: 99999999999 as alice
+ok   id: ghost as alice
+ok   groups: ghost as alice
+ok   id: pack as alice
+ok   groups: pack as alice
+ok   id: -u alice as alice
+ok   id: -u bob as alice
+ok   id: -u carol as alice
+ok   id: -u twin as alice
+ok   id: -u 1001 as alice
+ok   id: -un alice as alice
+ok   id: -un bob as alice
+ok   id: -un carol as alice
+ok   id: -un twin as alice
+ok   id: -un 1001 as alice
+ok   id: -g alice as alice
+ok   id: -g bob as alice
+ok   id: -g carol as alice
+ok   id: -g twin as alice
+ok   id: -g 1001 as alice
+ok   id: -gn alice as alice
+ok   id: -gn bob as alice
+ok   id: -gn carol as alice
+ok   id: -gn twin as alice
+ok   id: -gn 1001 as alice
+ok   id: -G alice as alice
+ok   id: -G bob as alice
+ok   id: -G carol as alice
+ok   id: -G twin as alice
+ok   id: -G 1001 as alice
+ok   id: -Gn alice as alice
+ok   id: -Gn bob as alice
+ok   id: -Gn carol as alice
+ok   id: -Gn twin as alice
+ok   id: -Gn 1001 as alice
+ok   id: -Gnz alice as alice
+ok   id: -Gnz bob as alice
+ok   id: -Gnz carol as alice
+ok   id: -Gnz twin as alice
+ok   id: -Gnz 1001 as alice
+ok   id: -ur alice as alice
+ok   id: -ur bob as alice
+ok   id: -ur carol as alice
+ok   id: -ur twin as alice
+ok   id: -ur 1001 as alice
+ok   id: -Grn alice as alice
+ok   id: -Grn bob as alice
+ok   id: -Grn carol as alice
+ok   id: -Grn twin as alice
+ok   id: -Grn 1001 as alice
+ok   id: alice bob as alice
+ok   id: alice nosuch bob as alice
+ok   id: -- alice as alice
+ok   id: -u -- -alice as alice
+ok   groups: alice bob carol as alice
+ok   groups: alice nosuch bob as alice
+ok   groups: -- alice as alice
+ok   id: -n as root
+ok   id: -r as root
+ok   id: -z as root
+ok   id: -nz as root
+ok   id: -rz as root
+ok   id: -ug as root
+ok   id: -uG as root
+ok   id: -Gg as root
+ok   id: -ugG as root
+ok   id: -ugn as root
+ok   id: -ugz as root
+ok   id: -Z as root
+ok   id: -Zu as root
+ok   id: -uZ as root
+ok   id: -Zn as root
+ok   id: --context as root
+ok   id: -Z alice as root
+ok   id: --us as root
+ok   id: --u as root
+ok   id: --na as root
+ok   id: --nam -u as root
+ok   id: --zero -G as root
+ok   id: -G -n as root
+ok   id: -nG as root
+ok   id: -a -u as root
+ok   id: -uaz as root
+ok   id: --real --group as root
+ok   id: -n nosuch as root
+ok   id: -ug nosuch as root
+ok   id: -z alice as root
+ok   id: --groups --zero alice bob as root
+ok   id: -uz alice bob as root
+ok   id: -gnz alice bob as root
+ok   id: -Gz alice nosuch bob carol as root
+ok   id: -G alice bob as root
+ok   whoami: x as root
+ok   whoami: -x as root
+ok   whoami: -- as root
+ok   whoami: -- x as root
+ok   whoami: --help as root
+ok   whoami: --version as root
+ok   whoami: --he as root
+ok   logname: x as root
+ok   logname: -x as root
+ok   logname: -- as root
+ok   logname: -- x as root
+ok   logname: --help as root
+ok   logname: --version as root
+ok   logname: --he as root
+ok   id: --help as root
+ok   id: --version as root
+ok   id: -x as root
+ok   groups: --help as root
+ok   groups: --version as root
+ok   groups: -x as root
+ok   groups: -- as root
+ok   logname: (none) as root on a terminal
+ok   logname: (none) as root on a terminal with 7/{tty}/alice
+ok   logname: (none) as root on a terminal with 6/{tty}/LOGIN
+ok   logname: (none) as root on a terminal with 8/{tty}/alice
+ok   logname: (none) as root on a terminal with 7/pts/77/bob
+ok   logname: (none) as root on a terminal with 7/pts/77/bob, 7/{tty}/carol, 7/{tty}/bob
+ok   logname: (none) as root on a terminal with 7/{tty}/zed
+ok   logname: (none) as root with 7/{tty}/alice
+ok   logname: (none) as alice on a terminal
+ok   logname: (none) as alice on a terminal with 7/{tty}/alice
+ok   logname: (none) as alice on a terminal with 6/{tty}/LOGIN
+ok   logname: (none) as alice on a terminal with 8/{tty}/alice
+ok   logname: (none) as alice on a terminal with 7/pts/77/bob
+ok   logname: (none) as alice on a terminal with 7/pts/77/bob, 7/{tty}/carol, 7/{tty}/bob
+ok   logname: (none) as alice on a terminal with 7/{tty}/zed
+ok   logname: (none) as alice with 7/{tty}/alice
+ok   logname: (none) as nobody on a terminal
+ok   logname: (none) as nobody on a terminal with 7/{tty}/alice
+ok   logname: (none) as nobody on a terminal with 6/{tty}/LOGIN
+ok   logname: (none) as nobody on a terminal with 8/{tty}/alice
+ok   logname: (none) as nobody on a terminal with 7/pts/77/bob
+ok   logname: (none) as nobody on a terminal with 7/pts/77/bob, 7/{tty}/carol, 7/{tty}/bob
+ok   logname: (none) as nobody on a terminal with 7/{tty}/zed
+ok   logname: (none) as nobody with 7/{tty}/alice
+ok   logname: (none) as root on a terminal with 1/{tty}/alice, 7/{tty}/dot.ty
+ok   logname: (none) as root on a terminal with 7/{tty}/
+ok   logname: x as root on a terminal with 7/{tty}/alice
+ok   chown: -v alice f as root
+ok   chown: -v alice: f as root
+ok   chown: -v alice:pack f as root
+ok   chown: -v :pack f as root
+ok   chown: -v alice.pack f as root
+ok   chown: -v 1002 f as root
+ok   chown: -v +1002 f as root
+ok   chown: -v alice:+2000 f as root
+ok   chown: -v : f as root
+ok   chown: -v '' f as root
+ok   chown: -v nosuch f as root
+ok   chown: -v alice:nosuch f as root
+ok   chown: -v :nosuch f as root
+ok   chown: -v 4242:4243 f as root
+ok   chown: -v 4242 f as root
+ok   chown: -v 4294967295 f as root
+ok   chown: -v 4294967294 f as root
+ok   chown: -v 4294967296 f as root
+ok   chown: -v alice. f as root
+ok   chown: -v .pack f as root
+ok   chown: -v alice:pack:x f as root
+ok   chown: -v bob. f as root
+ok   chown: -v nosuch.pack f as root
+ok   chown: -v alice.nosuch f as root
+ok   chown: -v ' alice' f as root
+ok   chown: -v 1002: f as root
+ok   chown: -v +0 f as root
+ok   chown: -v 0x10 f as root
+ok   chown: -v 007 f as root
+ok   chown: -v root:root f as root
+ok   chown: -v alice::pack f as root
+ok   chown: -v dot.ty f as root
+ok   chown: -v dot.ty:pack f as root
+ok   chown: -v dot.ty.pack f as root
+ok   chown: -v dot.ty. f as root
+ok   chown: -v bob: f as root
+ok   chown: -v carol: f as root
+ok   chown: -v twin f as root
+ok   chown: -v twin: f as root
+ok   chown: -v 1001:pack f as root
+ok   chown: -v nosuch:pack f as root
+ok   chown: -v nosuch: f as root
+ok   chown: -v :1500 f as root
+ok   chown: -v :zeta f as root
+ok   chown: -v alice:4243 f as root
+ok   chown: -v 4242: f as root
+ok   chown: -v + f as root
+ok   chown: -v :+ f as root
+ok   chown: -v - f as root
+ok   chown: -v alice:-1 f as root
+ok   chown: -v -1:pack f as root
+ok   chown: -v root.root f as root
+ok   chown: -v a:b:c f as root
+ok   chgrp: -v pack f as root
+ok   chgrp: -v 2000 f as root
+ok   chgrp: -v +2000 f as root
+ok   chgrp: -v nosuch f as root
+ok   chgrp: -v '' f as root
+ok   chgrp: -v 4243 f as root
+ok   chgrp: -v 4294967295 f as root
+ok   chgrp: -v ' pack' f as root
+ok   chgrp: -v root f as root
+ok   chgrp: -v zeta f as root
+ok   chgrp: -v 1500 f as root
+ok   chgrp: -v crew2 f as root
+ok   chgrp: -v pack2 f as root
+ok   chgrp: -v alice f as root
+ok   chgrp: -v :pack f as root
+ok   chgrp: -v pack: f as root
+ok   chgrp: -v 007 f as root
+ok   chgrp: -v + f as root
+ok   chown: -v alice f g as root
+ok   chown: -v alice nosuch f as root
+ok   chown: -v alice dang as root
+ok   chown: -v -h alice dang as root
+ok   chown: -c alice f g as root
+ok   chown: -c alice nosuch f as root
+ok   chown: -c alice dang as root
+ok   chown: -c -h alice dang as root
+ok   chown: alice f g as root
+ok   chown: alice nosuch f as root
+ok   chown: alice dang as root
+ok   chown: -h alice dang as root
+ok   chown: -f alice f g as root
+ok   chown: -f alice nosuch f as root
+ok   chown: -f alice dang as root
+ok   chown: -f -h alice dang as root
+ok   chown: -vf alice f g as root
+ok   chown: -vf alice nosuch f as root
+ok   chown: -vf alice dang as root
+ok   chown: -vf -h alice dang as root
+ok   chown: -cv alice f g as root
+ok   chown: -cv alice nosuch f as root
+ok   chown: -cv alice dang as root
+ok   chown: -cv -h alice dang as root
+ok   chown: -v alice l as root
+ok   chown: -vh alice l as root
+ok   chown: -v --dereference alice l as root
+ok   chown: -v -h --dereference alice l as root
+ok   chown: -v --dereference -h alice l as root
+ok   chown: -vR alice d as root
+ok   chown: -vR alice dl as root
+ok   chown: -vRH alice dl as root
+ok   chown: -vRL alice d as root
+ok   chown: -vRP alice dl as root
+ok   chown: -vRh alice dl as root
+ok   chown: -R --dereference alice d as root
+ok   chown: -vRH --dereference alice dl as root
+ok   chown: -vRL --dereference alice d as root
+ok   chown: -vRLh alice d as root
+ok   chown: -vRHh alice dl as root
+ok   chown: -cR alice d as root
+ok   chown: -vR alice d f dl as root
+ok   chown: -vRLP alice d as root
+ok   chown: -vRPL alice dl as root
+ok   chown: -vRHP alice dl as root
+ok   chown: -vH alice dl as root
+ok   chown: -vL alice dl as root
+ok   chown: -vR alice d/e as root
+ok   chown: -vR alice . as root
+ok   chown: -vR alice d/ as root
+ok   chown: -vR alice dl/ as root
+ok   chown: -v alice dl/ as root
+ok   chown: -v alice d/../f as root
+ok   chown: -v alice ./f as root
+ok   chown: -v alice f f as root
+ok   chown: -vR --preserve-root alice / as root
+ok   chown: -R --preserve-root alice // as root
+ok   chown: -R --preserve-root alice /work/.. as root
+ok   chown: --preserve-root alice /work/f as root
+ok   chown: -vR --preserve-root --no-preserve-root alice d as root
+ok   chown: -vRL alice d as root after `ln -s . d/e/self`
+ok   chown: -vR alice d as root after `ln -s nowhere d/e/gone`
+ok   chown: -vRL alice d as root after `rm d/up; ln -s nowhere d/e/gone`
+ok   chown: -v alice:pack f g as root
+ok   chown: -v alice:pack nosuch f as root
+ok   chown: -v alice:pack dang as root
+ok   chown: -v -h alice:pack dang as root
+ok   chown: -c alice:pack f g as root
+ok   chown: -c alice:pack nosuch f as root
+ok   chown: -c alice:pack dang as root
+ok   chown: -c -h alice:pack dang as root
+ok   chown: alice:pack f g as root
+ok   chown: alice:pack nosuch f as root
+ok   chown: alice:pack dang as root
+ok   chown: -h alice:pack dang as root
+ok   chown: -f alice:pack f g as root
+ok   chown: -f alice:pack nosuch f as root
+ok   chown: -f alice:pack dang as root
+ok   chown: -f -h alice:pack dang as root
+ok   chown: -vf alice:pack f g as root
+ok   chown: -vf alice:pack nosuch f as root
+ok   chown: -vf alice:pack dang as root
+ok   chown: -vf -h alice:pack dang as root
+ok   chown: -cv alice:pack f g as root
+ok   chown: -cv alice:pack nosuch f as root
+ok   chown: -cv alice:pack dang as root
+ok   chown: -cv -h alice:pack dang as root
+ok   chown: -v alice:pack l as root
+ok   chown: -vh alice:pack l as root
+ok   chown: -v --dereference alice:pack l as root
+ok   chown: -v -h --dereference alice:pack l as root
+ok   chown: -v --dereference -h alice:pack l as root
+ok   chown: -vR alice:pack d as root
+ok   chown: -vR alice:pack dl as root
+ok   chown: -vRH alice:pack dl as root
+ok   chown: -vRL alice:pack d as root
+ok   chown: -vRP alice:pack dl as root
+ok   chown: -vRh alice:pack dl as root
+ok   chown: -R --dereference alice:pack d as root
+ok   chown: -vRH --dereference alice:pack dl as root
+ok   chown: -vRL --dereference alice:pack d as root
+ok   chown: -vRLh alice:pack d as root
+ok   chown: -vRHh alice:pack dl as root
+ok   chown: -cR alice:pack d as root
+ok   chown: -vR alice:pack d f dl as root
+ok   chown: -vRLP alice:pack d as root
+ok   chown: -vRPL alice:pack dl as root
+ok   chown: -vRHP alice:pack dl as root
+ok   chown: -vH alice:pack dl as root
+ok   chown: -vL alice:pack dl as root
+ok   chown: -vR alice:pack d/e as root
+ok   chown: -vR alice:pack . as root
+ok   chown: -vR alice:pack d/ as root
+ok   chown: -vR alice:pack dl/ as root
+ok   chown: -v alice:pack dl/ as root
+ok   chown: -v alice:pack d/../f as root
+ok   chown: -v alice:pack ./f as root
+ok   chown: -v alice:pack f f as root
+ok   chown: -vR --preserve-root alice:pack / as root
+ok   chown: -R --preserve-root alice:pack // as root
+ok   chown: -R --preserve-root alice:pack /work/.. as root
+ok   chown: --preserve-root alice:pack /work/f as root
+ok   chown: -vR --preserve-root --no-preserve-root alice:pack d as root
+ok   chown: -vRL alice:pack d as root after `ln -s . d/e/self`
+ok   chown: -vR alice:pack d as root after `ln -s nowhere d/e/gone`
+ok   chown: -vRL alice:pack d as root after `rm d/up; ln -s nowhere d/e/gone`
+ok   chown: -v :pack f g as root
+ok   chown: -v :pack nosuch f as root
+ok   chown: -v :pack dang as root
+ok   chown: -v -h :pack dang as root
+ok   chown: -c :pack f g as root
+ok   chown: -c :pack nosuch f as root
+ok   chown: -c :pack dang as root
+ok   chown: -c -h :pack dang as root
+ok   chown: :pack f g as root
+ok   chown: :pack nosuch f as root
+ok   chown: :pack dang as root
+ok   chown: -h :pack dang as root
+ok   chown: -f :pack f g as root
+ok   chown: -f :pack nosuch f as root
+ok   chown: -f :pack dang as root
+ok   chown: -f -h :pack dang as root
+ok   chown: -vf :pack f g as root
+ok   chown: -vf :pack nosuch f as root
+ok   chown: -vf :pack dang as root
+ok   chown: -vf -h :pack dang as root
+ok   chown: -cv :pack f g as root
+ok   chown: -cv :pack nosuch f as root
+ok   chown: -cv :pack dang as root
+ok   chown: -cv -h :pack dang as root
+ok   chown: -v :pack l as root
+ok   chown: -vh :pack l as root
+ok   chown: -v --dereference :pack l as root
+ok   chown: -v -h --dereference :pack l as root
+ok   chown: -v --dereference -h :pack l as root
+ok   chown: -vR :pack d as root
+ok   chown: -vR :pack dl as root
+ok   chown: -vRH :pack dl as root
+ok   chown: -vRL :pack d as root
+ok   chown: -vRP :pack dl as root
+ok   chown: -vRh :pack dl as root
+ok   chown: -R --dereference :pack d as root
+ok   chown: -vRH --dereference :pack dl as root
+ok   chown: -vRL --dereference :pack d as root
+ok   chown: -vRLh :pack d as root
+ok   chown: -vRHh :pack dl as root
+ok   chown: -cR :pack d as root
+ok   chown: -vR :pack d f dl as root
+ok   chown: -vRLP :pack d as root
+ok   chown: -vRPL :pack dl as root
+ok   chown: -vRHP :pack dl as root
+ok   chown: -vH :pack dl as root
+ok   chown: -vL :pack dl as root
+ok   chown: -vR :pack d/e as root
+ok   chown: -vR :pack . as root
+ok   chown: -vR :pack d/ as root
+ok   chown: -vR :pack dl/ as root
+ok   chown: -v :pack dl/ as root
+ok   chown: -v :pack d/../f as root
+ok   chown: -v :pack ./f as root
+ok   chown: -v :pack f f as root
+ok   chown: -vR --preserve-root :pack / as root
+ok   chown: -R --preserve-root :pack // as root
+ok   chown: -R --preserve-root :pack /work/.. as root
+ok   chown: --preserve-root :pack /work/f as root
+ok   chown: -vR --preserve-root --no-preserve-root :pack d as root
+ok   chown: -vRL :pack d as root after `ln -s . d/e/self`
+ok   chown: -vR :pack d as root after `ln -s nowhere d/e/gone`
+ok   chown: -vRL :pack d as root after `rm d/up; ln -s nowhere d/e/gone`
+ok   chgrp: -v pack f g as root
+ok   chgrp: -v pack nosuch f as root
+ok   chgrp: -v pack dang as root
+ok   chgrp: -v -h pack dang as root
+ok   chgrp: -c pack f g as root
+ok   chgrp: -c pack nosuch f as root
+ok   chgrp: -c pack dang as root
+ok   chgrp: -c -h pack dang as root
+ok   chgrp: pack f g as root
+ok   chgrp: pack nosuch f as root
+ok   chgrp: pack dang as root
+ok   chgrp: -h pack dang as root
+ok   chgrp: -f pack f g as root
+ok   chgrp: -f pack nosuch f as root
+ok   chgrp: -f pack dang as root
+ok   chgrp: -f -h pack dang as root
+ok   chgrp: -vf pack f g as root
+ok   chgrp: -vf pack nosuch f as root
+ok   chgrp: -vf pack dang as root
+ok   chgrp: -vf -h pack dang as root
+ok   chgrp: -cv pack f g as root
+ok   chgrp: -cv pack nosuch f as root
+ok   chgrp: -cv pack dang as root
+ok   chgrp: -cv -h pack dang as root
+ok   chgrp: -v pack l as root
+ok   chgrp: -vh pack l as root
+ok   chgrp: -v --dereference pack l as root
+ok   chgrp: -v -h --dereference pack l as root
+ok   chgrp: -v --dereference -h pack l as root
+ok   chgrp: -vR pack d as root
+ok   chgrp: -vR pack dl as root
+ok   chgrp: -vRH pack dl as root
+ok   chgrp: -vRL pack d as root
+ok   chgrp: -vRP pack dl as root
+ok   chgrp: -vRh pack dl as root
+ok   chgrp: -R --dereference pack d as root
+ok   chgrp: -vRH --dereference pack dl as root
+ok   chgrp: -vRL --dereference pack d as root
+ok   chgrp: -vRLh pack d as root
+ok   chgrp: -vRHh pack dl as root
+ok   chgrp: -cR pack d as root
+ok   chgrp: -vR pack d f dl as root
+ok   chgrp: -vRLP pack d as root
+ok   chgrp: -vRPL pack dl as root
+ok   chgrp: -vRHP pack dl as root
+ok   chgrp: -vH pack dl as root
+ok   chgrp: -vL pack dl as root
+ok   chgrp: -vR pack d/e as root
+ok   chgrp: -vR pack . as root
+ok   chgrp: -vR pack d/ as root
+ok   chgrp: -vR pack dl/ as root
+ok   chgrp: -v pack dl/ as root
+ok   chgrp: -v pack d/../f as root
+ok   chgrp: -v pack ./f as root
+ok   chgrp: -v pack f f as root
+ok   chgrp: -vR --preserve-root pack / as root
+ok   chgrp: -R --preserve-root pack // as root
+ok   chgrp: -R --preserve-root pack /work/.. as root
+ok   chgrp: --preserve-root pack /work/f as root
+ok   chgrp: -vR --preserve-root --no-preserve-root pack d as root
+ok   chgrp: -vRL pack d as root after `ln -s . d/e/self`
+ok   chgrp: -vR pack d as root after `ln -s nowhere d/e/gone`
+ok   chgrp: -vRL pack d as root after `rm d/up; ln -s nowhere d/e/gone`
+ok   chown: (none) as root
+ok   chown: alice as root
+ok   chown: --reference=g as root
+ok   chown: -R as root
+ok   chown: -x as root
+ok   chown: -vx alice f as root
+ok   chown: --from as root
+ok   chown: --reference as root
+ok   chown: --frob x f as root
+ok   chown: -- pack f as root
+ok   chown: pack -- f as root
+ok   chown: -R -- pack d as root
+ok   chown: --help as root
+ok   chown: --version as root
+ok   chown: --he as root
+ok   chgrp: (none) as root
+ok   chgrp: alice as root
+ok   chgrp: --reference=g as root
+ok   chgrp: -R as root
+ok   chgrp: -x as root
+ok   chgrp: -vx alice f as root
+ok   chgrp: --from as root
+ok   chgrp: --reference as root
+ok   chgrp: --frob x f as root
+ok   chgrp: -- pack f as root
+ok   chgrp: pack -- f as root
+ok   chgrp: -R -- pack d as root
+ok   chgrp: --help as root
+ok   chgrp: --version as root
+ok   chgrp: --he as root
+ok   chown: -v --from=root bob f g as root
+ok   chgrp: -v --from=root pack f g as root
+ok   chown: -v --from=alice bob f g as root
+ok   chgrp: -v --from=alice pack f g as root
+ok   chown: -v --from=:alice bob f g as root
+ok   chgrp: -v --from=:alice pack f g as root
+ok   chown: -v --from=alice:alice bob f g as root
+ok   chgrp: -v --from=alice:alice pack f g as root
+ok   chown: -v --from=nosuch bob f g as root
+ok   chgrp: -v --from=nosuch pack f g as root
+ok   chown: -v --from=1001 bob f g as root
+ok   chgrp: -v --from=1001 pack f g as root
+ok   chown: -v --from= bob f g as root
+ok   chgrp: -v --from= pack f g as root
+ok   chown: -v --from=: bob f g as root
+ok   chgrp: -v --from=: pack f g as root
+ok   chown: -v --from=alice: bob f g as root
+ok   chgrp: -v --from=alice: pack f g as root
+ok   chown: -v --from=bob: bob f g as root
+ok   chgrp: -v --from=bob: pack f g as root
+ok   chown: -v --from=:pack bob f g as root
+ok   chgrp: -v --from=:pack pack f g as root
+ok   chown: -v --from=alice:pack bob f g as root
+ok   chgrp: -v --from=alice:pack pack f g as root
+ok   chown: -v --from=4242 bob f g as root
+ok   chgrp: -v --from=4242 pack f g as root
+ok   chown: -v --from=:nosuch bob f g as root
+ok   chgrp: -v --from=:nosuch pack f g as root
+ok   chown: -v --from=alice.alice bob f g as root
+ok   chgrp: -v --from=alice.alice pack f g as root
+ok   chown: -v --from=root:root bob f g as root
+ok   chgrp: -v --from=root:root pack f g as root
+ok   chown: -v --from=+0 bob f g as root
+ok   chgrp: -v --from=+0 pack f g as root
+ok   chown: -v --from=bob:pack alice l as root
+ok   chown: -vh --from=bob:pack alice l as root
+ok   chown: -vR --from=root alice d as root
+ok   chown: -v --from=root alice dang as root
+ok   chown: -v --reference=g f d as root
+ok   chgrp: -v --reference=g f d as root
+ok   chown: -v --reference=nosuch f d as root
+ok   chgrp: -v --reference=nosuch f d as root
+ok   chown: -v --reference=l f d as root
+ok   chgrp: -v --reference=l f d as root
+ok   chown: -v --reference=dang f d as root
+ok   chgrp: -v --reference=dang f d as root
+ok   chown: -v --reference=d/e f d as root
+ok   chgrp: -v --reference=d/e f d as root
+ok   chown: -v --reference=f f d as root
+ok   chgrp: -v --reference=f f d as root
+ok   chown: -v --reference=g alice f as root
+ok   chown: -v --reference g f as root
+ok   chgrp: -v --reference=g pack f as root
+ok   chown: -vR --reference=d/e d as root
+ok   chown: -vh --reference=g l as root
+ok   chown: -v alice g as alice
+ok   chown: -v bob g as alice
+ok   chown: -v :pack g as alice
+ok   chown: -v :crew g as alice
+ok   chown: -v :root g as alice
+ok   chown: -v :zeta g as alice
+ok   chgrp: -v pack f as alice
+ok   chgrp: -vf pack f as alice
+ok   chown: -v root f as alice
+ok   chown: -vc alice:alice g as alice
+ok   chown: -c alice:alice g as alice
+ok   chown: -c bob g as alice
+ok   chown: -v alice f as alice
+ok   chgrp: -v pack g as alice
+ok   chgrp: -v crew g as alice
+ok   chown: -v :pack d/e as alice
+ok   chown: -vR :crew d as alice
+ok   chgrp: -v crew l as alice
+ok   chgrp: -vh crew l as alice
+ok   chown: -v '' f as alice
+ok   chown: -v : g as alice
+ok   chgrp: -vR crew d/e as alice
+ok   chown: -v --from=alice :crew f g as alice
+ok   chgrp: -v --reference=d/e g as alice
+ok   chgrp: -vR crew d as alice after `chown -R alice d && chmod 0300 d/e`
+ok   chgrp: -vR crew d as alice after `chown -R alice d && chmod 0600 d/e`
+ok   chown: -v alice d/e/y as alice after `chmod 0700 d`
+ok   chown: -v alice g as bob
+ok   chown: -v bob g as bob
+ok   chown: -v :pack g as bob
+ok   chown: -v :crew g as bob
+ok   chown: -v :root g as bob
+ok   chown: -v :zeta g as bob
+ok   chgrp: -v pack f as bob
+ok   chgrp: -vf pack f as bob
+ok   chown: -v root f as bob
+ok   chown: -vc alice:alice g as bob
+ok   chown: -c alice:alice g as bob
+ok   chown: -c bob g as bob
+ok   chown: -v alice f as bob
+ok   chgrp: -v pack g as bob
+ok   chgrp: -v crew g as bob
+ok   chown: -v :pack d/e as bob
+ok   chown: -vR :crew d as bob
+ok   chgrp: -v crew l as bob
+ok   chgrp: -vh crew l as bob
+ok   chown: -v '' f as bob
+ok   chown: -v : g as bob
+ok   chgrp: -vR crew d/e as bob
+ok   chown: -v --from=alice :crew f g as bob
+ok   chgrp: -v --reference=d/e g as bob
+ok   chgrp: -vR crew d as bob after `chown -R alice d && chmod 0300 d/e`
+ok   chgrp: -vR crew d as bob after `chown -R alice d && chmod 0600 d/e`
+ok   chown: -v alice d/e/y as bob after `chmod 0700 d`
+ok   chown: -v alice g as carol
+ok   chown: -v bob g as carol
+ok   chown: -v :pack g as carol
+ok   chown: -v :crew g as carol
+ok   chown: -v :root g as carol
+ok   chown: -v :zeta g as carol
+ok   chgrp: -v pack f as carol
+ok   chgrp: -vf pack f as carol
+ok   chown: -v root f as carol
+ok   chown: -vc alice:alice g as carol
+ok   chown: -c alice:alice g as carol
+ok   chown: -c bob g as carol
+ok   chown: -v alice f as carol
+ok   chgrp: -v pack g as carol
+ok   chgrp: -v crew g as carol
+ok   chown: -v :pack d/e as carol
+ok   chown: -vR :crew d as carol
+ok   chgrp: -v crew l as carol
+ok   chgrp: -vh crew l as carol
+ok   chown: -v '' f as carol
+ok   chown: -v : g as carol
+ok   chgrp: -vR crew d/e as carol
+ok   chown: -v --from=alice :crew f g as carol
+ok   chgrp: -v --reference=d/e g as carol
+ok   chgrp: -vR crew d as carol after `chown -R alice d && chmod 0300 d/e`
+ok   chgrp: -vR crew d as carol after `chown -R alice d && chmod 0600 d/e`
+ok   chown: -v alice d/e/y as carol after `chmod 0700 d`
+ok   chown: -v alice g as nobody
+ok   chown: -v bob g as nobody
+ok   chown: -v :pack g as nobody
+ok   chown: -v :crew g as nobody
+ok   chown: -v :root g as nobody
+ok   chown: -v :zeta g as nobody
+ok   chgrp: -v pack f as nobody
+ok   chgrp: -vf pack f as nobody
+ok   chown: -v root f as nobody
+ok   chown: -vc alice:alice g as nobody
+ok   chown: -c alice:alice g as nobody
+ok   chown: -c bob g as nobody
+ok   chown: -v alice f as nobody
+ok   chgrp: -v pack g as nobody
+ok   chgrp: -v crew g as nobody
+ok   chown: -v :pack d/e as nobody
+ok   chown: -vR :crew d as nobody
+ok   chgrp: -v crew l as nobody
+ok   chgrp: -vh crew l as nobody
+ok   chown: -v '' f as nobody
+ok   chown: -v : g as nobody
+ok   chgrp: -vR crew d/e as nobody
+ok   chown: -v --from=alice :crew f g as nobody
+ok   chgrp: -v --reference=d/e g as nobody
+ok   chgrp: -vR crew d as nobody after `chown -R alice d && chmod 0300 d/e`
+ok   chgrp: -vR crew d as nobody after `chown -R alice d && chmod 0600 d/e`
+ok   chown: -v alice d/e/y as nobody after `chmod 0700 d`
+ok   chown: -v alice g as split
+ok   chown: -v bob g as split
+ok   chown: -v :pack g as split
+ok   chown: -v :crew g as split
+ok   chown: -v :root g as split
+ok   chown: -v :zeta g as split
+ok   chgrp: -v pack f as split
+ok   chgrp: -vf pack f as split
+ok   chown: -v root f as split
+ok   chown: -vc alice:alice g as split
+ok   chown: -c alice:alice g as split
+ok   chown: -c bob g as split
+ok   chown: -v alice f as split
+ok   chgrp: -v pack g as split
+ok   chgrp: -v crew g as split
+ok   chown: -v :pack d/e as split
+ok   chown: -vR :crew d as split
+ok   chgrp: -v crew l as split
+ok   chgrp: -vh crew l as split
+ok   chown: -v '' f as split
+ok   chown: -v : g as split
+ok   chgrp: -vR crew d/e as split
+ok   chown: -v --from=alice :crew f g as split
+ok   chgrp: -v --reference=d/e g as split
+ok   chgrp: -vR crew d as split after `chown -R alice d && chmod 0300 d/e`
+ok   chgrp: -vR crew d as split after `chown -R alice d && chmod 0600 d/e`
+ok   chown: -v alice d/e/y as split after `chmod 0700 d`
+SKIP chgrp: -v '{g2}' f as this runner (a case for a CI runner's own user (--engine none))
+SKIP chgrp: -v '{gid}' f as this runner (a case for a CI runner's own user (--engine none))
+SKIP chgrp: -vh '{g2}' l as this runner (a case for a CI runner's own user (--engine none))
+SKIP chgrp: -v '{g2}' l as this runner (a case for a CI runner's own user (--engine none))
+SKIP chgrp: -vR '{g2}' d as this runner (a case for a CI runner's own user (--engine none))
+SKIP chgrp: -vRL '{g2}' d as this runner (a case for a CI runner's own user (--engine none))
+SKIP chgrp: -vRH '{g2}' dl as this runner (a case for a CI runner's own user (--engine none))
+SKIP chgrp: -c '{g2}' f as this runner (a case for a CI runner's own user (--engine none))
+SKIP chgrp: -v 0 f as this runner (a case for a CI runner's own user (--engine none))
+SKIP chgrp: -vf 0 f as this runner (a case for a CI runner's own user (--engine none))
+SKIP chgrp: -v '{g2}' dang as this runner (a case for a CI runner's own user (--engine none))
+SKIP chgrp: -vh '{g2}' dang as this runner (a case for a CI runner's own user (--engine none))
+SKIP chgrp: -v '--from=:{gid}' '{g2}' f g as this runner (a case for a CI runner's own user (--engine none))
+SKIP chgrp: -v '{g2}' nosuch f as this runner (a case for a CI runner's own user (--engine none))
+SKIP chown: -v '{uid}' f as this runner (a case for a CI runner's own user (--engine none))
+SKIP chown: -v ':{g2}' f as this runner (a case for a CI runner's own user (--engine none))
+SKIP chown: -v '{uid}:{g2}' f as this runner (a case for a CI runner's own user (--engine none))
+SKIP chown: -vh ':{g2}' l as this runner (a case for a CI runner's own user (--engine none))
+SKIP chown: -vR ':{g2}' d as this runner (a case for a CI runner's own user (--engine none))
+SKIP chown: -vR '{uid}' d as this runner (a case for a CI runner's own user (--engine none))
+SKIP chown: -v 0 f as this runner (a case for a CI runner's own user (--engine none))
+SKIP chown: -v :0 f as this runner (a case for a CI runner's own user (--engine none))
+SKIP chown: -v '0:{gid}' f as this runner (a case for a CI runner's own user (--engine none))
+SKIP chown: -v '{uid}:' f as this runner (a case for a CI runner's own user (--engine none))
+SKIP chown: -v '--from={uid}' ':{g2}' f as this runner (a case for a CI runner's own user (--engine none))
+SKIP chown: -v --from=0 ':{g2}' f as this runner (a case for a CI runner's own user (--engine none))
+SKIP chown: -v '' f as this runner (a case for a CI runner's own user (--engine none))
+SKIP chown: -v : f as this runner (a case for a CI runner's own user (--engine none))
+idtest: 1098 passed, 0 failed, 28 skipped

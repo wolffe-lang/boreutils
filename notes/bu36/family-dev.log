@@ -1,0 +1,2055 @@
+difftest: gnu = true (GNU coreutils) 9.11 (prefix '') on Linux x86_64
+difftest: bore = /lane/boreutils/target/dev
+difftest: oracle environment, LC_ALL=C _POSIX2_VERSION=200112
+difftest: oracle of record, GNU coreutils 9.11
+difftest: oracle profile OK — `uniq +1 /dev/null` exits 1 (the obsolete +N operand form is off, so +1 is a file name (B73))
+difftest: scratch root /lane/tmp
+ok   ls: no operand lists the working directory
+ok   ls: the operand .
+ok   ls: -a lists . and .. and the hidden names
+ok   ls: -A lists the hidden names but not . and ..
+ok   ls: --all
+ok   ls: --almost-all
+ok   ls: --alm abbreviated
+ok   ls: -a then -A: the last wins
+ok   ls: -A then -a: the last wins
+ok   ls: -aA clustered
+ok   ls: -a of a subdirectory
+ok   ls: -d lists the operand, not its contents
+ok   ls: -d with no operand is .
+ok   ls: --directory of files and directories, sorted together
+ok   ls: -d of a directory written with a slash
+ok   ls: -da lists . itself
+ok   ls: file operands, sorted
+ok   ls: files first, then each directory under a header
+ok   ls: two directories
+ok   ls: one directory gets no header
+ok   ls: one directory written with a slash
+ok   ls: a directory named twice
+ok   ls: a file named twice
+ok   ls: a path inside a directory
+ok   ls: a path starting ./
+ok   ls: an absolute path
+ok   ls: the parent directory
+ok   ls: the root of the scratch tree
+ok   ls: a missing operand is status 2
+ok   ls: a missing operand among good ones
+ok   ls: a missing operand and one directory still gets the header
+ok   ls: the empty operand
+ok   ls: a missing operand with a space and a quote in it
+ok   ls: a missing operand with a slash
+ok   ls: a file operand written with a slash
+ok   ls: a path through a file is not a directory
+ok   ls: a path through a missing directory
+ok   ls: -- ends the options
+ok   ls: options after operands permute
+ok   ls: POSIXLY_CORRECT stops at the first operand
+ok   ls: the name with a newline as an operand
+ok   ls: -1 one per line
+ok   ls: -C columns at 80
+ok   ls: -x across at 80
+ok   ls: -m commas at 80
+ok   ls: -C with the odd names
+ok   ls: -x with the odd names
+ok   ls: -m with the odd names
+ok   ls: -1 after -C: the last wins
+ok   ls: -C after -1: the last wins
+ok   ls: -x after -m
+ok   ls: -m after -x
+ok   ls: --format=vertical
+ok   ls: --format=across
+ok   ls: --format=horizontal
+ok   ls: --format=commas
+ok   ls: --format=single-column after -C
+ok   ls: --format=co abbreviated
+ok   ls: --format=v is ambiguous
+ok   ls: --format=bogus
+ok   ls: --format= is ambiguous
+ok   ls: --format without its word
+ok   ls: -l and then --format=across: the last wins
+ok   ls: -l and then -C: -C wins
+ok   ls: -o and then -m: -m wins
+ok   ls: -g and then -1: -1 does not undo the long format
+ok   ls: -C -w 40
+ok   ls: -x -w 40
+ok   ls: -C -w 50
+ok   ls: -C -w 20
+ok   ls: -C -w 1
+ok   ls: -C -w 0 is no limit
+ok   ls: -x -w 0 is no limit
+ok   ls: -m -w 0 is no limit
+ok   ls: -m -w 30
+ok   ls: -m -w 11, a name that would end on the edge
+ok   ls: -w30 attached
+ok   ls: --width=35
+ok   ls: --wid 60 abbreviated
+ok   ls: -w without -C changes nothing
+ok   ls: a huge -w is no limit
+ok   ls: -w abc
+ok   ls: -w 3x
+ok   ls: -w with an empty word
+ok   ls: -w -1
+ok   ls: -w with no word
+ok   ls: COLUMNS=30 -C
+ok   ls: COLUMNS=30 -x
+ok   ls: COLUMNS=30 -m
+ok   ls: COLUMNS=0 is no limit
+ok   ls: -w wins over COLUMNS
+ok   ls: COLUMNS=abc warns and takes 80
+ok   ls: COLUMNS=-3 warns and takes 80
+ok   ls: COLUMNS empty is 80
+ok   ls: COLUMNS=abc is not read one per line
+ok   ls: -T 0: spaces only
+ok   ls: -T 3
+ok   ls: --tabsize=4
+ok   ls: -T x
+ok   ls: -T -1
+ok   ls: a tab one column from the next column is two spaces
+ok   ls: -r
+ok   ls: --reverse
+ok   ls: -S largest first, ties by name
+ok   ls: -S -r
+ok   ls: -S of file operands
+ok   ls: -t newest first
+ok   ls: -t -r
+ok   ls: -t with . and ..
+ok   ls: -t of directory operands orders the directories
+ok   ls: -X by extension
+ok   ls: -X -r
+ok   ls: -X with the hidden names
+ok   ls: --sort=size
+ok   ls: --sort=time
+ok   ls: --sort=extension
+ok   ls: --sort=name after -t
+ok   ls: -t after --sort=size
+ok   ls: -S then -t: the last wins
+ok   ls: -t then -S: the last wins
+ok   ls: --sort=s abbreviated
+ok   ls: --sort=bogus
+ok   ls: --sort= is ambiguous
+ok   ls: --time=mtime alone sorts by time
+ok   ls: --time=modification -r
+ok   ls: --time=m abbreviated
+ok   ls: --time=mtime then --sort=name
+ok   ls: --sort=name then --time=mtime
+ok   ls: --time=mtime with -S
+ok   ls: --time=bogus
+ok   ls: --time= is ambiguous
+ok   ls: --group-directories-first
+ok   ls: --group-directories-first -r keeps them first
+ok   ls: --group-directories-first -S
+ok   ls: --group-directories-first -t -a
+ok   ls: --group abbreviated
+ok   ls: -p marks directories
+ok   ls: -p with . and ..
+ok   ls: -F marks directories
+ok   ls: --classify
+ok   ls: --classify=always
+ok   ls: --classify=never
+ok   ls: --classify=auto, not a terminal
+ok   ls: -F then --classify=never changes nothing
+ok   ls: --classify=bogus
+ok   ls: --file-type
+ok   ls: --indicator-style=slash
+ok   ls: --indicator-style=none after -F
+ok   ls: --indicator-style=classify
+ok   ls: --indicator-style=file-type
+ok   ls: --indicator-style=bogus
+ok   ls: -F -d .
+ok   ls: -p -C counts the slash in the width
+ok   ls: -F -m
+ok   ls: -q shows each unprintable byte as ?
+ok   ls: --hide-control-chars
+ok   ls: --show-control-chars after -q
+ok   ls: -q -C
+ok   ls: -q -m
+ok   ls: -q of a directory header
+ok   ls: -R
+ok   ls: -R .
+ok   ls: -R of a directory
+ok   ls: -R of a directory written with a slash
+ok   ls: -R -a descends into hidden directories, never . or ..
+ok   ls: -R -A
+ok   ls: -R with file operands first
+ok   ls: -R -d does not descend
+ok   ls: -R -r
+ok   ls: -R -t
+ok   ls: -R -C
+ok   ls: -R -m
+ok   ls: -R -F
+ok   ls: --recursive
+ok   ls: -R from the scratch root
+ok   ls: a directory operand that cannot be opened is status 2
+ok   ls: an unopenable directory among others
+ok   ls: -d of an unreadable directory
+ok   ls: -R meeting an unreadable subdirectory is status 1
+ok   ls: -R of everything, both kinds of failure
+ok   ls: a path through an unreadable directory
+ok   ls: -F of an unreadable directory still marks it
+ok   ls: a listing with links names them
+ok   ls: a listing with links, -a
+ok   ls: a listing with links, -C
+ok   ls: a link to a file as an operand
+ok   ls: a link to a directory as an operand is followed
+ok   ls: a dangling link as an operand is listed
+ok   ls: link operands of all three kinds
+ok   ls: -d of a link to a directory
+ok   ls: -H follows an operand, so a dangling one is missing
+ok   ls: -L and a dangling operand
+ok   ls: -L does not stat what it need not
+ok   ls: -L -F follows every link, a dangling one is status 1
+ok   ls: -L -p
+ok   ls: --dereference -t
+ok   ls: -L -S of links that resolve
+ok   ls: --dereference-command-line-symlink-to-dir
+ok   ls: --group-directories-first counts a link to a directory
+ok   ls: -q and -m with links
+ok   ls: -F marks a dangling link
+ok   ls: -p leaves a dangling link unmarked
+ok   ls: -F of a dangling operand
+ok   ls: -R past a dangling link
+ok   ls: --group-directories-first with a dangling link
+ok   ls: -L -R and a dangling link
+ok   ls: -R does not loop through a link to its own directory
+ok   ls: -R does not descend through a link out of the walk
+ok   ls: -F marks a link that resolves with @
+ok   ls: -p leaves a link to a directory unmarked
+ok   ls: -S sorts a link by its own size
+ok   ls: -t sorts a link by its own time
+ok   ls: -R does not descend through a link to a directory
+ok   ls: -F of a link to a directory as an operand is the link
+ok   ls: -d -F of link operands
+ok   ls: -S of a dangling link uses the link's size
+ok   ls: -t of a dangling link uses the link's time
+ok   ls: -L -R meets a link to an ancestor
+ok   ls: -l
+ok   ls: -l of links shows their targets
+ok   ls: -g
+ok   ls: -n
+ok   ls: -o
+ok   ls: --full-time
+ok   ls: --format=long
+ok   ls: -lh
+ok   ls: -s
+ok   ls: -i
+ok   ls: -u sorts by access time
+ok   ls: -c sorts by status-change time
+ok   ls: --time=birth
+ok   ls: -U in directory order
+SKIP ls: -f (where . and .. stand in the directory's own order is not something fs_read_dir_entries says (it leaves them out, wolf-lang#692): this ls puts them first, which is right on btrfs, tmpfs and APFS and not on ext4)
+ok   ls: --sort=none
+ok   ls: -C on a terminal is the default
+ok   ls: a terminal: columns, quoted names, the alignment space
+ok   ls: a terminal with -a
+ok   ls: a terminal with -1: quoted, no alignment space
+ok   ls: a terminal with --format=single-column
+ok   ls: a terminal with -x
+ok   ls: a terminal with -m: quoted, no alignment space
+ok   ls: a terminal with -N: literal, ? for the unprintable
+ok   ls: a terminal with -N --show-control-chars: the bytes themselves
+ok   ls: a terminal with --literal -1
+ok   ls: a terminal with -q: still the shell-escape style
+ok   ls: a terminal with --show-control-chars: still the shell-escape style
+ok   ls: a terminal with -F
+ok   ls: a terminal with -R: quoted headers
+ok   ls: a terminal: files then directories, a quoted directory header
+ok   ls: a terminal: a directory header that needs quoting
+ok   ls: a terminal with -d
+ok   ls: a terminal with -w 40
+ok   ls: a terminal with -r -S
+ok   ls: a terminal with nothing to quote: no alignment space
+ok   ls: a terminal and an empty directory
+ok   ls: a terminal and a missing operand
+ok   ls: a terminal that reports no size takes COLUMNS
+ok   ls: a terminal that reports no size, and no COLUMNS, is 80 wide
+SKIP ls: a terminal 40 wide (GNU lays out to the terminal's own width (TIOCGWINSZ), which wolf 0.2.26 cannot ask (wolf-lang#643); this ls takes COLUMNS or 80)
+SKIP ls: a terminal 80 wide outranks COLUMNS (GNU lays out to the terminal's own width (TIOCGWINSZ), which wolf 0.2.26 cannot ask (wolf-lang#643); this ls takes COLUMNS or 80)
+ok   ls: -h changes nothing without -l or -s
+ok   ls: -k changes nothing without -l or -s
+ok   ls: --human-readable
+ok   ls: --color=never
+ok   ls: --color=auto, not a terminal
+ok   ls: --color=none
+ok   ls: --color=bogus
+ok   ls: -H with no links
+ok   ls: -L with no links
+ok   ls: --help
+ok   ls: --version
+ok   ls: --help before a bad option
+ok   ls: an unknown short option is status 2
+ok   ls: an unknown long option
+ok   ls: a bad option after a good one
+ok   ls: --a is ambiguous
+ok   ls: --d is ambiguous five ways
+ok   ls: --h is ambiguous
+ok   ls: --s is ambiguous
+ok   ls: --t is ambiguous
+ok   ls: --i is ambiguous
+ok   ls: --f is ambiguous
+ok   ls: --r is ambiguous
+ok   ls: --c is ambiguous
+ok   ls: --dereference-c is ambiguous
+ok   ls: --all takes no word
+ok   ls: --sort without its word
+ok   ls: -T without its word
+ok   ls: standard output closed is a write error, status 2
+ok   ls: standard output closed with nothing to write
+ok   ls: standard output closed under --help
+ok   ls: a write error on a live descriptor
+ok   ls: -l of every kind
+ok   ls: -l of every kind, by number
+ok   ls: -la
+ok   ls: -la, by number
+ok   ls: -lA
+ok   ls: -lA, by number
+ok   ls: -l reversed
+ok   ls: -l reversed, by number
+ok   ls: -l by size
+ok   ls: -l by size, by number
+ok   ls: -l by size, reversed
+ok   ls: -l by size, reversed, by number
+ok   ls: -l by time
+ok   ls: -l by time, by number
+ok   ls: -l by time, reversed
+ok   ls: -l by time, reversed, by number
+ok   ls: -l by extension
+ok   ls: -l by extension, by number
+ok   ls: -l with -h
+ok   ls: -l with -h, by number
+ok   ls: -l with --si
+ok   ls: -l with --si, by number
+ok   ls: -l with -k
+ok   ls: -l with -k, by number
+ok   ls: -l with -F marks every kind, and a link's target
+ok   ls: -l with -F marks every kind, and a link's target, by number
+ok   ls: -l with -p marks directories only
+ok   ls: -l with -p marks directories only, by number
+ok   ls: -l with --file-type marks no executable
+ok   ls: -l with --file-type marks no executable, by number
+ok   ls: -l with --indicator-style=classify
+ok   ls: -l with --indicator-style=classify, by number
+ok   ls: -l with --indicator-style=none after -F
+ok   ls: -l with --indicator-style=none after -F, by number
+ok   ls: -l with -L follows every link, and a dangling one is a row of ?
+ok   ls: -l with -L follows every link, and a dangling one is a row of ?, by number
+ok   ls: -l with -L and -F
+ok   ls: -l with -L and -F, by number
+ok   ls: -l with -H changes no entry of a directory
+ok   ls: -l with -H changes no entry of a directory, by number
+ok   ls: -l with -d is the directory itself
+ok   ls: -l with -d is the directory itself, by number
+ok   ls: -l with -q
+ok   ls: -l with -q, by number
+ok   ls: -l with -s
+ok   ls: -l with -s, by number
+ok   ls: -l with -s and -h
+ok   ls: -l with -s and -h, by number
+ok   ls: -l with -s and --si
+ok   ls: -l with -s and --si, by number
+ok   ls: -l with -s and -k
+ok   ls: -l with -s and -k, by number
+ok   ls: --format=verbose
+ok   ls: --format=verbose, by number
+ok   ls: --format=lo is long
+ok   ls: --format=lo is long, by number
+ok   ls: -l and then -1 stays long
+ok   ls: -l and then -1 stays long, by number
+ok   ls: -1 and then -l
+ok   ls: -1 and then -l, by number
+ok   ls: -l with --group-directories-first counts a link to a directory
+ok   ls: -l with --group-directories-first counts a link to a directory, by number
+ok   ls: -l with --group-directories-first, reversed
+ok   ls: -l with --group-directories-first, reversed, by number
+ok   ls: -l with -R
+ok   ls: -l with -R, by number
+ok   ls: -l with -R and -a
+ok   ls: -l with -R and -a, by number
+ok   ls: -l with -w is not a width for it
+ok   ls: -l with -w is not a width for it, by number
+ok   ls: -l twice
+ok   ls: -l twice, by number
+ok   ls: -l of the hidden names alone
+ok   ls: -l of the hidden names alone, by number
+ok   ls: -g drops the owner
+ok   ls: -g drops the owner, by number
+ok   ls: -o drops the group
+ok   ls: -o drops the group, by number
+ok   ls: -g and -o leave neither
+ok   ls: -g and -o leave neither, by number
+ok   ls: -G with -l drops the group
+ok   ls: -G with -l drops the group, by number
+ok   ls: -g with -G
+ok   ls: -g with -G, by number
+ok   ls: -g with -F
+ok   ls: -g with -F, by number
+ok   ls: -o with -h
+ok   ls: -o with -h, by number
+ok   ls: -g with -a
+ok   ls: -g with -a, by number
+ok   ls: -n (kinds)
+ok   ls: -n with -g prints the group's number
+ok   ls: -n with -o prints the owner's number
+ok   ls: -n with -G
+ok   ls: -n and then -l is still numeric
+ok   ls: -l and then -n
+ok   ls: --numeric-uid-gid
+ok   ls: -G without -l changes nothing
+ok   ls: -go with -n
+ok   ls: -l and then -C is columns
+ok   ls: -C and then -l is long
+ok   ls: -l and then -m is commas
+ok   ls: -m and then -g is long
+ok   ls: -l and then -x is across
+ok   ls: -l and then --format=single-column is one per line
+ok   ls: --format=long and then --format=commas
+ok   ls: -n of sticky files
+ok   ls: -nF of sticky files
+ok   ls: --full-time, by number
+ok   ls: --full-time with -a, by number
+ok   ls: --time-style=full-iso, by number
+ok   ls: --time-style=long-iso, by number
+ok   ls: --time-style=iso, by number
+ok   ls: --time-style=locale, by number
+ok   ls: --time-style=posix-iso is the locale's in the C locale, by number
+ok   ls: --time-style=posix-long-iso, by number
+ok   ls: --time-style=posix-full-iso, by number
+ok   ls: --time-style=posix- alone is accepted, by number
+ok   ls: --time-style=long abbreviates, by number
+ok   ls: --time-style=f abbreviates, by number
+ok   ls: --full-time and then --time-style=iso, by number
+ok   ls: --time-style=iso and then --full-time, by number
+ok   ls: --time-style twice: the last, by number
+ok   ls: --time-style=bogus is refused in GNU's own shape
+ok   ls: --time-style= is ambiguous
+ok   ls: --time-style=l is ambiguous
+ok   ls: --time-style=bogus without -l is never read
+ok   ls: --time-style needs an argument
+ok   ls: TIME_STYLE=long-iso
+ok   ls: TIME_STYLE=iso
+ok   ls: TIME_STYLE=full-iso
+ok   ls: TIME_STYLE=posix-iso
+ok   ls: TIME_STYLE=bogus is refused
+ok   ls: TIME_STYLE=bogus without -l is never read
+ok   ls: TIME_STYLE loses to --time-style
+ok   ls: TIME_STYLE loses to --full-time
+ok   ls: TIME_STYLE set and empty is ambiguous
+ok   ls: the six-month rule
+ok   ls: the six-month rule by time
+ok   ls: the six-month rule on access times
+ok   ls: the six-month rule on access times, by time
+ok   ls: the six-month rule in --time-style=iso
+ok   ls: the six-month rule in --time-style=long-iso
+ok   ls: the six-month rule in --full-time
+ok   ls: the six-month rule under -g
+ok   ls: the six-month rule in New York
+ok   ls: -t is newest first
+ok   ls: -tr
+ok   ls: -u without -l sorts by access time
+ok   ls: -u with -1 sorts by access time
+ok   ls: -u with -C sorts by access time
+ok   ls: -u with -r
+ok   ls: -ut
+ok   ls: -tu
+ok   ls: -u with -S sorts by size
+ok   ls: -u with --sort=name sorts by name
+ok   ls: -u with -X
+ok   ls: --time=atime sorts by it
+ok   ls: --time=access
+ok   ls: --time=use with -t
+ok   ls: --time=mtime sorts by it
+ok   ls: --time=modification
+ok   ls: --time=a abbreviates
+ok   ls: --time=x is refused
+ok   ls: --time= is ambiguous (times)
+ok   ls: --time=c is ambiguous
+ok   ls: -u and then --time=mtime
+ok   ls: --time=mtime and then -u
+ok   ls: -lu shows access times and sorts by name
+ok   ls: -lut shows and sorts by access times
+ok   ls: -lutr
+ok   ls: -l with --time=atime
+ok   ls: -l with --time=atime and -t
+ok   ls: --full-time with -u
+ok   ls: -lu and then -C sorts by access time
+ok   ls: -u with -m
+ok   ls: -U with -u is the directory's order
+ok   ls: -c without -l sorts by status change
+ok   ls: -ct
+ok   ls: -lc shows status-change times
+ok   ls: -lct
+ok   ls: -l with --time=ctime
+ok   ls: --time=status
+ok   ls: --full-time with -c
+ok   ls: --time=birth with -l
+ok   ls: --time=creation with -lt
+ok   ls: --time=birth sorts by it
+ok   ls: --full-time with --time=birth
+ok   ls: -u and then -c: the last
+ok   ls: -c and then -u: the last
+ok   ls: TZ=UTC0
+ok   ls: TZ=America/New_York
+ok   ls: TZ=Europe/London
+ok   ls: TZ=Europe/Dublin
+ok   ls: TZ=Asia/Kolkata
+ok   ls: TZ=Asia/Kathmandu
+ok   ls: TZ=Asia/Tokyo
+ok   ls: TZ=Australia/Sydney
+ok   ls: TZ=Australia/Lord_Howe
+ok   ls: TZ=Pacific/Chatham
+ok   ls: TZ=America/Sao_Paulo
+ok   ls: TZ=Africa/Casablanca
+ok   ls: TZ=America/St_Johns
+ok   ls: TZ=Pacific/Kiritimati
+ok   ls: TZ=EST5EDT
+ok   ls: TZ=PST8PDT
+ok   ls: TZ=CET
+ok   ls: TZ: empty is UTC
+ok   ls: TZ: a leading colon
+ok   ls: TZ: no such zone is UTC
+ok   ls: TZ: a rule with a quoted name
+ok   ls: TZ: a rule with dates
+ok   ls: TZ: the United States' rule spelled out
+ok   ls: TZ: a southern rule
+ok   ls: TZ: a rule with minutes
+ok   ls: TZ: a rule west of UTC
+ok   ls: TZ: a rule with negative times
+ok   ls: TZ: a rule whose daylight time is the earlier one
+ok   ls: TZ: a rule in Julian days
+ok   ls: TZ: UTC
+ok   ls: TZ=America/New_York in the short style
+ok   ls: TZ=Asia/Kolkata in --time-style=long-iso
+ok   ls: TZDIR names another directory, which has no zones
+ok   ls: a year past 2038 and one before 1970, short style
+ok   ls: -l of sizes
+ok   ls: -lh of sizes
+ok   ls: -l --si of sizes
+ok   ls: -h and then --si
+ok   ls: --si and then -h
+ok   ls: -lS of sizes
+ok   ls: -lSr of sizes
+ok   ls: -S of sizes
+ok   ls: -lhS
+ok   ls: -s of holes
+ok   ls: -sh of holes
+ok   ls: -lk leaves sizes in bytes
+ok   ls: -gh
+ok   ls: the link-count column widens
+ok   ls: the columns of file operands
+ok   ls: a directory operand widens the files' columns
+ok   ls: the working directory widens the files' columns
+ok   ls: two directory operands, two totals
+ok   ls: -d of two directories
+ok   ls: -d of . and ..
+ok   ls: a missing operand beside a file
+ok   ls: an empty operand
+ok   ls: an operand under a file
+ok   ls: an operand in a missing directory
+ok   ls: only missing operands
+ok   ls: -s of file operands has no total
+ok   ls: -ls of file operands
+ok   ls: -s of a directory operand
+ok   ls: -l of an empty directory is its total
+ok   ls: -l of a directory with nothing in it
+ok   ls: -ls of a directory with nothing in it
+ok   ls: -la of a directory with nothing in it
+ok   ls: -s (kinds)
+ok   ls: -s with -1
+ok   ls: -s with -a
+ok   ls: -s with -C
+ok   ls: -s with -x
+ok   ls: -s with -m
+ok   ls: -s with -m in a narrow line
+ok   ls: -s with -h
+ok   ls: -s with --si
+ok   ls: -s with -k
+ok   ls: -s with -F
+ok   ls: -s with -p
+ok   ls: -s with -S
+ok   ls: -s with -t
+ok   ls: -s with -r
+ok   ls: -s with -L
+ok   ls: -s with -R
+ok   ls: -s with -d
+ok   ls: --size
+ok   ls: -s with -q
+ok   ls: -s with --group-directories-first
+ok   ls: POSIXLY_CORRECT counts blocks of 512
+ok   ls: POSIXLY_CORRECT with -k is 1024 again
+ok   ls: POSIXLY_CORRECT in the long format's total
+ok   ls: POSIXLY_CORRECT with -h
+ok   ls: POSIXLY_CORRECT leaves -l's sizes alone
+ok   ls: -i (kinds)
+ok   ls: -i with -1
+ok   ls: -i with -a
+ok   ls: -i with -C
+ok   ls: -i with -x
+ok   ls: -i with -m
+ok   ls: -i with -s
+ok   ls: -i with -F
+ok   ls: -i with -l
+ok   ls: -i with -l and -s
+ok   ls: -i with -L is the target's
+ok   ls: -i of a file's two names is one number
+ok   ls: -i of link operands
+ok   ls: -di of a link to a directory
+ok   ls: -iH of a link operand is the target's
+ok   ls: --inode
+ok   ls: -i with -R
+ok   ls: -i with -t
+ok   ls: -F marks every kind
+ok   ls: -F with -a
+ok   ls: -F with -C
+ok   ls: -F with -x
+ok   ls: -F with -m
+ok   ls: --file-type marks no executable
+ok   ls: -p marks directories only
+ok   ls: --indicator-style=slash (kinds)
+ok   ls: --indicator-style=file-type (kinds)
+ok   ls: --indicator-style=classify (kinds)
+ok   ls: --indicator-style=none
+ok   ls: --classify=always (kinds)
+ok   ls: --classify=never after -p
+ok   ls: -F and then -p
+ok   ls: -p and then --file-type
+ok   ls: -F under -L marks what a link leads to
+ok   ls: -p under -L
+ok   ls: --file-type under -L
+ok   ls: -L alone asks nothing of a dangling link
+ok   ls: -F with -R does not descend a link
+ok   ls: -p with -R
+ok   ls: -R under -L descends a link to a directory
+ok   ls: -F with --group-directories-first
+ok   ls: --group-directories-first counts a link to a directory (kinds)
+ok   ls: --group-directories-first, reversed
+ok   ls: -F with -S
+ok   ls: -F with -t
+ok   ls: a link to a directory is followed
+ok   ls: -d does not follow it
+ok   ls: -F does not follow it
+ok   ls: -p follows it
+ok   ls: --file-type follows it
+ok   ls: --indicator-style=classify does not follow it
+ok   ls: -l does not follow it
+ok   ls: a trailing slash follows it under -l
+ok   ls: -H follows it under -l
+ok   ls: -L follows it under -l
+ok   ls: --dereference-command-line-symlink-to-dir under -l
+ok   ls: -H under -F
+ok   ls: -H follows a link to a file
+ok   ls: -H does not reach a dangling link
+ok   ls: -L does not reach a dangling link
+ok   ls: a dangling link is itself
+ok   ls: a dangling link under -l
+ok   ls: every link under -l
+ok   ls: every link under -lF: the target's mark
+ok   ls: every link under -l --file-type
+ok   ls: every link under -lp: no mark
+ok   ls: every link under -F: @
+ok   ls: every link under -LF
+ok   ls: -S sorts a link by its own size (kinds)
+ok   ls: -LS sorts a link by its target's
+ok   ls: -t sorts a link by its own time (kinds)
+ok   ls: -Lt sorts a link by its target's
+ok   ls: its names are still listed
+ok   ls: -l of it is a row of ? for each, status 1
+ok   ls: -lF of it marks by the directory's word
+ok   ls: -F of it asks only about the file
+ok   ls: -p of it asks nothing
+ok   ls: --file-type of it asks nothing
+ok   ls: -s of it
+ok   ls: -i of it
+ok   ls: -t of it
+ok   ls: -S of it
+ok   ls: -lL of it
+ok   ls: -LF of it
+ok   ls: -R of it cannot open what is inside
+ok   ls: -g of it
+ok   ls: --full-time of it
+ok   ls: -l of it beside a file
+ok   ls: -RL names the loop and goes on, status 2
+ok   ls: -RL from the working directory
+ok   ls: -R alone descends no link
+ok   ls: -lRL
+ok   ls: -RLF
+ok   ls: -L of the looping directory
+ok   ls: -U
+SKIP ls: -U with -a puts . and .. first (where . and .. stand in the directory's own order is not something fs_read_dir_entries says (it leaves them out, wolf-lang#692): this ls puts them first, which is right on btrfs, tmpfs and APFS and not on ext4)
+SKIP ls: -f is -a and -U (where . and .. stand in the directory's own order is not something fs_read_dir_entries says (it leaves them out, wolf-lang#692): this ls puts them first, which is right on btrfs, tmpfs and APFS and not on ext4)
+ok   ls: --sort=none (kinds)
+ok   ls: -U with -l
+SKIP ls: -f with -l (where . and .. stand in the directory's own order is not something fs_read_dir_entries says (it leaves them out, wolf-lang#692): this ls puts them first, which is right on btrfs, tmpfs and APFS and not on ext4)
+SKIP ls: -l and then -f stays long (where . and .. stand in the directory's own order is not something fs_read_dir_entries says (it leaves them out, wolf-lang#692): this ls puts them first, which is right on btrfs, tmpfs and APFS and not on ext4)
+ok   ls: -U with -r is not reversed
+ok   ls: -U with -F
+ok   ls: -U with -p
+ok   ls: -U with -s
+ok   ls: -U with -C
+ok   ls: -U with -m
+ok   ls: -U with -R
+ok   ls: -f and then -A hides . and ..
+ok   ls: -U and then -S sorts by size
+ok   ls: -S and then -U is unsorted
+SKIP ls: -t and then -f (where . and .. stand in the directory's own order is not something fs_read_dir_entries says (it leaves them out, wolf-lang#692): this ls puts them first, which is right on btrfs, tmpfs and APFS and not on ext4)
+ok   ls: -U with --group-directories-first
+ok   ls: -U of operands keeps their order
+ok   ls: character devices: major and minor
+ok   ls: character devices by name
+ok   ls: a device beside a large file: the size column
+ok   ls: a device beside a small file
+ok   ls: a device under -h
+ok   ls: a device under -s and -i
+ok   ls: a device under -F has no mark
+ok   ls: --full-time of a device
+SKIP ls: a block device (an nvme disk) (no /dev/nvme0n1 on this host)
+SKIP ls: a block device (a scsi disk) (no /dev/sda on this host)
+SKIP ls: a block device (a loop device) (no /dev/loop0 on this host)
+SKIP ls: a block device beside a character device (no /dev/loop0 on this host)
+SKIP ls: a block device (a mac's disk) (no /dev/disk0 on this host)
+ok   ls: -l on a terminal quotes a name that needs it
+ok   ls: -l on a terminal with -N
+ok   ls: -s on a terminal is columns
+ok   ls: -g on a terminal
+ok   ls: --author
+ok   ls: --block-size
+ok   ls: --time-style=+FORMAT
+SKIP ls: -Z (a security context is an extended attribute, which wolf cannot read (wolf-lang#685): refused by name, status 2)
+ok   ls: -Q under -l
+ok   ls: bu36 ls 0 ['--author']
+ok   ls: bu36 ls 1 ['-ln', '--author']
+ok   ls: bu36 ls 2 ['-ng', '--author']
+ok   ls: bu36 ls 3 ['-no', '--author']
+ok   ls: bu36 ls 4 ['-nG', '--author']
+ok   ls: bu36 ls 5 ['-Q']
+ok   ls: bu36 ls 6 ['-CQ', '-w40']
+ok   ls: bu36 ls 7 ['-Q', '-N']
+ok   ls: bu36 ls 8 ['-N', '-Q']
+ok   ls: bu36 ls 9 ['-bQ']
+ok   ls: bu36 ls 10 ['-Qb']
+ok   ls: bu36 ls 11 ['-Qq']
+ok   ls: bu36 ls 12 ['-lns', '--block-size=1']
+ok   ls: bu36 ls 13 ['-sn', '--block-size=1']
+ok   ls: bu36 ls 14 ['-lns', '--block-size=3']
+ok   ls: bu36 ls 15 ['-sn', '--block-size=3']
+ok   ls: bu36 ls 16 ['-lns', '--block-size=512']
+ok   ls: bu36 ls 17 ['-sn', '--block-size=512']
+ok   ls: bu36 ls 18 ['-lns', '--block-size=1024']
+ok   ls: bu36 ls 19 ['-sn', '--block-size=1024']
+ok   ls: bu36 ls 20 ['-lns', '--block-size=2K']
+ok   ls: bu36 ls 21 ['-sn', '--block-size=2K']
+ok   ls: bu36 ls 22 ['-lns', '--block-size=K']
+ok   ls: bu36 ls 23 ['-sn', '--block-size=K']
+ok   ls: bu36 ls 24 ['-lns', '--block-size=MB']
+ok   ls: bu36 ls 25 ['-sn', '--block-size=MB']
+ok   ls: bu36 ls 26 ['-lns', '--block-size=MiB']
+ok   ls: bu36 ls 27 ['-sn', '--block-size=MiB']
+ok   ls: bu36 ls 28 ['-lns', '--block-size=human-readable']
+ok   ls: bu36 ls 29 ['-sn', '--block-size=human-readable']
+ok   ls: bu36 ls 30 ['-lns', '--block-size=si']
+ok   ls: bu36 ls 31 ['-sn', '--block-size=si']
+ok   ls: bu36 ls 32 ['-ln', '--time-style=+']
+ok   ls: bu36 ls 33 ['-ln', '--time-style=+%Y']
+ok   ls: bu36 ls 34 ['-ln', '--time-style=+%Y|%m|%d|%s|%N|%z']
+ok   ls: bu36 ls 35 ['-ln', '--time-style=+%c']
+ok   ls: bu36 ls 36 ['-ln', '--time-style=+OLD\nNEW']
+ok   ls: bu36 ls 37 ['-ln', '--time-style=+%F\n%R']
+ok   env: -i alone prints nothing
+ok   env: -i and two entries, in the host's order
+ok   env: -i orders new entries as the host does, never by the alphabet
+ok   env: a name given twice keeps its first place and its last value
+ok   env: a lone - is -i
+ok   env: -i and -
+ok   env: --ignore-environment
+ok   env: an empty value
+ok   env: a value holding =
+ok   env: a name holding a space
+ok   env: a value holding a space and a newline
+ok   env: an entry with an empty name is printed
+ok   env: -0 ends each entry with NUL
+ok   env: --null
+ok   env: -i0
+ok   env: -u of a name set later still sets it
+ok   env: -u after -i of nothing
+ok   env: -- ends the options
+ok   env: -u removes an inherited variable, seen by the command
+ok   env: --unset=
+ok   env: two -u
+ok   env: -u of a variable that is not set
+ok   env: -u of an empty name is refused, status 125
+ok   env: -u of a name holding = is refused
+ok   env: -u needs an argument
+ok   env: an inherited variable is replaced
+ok   env: an inherited variable is kept
+ok   env: the command sees the variable
+ok   env: the command's status is the status
+ok   env: false is 1
+ok   env: true with arguments
+ok   env: the last value of a name given twice
+ok   env: a variable with an empty value is set
+ok   env: -i empties the environment the command sees
+ok   env: a command killed by a signal
+ok   env: a command ended by TERM
+ok   env: options after the first assignment are the command
+ok   env: -i after an assignment is the command
+ok   env: -0 after an assignment is the command
+ok   env: a word with no = after assignments is the command
+ok   env: -- and then a dash word is the command
+ok   env: a second - is the command
+ok   env: env runs env
+ok   env: env runs printenv
+ok   env: the command's output and status
+ok   env: standard input reaches the command
+ok   env: no PATH at all: the default one
+ok   env: an empty PATH is the working directory
+ok   env: a PATH with no such program
+ok   env: a new PATH replaces the inherited one
+ok   env: the PATH the command sees
+ok   env: -u PATH: the default one finds sh
+ok   env: -u PATH and no such program
+ok   env: a command that is not found is 127
+ok   env: -i and a command that is not found
+ok   env: a command with a slash is used as written
+ok   env: an empty PATH component finds it in the working directory
+ok   env: an empty component between two others
+ok   env: PATH=. finds it
+ok   env: a file with no execute bit is 126
+ok   env: a directory is 126
+ok   env: a file that is no program is 126
+ok   env: a script whose interpreter is missing is 127
+ok   env: a script with no #! line runs under sh
+ok   env: the same under -i
+ok   env: the same found along PATH
+ok   env: a script with no #! line and no execute bit is 126
+ok   env: -C changes the directory first
+ok   env: --chdir=
+ok   env: -C with -i and an assignment
+ok   env: -iC
+ok   env: -C of a missing directory is 125
+ok   env: -C of a file is 125
+ok   env: -C with no command is a usage error
+ok   env: -C needs an argument
+ok   env: -C twice: the last
+ok   env: -C twice: the last, which is missing
+ok   env: -C and a relative command
+ok   env: -a names the program to itself
+ok   env: --argv0=
+ok   env: -a needs an argument
+ok   env: -a and a script
+ok   env: -0 with a command is a usage error
+ok   env: an unknown option is 125
+ok   env: an unknown long option
+ok   env: --help
+ok   env: --version
+ok   env: a closed standard output with nothing to print
+ok   env: a closed standard output and an entry to print
+ok   env: a full device
+SKIP env: the inherited environment, as it is (wolf 0.2.27 lists the environment only through env_vars(), which answers it SORTED; GNU prints the order the process received, and the harness hands every case PATH before LC_ALL (wolf-lang#535))
+SKIP env: the inherited environment and one more (wolf 0.2.27 lists the environment only through env_vars(), which answers it SORTED; GNU prints the order the process received, and the harness hands every case PATH before LC_ALL (wolf-lang#535))
+SKIP env: the inherited environment less one (wolf 0.2.27 lists the environment only through env_vars(), which answers it SORTED; GNU prints the order the process received, and the harness hands every case PATH before LC_ALL (wolf-lang#535))
+SKIP env: the inherited environment under -0 (wolf 0.2.27 lists the environment only through env_vars(), which answers it SORTED; GNU prints the order the process received, and the harness hands every case PATH before LC_ALL (wolf-lang#535))
+SKIP env: what a command inherits, in order (wolf 0.2.27 lists the environment only through env_vars(), which answers it SORTED; GNU prints the order the process received, and the harness hands every case PATH before LC_ALL (wolf-lang#535))
+SKIP env: an entry with an empty name, handed to a command (os_exec refuses an environment entry with an empty name as `invalid` ([os.proc.exec]); GNU hands it on. Status 125 here, said so)
+SKIP env: the name a script found through an empty PATH component is started by (os_exec runs ./hello for an empty PATH component where execvp runs hello, and the script prints it as $0 (wolf-lang#689))
+ok   env: -S splits a string into the command
+ok   env: -v says what it runs
+ok   env: --default-signal
+ok   env: --ignore-signal
+SKIP env: --block-signal (wolf has no signal-mask setter: --block-signal is refused by name, status 125)
+ok   env: --list-signal-handling
+ok   env: bu36 env 0
+ok   env: bu36 env 1
+ok   env: bu36 env 2
+ok   env: bu36 env 3
+ok   env: bu36 env 4
+ok   env: bu36 env 5
+ok   env: bu36 env 6
+ok   env: bu36 env 7
+ok   env: bu36 env 8
+ok   env: bu36 env 9
+ok   env: bu36 env 10
+ok   env: bu36 env 11
+ok   env: bu36 env 12
+ok   env: bu36 env 13
+ok   env: bu36 env 14
+ok   env: bu36 env 15
+ok   env: bu36 env 16
+ok   env: bu36 env 17
+ok   env: bu36 env 18
+ok   env: bu36 env 19
+ok   env: bu36 env 20
+ok   env: bu36 env 21
+ok   env: bu36 env 22
+ok   env: bu36 env 23
+ok   env: bu36 env 24
+ok   env: bu36 env 25
+ok   env: bu36 env Linux mask 0
+ok   env: bu36 env Linux mask 1
+ok   env: bu36 env Linux mask 2
+ok   env: bu36 env Linux mask 3
+ok   ln: no operand
+ok   ln: --help
+ok   ln: --version
+ok   ln: an invalid option
+ok   ln: -t with no argument
+ok   ln: -t and no target
+ok   ln: -t twice
+ok   ln: -t and -T
+ok   ln: -T with one operand
+ok   ln: -T with three operands
+ok   ln: -r without -s
+ok   ln: -b is not written
+ok   ln: --backup=numbered is not written
+ok   ln: -S is not written
+ok   ln: hard: a c
+ok   ln: hard: a b
+ok   ln: hard: -f a b
+ok   ln: hard: -v a c
+ok   ln: hard: -v a d
+ok   ln: hard: a d
+ok   ln: hard: a ld
+ok   ln: hard: -n a ld
+ok   ln: hard: -nf a ld
+ok   ln: hard: -T a d
+ok   ln: hard: -T a c
+ok   ln: hard: -t d a b
+ok   ln: hard: -vt d a b
+ok   ln: hard: --target-directory=d a
+ok   ln: hard: -t nope a
+ok   ln: hard: -t a b
+ok   ln: hard: a b d
+ok   ln: hard: a b c
+ok   ln: hard: a b a
+ok   ln: hard: a
+ok   ln: hard: d/in
+ok   ln: hard: nope c
+ok   ln: hard: d c
+ok   ln: hard: -d d c
+ok   ln: hard: -F d c
+ok   ln: hard: --directory d c
+ok   ln: hard: a a
+ok   ln: hard: -f a a
+ok   ln: hard: a ./a
+ok   ln: hard: -f a ./a
+ok   ln: hard: a ''
+ok   ln: hard: '' c
+ok   ln: hard: a c/
+ok   ln: hard: a nodir/c
+ok   ln: hard: a dang
+ok   ln: hard: -f a dang
+ok   ln: hard: -fv a b
+ok   ln: hard: -f a d
+ok   ln: hard: -Tf a d
+ok   ln: hard: -Tf a e
+ok   ln: hard: -f a nodir/c
+ok   ln: hard: sa c
+ok   ln: hard: -P sa c
+ok   ln: hard: -L sa c
+ok   ln: hard: -L dang c
+ok   ln: hard: -L ld c
+ok   ln: hard: -P ld c
+ok   ln: hard: ld c
+ok   ln: hard: -L a c
+ok   ln: hard: -L sd c
+ok   ln: hard: --logical ld c
+ok   ln: hard: --physical ld c
+ok   ln: hard: -PL sa c
+ok   ln: hard: -LP sa c
+ok   ln: hard: --no-dereference a ld
+ok   ln: hard: --no-target-directory a d
+ok   ln: hard: --verbose a c
+ok   ln: hard: --force a b
+ok   ln: hard: a e/ d/
+ok   ln: hard: -v a b e
+ok   ln: hard: dang c
+ok   ln: hard: -f dang c
+ok   ln: hard: into a directory that may not be written
+ok   ln: hard: -f into a directory that may not be written
+ok   ln: hard: a link already to the same file, -f
+ok   ln: hard: a link already to the same file
+ok   ln: symbolic: -s a c
+ok   ln: symbolic: -s a b
+ok   ln: symbolic: -sf a b
+ok   ln: symbolic: -sv a c
+ok   ln: symbolic: -sfv a b
+ok   ln: symbolic: -sfv a d
+ok   ln: symbolic: -sf a ld
+ok   ln: symbolic: -snf a ld
+ok   ln: symbolic: -sn a ld
+ok   ln: symbolic: -sn a d
+ok   ln: symbolic: -sT d e
+ok   ln: symbolic: -sTf d e
+ok   ln: symbolic: -s nope c
+ok   ln: symbolic: -s x/y c
+ok   ln: symbolic: -s a ''
+ok   ln: symbolic: -s a c/
+ok   ln: symbolic: -s a nodir/c
+ok   ln: symbolic: -s a
+ok   ln: symbolic: -s d/in
+ok   ln: symbolic: -s a d/
+ok   ln: symbolic: -s d/ lnk
+ok   ln: symbolic: -sf a a
+ok   ln: symbolic: -s a a
+ok   ln: symbolic: -s x dang
+ok   ln: symbolic: -sf x dang
+ok   ln: symbolic: -s {scratch}/a c
+ok   ln: symbolic: -st d a b nope
+ok   ln: symbolic: --symbolic --force a b
+ok   ln: symbolic: -s a b c d
+ok   ln: symbolic: -sv q'x n
+l
+ok   ln: symbolic: -s -a c
+ok   ln: symbolic: -s -- -a c
+ok   ln: symbolic: -sv a b e
+ok   ln: symbolic: -sf a e
+ok   ln: symbolic: -sfT a e
+ok   ln: symbolic: -sL sa c
+ok   ln: symbolic: an empty target
+ok   ln: symbolic: into a directory that may not be written
+ok   ln: relative: -sr a d/c
+ok   ln: relative: -sr a c
+ok   ln: relative: -sr ld/in e/y
+ok   ln: relative: -sr {scratch}/a c
+ok   ln: relative: -sr {scratch}/d/in e/z
+ok   ln: relative: -srv a d/c
+ok   ln: relative: -sr nope e/q
+ok   ln: relative: -sr nope/deeper e/q
+ok   ln: relative: -sr a e
+ok   ln: relative: -sr d e/back
+ok   ln: relative: -sr e e/self
+ok   ln: relative: -sr . e/dot
+ok   ln: relative: -sr a sd/c
+ok   ln: relative: --relative -s a d/x
+ok   ln: relative: -srf b sa
+ok   ln: relative: -srt e a d/in
+ok   ln: relative: -sr dang e/w
+ok   ln: relative: -sr d/in {scratch}/e/abs
+ok   ln: relative: -sr a ./c
+ok   ln: relative: -sr ./a ./e/./c
+ok   ln: -i, yes
+ok   ln: -i, Yes
+ok   ln: -i, no
+ok   ln: -i, end of input
+ok   ln: -i, nothing there
+ok   ln: -si, yes
+ok   ln: -i then -f
+ok   ln: -f then -i
+ok   ln: --interactive
+ok   ln: -i twice
+ok   ln: bu36 ln 0 False
+ok   ln: bu36 ln 0 True
+ok   ln: bu36 ln 1 False
+ok   ln: bu36 ln 1 True
+ok   ln: bu36 ln 2 False
+ok   ln: bu36 ln 2 True
+ok   ln: bu36 ln 3 False
+ok   ln: bu36 ln 3 True
+ok   ln: bu36 ln 4 False
+ok   ln: bu36 ln 4 True
+ok   ln: bu36 ln 5 False
+ok   ln: bu36 ln 5 True
+ok   ln: bu36 ln 6 False
+ok   ln: bu36 ln 6 True
+ok   ln: bu36 ln 7 False
+ok   ln: bu36 ln 7 True
+ok   ln: bu36 ln 8 False
+ok   ln: bu36 ln 8 True
+ok   ln: bu36 ln 9 False
+ok   ln: bu36 ln 9 True
+ok   ln: bu36 ln 10 False
+ok   ln: bu36 ln 10 True
+ok   ln: bu36 ln verbose 0
+ok   ln: bu36 ln verbose 1
+ok   ln: bu36 ln verbose 2
+ok   ln: bu36 ln backup precedence 0
+ok   ln: bu36 ln backup precedence 1
+ok   ln: bu36 ln backup precedence 2
+ok   ln: bu36 ln backup precedence 3
+ok   ln: bu36 ln backup precedence 4
+ok   ln: bu36 ln backup precedence 5
+ok   ln: bu36 ln backup precedence 6
+ok   ln: bu36 ln backup precedence 7
+ok   ln: bu36 ln backup precedence 8
+ok   ln: bu36 ln backup precedence 9
+ok   ln: bu36 ln backup precedence 10
+ok   ln: bu36 ln version 0 existing
+ok   ln: bu36 ln version 0 numbered
+ok   ln: bu36 ln version 1 existing
+ok   ln: bu36 ln version 1 numbered
+ok   ln: bu36 ln version 2 existing
+ok   ln: bu36 ln version 2 numbered
+ok   rm: no operand
+ok   rm: a file
+ok   rm: two files
+ok   rm: a missing name
+ok   rm: a missing name among files
+ok   rm: an empty name
+ok   rm: a file named twice
+ok   rm: a name under a file
+ok   rm: a file with a trailing slash
+ok   rm: a file with two trailing slashes
+ok   rm: an empty file
+ok   rm: a file in a subdirectory
+ok   rm: an absolute path
+ok   rm: the cwd is a subdirectory
+ok   rm: one of two hard links
+ok   rm: a fifo
+ok   rm: a socket
+ok   rm: a file nobody may write
+ok   rm: a file with no permissions at all
+ok   rm: in a directory that may not be written
+ok   rm: in a directory that may not be searched
+ok   rm: names that need quoting, missing
+ok   rm: names that need quoting, removed
+ok   rm: a link to a file
+ok   rm: a link to a directory
+ok   rm: a dangling link
+ok   rm: a link to a directory, with a slash
+ok   rm: a link to a file, with a slash
+ok   rm: a dangling link, with a slash
+ok   rm: a link that points at itself
+ok   rm: through a link to a directory
+ok   rm: a directory
+ok   rm: an empty directory
+ok   rm: the working directory
+ok   rm: a directory, then a file
+ok   rm: -f does not make a directory removable
+ok   rm: -f: no operand
+ok   rm: -f: a missing name
+ok   rm: -f: a file
+ok   rm: -f: an empty name
+ok   rm: -f: a name under a file
+ok   rm: -f: missing names among files
+ok   rm: -f does not forgive a directory that may not be written
+ok   rm: --force
+ok   rm: --for abbreviates
+ok   rm: -rf: no operand
+ok   rm: -r: no operand
+ok   rm: -v: no operand
+ok   rm: -i: no operand
+ok   rm: -d: an empty directory
+ok   rm: -d: a directory that is not empty
+ok   rm: -d: a file
+ok   rm: -d: a missing name
+ok   rm: -d: two, the first not empty
+ok   rm: -dv
+ok   rm: -d: the working directory
+ok   rm: -d: a directory with no permissions, empty
+ok   rm: -d: a directory with no permissions, not empty
+ok   rm: -d: a link to an empty directory
+ok   rm: --dir
+ok   rm: -rd: -r wins
+ok   rm: -v: files
+ok   rm: -v: links
+ok   rm: -v: a failure says nothing on stdout
+ok   rm: --verbose
+ok   rm: --v is ambiguous
+ok   rm: -r: a tree
+ok   rm: -R
+ok   rm: --recursive
+ok   rm: --rec abbreviates
+ok   rm: --r abbreviates
+ok   rm: -rv: a tree
+ok   rm: -rv: a trailing slash
+ok   rm: -rv: two trailing slashes
+ok   rm: -rv: a leading ./ and a dot in the middle
+ok   rm: -r: a file
+ok   rm: -r: an empty directory
+ok   rm: -r: two trees and a file
+ok   rm: -r: the same tree twice
+ok   rm: -r: a missing name
+ok   rm: -rf: a missing name
+ok   rm: -rf: a name under a file
+ok   rm: -r: an empty name
+ok   rm: -rf: an empty name
+ok   rm: -r: a subtree by an absolute path
+ok   rm: -r: twelve files in one directory
+ok   rm: -r: a wide and deep tree
+ok   rm: -r: names that need quoting
+ok   rm: -r: every kind of file inside
+ok   rm: -r: hard links to a file outside the tree
+ok   rm: -r: a link out of the tree is removed, and what it names is not
+ok   rm: -rv: the same, said
+ok   rm: -r: links up, across and to nothing
+ok   rm: -r: an operand that is a link to a directory
+ok   rm: -rv: an operand that is a link to a directory
+ok   rm: -r: a link to a directory, with a slash, empties the directory
+ok   rm: -rv: a link to a directory, with a slash
+ok   rm: -r: a link to a file, with a slash
+ok   rm: -r: a dangling link, with a slash
+ok   rm: -r: a file with a slash
+ok   rm: -r: a link to a directory nobody may list
+ok   rm: -r: the working directory
+ok   rm: -rf: the working directory
+ok   rm: -r: ./
+ok   rm: -r: a directory's own dot
+ok   rm: -r: a directory's own dot, with a slash
+ok   rm: -r: the dot is skipped and the rest removed
+ok   rm: -rv: a name that only begins with a dot
+ok   rm: -r: a directory that may not be written
+ok   rm: -rf: the same; -f forgives none of it
+ok   rm: -rv: a directory that may not be written, said
+ok   rm: -r: a directory that may not be listed, not empty
+ok   rm: -rfv: the same
+ok   rm: -r: a directory that may not be listed, empty
+ok   rm: -r: a directory that may be listed and not searched
+ok   rm: -rv: one branch refused, the others removed, the top left
+ok   rm: -r: the refused branch does not stop the next operand
+ok   rm: -r: an unlistable directory deep inside
+ok   rm: -i: yes
+ok   rm: -i: no
+ok   rm: -i: the end of input is no
+ok   rm: -i: no input at all
+ok   rm: -i: Y
+ok   rm: -i: yes spelled out
+ok   rm: -i: a space before the y
+ok   rm: -i: y with no newline
+ok   rm: -i: an empty line
+ok   rm: -i: one answer a file
+ok   rm: -i: answers run out
+ok   rm: -i: several answers on separate lines
+ok   rm: -i: every kind
+ok   rm: -i: a write-protected empty file
+ok   rm: -i: a missing name is not asked about
+ok   rm: -i: a directory is not asked about
+ok   rm: -iv: said after the answer
+ok   rm: -iv: nothing said after a no
+ok   rm: -i: names that need quoting
+ok   rm: -di: an empty directory
+ok   rm: -di: no
+ok   rm: -di: a directory that is not empty
+ok   rm: -div
+ok   rm: -ri: yes to everything
+ok   rm: -ri: no to the descent
+ok   rm: -ri: no to a subdirectory leaves its parents
+ok   rm: -ri: no to one file leaves its directory
+ok   rm: -ri: no to the directory itself, emptied
+ok   rm: -ri: no to an emptied subdirectory
+ok   rm: -ri: no to a file in a subdirectory
+ok   rm: -ri: no to a file, then no to its directory
+ok   rm: -ri: no to an empty subdirectory
+ok   rm: -ri: no to a link
+ok   rm: -rif then -i again: a missing name inside is asked nothing
+ok   rm: -ri: an empty directory
+ok   rm: -ri: the end of input in the middle
+ok   rm: -ri: links are asked about and not followed
+ok   rm: -ri: a socket and a fifo
+ok   rm: -ri: write-protected things
+ok   rm: -ri: a write-protected directory that is not empty
+ok   rm: -ri: a directory that may not be listed, not empty
+ok   rm: -ri: a directory that may not be listed, empty
+ok   rm: -riv
+ok   rm: -I: three files, no question
+ok   rm: -I: four files, yes
+ok   rm: -I: four files, no
+ok   rm: -I: four files, the end of input
+ok   rm: -I: missing names count
+ok   rm: -Ir: one argument
+ok   rm: -I -r: two arguments, no
+ok   rm: -rI: three arguments
+ok   rm: -I asks once and then not per file
+ok   rm: --interactive alone is always
+ok   rm: --interactive=always
+ok   rm: --interactive=yes
+ok   rm: --interactive=a abbreviates
+ok   rm: --interactive=never
+ok   rm: --interactive=no
+ok   rm: --interactive=none
+ok   rm: --interactive=n: three words, one meaning
+ok   rm: --interactive=never still reports a missing name
+ok   rm: --interactive=once: one file
+ok   rm: --interactive=once: four files
+ok   rm: --interactive=o abbreviates
+ok   rm: --interactive=bogus
+ok   rm: --interactive= is ambiguous
+ok   rm: --inter abbreviates the option
+ok   rm: -f -i: the last wins, and asks
+ok   rm: -i -f: the last wins, and does not
+ok   rm: -I -i
+ok   rm: -i -I
+ok   rm: -If: four files, no question
+ok   rm: -fI: four files, one question
+ok   rm: -i --interactive=never reports a missing name
+ok   rm: -f --interactive=never keeps -f's silence
+ok   rm: -i -f: a missing name is forgiven
+ok   rm: -f -i: a missing name is not
+ok   rm: --preserve-root
+ok   rm: --pre abbreviates
+ok   rm: -r --preserve-root
+ok   rm: --preserve-root=bogus
+ok   rm: --no-pres may not be abbreviated
+ok   rm: --no-preserve-root=1 takes no argument
+ok   rm: --one-file-system on one file system
+ok   rm: --one abbreviates
+SKIP rm: --no-preserve-root (this rm refuses --no-preserve-root by name, status 1: it does not remove '/' (see the header of src/rm.lu))
+SKIP rm: -r --no-preserve-root (this rm refuses --no-preserve-root by name, status 1: it does not remove '/' (see the header of src/rm.lu))
+ok   rm: --preserve-root=all
+ok   rm: -- ends the options
+ok   rm: ./-f names the file
+ok   rm: a bad option
+ok   rm: a bad option, and a file of that name
+ok   rm: a bad option, and a file whose name has a space
+ok   rm: a bad option, and a file whose name has a quote
+ok   rm: a bad long option, and a file with a dash
+ok   rm: a bad option, and the first such file is the one named
+ok   rm: an unknown long option
+ok   rm: POSIXLY_CORRECT: the first operand ends the options
+ok   rm: --help
+ok   rm: --version
+ok   rm: --help wins over a later bad option
+ok   rm: stdout closed, nothing to write
+ok   rm: stdout closed under -v
+ok   rm: bu36 rm preserve all 0
+ok   rm: bu36 rm preserve all 1
+ok   rm: bu36 rm preserve all 2
+ok   rm: bu36 rm preserve all 3
+ok   rm: bu36 rm preserve all 4
+ok   mv: no operand
+ok   mv: one operand
+ok   mv: a file to a new name
+ok   mv: a file over a file
+ok   mv: a missing source
+ok   mv: a missing source over a file
+ok   mv: into a missing directory
+ok   mv: a file into a directory
+ok   mv: two files into a directory
+ok   mv: three operands, the last missing
+ok   mv: three operands, the last missing, with a slash
+ok   mv: three operands, the last a file
+ok   mv: two operands, the last missing, with a slash
+ok   mv: a source with a slash that is a file
+ok   mv: a missing source among good ones
+ok   mv: an empty source
+ok   mv: an empty destination
+ok   mv: a directory to an empty destination
+ok   mv: a missing source to an empty destination
+ok   mv: a file into a directory, replacing one there
+ok   mv: the cwd is a subdirectory
+ok   mv: absolute paths
+ok   mv: a directory to a new name
+ok   mv: a directory into a directory
+ok   mv: a directory into a directory that holds that name, empty
+ok   mv: a directory into a directory that holds that name, not empty
+ok   mv: a directory over a file
+ok   mv: a file over a directory by name
+ok   mv: a file over an empty directory by name
+ok   mv: a directory into itself
+ok   mv: a directory into its own subdirectory
+ok   mv: a directory into itself, with a slash
+ok   mv: a directory with a slash to a new name
+ok   mv: a directory to a new name with a slash
+ok   mv: the working directory
+ok   mv: a directory that may not be written, renamed
+ok   mv: out of a directory that may not be written
+ok   mv: into a directory that may not be written
+ok   mv: a name onto itself
+ok   mv: a name onto itself, spelled two ways
+ok   mv: a file into the directory it is in
+ok   mv: one hard link onto another
+ok   mv: -v: one hard link onto another
+ok   mv: a link onto the file it names
+ok   mv: a file onto a link that names it
+ok   mv: a link is renamed, not followed
+ok   mv: a dangling link is renamed
+ok   mv: a dangling link into a directory
+ok   mv: a file through a link to a directory
+ok   mv: a file through a link to a directory, with a slash
+ok   mv: a file over a link to a file
+ok   mv: a file over a dangling link
+ok   mv: a directory over a link to a file
+ok   mv: a link to a directory, with a slash
+ok   mv: -T: a file over a link to a directory
+ok   mv: -v: a file
+ok   mv: -v: into a directory
+ok   mv: -v: into the working directory
+ok   mv: -v: into a directory named with a slash
+ok   mv: -v: a source with a slash
+ok   mv: -v: names that need quoting
+ok   mv: -v: a failure says nothing on stdout
+ok   mv: names that need quoting, failing
+ok   mv: --verbose
+ok   mv: -f
+ok   mv: -f: a destination nobody may write
+ok   mv: a destination nobody may write, no terminal
+ok   mv: -i: yes
+ok   mv: -i: no
+ok   mv: -i: the end of input
+ok   mv: -i: nothing to replace, nothing asked
+ok   mv: -i: a destination nobody may write
+ok   mv: -i: into a directory, one there
+ok   mv: -i: two questions
+ok   mv: -iv
+ok   mv: -i: a directory over an empty directory
+ok   mv: -i: a name that needs quoting
+ok   mv: --interactive
+ok   mv: -n
+ok   mv: -n: nothing there
+ok   mv: -nv
+ok   mv: -n: into a directory
+ok   mv: --no-clobber
+ok   mv: -n: a directory over an empty directory
+ok   mv: -n: a missing source
+ok   mv: -n: a name onto itself
+ok   mv: -i -n: the last wins
+ok   mv: -n -i: the last wins
+ok   mv: -f -i
+ok   mv: -i -f
+ok   mv: -n -f
+ok   mv: -f -n
+ok   mv: -t
+ok   mv: -t attached
+ok   mv: --target-directory=
+ok   mv: -t: a missing directory
+ok   mv: -t: a file
+ok   mv: -t: no source
+ok   mv: -t: a link to a directory
+ok   mv: -t twice
+ok   mv: -t with -T
+ok   mv: -vt
+ok   mv: -T: a file to a new name
+ok   mv: -T: a file over a file
+ok   mv: -T: a file over a directory
+ok   mv: -T: a file over an empty directory
+ok   mv: -T: a directory over an empty directory
+ok   mv: -T: a directory over a directory that is not empty
+ok   mv: -T: three operands
+ok   mv: -T: one operand
+ok   mv: --no-target-directory
+ok   mv: --strip-trailing-slashes
+ok   mv: --strip-trailing-slashes: a link to a directory
+ok   mv: --strip-trailing-slashes: a file
+ok   mv: --strip-trailing-slashes: into a directory
+ok   mv: --strip-trailing-slashes: a destination with its own slash
+ok   mv: --strip-trailing-slashes -v
+ok   mv: --strip abbreviates
+ok   mv: --no-copy on one file system
+ok   mv: -Z is accepted
+ok   mv: --context is accepted
+ok   mv: -u: the source is newer
+ok   mv: -u: the source is older
+ok   mv: --update=none
+ok   mv: -b
+ok   mv: --backup=numbered
+ok   mv: -S
+SKIP mv: --exchange (wolf 0.2.27 cannot swap two names (renameat2, wolf-lang#706): refused by name, status 1)
+ok   mv: --debug
+ok   mv: -- ends the options
+ok   mv: a bad option
+ok   mv: an unknown long option
+ok   mv: -t with no argument
+ok   mv: --v is ambiguous
+ok   mv: POSIXLY_CORRECT: the first operand ends the options
+ok   mv: --help
+ok   mv: --version
+ok   mv: --help wins over a later bad option
+ok   mv: stdout closed, nothing to write
+ok   mv: stdout closed under -v
+ok   mv: a file's time and mode survive the move
+ok   mv: a tree's times and modes survive the move
+ok   mv: bu36 mv 0 True
+ok   mv: bu36 mv 0 False
+ok   mv: bu36 mv 1 True
+ok   mv: bu36 mv 1 False
+ok   mv: bu36 mv 2 True
+ok   mv: bu36 mv 2 False
+ok   mv: bu36 mv 3 True
+ok   mv: bu36 mv 3 False
+ok   mv: bu36 mv 4 True
+ok   mv: bu36 mv 4 False
+ok   mv: bu36 mv 5 True
+ok   mv: bu36 mv 5 False
+ok   mv: bu36 mv 6 True
+ok   mv: bu36 mv 6 False
+ok   mv: bu36 mv 7 True
+ok   mv: bu36 mv 7 False
+ok   mv: bu36 mv 8 True
+ok   mv: bu36 mv 8 False
+ok   mv: bu36 mv 9 True
+ok   mv: bu36 mv 9 False
+ok   mv: bu36 mv 10 True
+ok   mv: bu36 mv 10 False
+ok   mv: bu36 mv 11 True
+ok   mv: bu36 mv 11 False
+ok   mv: bu36 mv 12 True
+ok   mv: bu36 mv 12 False
+ok   mv: bu36 mv 13 True
+ok   mv: bu36 mv 13 False
+ok   mv: bu36 mv backup precedence 0
+ok   mv: bu36 mv backup precedence 1
+ok   mv: bu36 mv backup precedence 2
+ok   mv: bu36 mv backup precedence 3
+ok   mv: bu36 mv backup precedence 4
+ok   mv: bu36 mv backup precedence 5
+ok   mv: bu36 mv backup precedence 6
+ok   mv: bu36 mv backup precedence 7
+ok   mv: bu36 mv backup precedence 8
+ok   mv: bu36 mv backup precedence 9
+ok   mv: bu36 mv backup precedence 10
+ok   mv: bu36 mv version 0 existing
+ok   mv: bu36 mv version 0 numbered
+ok   mv: bu36 mv version 1 existing
+ok   mv: bu36 mv version 1 numbered
+ok   mv: bu36 mv version 2 existing
+ok   mv: bu36 mv version 2 numbered
+ok   cp: no operand
+ok   cp: one operand
+ok   cp: a file to a new name
+ok   cp: a file over a file
+ok   cp: an empty file
+ok   cp: a missing source
+ok   cp: a missing source over a file
+ok   cp: into a missing directory
+ok   cp: a file into a directory
+ok   cp: two files into a directory
+ok   cp: three operands, the last missing
+ok   cp: three operands, the last a file
+ok   cp: two operands, the last missing, with a slash
+ok   cp: a source with a slash that is a file
+ok   cp: a missing source among good ones
+ok   cp: an empty source
+ok   cp: an empty destination
+ok   cp: a file into a directory, replacing one there
+ok   cp: the cwd is a subdirectory
+ok   cp: absolute paths
+ok   cp: a name onto itself
+ok   cp: a name onto itself, spelled two ways
+ok   cp: a file into the directory it is in
+ok   cp: one hard link onto another
+ok   cp: binary bytes
+ok   cp: a megabyte
+ok   cp: a file with a hole
+ok   cp: names that need quoting
+ok   cp: names that need quoting, failing
+ok   cp: a file over a directory by name
+ok   cp: a directory without -r
+ok   cp: a directory without -r, among files
+ok   cp: an existing destination keeps its own mode
+ok   cp: an existing destination keeps its mode: executable
+ok   cp: an existing destination keeps its second name
+ok   cp: an existing destination nobody may write
+ok   cp: a source nobody may read
+ok   cp: a source of mode 664
+ok   cp: a source of mode 666
+ok   cp: a source of mode 644 under a mask of 077
+ok   cp: a source of mode 644 under a mask of 027
+ok   cp: a source of mode 644 under a mask of 000
+ok   cp: a source of mode 666 under a mask of 000
+ok   cp: an executable
+ok   cp: a file private to its owner
+ok   cp: a read-only file
+ok   cp: an executable over an existing file
+ok   cp: a private file over an existing file
+ok   cp: a private file under a mask of 077
+ok   cp: a setuid file
+ok   cp: --no-preserve=mode: an executable
+ok   cp: --no-preserve=mode: a private file
+ok   cp: --no-preserve=all
+ok   cp: --no-preserve=ownership,timestamps
+ok   cp: --no-preserve=mode,links
+ok   cp: --no-preserve=bogus
+ok   cp: --no-preserve with no argument
+ok   cp: --no-preserve=mode -r: a tree of executables
+ok   cp: a link to a file is followed
+ok   cp: a dangling link
+ok   cp: a link to a directory, no -r
+ok   cp: a destination that is a link is written through
+ok   cp: a destination that is a dangling link
+ok   cp: a destination that is a link to the source
+ok   cp: a link onto the file it names
+ok   cp: a file through a link to a directory
+ok   cp: -P: a link, no -r
+SKIP cp: -d (-d preserves hard links among the sources, which this cp does not track: refused by name, status 1)
+ok   cp: -s
+ok   cp: -l
+ok   cp: -L: a link to a file
+ok   cp: -H: a link to a file
+ok   cp: -r: a tree to a new name
+ok   cp: -R
+ok   cp: --recursive
+ok   cp: -r: a tree into a directory
+ok   cp: -r: a tree into a directory that holds that name
+ok   cp: -rT: a tree over a directory
+ok   cp: -r: a file
+ok   cp: -r: files and trees into a directory
+ok   cp: -r: an empty directory
+ok   cp: -r: a tree over a file
+ok   cp: -rT: a tree over a file
+ok   cp: -r: a file in the tree over a directory in the destination
+ok   cp: -r: a directory in the tree over a file in the destination
+ok   cp: -r: a trailing slash on the source
+ok   cp: -r: a trailing slash on the destination
+ok   cp: -r: the working directory into a subdirectory
+ok   cp: -r: a directory's own dot
+ok   cp: -r: a directory's own dot to a new name
+ok   cp: -r: a tree into itself
+ok   cp: -r: a tree into its own subdirectory
+ok   cp: -r: a missing source
+ok   cp: -r: twelve files
+ok   cp: -r: a wide and deep tree
+ok   cp: -r: names that need quoting
+ok   cp: -r: hard links become separate files
+ok   cp: -r: a directory that may not be listed
+ok   cp: -r: a file that may not be read
+ok   cp: -r: into a directory that may not be written
+ok   cp: -r: a private directory
+ok   cp: -r: a directory of mode 775
+ok   cp: -r: a read-only directory
+ok   cp: -r: a private directory into one that is there
+ok   cp: -r: an executable inside
+ok   cp: -r under a mask of 077
+SKIP cp: -r: a fifo inside (wolf cannot create a fifo (wolf-lang#705): that entry is refused by name, status 1, and the rest copied)
+ok   cp: -r: a link inside the tree
+ok   cp: -r: an operand that is a link to a directory
+ok   cp: -rL: a link to a file inside the tree
+ok   cp: -rL: a link to a directory inside the tree
+ok   cp: -rL: an operand that is a link to a directory
+ok   cp: -rL: a dangling link inside
+ok   cp: -rL: a link back up the tree
+ok   cp: -rH: an operand that is a link to a directory
+ok   cp: -rH: a link inside is still a link
+ok   cp: -rH -L: the last wins
+ok   cp: -rL -H: the last wins
+ok   cp: -rL: a link out of the tree is copied as what it names, and left alone
+ok   cp: -v: a file
+ok   cp: -v: into a directory
+ok   cp: -rv: a tree
+ok   cp: -rv: a tree into a directory
+ok   cp: -rv: a tree into a tree that is there
+ok   cp: -v: a failure says nothing on stdout
+ok   cp: --verbose
+ok   cp: -f
+ok   cp: -f: a destination nobody may write is removed and made anew
+ok   cp: -f: a destination nobody may write, with a second name
+ok   cp: -f: in a directory that may not be written
+ok   cp: -i: yes
+ok   cp: -i: no
+ok   cp: -i: the end of input
+ok   cp: -i: nothing to replace, nothing asked
+ok   cp: -i: a destination nobody may write
+ok   cp: -i: two questions
+ok   cp: -iv
+ok   cp: -ri: files in a tree that is there
+ok   cp: -n
+ok   cp: -n: nothing there
+ok   cp: -nv
+ok   cp: -n: into a directory
+ok   cp: --no-clobber
+ok   cp: -rn: a tree over a tree
+ok   cp: -i -n
+ok   cp: -n -i
+ok   cp: -f -i
+ok   cp: -i -f
+ok   cp: -n -f
+ok   cp: -f -n
+ok   cp: --remove-destination
+ok   cp: --remove-destination: a link is removed, not written through
+ok   cp: --remove-destination: a dangling link
+ok   cp: --remove-destination: a destination with another mode
+ok   cp: -t
+ok   cp: --target-directory=
+ok   cp: -t: a missing directory
+ok   cp: -t: a file
+ok   cp: -t: no source
+ok   cp: -t twice
+ok   cp: -t with -T
+ok   cp: -T: a file to a new name
+ok   cp: -T: a file over a directory
+ok   cp: -T: three operands
+ok   cp: --strip-trailing-slashes
+ok   cp: -p
+ok   cp: --preserve=timestamps
+ok   cp: --preserve
+SKIP cp: -a (-a preserves hard links among the sources, which this cp does not track: refused by name, status 1)
+SKIP cp: --sparse=always (wolf can neither find a hole nor ask for a clone (wolf-lang#703): refused by name, status 1)
+SKIP cp: --sparse=never (wolf can neither find a hole nor ask for a clone (wolf-lang#703): refused by name, status 1)
+SKIP cp: --reflink=always (wolf can neither find a hole nor ask for a clone (wolf-lang#703): refused by name, status 1)
+SKIP cp: --reflink (wolf can neither find a hole nor ask for a clone (wolf-lang#703): refused by name, status 1)
+SKIP cp: --reflink=never (wolf can neither find a hole nor ask for a clone (wolf-lang#703): refused by name, status 1)
+ok   cp: --sparse=auto is the default
+ok   cp: --reflink=auto is the default
+ok   cp: -u
+ok   cp: -b
+ok   cp: --parents
+ok   cp: --attributes-only
+ok   cp: -x
+ok   cp: -Z is accepted
+ok   cp: --context alone is accepted
+ok   cp: --context=CTX warns and carries on
+ok   cp: -- ends the options
+ok   cp: a bad option
+ok   cp: an unknown long option
+ok   cp: -t with no argument
+ok   cp: POSIXLY_CORRECT: the first operand ends the options
+ok   cp: --help
+ok   cp: --version
+ok   cp: --help wins over a later bad option
+ok   cp: stdout closed, nothing to write
+ok   cp: stdout closed under -v
+ok   cp: -p: -p a b
+ok   cp: -p: --preserve a b
+ok   cp: -p: --preserve=mode a b
+ok   cp: -p: --preserve=timestamps a b
+ok   cp: -p: --preserve=mode,timestamps a b
+ok   cp: -p: --preserve=ownership a b
+ok   cp: -p: --preserve=mode,ownership,timestamps a b
+ok   cp: -p: -p --no-preserve=mode a b
+ok   cp: -p: --no-preserve=mode -p a b
+ok   cp: -p: -p --no-preserve=timestamps a b
+ok   cp: -p: -p --no-preserve=ownership a b
+ok   cp: -p: -p --no-preserve=all a b
+ok   cp: -p: -pv a b
+ok   cp: -p: -p a d
+ok   cp: -p: -pr d e
+ok   cp: -p: -rp d e
+ok   cp: -p: -r --preserve=timestamps d e
+ok   cp: -p: -r --preserve=mode d e
+ok   cp: -p: -p l b
+ok   cp: -p: -pP l b
+ok   cp: -p: -pr d d/sub/e
+ok   cp: -p: -p a a
+ok   cp: -p: -p nope b
+ok   cp: -p: --preserve=bogus a b
+ok   cp: -p: --preserve= a b
+ok   cp: -p: --preserve=mo a b
+ok   cp: -p: --preserve=mode, a b
+ok   cp: -p onto a file that is there
+ok   cp: no -p onto a file that is there keeps its mode
+ok   cp: -p of mode 4755
+ok   cp: a copy of mode 4755
+ok   cp: -p of mode 2750
+ok   cp: a copy of mode 2750
+ok   cp: -p of mode 1777
+ok   cp: a copy of mode 1777
+ok   cp: -p of mode 7777
+ok   cp: a copy of mode 7777
+ok   cp: -p of mode 0
+ok   cp: a copy of mode 0
+ok   cp: -p of mode 400
+ok   cp: a copy of mode 400
+ok   cp: -p of mode 6711
+ok   cp: a copy of mode 6711
+ok   cp: -pr under the mask 022
+ok   cp: -r under the mask 022
+ok   cp: -pr under the mask 077
+ok   cp: -r under the mask 077
+ok   cp: -pr under the mask 002
+ok   cp: -r under the mask 002
+SKIP cp: --preserve=links (hard links among the sources are not tracked, and wolf reads no extended attribute (wolf-lang#685): --preserve=links is refused by name, status 1)
+SKIP cp: --preserve=xattr (hard links among the sources are not tracked, and wolf reads no extended attribute (wolf-lang#685): --preserve=xattr is refused by name, status 1)
+SKIP cp: --preserve=context (hard links among the sources are not tracked, and wolf reads no extended attribute (wolf-lang#685): --preserve=context is refused by name, status 1)
+SKIP cp: --preserve=all (hard links among the sources are not tracked, and wolf reads no extended attribute (wolf-lang#685): --preserve=all is refused by name, status 1)
+ok   cp: bu36 cp 0 True
+ok   cp: bu36 cp 0 False
+ok   cp: bu36 cp 1 True
+ok   cp: bu36 cp 1 False
+ok   cp: bu36 cp 2 True
+ok   cp: bu36 cp 2 False
+ok   cp: bu36 cp 3 True
+ok   cp: bu36 cp 3 False
+ok   cp: bu36 cp 4 True
+ok   cp: bu36 cp 4 False
+ok   cp: bu36 cp 5 True
+ok   cp: bu36 cp 5 False
+ok   cp: bu36 cp 6 True
+ok   cp: bu36 cp 6 False
+ok   cp: bu36 cp 7 True
+ok   cp: bu36 cp 7 False
+ok   cp: bu36 cp 8 True
+ok   cp: bu36 cp 8 False
+ok   cp: bu36 cp 9 True
+ok   cp: bu36 cp 9 False
+ok   cp: bu36 cp 10 True
+ok   cp: bu36 cp 10 False
+ok   cp: bu36 cp 11 True
+ok   cp: bu36 cp 11 False
+ok   cp: bu36 cp 12 True
+ok   cp: bu36 cp 12 False
+ok   cp: bu36 cp 13 True
+ok   cp: bu36 cp 13 False
+ok   cp: bu36 cp 14 True
+ok   cp: bu36 cp 14 False
+ok   cp: bu36 cp 15 True
+ok   cp: bu36 cp 15 False
+ok   cp: bu36 cp tree 0
+ok   cp: bu36 cp tree 1
+ok   cp: bu36 cp tree 2
+ok   cp: bu36 cp tree 3
+ok   cp: bu36 cp tree 4
+ok   cp: bu36 cp interaction 0 link-source
+ok   cp: bu36 cp interaction 0 link-dest
+ok   cp: bu36 cp interaction 0 dangling-dest
+ok   cp: bu36 cp interaction 0 same-entry
+ok   cp: bu36 cp interaction 0 hard-alias
+ok   cp: bu36 cp interaction 1 link-source
+ok   cp: bu36 cp interaction 1 link-dest
+ok   cp: bu36 cp interaction 1 dangling-dest
+ok   cp: bu36 cp interaction 1 same-entry
+ok   cp: bu36 cp interaction 1 hard-alias
+ok   cp: bu36 cp interaction 2 link-source
+ok   cp: bu36 cp interaction 2 link-dest
+ok   cp: bu36 cp interaction 2 dangling-dest
+ok   cp: bu36 cp interaction 2 same-entry
+ok   cp: bu36 cp interaction 2 hard-alias
+ok   cp: bu36 cp interaction 3 link-source
+ok   cp: bu36 cp interaction 3 link-dest
+ok   cp: bu36 cp interaction 3 dangling-dest
+ok   cp: bu36 cp interaction 3 same-entry
+ok   cp: bu36 cp interaction 3 hard-alias
+ok   cp: bu36 cp interaction 4 link-source
+ok   cp: bu36 cp interaction 4 link-dest
+ok   cp: bu36 cp interaction 4 dangling-dest
+ok   cp: bu36 cp interaction 4 same-entry
+ok   cp: bu36 cp interaction 4 hard-alias
+ok   cp: bu36 cp interaction 5 link-source
+ok   cp: bu36 cp interaction 5 link-dest
+ok   cp: bu36 cp interaction 5 dangling-dest
+ok   cp: bu36 cp interaction 5 same-entry
+ok   cp: bu36 cp interaction 5 hard-alias
+ok   cp: bu36 cp interaction 6 link-source
+ok   cp: bu36 cp interaction 6 link-dest
+ok   cp: bu36 cp interaction 6 dangling-dest
+ok   cp: bu36 cp interaction 6 same-entry
+ok   cp: bu36 cp interaction 6 hard-alias
+ok   cp: bu36 cp interaction 7 link-source
+ok   cp: bu36 cp interaction 7 link-dest
+ok   cp: bu36 cp interaction 7 dangling-dest
+ok   cp: bu36 cp interaction 7 same-entry
+ok   cp: bu36 cp interaction 7 hard-alias
+ok   cp: bu36 cp interaction 8 link-source
+ok   cp: bu36 cp interaction 8 link-dest
+ok   cp: bu36 cp interaction 8 dangling-dest
+ok   cp: bu36 cp interaction 8 same-entry
+ok   cp: bu36 cp interaction 8 hard-alias
+ok   cp: bu36 cp interaction 9 link-source
+ok   cp: bu36 cp interaction 9 link-dest
+ok   cp: bu36 cp interaction 9 dangling-dest
+ok   cp: bu36 cp interaction 9 same-entry
+ok   cp: bu36 cp interaction 9 hard-alias
+ok   cp: bu36 cp interaction 10 link-source
+ok   cp: bu36 cp interaction 10 link-dest
+ok   cp: bu36 cp interaction 10 dangling-dest
+ok   cp: bu36 cp interaction 10 same-entry
+ok   cp: bu36 cp interaction 10 hard-alias
+ok   cp: bu36 cp interaction 11 link-source
+ok   cp: bu36 cp interaction 11 link-dest
+ok   cp: bu36 cp interaction 11 dangling-dest
+ok   cp: bu36 cp interaction 11 same-entry
+ok   cp: bu36 cp interaction 11 hard-alias
+ok   cp: bu36 cp interaction 12 link-source
+ok   cp: bu36 cp interaction 12 link-dest
+ok   cp: bu36 cp interaction 12 dangling-dest
+ok   cp: bu36 cp interaction 12 same-entry
+ok   cp: bu36 cp interaction 12 hard-alias
+ok   cp: bu36 cp backup precedence 0
+ok   cp: bu36 cp backup precedence 1
+ok   cp: bu36 cp backup precedence 2
+ok   cp: bu36 cp backup precedence 3
+ok   cp: bu36 cp backup precedence 4
+ok   cp: bu36 cp backup precedence 5
+ok   cp: bu36 cp backup precedence 6
+ok   cp: bu36 cp backup precedence 7
+ok   cp: bu36 cp backup precedence 8
+ok   cp: bu36 cp backup precedence 9
+ok   cp: bu36 cp backup precedence 10
+ok   cp: bu36 cp version 0 existing
+ok   cp: bu36 cp version 0 numbered
+ok   cp: bu36 cp version 1 existing
+ok   cp: bu36 cp version 1 numbered
+ok   cp: bu36 cp version 2 existing
+ok   cp: bu36 cp version 2 numbered
+ok   cp: bu36 cp parents permissions 365 False False
+ok   cp: bu36 cp parents permissions 365 False True
+ok   cp: bu36 cp parents permissions 365 True False
+ok   cp: bu36 cp parents permissions 365 True True
+ok   cp: bu36 cp parents permissions 448 False False
+ok   cp: bu36 cp parents permissions 448 False True
+ok   cp: bu36 cp parents permissions 448 True False
+ok   cp: bu36 cp parents permissions 448 True True
+ok   cp: bu36 cp parents permissions 488 False False
+ok   cp: bu36 cp parents permissions 488 False True
+ok   cp: bu36 cp parents permissions 488 True False
+ok   cp: bu36 cp parents permissions 488 True True
+ok   touch: no operand
+ok   touch: -d with no argument
+ok   touch: -t with no argument
+ok   touch: -r with no argument
+ok   touch: an invalid option
+ok   touch: --help
+ok   touch: --version
+ok   touch: -d and -t together
+ok   touch: -t and -d together
+ok   touch: -t and -r together
+ok   touch: -f does nothing
+ok   touch: an existing file
+ok   touch: a new file
+ok   touch: a new file under the mask 077
+ok   touch: a new file under the mask 777
+ok   touch: two files, one new
+ok   touch: -c on a new name
+ok   touch: -c on an existing file
+ok   touch: --no-create
+ok   touch: -a
+ok   touch: -m
+ok   touch: -a -m
+ok   touch: a directory
+ok   touch: a directory with a slash
+ok   touch: an unwritable file of one's own
+ok   touch: --time=atime
+ok   touch: --time=access
+ok   touch: --time=use
+ok   touch: --time=mtime
+ok   touch: --time=modify
+ok   touch: --time=a
+ok   touch: --time=m
+ok   touch: --time=mo
+ok   touch: --time=u
+ok   touch: --time as two words
+ok   touch: --time=bogus
+ok   touch: --time= empty
+ok   touch: --time=atime and -m
+ok   touch: under a missing directory
+ok   touch: under a file
+ok   touch: a file with a slash
+ok   touch: an empty name
+ok   touch: one fails, the rest are touched
+ok   touch: in a directory that may not be written
+SKIP touch: standard output (GNU sets the times of whatever standard output is, through the descriptor; wolf sets times by name only (wolf-lang#714): refused by name, status 1)
+SKIP touch: standard output with a date (GNU sets the times of whatever standard output is, through the descriptor; wolf sets times by name only (wolf-lang#714): refused by name, status 1)
+ok   touch: a link to a file
+ok   touch: -h on a link to a file
+ok   touch: -h on a dangling link
+ok   touch: a dangling link makes its target
+ok   touch: -c on a dangling link
+ok   touch: a link into a missing directory
+ok   touch: -h on a missing name
+ok   touch: -hc on a missing name
+ok   touch: -h now on a link
+ok   touch: -h -a on a link
+ok   touch: -r
+ok   touch: --reference
+ok   touch: -r a new file
+ok   touch: -r -a
+ok   touch: -r -m
+ok   touch: -r a missing reference
+ok   touch: -r through a link
+ok   touch: -r -h reads the link itself
+ok   touch: -r with -d
+ok   touch: -d '@1500000000'
+ok   touch: -d '@1500000000.5'
+ok   touch: -d '@1500000000.123456789'
+ok   touch: -d '@1500000000,25'
+ok   touch: -d '@-1'
+ok   touch: -d '@-1.5'
+ok   touch: -d '@0'
+ok   touch: -d '@1.0000000001'
+ok   touch: -d '@+5'
+ok   touch: -d '2020-01-02'
+ok   touch: -d '2020-01-02 03:04'
+ok   touch: -d '2020-01-02 03:04:05'
+ok   touch: -d '2020-01-02T03:04:05'
+ok   touch: -d '2020-01-02t03:04:05'
+ok   touch: -d '2020-01-02 03:04:05.5'
+ok   touch: -d '2020-01-02 03:04:05,25'
+ok   touch: -d '2020-01-02 03:04:05Z'
+ok   touch: -d '2020-01-02 03:04:05 UTC'
+ok   touch: -d '2020-01-02 03:04:05 utc'
+ok   touch: -d '2020-01-02 03:04:05 GMT'
+ok   touch: -d '2020-01-02 03:04:05 +0200'
+ok   touch: -d '2020-01-02 03:04:05+02:00'
+ok   touch: -d '2020-01-02 03:04:05 -05'
+ok   touch: -d '2020-01-02T03:04:05.123456789Z'
+ok   touch: -d '2020-01-02T03:04:05.1234567891Z'
+ok   touch: -d ' 2020-01-02 '
+ok   touch: -d '1969-07-20 20:17:40'
+ok   touch: -d '1900-01-01'
+ok   touch: -d '2038-01-19 03:14:08'
+ok   touch: -d '2100-02-28 23:59:59'
+ok   touch: -d '2000-02-29'
+ok   touch: -d '03:04'
+ok   touch: -d '03:04:05'
+ok   touch: -d '23:59:59.999999999'
+ok   touch: -d ''
+ok   touch: -d '2020-01-02 03:04 Z'
+ok   touch: -d '2020-13-01' is no date
+ok   touch: -d '2020-02-30' is no date
+ok   touch: -d '2019-02-29' is no date
+ok   touch: -d '2020-00-10' is no date
+ok   touch: -d '2020-01-00' is no date
+ok   touch: -d '2020-01-02 25:00' is no date
+ok   touch: -d '2020-01-02 03:60' is no date
+ok   touch: -d '2020-01-02 03:04:61' is no date
+ok   touch: -d '24:00:01' is no date
+ok   touch: --date=
+ok   touch: -d attached
+ok   touch: -d now
+ok   touch: -d NOW
+ok   touch: -d today
+ok   touch: -d yesterday
+ok   touch: -d tomorrow
+ok   touch: -d '1 day ago'
+ok   touch: -d 'next monday'
+ok   touch: -d '+1 day'
+ok   touch: -d 'Jan 2 2020'
+ok   touch: -d '2 January 2020'
+ok   touch: -d '1/2/2020'
+ok   touch: -d '20200102'
+SKIP touch: -d 'noon' is not read here (GNU's date grammar takes this; boreutils reads part of it and refuses the rest by name, status 1, nothing touched)
+ok   touch: -d '2020-01-02 3pm'
+SKIP touch: -d garbage (GNU says 'invalid date format'; boreutils cannot tell a string GNU's grammar refuses from one it takes, so it refuses every string it does not read by name, in its own words)
+ok   touch: -d '2020-07-01 12:00' in New York
+ok   touch: -d '2020-01-01 12:00' in New York
+ok   touch: -d '2020-11-01 01:30' in New York
+ok   touch: -d '2020-03-08 02:30' in New York
+ok   touch: -d '2020-03-08 03:00' in New York
+ok   touch: -d '2020-07-01 12:00 UTC' in New York
+ok   touch: -d '1950-06-01 00:00' in New York
+ok   touch: -d in a POSIX rule zone
+ok   touch: -d in a fixed offset zone
+ok   touch: -t 202001020304
+ok   touch: -t 202001020304.05
+ok   touch: -t 2001020304
+ok   touch: -t 7001020304
+ok   touch: -t 6901020304
+ok   touch: -t 0001020304
+ok   touch: -t 6801020304
+ok   touch: -t 202001020304.60
+ok   touch: -t 202001020304.59
+ok   touch: -t 199912312359.59
+ok   touch: -t 203801190314.07
+ok   touch: -t 000001010000
+ok   touch: -t without a year
+ok   touch: -t without a year, with seconds
+ok   touch: -t 202001020304.61 is no date
+ok   touch: -t 2020010203 is no date
+ok   touch: -t x is no date
+ok   touch: -t 202013020304 is no date
+ok   touch: -t 202002300000 is no date
+ok   touch: -t 202001022400 is no date
+ok   touch: -t 202001020360 is no date
+ok   touch: -t 20200102030 is no date
+ok   touch: -t 202001020304.5 is no date
+ok   touch: -t 202001020304. is no date
+ok   touch: -t .05 is no date
+ok   touch: -t 2020-01-02 is no date
+ok   touch: -t 1202001020304 is no date
+ok   touch: -t in New York
+ok   touch: -t in a skipped hour
+ok   touch: -t -a
+ok   touch: -t -m
+ok   touch: -t a new file
+ok   touch: -t -c a new name
+ok   touch: bu36 touch reference 0 yesterday
+ok   touch: bu36 touch reference 1 2 days ago
+ok   touch: bu36 touch reference 2 next monday
+ok   touch: bu36 touch reference 3 last friday
+ok   touch: bu36 touch reference 4 +1 month
+ok   touch: bu36 touch reference 5 1 year ago
+ok   touch: bu36 touch reference 6 January 2 2020
+ok   touch: bu36 touch reference 7 2 Jan 2020
+ok   touch: bu36 touch reference 8 01/02/2020
+ok   touch: bu36 touch reference 9 2020-01-02 3pm
+ok   touch: bu36 touch reference 10 2020-01-02 12:34:56.123456789 UTC
+ok   touch: bu36 touch reference 11 TZ="America/New_York" 2020-03-08 12:00 1 day ago
+ok   touch: bu36 touch reference 12 @123.456
+ok   touch: bu36 touch reference 13 tomorrow
+ok   touch: bu36 touch reference 14 now
+ok   touch: bu36 touch reference 15 today
+difftest: 2006 passed, 0 failed, 41 skipped

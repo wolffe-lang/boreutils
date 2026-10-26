@@ -1,0 +1,745 @@
+difftest: gnu = true (GNU coreutils) 9.11 (prefix '') on Linux x86_64
+difftest: bore = /lane/boreutils/target/release
+difftest: oracle environment, LC_ALL=C _POSIX2_VERSION=200112
+difftest: oracle of record, GNU coreutils 9.11
+difftest: oracle profile OK — `uniq +1 /dev/null` exits 1 (the obsolete +N operand form is off, so +1 is a file name (B73))
+difftest: scratch root /lane/tmp
+ok   ln: no operand
+ok   ln: --help
+ok   ln: --version
+ok   ln: an invalid option
+ok   ln: -t with no argument
+ok   ln: -t and no target
+ok   ln: -t twice
+ok   ln: -t and -T
+ok   ln: -T with one operand
+ok   ln: -T with three operands
+ok   ln: -r without -s
+ok   ln: -b is not written
+ok   ln: --backup=numbered is not written
+ok   ln: -S is not written
+ok   ln: hard: a c
+ok   ln: hard: a b
+ok   ln: hard: -f a b
+ok   ln: hard: -v a c
+ok   ln: hard: -v a d
+ok   ln: hard: a d
+ok   ln: hard: a ld
+ok   ln: hard: -n a ld
+ok   ln: hard: -nf a ld
+ok   ln: hard: -T a d
+ok   ln: hard: -T a c
+ok   ln: hard: -t d a b
+ok   ln: hard: -vt d a b
+ok   ln: hard: --target-directory=d a
+ok   ln: hard: -t nope a
+ok   ln: hard: -t a b
+ok   ln: hard: a b d
+ok   ln: hard: a b c
+ok   ln: hard: a b a
+ok   ln: hard: a
+ok   ln: hard: d/in
+ok   ln: hard: nope c
+ok   ln: hard: d c
+ok   ln: hard: -d d c
+ok   ln: hard: -F d c
+ok   ln: hard: --directory d c
+ok   ln: hard: a a
+ok   ln: hard: -f a a
+ok   ln: hard: a ./a
+ok   ln: hard: -f a ./a
+ok   ln: hard: a ''
+ok   ln: hard: '' c
+ok   ln: hard: a c/
+ok   ln: hard: a nodir/c
+ok   ln: hard: a dang
+ok   ln: hard: -f a dang
+ok   ln: hard: -fv a b
+ok   ln: hard: -f a d
+ok   ln: hard: -Tf a d
+ok   ln: hard: -Tf a e
+ok   ln: hard: -f a nodir/c
+ok   ln: hard: sa c
+ok   ln: hard: -P sa c
+ok   ln: hard: -L sa c
+ok   ln: hard: -L dang c
+ok   ln: hard: -L ld c
+ok   ln: hard: -P ld c
+ok   ln: hard: ld c
+ok   ln: hard: -L a c
+ok   ln: hard: -L sd c
+ok   ln: hard: --logical ld c
+ok   ln: hard: --physical ld c
+ok   ln: hard: -PL sa c
+ok   ln: hard: -LP sa c
+ok   ln: hard: --no-dereference a ld
+ok   ln: hard: --no-target-directory a d
+ok   ln: hard: --verbose a c
+ok   ln: hard: --force a b
+ok   ln: hard: a e/ d/
+ok   ln: hard: -v a b e
+ok   ln: hard: dang c
+ok   ln: hard: -f dang c
+ok   ln: hard: into a directory that may not be written
+ok   ln: hard: -f into a directory that may not be written
+ok   ln: hard: a link already to the same file, -f
+ok   ln: hard: a link already to the same file
+ok   ln: symbolic: -s a c
+ok   ln: symbolic: -s a b
+ok   ln: symbolic: -sf a b
+ok   ln: symbolic: -sv a c
+ok   ln: symbolic: -sfv a b
+ok   ln: symbolic: -sfv a d
+ok   ln: symbolic: -sf a ld
+ok   ln: symbolic: -snf a ld
+ok   ln: symbolic: -sn a ld
+ok   ln: symbolic: -sn a d
+ok   ln: symbolic: -sT d e
+ok   ln: symbolic: -sTf d e
+ok   ln: symbolic: -s nope c
+ok   ln: symbolic: -s x/y c
+ok   ln: symbolic: -s a ''
+ok   ln: symbolic: -s a c/
+ok   ln: symbolic: -s a nodir/c
+ok   ln: symbolic: -s a
+ok   ln: symbolic: -s d/in
+ok   ln: symbolic: -s a d/
+ok   ln: symbolic: -s d/ lnk
+ok   ln: symbolic: -sf a a
+ok   ln: symbolic: -s a a
+ok   ln: symbolic: -s x dang
+ok   ln: symbolic: -sf x dang
+ok   ln: symbolic: -s {scratch}/a c
+ok   ln: symbolic: -st d a b nope
+ok   ln: symbolic: --symbolic --force a b
+ok   ln: symbolic: -s a b c d
+ok   ln: symbolic: -sv q'x n
+l
+ok   ln: symbolic: -s -a c
+ok   ln: symbolic: -s -- -a c
+ok   ln: symbolic: -sv a b e
+ok   ln: symbolic: -sf a e
+ok   ln: symbolic: -sfT a e
+ok   ln: symbolic: -sL sa c
+ok   ln: symbolic: an empty target
+ok   ln: symbolic: into a directory that may not be written
+ok   ln: relative: -sr a d/c
+ok   ln: relative: -sr a c
+ok   ln: relative: -sr ld/in e/y
+ok   ln: relative: -sr {scratch}/a c
+ok   ln: relative: -sr {scratch}/d/in e/z
+ok   ln: relative: -srv a d/c
+ok   ln: relative: -sr nope e/q
+ok   ln: relative: -sr nope/deeper e/q
+ok   ln: relative: -sr a e
+ok   ln: relative: -sr d e/back
+ok   ln: relative: -sr e e/self
+ok   ln: relative: -sr . e/dot
+ok   ln: relative: -sr a sd/c
+ok   ln: relative: --relative -s a d/x
+ok   ln: relative: -srf b sa
+ok   ln: relative: -srt e a d/in
+ok   ln: relative: -sr dang e/w
+ok   ln: relative: -sr d/in {scratch}/e/abs
+ok   ln: relative: -sr a ./c
+ok   ln: relative: -sr ./a ./e/./c
+ok   ln: -i, yes
+ok   ln: -i, Yes
+ok   ln: -i, no
+ok   ln: -i, end of input
+ok   ln: -i, nothing there
+ok   ln: -si, yes
+ok   ln: -i then -f
+ok   ln: -f then -i
+ok   ln: --interactive
+ok   ln: -i twice
+ok   ln: bu36 ln 0 False
+ok   ln: bu36 ln 0 True
+ok   ln: bu36 ln 1 False
+ok   ln: bu36 ln 1 True
+ok   ln: bu36 ln 2 False
+ok   ln: bu36 ln 2 True
+ok   ln: bu36 ln 3 False
+ok   ln: bu36 ln 3 True
+ok   ln: bu36 ln 4 False
+ok   ln: bu36 ln 4 True
+ok   ln: bu36 ln 5 False
+ok   ln: bu36 ln 5 True
+ok   ln: bu36 ln 6 False
+ok   ln: bu36 ln 6 True
+ok   ln: bu36 ln 7 False
+ok   ln: bu36 ln 7 True
+ok   ln: bu36 ln 8 False
+ok   ln: bu36 ln 8 True
+ok   ln: bu36 ln 9 False
+ok   ln: bu36 ln 9 True
+ok   ln: bu36 ln 10 False
+ok   ln: bu36 ln 10 True
+ok   ln: bu36 ln verbose 0
+ok   ln: bu36 ln verbose 1
+ok   ln: bu36 ln verbose 2
+ok   ln: bu36 ln backup precedence 0
+ok   ln: bu36 ln backup precedence 1
+ok   ln: bu36 ln backup precedence 2
+ok   ln: bu36 ln backup precedence 3
+ok   ln: bu36 ln backup precedence 4
+ok   ln: bu36 ln backup precedence 5
+ok   ln: bu36 ln backup precedence 6
+ok   ln: bu36 ln backup precedence 7
+ok   ln: bu36 ln backup precedence 8
+ok   ln: bu36 ln backup precedence 9
+ok   ln: bu36 ln backup precedence 10
+ok   mv: no operand
+ok   mv: one operand
+ok   mv: a file to a new name
+ok   mv: a file over a file
+ok   mv: a missing source
+ok   mv: a missing source over a file
+ok   mv: into a missing directory
+ok   mv: a file into a directory
+ok   mv: two files into a directory
+ok   mv: three operands, the last missing
+ok   mv: three operands, the last missing, with a slash
+ok   mv: three operands, the last a file
+ok   mv: two operands, the last missing, with a slash
+ok   mv: a source with a slash that is a file
+ok   mv: a missing source among good ones
+ok   mv: an empty source
+ok   mv: an empty destination
+ok   mv: a directory to an empty destination
+ok   mv: a missing source to an empty destination
+ok   mv: a file into a directory, replacing one there
+ok   mv: the cwd is a subdirectory
+ok   mv: absolute paths
+ok   mv: a directory to a new name
+ok   mv: a directory into a directory
+ok   mv: a directory into a directory that holds that name, empty
+ok   mv: a directory into a directory that holds that name, not empty
+ok   mv: a directory over a file
+ok   mv: a file over a directory by name
+ok   mv: a file over an empty directory by name
+ok   mv: a directory into itself
+ok   mv: a directory into its own subdirectory
+ok   mv: a directory into itself, with a slash
+ok   mv: a directory with a slash to a new name
+ok   mv: a directory to a new name with a slash
+ok   mv: the working directory
+ok   mv: a directory that may not be written, renamed
+ok   mv: out of a directory that may not be written
+ok   mv: into a directory that may not be written
+ok   mv: a name onto itself
+ok   mv: a name onto itself, spelled two ways
+ok   mv: a file into the directory it is in
+ok   mv: one hard link onto another
+ok   mv: -v: one hard link onto another
+ok   mv: a link onto the file it names
+ok   mv: a file onto a link that names it
+ok   mv: a link is renamed, not followed
+ok   mv: a dangling link is renamed
+ok   mv: a dangling link into a directory
+ok   mv: a file through a link to a directory
+ok   mv: a file through a link to a directory, with a slash
+ok   mv: a file over a link to a file
+ok   mv: a file over a dangling link
+ok   mv: a directory over a link to a file
+ok   mv: a link to a directory, with a slash
+ok   mv: -T: a file over a link to a directory
+ok   mv: -v: a file
+ok   mv: -v: into a directory
+ok   mv: -v: into the working directory
+ok   mv: -v: into a directory named with a slash
+ok   mv: -v: a source with a slash
+ok   mv: -v: names that need quoting
+ok   mv: -v: a failure says nothing on stdout
+ok   mv: names that need quoting, failing
+ok   mv: --verbose
+ok   mv: -f
+ok   mv: -f: a destination nobody may write
+ok   mv: a destination nobody may write, no terminal
+ok   mv: -i: yes
+ok   mv: -i: no
+ok   mv: -i: the end of input
+ok   mv: -i: nothing to replace, nothing asked
+ok   mv: -i: a destination nobody may write
+ok   mv: -i: into a directory, one there
+ok   mv: -i: two questions
+ok   mv: -iv
+ok   mv: -i: a directory over an empty directory
+ok   mv: -i: a name that needs quoting
+ok   mv: --interactive
+ok   mv: -n
+ok   mv: -n: nothing there
+ok   mv: -nv
+ok   mv: -n: into a directory
+ok   mv: --no-clobber
+ok   mv: -n: a directory over an empty directory
+ok   mv: -n: a missing source
+ok   mv: -n: a name onto itself
+ok   mv: -i -n: the last wins
+ok   mv: -n -i: the last wins
+ok   mv: -f -i
+ok   mv: -i -f
+ok   mv: -n -f
+ok   mv: -f -n
+ok   mv: -t
+ok   mv: -t attached
+ok   mv: --target-directory=
+ok   mv: -t: a missing directory
+ok   mv: -t: a file
+ok   mv: -t: no source
+ok   mv: -t: a link to a directory
+ok   mv: -t twice
+ok   mv: -t with -T
+ok   mv: -vt
+ok   mv: -T: a file to a new name
+ok   mv: -T: a file over a file
+ok   mv: -T: a file over a directory
+ok   mv: -T: a file over an empty directory
+ok   mv: -T: a directory over an empty directory
+ok   mv: -T: a directory over a directory that is not empty
+ok   mv: -T: three operands
+ok   mv: -T: one operand
+ok   mv: --no-target-directory
+ok   mv: --strip-trailing-slashes
+ok   mv: --strip-trailing-slashes: a link to a directory
+ok   mv: --strip-trailing-slashes: a file
+ok   mv: --strip-trailing-slashes: into a directory
+ok   mv: --strip-trailing-slashes: a destination with its own slash
+ok   mv: --strip-trailing-slashes -v
+ok   mv: --strip abbreviates
+ok   mv: --no-copy on one file system
+ok   mv: -Z is accepted
+ok   mv: --context is accepted
+ok   mv: -u: the source is newer
+ok   mv: -u: the source is older
+ok   mv: --update=none
+ok   mv: -b
+ok   mv: --backup=numbered
+ok   mv: -S
+SKIP mv: --exchange (wolf 0.2.27 cannot swap two names (renameat2, wolf-lang#706): refused by name, status 1)
+ok   mv: --debug
+ok   mv: -- ends the options
+ok   mv: a bad option
+ok   mv: an unknown long option
+ok   mv: -t with no argument
+ok   mv: --v is ambiguous
+ok   mv: POSIXLY_CORRECT: the first operand ends the options
+ok   mv: --help
+ok   mv: --version
+ok   mv: --help wins over a later bad option
+ok   mv: stdout closed, nothing to write
+ok   mv: stdout closed under -v
+ok   mv: a file's time and mode survive the move
+ok   mv: a tree's times and modes survive the move
+ok   mv: bu36 mv 0 True
+ok   mv: bu36 mv 0 False
+ok   mv: bu36 mv 1 True
+ok   mv: bu36 mv 1 False
+ok   mv: bu36 mv 2 True
+ok   mv: bu36 mv 2 False
+ok   mv: bu36 mv 3 True
+ok   mv: bu36 mv 3 False
+ok   mv: bu36 mv 4 True
+ok   mv: bu36 mv 4 False
+ok   mv: bu36 mv 5 True
+ok   mv: bu36 mv 5 False
+ok   mv: bu36 mv 6 True
+ok   mv: bu36 mv 6 False
+ok   mv: bu36 mv 7 True
+ok   mv: bu36 mv 7 False
+ok   mv: bu36 mv 8 True
+ok   mv: bu36 mv 8 False
+ok   mv: bu36 mv 9 True
+ok   mv: bu36 mv 9 False
+ok   mv: bu36 mv 10 True
+ok   mv: bu36 mv 10 False
+ok   mv: bu36 mv 11 True
+ok   mv: bu36 mv 11 False
+ok   mv: bu36 mv 12 True
+ok   mv: bu36 mv 12 False
+ok   mv: bu36 mv 13 True
+ok   mv: bu36 mv 13 False
+ok   mv: bu36 mv backup precedence 0
+ok   mv: bu36 mv backup precedence 1
+ok   mv: bu36 mv backup precedence 2
+ok   mv: bu36 mv backup precedence 3
+ok   mv: bu36 mv backup precedence 4
+ok   mv: bu36 mv backup precedence 5
+ok   mv: bu36 mv backup precedence 6
+ok   mv: bu36 mv backup precedence 7
+ok   mv: bu36 mv backup precedence 8
+ok   mv: bu36 mv backup precedence 9
+ok   mv: bu36 mv backup precedence 10
+ok   cp: no operand
+ok   cp: one operand
+ok   cp: a file to a new name
+ok   cp: a file over a file
+ok   cp: an empty file
+ok   cp: a missing source
+ok   cp: a missing source over a file
+ok   cp: into a missing directory
+ok   cp: a file into a directory
+ok   cp: two files into a directory
+ok   cp: three operands, the last missing
+ok   cp: three operands, the last a file
+ok   cp: two operands, the last missing, with a slash
+ok   cp: a source with a slash that is a file
+ok   cp: a missing source among good ones
+ok   cp: an empty source
+ok   cp: an empty destination
+ok   cp: a file into a directory, replacing one there
+ok   cp: the cwd is a subdirectory
+ok   cp: absolute paths
+ok   cp: a name onto itself
+ok   cp: a name onto itself, spelled two ways
+ok   cp: a file into the directory it is in
+ok   cp: one hard link onto another
+ok   cp: binary bytes
+ok   cp: a megabyte
+ok   cp: a file with a hole
+ok   cp: names that need quoting
+ok   cp: names that need quoting, failing
+ok   cp: a file over a directory by name
+ok   cp: a directory without -r
+ok   cp: a directory without -r, among files
+ok   cp: an existing destination keeps its own mode
+ok   cp: an existing destination keeps its mode: executable
+ok   cp: an existing destination keeps its second name
+ok   cp: an existing destination nobody may write
+ok   cp: a source nobody may read
+ok   cp: a source of mode 664
+ok   cp: a source of mode 666
+ok   cp: a source of mode 644 under a mask of 077
+ok   cp: a source of mode 644 under a mask of 027
+ok   cp: a source of mode 644 under a mask of 000
+ok   cp: a source of mode 666 under a mask of 000
+ok   cp: an executable
+ok   cp: a file private to its owner
+ok   cp: a read-only file
+ok   cp: an executable over an existing file
+ok   cp: a private file over an existing file
+ok   cp: a private file under a mask of 077
+ok   cp: a setuid file
+ok   cp: --no-preserve=mode: an executable
+ok   cp: --no-preserve=mode: a private file
+ok   cp: --no-preserve=all
+ok   cp: --no-preserve=ownership,timestamps
+ok   cp: --no-preserve=mode,links
+ok   cp: --no-preserve=bogus
+ok   cp: --no-preserve with no argument
+ok   cp: --no-preserve=mode -r: a tree of executables
+ok   cp: a link to a file is followed
+ok   cp: a dangling link
+ok   cp: a link to a directory, no -r
+ok   cp: a destination that is a link is written through
+ok   cp: a destination that is a dangling link
+ok   cp: a destination that is a link to the source
+ok   cp: a link onto the file it names
+ok   cp: a file through a link to a directory
+ok   cp: -P: a link, no -r
+SKIP cp: -d (-d preserves hard links among the sources, which this cp does not track: refused by name, status 1)
+ok   cp: -s
+ok   cp: -l
+ok   cp: -L: a link to a file
+ok   cp: -H: a link to a file
+ok   cp: -r: a tree to a new name
+ok   cp: -R
+ok   cp: --recursive
+ok   cp: -r: a tree into a directory
+ok   cp: -r: a tree into a directory that holds that name
+ok   cp: -rT: a tree over a directory
+ok   cp: -r: a file
+ok   cp: -r: files and trees into a directory
+ok   cp: -r: an empty directory
+ok   cp: -r: a tree over a file
+ok   cp: -rT: a tree over a file
+ok   cp: -r: a file in the tree over a directory in the destination
+ok   cp: -r: a directory in the tree over a file in the destination
+ok   cp: -r: a trailing slash on the source
+ok   cp: -r: a trailing slash on the destination
+ok   cp: -r: the working directory into a subdirectory
+ok   cp: -r: a directory's own dot
+ok   cp: -r: a directory's own dot to a new name
+ok   cp: -r: a tree into itself
+ok   cp: -r: a tree into its own subdirectory
+ok   cp: -r: a missing source
+ok   cp: -r: twelve files
+ok   cp: -r: a wide and deep tree
+ok   cp: -r: names that need quoting
+ok   cp: -r: hard links become separate files
+ok   cp: -r: a directory that may not be listed
+ok   cp: -r: a file that may not be read
+ok   cp: -r: into a directory that may not be written
+ok   cp: -r: a private directory
+ok   cp: -r: a directory of mode 775
+ok   cp: -r: a read-only directory
+ok   cp: -r: a private directory into one that is there
+ok   cp: -r: an executable inside
+ok   cp: -r under a mask of 077
+SKIP cp: -r: a fifo inside (wolf cannot create a fifo (wolf-lang#705): that entry is refused by name, status 1, and the rest copied)
+ok   cp: -r: a link inside the tree
+ok   cp: -r: an operand that is a link to a directory
+ok   cp: -rL: a link to a file inside the tree
+ok   cp: -rL: a link to a directory inside the tree
+ok   cp: -rL: an operand that is a link to a directory
+ok   cp: -rL: a dangling link inside
+ok   cp: -rL: a link back up the tree
+ok   cp: -rH: an operand that is a link to a directory
+ok   cp: -rH: a link inside is still a link
+ok   cp: -rH -L: the last wins
+ok   cp: -rL -H: the last wins
+ok   cp: -rL: a link out of the tree is copied as what it names, and left alone
+ok   cp: -v: a file
+ok   cp: -v: into a directory
+ok   cp: -rv: a tree
+ok   cp: -rv: a tree into a directory
+ok   cp: -rv: a tree into a tree that is there
+ok   cp: -v: a failure says nothing on stdout
+ok   cp: --verbose
+ok   cp: -f
+ok   cp: -f: a destination nobody may write is removed and made anew
+ok   cp: -f: a destination nobody may write, with a second name
+ok   cp: -f: in a directory that may not be written
+ok   cp: -i: yes
+ok   cp: -i: no
+ok   cp: -i: the end of input
+ok   cp: -i: nothing to replace, nothing asked
+ok   cp: -i: a destination nobody may write
+ok   cp: -i: two questions
+ok   cp: -iv
+ok   cp: -ri: files in a tree that is there
+ok   cp: -n
+ok   cp: -n: nothing there
+ok   cp: -nv
+ok   cp: -n: into a directory
+ok   cp: --no-clobber
+ok   cp: -rn: a tree over a tree
+ok   cp: -i -n
+ok   cp: -n -i
+ok   cp: -f -i
+ok   cp: -i -f
+ok   cp: -n -f
+ok   cp: -f -n
+ok   cp: --remove-destination
+ok   cp: --remove-destination: a link is removed, not written through
+ok   cp: --remove-destination: a dangling link
+ok   cp: --remove-destination: a destination with another mode
+ok   cp: -t
+ok   cp: --target-directory=
+ok   cp: -t: a missing directory
+ok   cp: -t: a file
+ok   cp: -t: no source
+ok   cp: -t twice
+ok   cp: -t with -T
+ok   cp: -T: a file to a new name
+ok   cp: -T: a file over a directory
+ok   cp: -T: three operands
+ok   cp: --strip-trailing-slashes
+ok   cp: -p
+ok   cp: --preserve=timestamps
+ok   cp: --preserve
+SKIP cp: -a (-a preserves hard links among the sources, which this cp does not track: refused by name, status 1)
+SKIP cp: --sparse=always (wolf can neither find a hole nor ask for a clone (wolf-lang#703): refused by name, status 1)
+SKIP cp: --sparse=never (wolf can neither find a hole nor ask for a clone (wolf-lang#703): refused by name, status 1)
+SKIP cp: --reflink=always (wolf can neither find a hole nor ask for a clone (wolf-lang#703): refused by name, status 1)
+SKIP cp: --reflink (wolf can neither find a hole nor ask for a clone (wolf-lang#703): refused by name, status 1)
+SKIP cp: --reflink=never (wolf can neither find a hole nor ask for a clone (wolf-lang#703): refused by name, status 1)
+ok   cp: --sparse=auto is the default
+ok   cp: --reflink=auto is the default
+ok   cp: -u
+ok   cp: -b
+ok   cp: --parents
+ok   cp: --attributes-only
+ok   cp: -x
+ok   cp: -Z is accepted
+ok   cp: --context alone is accepted
+ok   cp: --context=CTX warns and carries on
+ok   cp: -- ends the options
+ok   cp: a bad option
+ok   cp: an unknown long option
+ok   cp: -t with no argument
+ok   cp: POSIXLY_CORRECT: the first operand ends the options
+ok   cp: --help
+ok   cp: --version
+ok   cp: --help wins over a later bad option
+ok   cp: stdout closed, nothing to write
+ok   cp: stdout closed under -v
+ok   cp: -p: -p a b
+ok   cp: -p: --preserve a b
+ok   cp: -p: --preserve=mode a b
+ok   cp: -p: --preserve=timestamps a b
+ok   cp: -p: --preserve=mode,timestamps a b
+ok   cp: -p: --preserve=ownership a b
+ok   cp: -p: --preserve=mode,ownership,timestamps a b
+ok   cp: -p: -p --no-preserve=mode a b
+ok   cp: -p: --no-preserve=mode -p a b
+ok   cp: -p: -p --no-preserve=timestamps a b
+ok   cp: -p: -p --no-preserve=ownership a b
+ok   cp: -p: -p --no-preserve=all a b
+ok   cp: -p: -pv a b
+ok   cp: -p: -p a d
+ok   cp: -p: -pr d e
+ok   cp: -p: -rp d e
+ok   cp: -p: -r --preserve=timestamps d e
+ok   cp: -p: -r --preserve=mode d e
+ok   cp: -p: -p l b
+ok   cp: -p: -pP l b
+FAIL cp: -p: -pr d d/sub/e  args=['-pr', 'd', 'd/sub/e']
+    bore stdout: b''
+    bore stderr: b"PROG: cannot copy a directory, 'd', into itself, 'd/sub/e'\n"
+    bore exit: 1
+    bore files: [('a', 'file', b'abc\n'), ('d', 'dir', b''), ('d/g', 'file', b'y\n'), ('d/ln', 'link', b'g'), ('d/sub', 'dir', b''), ('d/sub/e', 'dir', b''), ('d/sub/e/sub', 'dir', b''), ('d/sub/e/sub/f', 'file', b'x\n'), ('d/sub/f', 'file', b'x\n'), ('l', 'link', b'a')]
+    bore tree: [('.', 'dir', 493, None, None, None), ('a', 'file', 416, 1, 4, 1500000000123456789), ('d', 'dir', 488, None, None, 1300000000000000001), ('d/g', 'file', 420, 1, 2, 1330000000250000000), ('d/ln', 'link', None, 1, None, 1340000000750000000), ('d/sub', 'dir', 453, None, None, None), ('d/sub/e', 'dir', 488, None, None, 1300000000000000001), ('d/sub/e/sub', 'dir', 453, None, None, None), ('d/sub/e/sub/f', 'file', 420, 1, 2, 1320000000000000777), ('d/sub/f', 'file', 420, 1, 2, 1320000000000000777), ('l', 'link', None, 1, None, 1350000000000000003)]
+    bore times: [('.', 'now', 'now'), ('a', 'now', 1500000000123456789), ('d', 'now', 1300000000000000001), ('d/g', 'now', 1330000000250000000), ('d/ln', 'now', 1340000000750000000), ('d/sub', 'now', 'now'), ('d/sub/e', 'now', 1300000000000000001), ('d/sub/e/sub', 'now', 'now'), ('d/sub/e/sub/f', 'now', 1320000000000000777), ('d/sub/f', 'now', 1320000000000000777), ('l', 'now', 1350000000000000003)]
+    gnu  stdout: b''
+    gnu  stderr: b"PROG: cannot copy a directory, 'd', into itself, 'd/sub/e'\n"
+    gnu  exit: 1
+    gnu  files: [('a', 'file', b'abc\n'), ('d', 'dir', b''), ('d/g', 'file', b'y\n'), ('d/ln', 'link', b'g'), ('d/sub', 'dir', b''), ('d/sub/e', 'dir', b''), ('d/sub/e/g', 'file', b'y\n'), ('d/sub/e/sub', 'dir', b''), ('d/sub/e/sub/f', 'file', b'x\n'), ('d/sub/f', 'file', b'x\n'), ('l', 'link', b'a')]
+    gnu  tree: [('.', 'dir', 493, None, None, None), ('a', 'file', 416, 1, 4, 1500000000123456789), ('d', 'dir', 488, None, None, 1300000000000000001), ('d/g', 'file', 420, 1, 2, 1330000000250000000), ('d/ln', 'link', None, 1, None, 1340000000750000000), ('d/sub', 'dir', 453, None, None, None), ('d/sub/e', 'dir', 488, None, None, 1300000000000000001), ('d/sub/e/g', 'file', 420, 1, 2, 1330000000250000000), ('d/sub/e/sub', 'dir', 453, None, None, None), ('d/sub/e/sub/f', 'file', 420, 1, 2, 1320000000000000777), ('d/sub/f', 'file', 420, 1, 2, 1320000000000000777), ('l', 'link', None, 1, None, 1350000000000000003)]
+    gnu  times: [('.', 'now', 'now'), ('a', 'now', 1500000000123456789), ('d', 'now', 1300000000000000001), ('d/g', 'now', 1330000000250000000), ('d/ln', 'now', 1340000000750000000), ('d/sub', 'now', 'now'), ('d/sub/e', 'now', 1300000000000000001), ('d/sub/e/g', 'now', 1330000000250000000), ('d/sub/e/sub', 'now', 'now'), ('d/sub/e/sub/f', 'now', 1320000000000000777), ('d/sub/f', 'now', 1320000000000000777), ('l', 'now', 1350000000000000003)]
+ok   cp: -p: -p a a
+ok   cp: -p: -p nope b
+ok   cp: -p: --preserve=bogus a b
+ok   cp: -p: --preserve= a b
+ok   cp: -p: --preserve=mo a b
+ok   cp: -p: --preserve=mode, a b
+ok   cp: -p onto a file that is there
+ok   cp: no -p onto a file that is there keeps its mode
+ok   cp: -p of mode 4755
+ok   cp: a copy of mode 4755
+ok   cp: -p of mode 2750
+ok   cp: a copy of mode 2750
+ok   cp: -p of mode 1777
+ok   cp: a copy of mode 1777
+ok   cp: -p of mode 7777
+ok   cp: a copy of mode 7777
+ok   cp: -p of mode 0
+ok   cp: a copy of mode 0
+ok   cp: -p of mode 400
+ok   cp: a copy of mode 400
+ok   cp: -p of mode 6711
+ok   cp: a copy of mode 6711
+ok   cp: -pr under the mask 022
+ok   cp: -r under the mask 022
+ok   cp: -pr under the mask 077
+ok   cp: -r under the mask 077
+ok   cp: -pr under the mask 002
+ok   cp: -r under the mask 002
+SKIP cp: --preserve=links (hard links among the sources are not tracked, and wolf reads no extended attribute (wolf-lang#685): --preserve=links is refused by name, status 1)
+SKIP cp: --preserve=xattr (hard links among the sources are not tracked, and wolf reads no extended attribute (wolf-lang#685): --preserve=xattr is refused by name, status 1)
+SKIP cp: --preserve=context (hard links among the sources are not tracked, and wolf reads no extended attribute (wolf-lang#685): --preserve=context is refused by name, status 1)
+SKIP cp: --preserve=all (hard links among the sources are not tracked, and wolf reads no extended attribute (wolf-lang#685): --preserve=all is refused by name, status 1)
+ok   cp: bu36 cp 0 True
+ok   cp: bu36 cp 0 False
+ok   cp: bu36 cp 1 True
+ok   cp: bu36 cp 1 False
+ok   cp: bu36 cp 2 True
+ok   cp: bu36 cp 2 False
+ok   cp: bu36 cp 3 True
+ok   cp: bu36 cp 3 False
+ok   cp: bu36 cp 4 True
+ok   cp: bu36 cp 4 False
+ok   cp: bu36 cp 5 True
+ok   cp: bu36 cp 5 False
+ok   cp: bu36 cp 6 True
+ok   cp: bu36 cp 6 False
+ok   cp: bu36 cp 7 True
+ok   cp: bu36 cp 7 False
+ok   cp: bu36 cp 8 True
+ok   cp: bu36 cp 8 False
+ok   cp: bu36 cp 9 True
+ok   cp: bu36 cp 9 False
+ok   cp: bu36 cp 10 True
+ok   cp: bu36 cp 10 False
+ok   cp: bu36 cp 11 True
+ok   cp: bu36 cp 11 False
+ok   cp: bu36 cp 12 True
+ok   cp: bu36 cp 12 False
+ok   cp: bu36 cp 13 True
+ok   cp: bu36 cp 13 False
+ok   cp: bu36 cp 14 True
+ok   cp: bu36 cp 14 False
+ok   cp: bu36 cp 15 True
+ok   cp: bu36 cp 15 False
+ok   cp: bu36 cp tree 0
+ok   cp: bu36 cp tree 1
+ok   cp: bu36 cp tree 2
+ok   cp: bu36 cp tree 3
+ok   cp: bu36 cp tree 4
+ok   cp: bu36 cp interaction 0 link-source
+ok   cp: bu36 cp interaction 0 link-dest
+ok   cp: bu36 cp interaction 0 dangling-dest
+ok   cp: bu36 cp interaction 0 same-entry
+ok   cp: bu36 cp interaction 0 hard-alias
+ok   cp: bu36 cp interaction 1 link-source
+ok   cp: bu36 cp interaction 1 link-dest
+ok   cp: bu36 cp interaction 1 dangling-dest
+ok   cp: bu36 cp interaction 1 same-entry
+ok   cp: bu36 cp interaction 1 hard-alias
+ok   cp: bu36 cp interaction 2 link-source
+ok   cp: bu36 cp interaction 2 link-dest
+ok   cp: bu36 cp interaction 2 dangling-dest
+ok   cp: bu36 cp interaction 2 same-entry
+ok   cp: bu36 cp interaction 2 hard-alias
+ok   cp: bu36 cp interaction 3 link-source
+ok   cp: bu36 cp interaction 3 link-dest
+ok   cp: bu36 cp interaction 3 dangling-dest
+ok   cp: bu36 cp interaction 3 same-entry
+ok   cp: bu36 cp interaction 3 hard-alias
+ok   cp: bu36 cp interaction 4 link-source
+ok   cp: bu36 cp interaction 4 link-dest
+ok   cp: bu36 cp interaction 4 dangling-dest
+ok   cp: bu36 cp interaction 4 same-entry
+ok   cp: bu36 cp interaction 4 hard-alias
+ok   cp: bu36 cp interaction 5 link-source
+ok   cp: bu36 cp interaction 5 link-dest
+ok   cp: bu36 cp interaction 5 dangling-dest
+ok   cp: bu36 cp interaction 5 same-entry
+ok   cp: bu36 cp interaction 5 hard-alias
+ok   cp: bu36 cp interaction 6 link-source
+ok   cp: bu36 cp interaction 6 link-dest
+ok   cp: bu36 cp interaction 6 dangling-dest
+ok   cp: bu36 cp interaction 6 same-entry
+ok   cp: bu36 cp interaction 6 hard-alias
+ok   cp: bu36 cp interaction 7 link-source
+ok   cp: bu36 cp interaction 7 link-dest
+ok   cp: bu36 cp interaction 7 dangling-dest
+ok   cp: bu36 cp interaction 7 same-entry
+ok   cp: bu36 cp interaction 7 hard-alias
+ok   cp: bu36 cp interaction 8 link-source
+ok   cp: bu36 cp interaction 8 link-dest
+ok   cp: bu36 cp interaction 8 dangling-dest
+ok   cp: bu36 cp interaction 8 same-entry
+ok   cp: bu36 cp interaction 8 hard-alias
+ok   cp: bu36 cp interaction 9 link-source
+ok   cp: bu36 cp interaction 9 link-dest
+ok   cp: bu36 cp interaction 9 dangling-dest
+ok   cp: bu36 cp interaction 9 same-entry
+ok   cp: bu36 cp interaction 9 hard-alias
+ok   cp: bu36 cp interaction 10 link-source
+ok   cp: bu36 cp interaction 10 link-dest
+ok   cp: bu36 cp interaction 10 dangling-dest
+ok   cp: bu36 cp interaction 10 same-entry
+ok   cp: bu36 cp interaction 10 hard-alias
+ok   cp: bu36 cp interaction 11 link-source
+ok   cp: bu36 cp interaction 11 link-dest
+ok   cp: bu36 cp interaction 11 dangling-dest
+ok   cp: bu36 cp interaction 11 same-entry
+ok   cp: bu36 cp interaction 11 hard-alias
+ok   cp: bu36 cp interaction 12 link-source
+ok   cp: bu36 cp interaction 12 link-dest
+ok   cp: bu36 cp interaction 12 dangling-dest
+ok   cp: bu36 cp interaction 12 same-entry
+ok   cp: bu36 cp interaction 12 hard-alias
+ok   cp: bu36 cp backup precedence 0
+ok   cp: bu36 cp backup precedence 1
+ok   cp: bu36 cp backup precedence 2
+ok   cp: bu36 cp backup precedence 3
+ok   cp: bu36 cp backup precedence 4
+ok   cp: bu36 cp backup precedence 5
+ok   cp: bu36 cp backup precedence 6
+ok   cp: bu36 cp backup precedence 7
+ok   cp: bu36 cp backup precedence 8
+ok   cp: bu36 cp backup precedence 9
+ok   cp: bu36 cp backup precedence 10
+difftest: 711 passed, 1 failed, 13 skipped
