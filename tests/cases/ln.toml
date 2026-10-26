@@ -1227,3 +1227,33 @@ scratch = { a = "new", b = "old" }
 name = "bu36 ln backup precedence 10"
 args = ["--backup=n", "a", "b"]
 scratch = { a = "new", b = "old" }
+
+[[case]]
+name = "bu36 ln version 0 existing"
+args = ["--backup=existing", "a", "b"]
+scratch = { a = "new", b = "old", "b.~0003~" = "version" }
+
+[[case]]
+name = "bu36 ln version 0 numbered"
+args = ["--backup=numbered", "a", "b"]
+scratch = { a = "new", b = "old", "b.~0003~" = "version" }
+
+[[case]]
+name = "bu36 ln version 1 existing"
+args = ["--backup=existing", "a", "b"]
+scratch = { a = "new", b = "old", "b.~0~" = "version" }
+
+[[case]]
+name = "bu36 ln version 1 numbered"
+args = ["--backup=numbered", "a", "b"]
+scratch = { a = "new", b = "old", "b.~0~" = "version" }
+
+[[case]]
+name = "bu36 ln version 2 existing"
+args = ["--backup=existing", "a", "b"]
+scratch = { a = "new", b = "old", "b.~9999999999999999999999999~" = "version" }
+
+[[case]]
+name = "bu36 ln version 2 numbered"
+args = ["--backup=numbered", "a", "b"]
+scratch = { a = "new", b = "old", "b.~9999999999999999999999999~" = "version" }

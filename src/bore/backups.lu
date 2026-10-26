@@ -29,27 +29,26 @@ pub fn backup_name(path: str, kind: int, suffix: str) -> str {
     let cut = bare.rfind("/") else -1
     let dir = if cut < 0 then "." else (if cut == 0 then "/" else bare[0..cut])
     let name = if cut < 0 then bare else bare[cut + 1..]
-    var largest: int = 0
+    var largest = ""
     if kind == 2 || kind == 3 {
         let entries = fs_read_dir(dir) else List[str]()
         let prefix = "{name}.~"
         for entry in entries {
-            if !entry.starts_with(prefix) || !entry.ends_with("~") { continue }
-            let digits = entry[prefix.len..entry.len - 1]
-            var n: int = 0
-            var valid = digits.len > 0
-            for b in digits.bytes() {
-                let d = b as int - 48
-                if d < 0 || d > 9 || n > (9223372036854775806 - d) / 10 {
-                    valid = false
-                    break
-                }
-                n = n * 10 + d
+            if !entry.starts_with(prefix) || !entry.ends_with("~") || entry.len <= prefix.len + 1 {
+                continue
             }
-            if valid && n > largest { largest = n }
+            let digits = entry[prefix.len..entry.len - 1]
+            // GNU's observed version grammar excludes zero/leading zeros.
+            if digits.bytes()[0] as int < 49 || digits.bytes()[0] as int > 57 { continue }
+            var valid = true
+            for b in digits.bytes() { if b as int < 48 || b as int > 57 { valid = false; break } }
+            if valid &&
+                (digits.len > largest.len || digits.len == largest.len && digits > largest) {
+                largest = digits
+            }
         }
     }
-    if kind == 2 || largest > 0 { return "{bare}.~{largest + 1}~" }
+    if kind == 2 || largest.len > 0 { return "{bare}.~{backup_increment(largest)}~" }
     "{bare}{suffix}"
 }
 
@@ -60,4 +59,23 @@ pub fn backup_error(prog: str, word: str) -> int {
         "{prog}: {what} argument {quote(word)} for 'backup type'\nValid arguments are:\n  - 'none', 'off'\n  - 'simple', 'never'\n  - 'existing', 'nil'\n  - 'numbered', 't'\nTry '{prog} --help' for more information.",
     )
     1
+}
+
+// Versions are decimal names, not machine integers. The path limit, not
+// int overflow, bounds their length.
+fn backup_increment(digits: str) -> str {
+    var reverse = List[byte]()
+    var carry = 1
+    var k = digits.len
+    while k > 0 {
+        k -= 1
+        let n = digits.bytes()[k] as int - 48 + carry
+        carry = n / 10
+        (mut reverse).push((48 + n % 10) as byte)
+    }
+    if carry > 0 { (mut reverse).push(49 as byte) }
+    var result = List[byte]()
+    k = reverse.len
+    while k > 0 { k -= 1; (mut result).push(reverse[k]) }
+    str_from_utf8(result) else "1"
 }
