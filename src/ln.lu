@@ -42,8 +42,7 @@
 //!
 //! **What this program cannot do, and does not pretend to.**
 //!
-//! - **`-b`, `--backup` and `-S`** are not written, and are refused by
-//!   name.
+//! - `-b`, `--backup` and `-S` use bore.backups, from documented rules.
 //! - `-L` resolves TARGET's links itself (`bore.paths`) and links the
 //!   path it ends at: GNU asks the host to follow them in the one call.
 //!   The two differ only if a link changes between the walk and the
@@ -62,6 +61,8 @@ struct Cfg {
     /// `-n`: a LINK_NAME that is a link to a directory is not one.
     no_deref: bool,
     dirs: bool,
+    backup: int,
+    suffix: str,
 }
 
 fn main() -> int {
@@ -78,6 +79,8 @@ fn main() -> int {
         logical: !bore.built_for_linux(),
         no_deref: false,
         dirs: false,
+        backup: 0,
+        suffix: bore.backup_suffix(),
     }
     var target = ""
     var into = false
@@ -122,9 +125,13 @@ fn main() -> int {
         } else if key == "no-target-directory" {
             no_target = true
         } else if key == "backup" || key == "b" || key == "suffix" {
-            if refused.len == 0 {
-                refused = "-b (--backup, -S) is not written yet"
+            if key == "suffix" { c.suffix = p.values[k] }
+            c.backup = if key == "backup" && p.given[k] {
+                bore.backup_kind(p.values[k])
+            } else {
+                bore.backup_default()
             }
+            if c.backup < 0 { refused = "invalid backup type {bore.quote(p.values[k])}" }
         }
         k += 1
     }
@@ -265,7 +272,7 @@ fn one(mut out: bore.Out, c: Cfg, src: str, name: str) -> bool {
         there = false
         List[int]()
     }
-    if there && c.over > 0 {
+    if there && (c.over > 0 || c.backup > 0) {
         // The same ENTRY under two spellings (`a` and `./a`) is refused;
         // two names of one file (`a` and a hard link `h`) are not:
         // measured, `ln -f a h` then succeeds and changes nothing.
@@ -289,12 +296,28 @@ fn one(mut out: bore.Out, c: Cfg, src: str, name: str) -> bool {
         }
     }
     var m = Made { code: 0, exists: false }
-    if there && c.over > 0 {
+    var backup = ""
+    if there && c.backup > 0 {
+        backup = bore.backup_name(name, c.backup, c.suffix)
+        if backup == src || backup == name {
+            bore.warn(
+                "ln",
+                "backup name {bore.quote_always(backup)} would overwrite a source or destination",
+            )
+            return false
+        }
+        fs_rename(name, backup) else |_| {
+            bore.warn("ln", "cannot backup {bore.quote_always(name)}: {bore.io_error()}")
+            return false
+        }
+        m = make(c, from, name)
+    } else if there && c.over > 0 {
         m = replace(c, from, name)
     } else {
         m = make(c, from, name)
     }
     if m.code != 0 || m.exists {
+        if backup.len > 0 { fs_rename(backup, name) else |_| {} }
         let why = if m.exists then "File exists" else bore.reason_of(m.code)
         if c.symbolic {
             if src.len == 0 {
@@ -319,9 +342,10 @@ fn one(mut out: bore.Out, c: Cfg, src: str, name: str) -> bool {
     }
     if c.verbose {
         let arrow = if c.symbolic then "->" else "=>"
+        let prefix = if backup.len > 0 then "{bore.quote_always(backup)} ~ " else ""
         bore.put(
             mut out,
-            "{bore.quote_always(name)} {arrow} {bore.quote_always(from)}\n",
+            "{prefix}{bore.quote_always(name)} {arrow} {bore.quote_always(from)}\n",
         ) else |_| {}
     }
     true
@@ -556,7 +580,7 @@ fn help() -> str {
           --help            print this help and exit
           --version         print the version and exit
 
-    Not written yet: -b, --backup, -S.
+    Backups: -b, --backup[=CONTROL], -S SUFFIX.
 
     boreutils: https://github.com/wolffe-lang/boreutils
     """

@@ -1,0 +1,53 @@
+//! Backup names from GNU 9.11's Backup options documentation and oracle
+//! outputs. No implementation source. Numbered names are discovered by
+//! listing the destination's parent; a link's own name is backed up.
+
+/// 0 none, 1 simple, 2 numbered, 3 numbered if any exist, otherwise simple.
+pub fn backup_kind(word: str) -> int {
+    let choices = ["none", "off", "simple", "never", "numbered", "t", "existing", "nil"]
+    let meanings = [0, 0, 1, 1, 2, 2, 3, 3]
+    argmatch(word, choices, meanings)
+}
+
+/// VERSION_CONTROL, defaulting to numbered-if-existing; negative for invalid.
+pub fn backup_default() -> int {
+    let control = env_get("VERSION_CONTROL") else "existing"
+    if control.len == 0 { return 3 }
+    backup_kind(control)
+}
+
+/// The requested simple suffix, defaulting to a tilde.
+pub fn backup_suffix() -> str {
+    env_get("SIMPLE_BACKUP_SUFFIX") else "~"
+}
+
+/// Choose the next name without changing any entry.
+pub fn backup_name(path: str, kind: int, suffix: str) -> str {
+    if kind == 0 { return "" }
+    let bare = without_slashes(path)
+    let cut = bare.rfind("/") else -1
+    let dir = if cut < 0 then "." else (if cut == 0 then "/" else bare[0..cut])
+    let name = if cut < 0 then bare else bare[cut + 1..]
+    var largest: int = 0
+    if kind == 2 || kind == 3 {
+        let entries = fs_read_dir(dir) else List[str]()
+        let prefix = "{name}.~"
+        for entry in entries {
+            if !entry.starts_with(prefix) || !entry.ends_with("~") { continue }
+            let digits = entry[prefix.len..entry.len - 1]
+            var n: int = 0
+            var valid = digits.len > 0
+            for b in digits.bytes() {
+                let d = b as int - 48
+                if d < 0 || d > 9 || n > (9223372036854775806 - d) / 10 {
+                    valid = false
+                    break
+                }
+                n = n * 10 + d
+            }
+            if valid && n > largest { largest = n }
+        }
+    }
+    if kind == 2 || largest > 0 { return "{bare}.~{largest + 1}~" }
+    "{bare}{suffix}"
+}

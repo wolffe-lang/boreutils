@@ -82,7 +82,6 @@ scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
 [[case]]
 name = "-b is not written"
 args = ["-b", "a", "b"]
-skip = "-b, --backup and -S are not written: refused by name, status 1"
 scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
 scratch_dirs = ["e"]
 scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
@@ -90,7 +89,6 @@ scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
 [[case]]
 name = "--backup=numbered is not written"
 args = ["--backup=numbered", "a", "b"]
-skip = "-b, --backup and -S are not written: refused by name, status 1"
 scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
 scratch_dirs = ["e"]
 scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
@@ -98,7 +96,6 @@ scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
 [[case]]
 name = "-S is not written"
 args = ["-S", ".x", "a", "b"]
-skip = "-b, --backup and -S are not written: refused by name, status 1"
 scratch = { "a" = "A\n", "b" = "B\n", "d/in" = "i\n" }
 scratch_dirs = ["e"]
 scratch_links = { "ld" = "d", "dang" = "nowhere", "sa" = "a", "sd" = "ld" }
@@ -1046,3 +1043,132 @@ name = "-i twice"
 args = ["-i", "-t", "e", "a", "b"]
 stdin = "y\nn\n"
 scratch = { "a" = "A\n", "b" = "B\n", "e/a" = "x\n", "e/b" = "y\n" }
+
+[[case]]
+name = "bu36 ln 0 False"
+args = ["-b", "a", "b"]
+scratch = { a = "new", b = "old" }
+
+[[case]]
+name = "bu36 ln 0 True"
+args = ["-b", "a", "b"]
+scratch = { a = "new", b = "old", "b.~2~" = "two", "b.~4~" = "four" }
+
+[[case]]
+name = "bu36 ln 1 False"
+args = ["--backup", "a", "b"]
+scratch = { a = "new", b = "old" }
+
+[[case]]
+name = "bu36 ln 1 True"
+args = ["--backup", "a", "b"]
+scratch = { a = "new", b = "old", "b.~2~" = "two", "b.~4~" = "four" }
+
+[[case]]
+name = "bu36 ln 2 False"
+args = ["--backup=simple", "a", "b"]
+scratch = { a = "new", b = "old" }
+
+[[case]]
+name = "bu36 ln 2 True"
+args = ["--backup=simple", "a", "b"]
+scratch = { a = "new", b = "old", "b.~2~" = "two", "b.~4~" = "four" }
+
+[[case]]
+name = "bu36 ln 3 False"
+args = ["--backup=numbered", "a", "b"]
+scratch = { a = "new", b = "old" }
+
+[[case]]
+name = "bu36 ln 3 True"
+args = ["--backup=numbered", "a", "b"]
+scratch = { a = "new", b = "old", "b.~2~" = "two", "b.~4~" = "four" }
+
+[[case]]
+name = "bu36 ln 4 False"
+args = ["--backup=existing", "a", "b"]
+scratch = { a = "new", b = "old" }
+
+[[case]]
+name = "bu36 ln 4 True"
+args = ["--backup=existing", "a", "b"]
+scratch = { a = "new", b = "old", "b.~2~" = "two", "b.~4~" = "four" }
+
+[[case]]
+name = "bu36 ln 5 False"
+args = ["--backup=none", "a", "b"]
+scratch = { a = "new", b = "old" }
+
+[[case]]
+name = "bu36 ln 5 True"
+args = ["--backup=none", "a", "b"]
+scratch = { a = "new", b = "old", "b.~2~" = "two", "b.~4~" = "four" }
+
+[[case]]
+name = "bu36 ln 6 False"
+args = ["-S", ".bak", "a", "b"]
+scratch = { a = "new", b = "old" }
+
+[[case]]
+name = "bu36 ln 6 True"
+args = ["-S", ".bak", "a", "b"]
+scratch = { a = "new", b = "old", "b.~2~" = "two", "b.~4~" = "four" }
+
+[[case]]
+name = "bu36 ln 7 False"
+args = ["-b", "-S", ".save", "a", "b"]
+scratch = { a = "new", b = "old" }
+
+[[case]]
+name = "bu36 ln 7 True"
+args = ["-b", "-S", ".save", "a", "b"]
+scratch = { a = "new", b = "old", "b.~2~" = "two", "b.~4~" = "four" }
+
+[[case]]
+name = "bu36 ln 8 False"
+args = ["-sb", "a", "b"]
+scratch = { a = "new", b = "old" }
+
+[[case]]
+name = "bu36 ln 8 True"
+args = ["-sb", "a", "b"]
+scratch = { a = "new", b = "old", "b.~2~" = "two", "b.~4~" = "four" }
+
+[[case]]
+name = "bu36 ln 9 False"
+args = ["-ib", "a", "b"]
+scratch = { a = "new", b = "old" }
+stdin = "y\n"
+
+[[case]]
+name = "bu36 ln 9 True"
+args = ["-ib", "a", "b"]
+scratch = { a = "new", b = "old", "b.~2~" = "two", "b.~4~" = "four" }
+stdin = "y\n"
+
+[[case]]
+name = "bu36 ln 10 False"
+args = ["-ib", "a", "b"]
+scratch = { a = "new", b = "old" }
+stdin = "n\n"
+
+[[case]]
+name = "bu36 ln 10 True"
+args = ["-ib", "a", "b"]
+scratch = { a = "new", b = "old", "b.~2~" = "two", "b.~4~" = "four" }
+stdin = "n\n"
+
+[[case]]
+name = "bu36 ln verbose 0"
+args = ["-vb", "a", "b"]
+scratch = { a = "new", b = "old" }
+
+[[case]]
+name = "bu36 ln verbose 1"
+args = ["-vsb", "a", "b"]
+scratch = { a = "new", b = "old" }
+
+[[case]]
+name = "bu36 ln verbose 2"
+args = ["--backup=numbered", "-v", "a", "b"]
+scratch = { a = "new", b = "old" }

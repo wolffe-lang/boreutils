@@ -168,7 +168,7 @@ derives no boreutils code from GPL source.
 
 Every shipped utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus, except where a case says otherwise and is
-skipped with its reason. The combined corpus holds **16,549 cases across 105 case files**; `kill` has
+skipped with its reason. The combined corpus holds **16,574 cases across 105 case files**; `kill` has
 365 more that SEND, each run in a container of its own (`tests/kill/`,
 `tools/killtest`: **365 passed, 0 failed** on hasu at bu30, groups,
 `kill 0` and `kill -1` among them), `timeout` 163 more that run a
@@ -473,8 +473,7 @@ changes a link's own mode there and wolf has no call for it). `touch` now shares
 items, English month names and `MM/DD/YYYY`, plus independent `-r -d`
 reference times. Its four remaining skips are `touch -` twice (times by
 handle, wolf-lang#714), noon and unknown grammar. See
-[the date grammar](docs/touch-date-grammar.txt). `ln`'s three: `-b`, `--backup`, `-S`, not
-written. `rm`'s three: `--no-preserve-root` twice, refused on
+[the date grammar](docs/touch-date-grammar.txt). `ln`'s three backup gaps (`-b`, `--backup`, `-S`) are retired (bu36). `rm`'s three: `--no-preserve-root` twice, refused on
 purpose, and `--preserve-root=all`, not written yet. `mv`'s eight:
 `--exchange` (no rename that swaps, #706) and seven for `-u`, `-b`,
 `-S` and `--debug`, not written yet. `cp`'s nineteen: `-a`, `-d` and
