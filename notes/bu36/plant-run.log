@@ -1,0 +1,9 @@
+FAIL ls: --author  args=['-ln', '--author']
+FAIL ls: bu36 ls 1 ['-ln', '--author']  args=['-ln', '--author']
+FAIL ls: bu36 ls 2 ['-ng', '--author']  args=['-ng', '--author']
+FAIL ls: bu36 ls 3 ['-no', '--author']  args=['-no', '--author']
+FAIL ls: bu36 ls 4 ['-nG', '--author']  args=['-nG', '--author']
+difftest: 729 passed, 5 failed, 14 skipped
+PLANT AUTHOR RED exit=1
+EXPECTED COMPILE ERROR signal-mask-query exit=2
+EXPECTED COMPILE ERROR signal-mask-set exit=2
