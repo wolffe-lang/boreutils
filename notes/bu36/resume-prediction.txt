@@ -1,0 +1,11 @@
+bu36 CI repair prediction, before source edits
+Head da79faf66b6014bfea05fa861a3e5d0ae5df42ba has Linux green and one
+Darwin env diagnostic mismatch in CI40376244635: --ignore-signal=KILL
+must name failure at sigaction GET, not SET. Predict Darwin read-only
+sigaction queries reject KILL and STOP with EINVAL, while Linux queries
+succeed and the subsequent real setter is what fails. A normal signal is
+the control. Pinned wolf0.2.35 lacks a per-signal action getter/error row;
+encode only the measured query boundary as an attributed pure model, then
+run the real setter for all other cases. No generic getter is claimed.
+Checked Mac and Linux rows must pin get/set wording respectively. No pin,
+labels, issue filing, PR-ready transition or CI waiting.
