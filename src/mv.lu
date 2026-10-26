@@ -44,8 +44,8 @@
 //! - **"May I write it?" is the owner's write bit** (wolf-lang#633), as
 //!   in `rm`: at a terminal, without `-f`, a DEST its owner may not
 //!   write is asked about, in GNU's words.
-//! - `-u`/`--update`, `-b`/`--backup`/`-S`, `--exchange` (#706) and
-//!   `--debug` are not written yet, and are refused by name. `-Z` does
+//! - `--exchange` (#706) remains refused; update, backups and debug
+//!   are measured against the pinned oracle. `-Z` does
 //!   nothing on a host without SELinux, as GNU's does there.
 
 use bore
@@ -58,12 +58,25 @@ struct Cfg {
     verbose: bool,
     no_copy: bool,
     tty: bool,
+    update: int,
+    backup: int,
+    suffix: str,
+    debug: bool,
 }
 
 fn main() -> int {
     let p = bore.parse(options(), env_args(), bore.permute())
     var out = bore.stdout()
-    var c = Cfg { over: 0, verbose: false, no_copy: false, tty: false }
+    var c = Cfg {
+        over: 0,
+        verbose: false,
+        no_copy: false,
+        tty: false,
+        update: 0,
+        backup: 0,
+        suffix: bore.backup_suffix(),
+        debug: false,
+    }
     var target = ""
     var into = false
     var no_target = false
@@ -103,16 +116,32 @@ fn main() -> int {
             strip = true
         } else if k == "Z" || k == "context" {
             // No security context to set on this host.
-        } else if refused.len == 0 {
-            if k == "update" || k == "u" {
-                refused = "-u (--update) is not written yet"
-            } else if k == "backup" || k == "b" || k == "suffix" {
-                refused = "-b (--backup, -S) is not written yet"
-            } else if k == "exchange" {
-                refused = "--exchange is not supported: wolf 0.2.27 cannot swap two names (wolf-lang#706)"
-            } else if k == "debug" {
-                refused = "--debug is not written yet"
+        } else if k == "update" || k == "u" {
+            let word = if k == "update" && p.given[i] then p.values[i] else "older"
+            c.update = bore.argmatch(word, ["all", "older", "none", "none-fail"], [0, 1, 2, 3])
+            if c.update < 0 {
+                return bore.argmatch_error(
+                    "mv",
+                    word,
+                    "update",
+                    ["all", "older", "none", "none-fail"],
+                    [0, 1, 2, 3],
+                    c.update == -2,
+                )
             }
+        } else if k == "backup" || k == "b" || k == "suffix" {
+            if k == "suffix" { c.suffix = p.values[i] }
+            c.backup = if k == "backup" && p.given[i] {
+                bore.backup_kind(p.values[i])
+            } else {
+                bore.backup_default()
+            }
+            if c.backup < 0 { refused = "invalid backup type {bore.quote(p.values[i])}" }
+        } else if k == "debug" {
+            c.debug = true
+            c.verbose = true
+        } else if k == "exchange" && refused.len == 0 {
+            refused = "--exchange is not supported: wolf 0.2.27 cannot swap two names (wolf-lang#706)"
         }
         i += 1
     }
@@ -122,6 +151,12 @@ fn main() -> int {
     if refused.len > 0 {
         bore.warn("mv", refused)
         return 1
+    }
+    if c.backup > 0 && (c.over == 3 || c.update == 3) {
+        return bore.usage_error(
+            "mv",
+            "cannot combine --backup with --exchange, -n, or --update=none-fail",
+        )
     }
     var names = List[str]()
     // A SOURCE as it was typed, when `--strip-trailing-slashes` took
@@ -288,7 +323,20 @@ fn rename_one(mut out: bore.Out, c: Cfg, src: str, dst: str, typed: str) -> bool
         List[int]()
     }
     if there {
-        if c.over == 3 {
+        if c.update == 3 {
+            bore.warn("mv", "not replacing {bore.quote_always(dst)}")
+            return false
+        }
+        if c.over == 3 ||
+            c.update == 2 ||
+            c.update == 1 &&
+                !from_dir &&
+                (
+                    bore.rec_secs(from, 0) < bore.rec_secs(to, 0) ||
+                        bore.rec_secs(from, 0) == bore.rec_secs(to, 0) &&
+                            bore.rec_nanos(from, 0) <= bore.rec_nanos(to, 0)
+                ) {
+            if c.debug { bore.put(mut out, "skipped {bore.quote_always(dst)}\n") else |_| {} }
             return true
         }
         if bore.same_file(from, to) || bore.rec_kind(from) == bore.kind_link() && link_to(src, to) {
@@ -326,6 +374,21 @@ fn rename_one(mut out: bore.Out, c: Cfg, src: str, dst: str, typed: str) -> bool
             }
         }
     }
+    var backup = ""
+    if there && c.backup > 0 {
+        backup = bore.backup_name(dst, c.backup, c.suffix)
+        if backup == src || backup == dst {
+            bore.warn(
+                "mv",
+                "backup name {bore.quote_always(backup)} would overwrite a source or destination",
+            )
+            return false
+        }
+        fs_rename(dst, backup) else |_| {
+            bore.warn("mv", "cannot backup {bore.quote_always(dst)}: {bore.io_error()}")
+            return false
+        }
+    }
     var code = 0
     var across = false
     var ok = true
@@ -341,6 +404,7 @@ fn rename_one(mut out: bore.Out, c: Cfg, src: str, dst: str, typed: str) -> bool
         }
     }
     if !ok {
+        if backup.len > 0 { fs_rename(backup, dst) else |_| {} }
         let pair = "{bore.quote_always(src)} to {bore.quote_always(dst)}"
         let reason = bore.reason_of(code)
         if across && !c.no_copy {
@@ -361,9 +425,10 @@ fn rename_one(mut out: bore.Out, c: Cfg, src: str, dst: str, typed: str) -> bool
         return false
     }
     if c.verbose {
+        let saved = if backup.len > 0 then " (backup: {bore.quote_always(backup)})" else ""
         bore.put(
             mut out,
-            "renamed {bore.quote_always(src)} -> {bore.quote_always(dst)}\n",
+            "renamed {bore.quote_always(src)} -> {bore.quote_always(dst)}{saved}\n",
         ) else |_| {}
     }
     true

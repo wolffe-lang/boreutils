@@ -694,38 +694,32 @@ name = "-u: the source is newer"
 args = ["-u", "a", "b"]
 scratch = { "a" = "A\n", "b" = "B\n" }
 scratch_times = { "a" = 2000000000, "b" = 1000000000 }
-skip = "-u (--update) is not written yet: refused by name, status 1"
 
 [[case]]
 name = "-u: the source is older"
 args = ["-u", "a", "b"]
 scratch = { "a" = "A\n", "b" = "B\n" }
 scratch_times = { "a" = 1000000000, "b" = 2000000000 }
-skip = "-u (--update) is not written yet: refused by name, status 1"
 
 [[case]]
 name = "--update=none"
 args = ["--update=none", "a", "b"]
 scratch = { "a" = "A\n", "b" = "B\n" }
-skip = "-u (--update) is not written yet: refused by name, status 1"
 
 [[case]]
 name = "-b"
 args = ["-b", "a", "b"]
 scratch = { "a" = "A\n", "b" = "B\n" }
-skip = "-b (--backup, -S) is not written yet: refused by name, status 1"
 
 [[case]]
 name = "--backup=numbered"
 args = ["--backup=numbered", "a", "b"]
 scratch = { "a" = "A\n", "b" = "B\n" }
-skip = "-b (--backup, -S) is not written yet: refused by name, status 1"
 
 [[case]]
 name = "-S"
 args = ["-b", "-S", ".bak", "a", "b"]
 scratch = { "a" = "A\n", "b" = "B\n" }
-skip = "-b (--backup, -S) is not written yet: refused by name, status 1"
 
 [[case]]
 name = "--exchange"
@@ -737,7 +731,6 @@ skip = "wolf 0.2.27 cannot swap two names (renameat2, wolf-lang#706): refused by
 name = "--debug"
 args = ["--debug", "a", "new"]
 scratch = { "a" = "A\n", "b" = "B\n" }
-skip = "--debug is not written yet: refused by name, status 1"
 
 # --- options
 [[case]]
@@ -810,3 +803,171 @@ args = ["d", "e"]
 scratch = { "d/c" = "c\n", "d/sub/s" = "s\n" }
 scratch_time_all = 1400000000
 scratch_modes = { "d/c" = 0o600, "d/sub" = 0o750 }
+
+[[case]]
+name = "bu36 mv 0 True"
+args = ["-u", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "2000000000.000000001", b = "1500000000.000000001" }
+
+[[case]]
+name = "bu36 mv 0 False"
+args = ["-u", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1000000000.000000001", b = "1500000000.000000001" }
+
+[[case]]
+name = "bu36 mv 1 True"
+args = ["--update=all", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "2000000000.000000001", b = "1500000000.000000001" }
+
+[[case]]
+name = "bu36 mv 1 False"
+args = ["--update=all", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1000000000.000000001", b = "1500000000.000000001" }
+
+[[case]]
+name = "bu36 mv 2 True"
+args = ["--update=older", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "2000000000.000000001", b = "1500000000.000000001" }
+
+[[case]]
+name = "bu36 mv 2 False"
+args = ["--update=older", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1000000000.000000001", b = "1500000000.000000001" }
+
+[[case]]
+name = "bu36 mv 3 True"
+args = ["--update=none", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "2000000000.000000001", b = "1500000000.000000001" }
+
+[[case]]
+name = "bu36 mv 3 False"
+args = ["--update=none", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1000000000.000000001", b = "1500000000.000000001" }
+
+[[case]]
+name = "bu36 mv 4 True"
+args = ["--update=none-fail", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "2000000000.000000001", b = "1500000000.000000001" }
+
+[[case]]
+name = "bu36 mv 4 False"
+args = ["--update=none-fail", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1000000000.000000001", b = "1500000000.000000001" }
+
+[[case]]
+name = "bu36 mv 5 True"
+args = ["--debug", "-u", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "2000000000.000000001", b = "1500000000.000000001" }
+
+[[case]]
+name = "bu36 mv 5 False"
+args = ["--debug", "-u", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1000000000.000000001", b = "1500000000.000000001" }
+
+[[case]]
+name = "bu36 mv 6 True"
+args = ["--debug", "--update=none", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "2000000000.000000001", b = "1500000000.000000001" }
+
+[[case]]
+name = "bu36 mv 6 False"
+args = ["--debug", "--update=none", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1000000000.000000001", b = "1500000000.000000001" }
+
+[[case]]
+name = "bu36 mv 7 True"
+args = ["-b", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "2000000000.000000001", b = "1500000000.000000001" }
+
+[[case]]
+name = "bu36 mv 7 False"
+args = ["-b", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1000000000.000000001", b = "1500000000.000000001" }
+
+[[case]]
+name = "bu36 mv 8 True"
+args = ["-S", ".bak", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "2000000000.000000001", b = "1500000000.000000001" }
+
+[[case]]
+name = "bu36 mv 8 False"
+args = ["-S", ".bak", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1000000000.000000001", b = "1500000000.000000001" }
+
+[[case]]
+name = "bu36 mv 9 True"
+args = ["--backup=numbered", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "2000000000.000000001", b = "1500000000.000000001" }
+
+[[case]]
+name = "bu36 mv 9 False"
+args = ["--backup=numbered", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1000000000.000000001", b = "1500000000.000000001" }
+
+[[case]]
+name = "bu36 mv 10 True"
+args = ["--backup=existing", "-v", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "2000000000.000000001", b = "1500000000.000000001" }
+
+[[case]]
+name = "bu36 mv 10 False"
+args = ["--backup=existing", "-v", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1000000000.000000001", b = "1500000000.000000001" }
+
+[[case]]
+name = "bu36 mv 11 True"
+args = ["-vb", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "2000000000.000000001", b = "1500000000.000000001" }
+
+[[case]]
+name = "bu36 mv 11 False"
+args = ["-vb", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1000000000.000000001", b = "1500000000.000000001" }
+
+[[case]]
+name = "bu36 mv 12 True"
+args = ["-nb", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "2000000000.000000001", b = "1500000000.000000001" }
+
+[[case]]
+name = "bu36 mv 12 False"
+args = ["-nb", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1000000000.000000001", b = "1500000000.000000001" }
+
+[[case]]
+name = "bu36 mv 13 True"
+args = ["--update=none-fail", "-b", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "2000000000.000000001", b = "1500000000.000000001" }
+
+[[case]]
+name = "bu36 mv 13 False"
+args = ["--update=none-fail", "-b", "a", "b"]
+scratch = { a = "new", b = "old", "b.~3~" = "three" }
+scratch_times = { a = "1000000000.000000001", b = "1500000000.000000001" }
