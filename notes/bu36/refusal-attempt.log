@@ -1,0 +1,3 @@
+shuf 152 oracle rows; [('modulo', 'forward', 34, 125), ('modulo', 'backward', 0, 125), ('rejection', 'forward', 33, 125), ('rejection', 'backward', 0, 125)]
+tsort 576 oracle rows; 72 walk hypotheses; best {'orientation': 'in', 'adjacency': 'asc', 'roots': 'desc', 'rotation': 'min', 'matches': 264, 'compared': 457, 'counterexample': [{'input': 'a b a c b a c b', 'predicted_first_cycle': ['a', 'b'], 'gnu': {'exit': 1, 'stdout': 'a\nc\nb\n', 'stderr': 'tsort: -: input contains a loop:\ntsort: a\ntsort: c\ntsort: b\n'}, 'cycles': [['a', 'c', 'b']]}]}
+RECOMMEND retain #49/#50 named refusals; none of the tested general hypotheses fits all measurements. This is not proof black-box derivation is impossible.

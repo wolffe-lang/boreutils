@@ -1,0 +1,2134 @@
+[
+  {
+    "orientation": "in",
+    "adjacency": "asc",
+    "roots": "desc",
+    "rotation": "min",
+    "matches": 264,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c b",
+        "predicted_first_cycle": [
+          "a",
+          "b"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: c\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "c",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "asc",
+    "roots": "first",
+    "rotation": "min",
+    "matches": 264,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c b",
+        "predicted_first_cycle": [
+          "a",
+          "b"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: c\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "c",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "asc",
+    "roots": "asc",
+    "rotation": "min",
+    "matches": 260,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c b",
+        "predicted_first_cycle": [
+          "a",
+          "b"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: c\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "c",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "asc",
+    "roots": "asc",
+    "rotation": "first",
+    "matches": 249,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c b",
+        "predicted_first_cycle": [
+          "a",
+          "b"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: c\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "c",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "first",
+    "roots": "desc",
+    "rotation": "min",
+    "matches": 205,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c b",
+        "predicted_first_cycle": [
+          "a",
+          "b"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: c\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "c",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "first",
+    "roots": "asc",
+    "rotation": "min",
+    "matches": 203,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c b",
+        "predicted_first_cycle": [
+          "a",
+          "b"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: c\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "c",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "first",
+    "roots": "first",
+    "rotation": "min",
+    "matches": 203,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c b",
+        "predicted_first_cycle": [
+          "a",
+          "b"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: c\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "c",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "asc",
+    "roots": "desc",
+    "rotation": "last",
+    "matches": 201,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a",
+        "predicted_first_cycle": [
+          "b",
+          "a"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "last",
+    "roots": "desc",
+    "rotation": "min",
+    "matches": 198,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c a",
+        "predicted_first_cycle": [
+          "a",
+          "c"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\ntsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ],
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "last",
+    "roots": "first",
+    "rotation": "min",
+    "matches": 197,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c a",
+        "predicted_first_cycle": [
+          "a",
+          "c"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\ntsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ],
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "last",
+    "roots": "asc",
+    "rotation": "min",
+    "matches": 196,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c a",
+        "predicted_first_cycle": [
+          "a",
+          "c"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\ntsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ],
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "first",
+    "roots": "asc",
+    "rotation": "first",
+    "matches": 191,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c b",
+        "predicted_first_cycle": [
+          "a",
+          "b"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: c\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "c",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "asc",
+    "roots": "asc",
+    "rotation": "first",
+    "matches": 186,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b c c a",
+        "predicted_first_cycle": [
+          "a",
+          "b",
+          "c"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\nc\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "asc",
+    "roots": "asc",
+    "rotation": "min",
+    "matches": 186,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b c c a",
+        "predicted_first_cycle": [
+          "a",
+          "b",
+          "c"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\nc\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "asc",
+    "roots": "desc",
+    "rotation": "min",
+    "matches": 186,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b c c a",
+        "predicted_first_cycle": [
+          "a",
+          "b",
+          "c"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\nc\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "asc",
+    "roots": "first",
+    "rotation": "min",
+    "matches": 186,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b c c a",
+        "predicted_first_cycle": [
+          "a",
+          "b",
+          "c"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\nc\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "last",
+    "roots": "asc",
+    "rotation": "first",
+    "matches": 185,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c a",
+        "predicted_first_cycle": [
+          "a",
+          "c"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\ntsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ],
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "first",
+    "roots": "desc",
+    "rotation": "min",
+    "matches": 179,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b c c a",
+        "predicted_first_cycle": [
+          "a",
+          "b",
+          "c"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\nc\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "last",
+    "roots": "desc",
+    "rotation": "min",
+    "matches": 179,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c a",
+        "predicted_first_cycle": [
+          "a",
+          "c"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\ntsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ],
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "last",
+    "roots": "first",
+    "rotation": "min",
+    "matches": 179,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c a",
+        "predicted_first_cycle": [
+          "a",
+          "c"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\ntsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ],
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "first",
+    "roots": "first",
+    "rotation": "min",
+    "matches": 178,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b c c a",
+        "predicted_first_cycle": [
+          "a",
+          "b",
+          "c"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\nc\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "first",
+    "roots": "asc",
+    "rotation": "first",
+    "matches": 177,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b c c a",
+        "predicted_first_cycle": [
+          "a",
+          "b",
+          "c"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\nc\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "first",
+    "roots": "asc",
+    "rotation": "min",
+    "matches": 177,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b c c a",
+        "predicted_first_cycle": [
+          "a",
+          "b",
+          "c"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\nc\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "last",
+    "roots": "asc",
+    "rotation": "first",
+    "matches": 177,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c a",
+        "predicted_first_cycle": [
+          "a",
+          "c"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\ntsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ],
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "last",
+    "roots": "asc",
+    "rotation": "min",
+    "matches": 177,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c a",
+        "predicted_first_cycle": [
+          "a",
+          "c"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\ntsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ],
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "first",
+    "roots": "desc",
+    "rotation": "last",
+    "matches": 170,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a",
+        "predicted_first_cycle": [
+          "b",
+          "a"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "last",
+    "roots": "desc",
+    "rotation": "last",
+    "matches": 166,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a",
+        "predicted_first_cycle": [
+          "b",
+          "a"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "desc",
+    "roots": "desc",
+    "rotation": "min",
+    "matches": 164,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c a",
+        "predicted_first_cycle": [
+          "a",
+          "c"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\ntsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ],
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "desc",
+    "roots": "first",
+    "rotation": "min",
+    "matches": 163,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c a",
+        "predicted_first_cycle": [
+          "a",
+          "c"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\ntsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ],
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "desc",
+    "roots": "asc",
+    "rotation": "first",
+    "matches": 160,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c a",
+        "predicted_first_cycle": [
+          "a",
+          "c"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\ntsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ],
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "desc",
+    "roots": "asc",
+    "rotation": "min",
+    "matches": 160,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c a",
+        "predicted_first_cycle": [
+          "a",
+          "c"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\ntsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ],
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "desc",
+    "roots": "desc",
+    "rotation": "last",
+    "matches": 155,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c a",
+        "predicted_first_cycle": [
+          "a",
+          "c"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\ntsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ],
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "last",
+    "roots": "desc",
+    "rotation": "last",
+    "matches": 147,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c a",
+        "predicted_first_cycle": [
+          "a",
+          "c"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\ntsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ],
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "desc",
+    "roots": "asc",
+    "rotation": "min",
+    "matches": 145,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c a",
+        "predicted_first_cycle": [
+          "a",
+          "c"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\ntsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ],
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "desc",
+    "roots": "desc",
+    "rotation": "min",
+    "matches": 145,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c a",
+        "predicted_first_cycle": [
+          "a",
+          "c"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\ntsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ],
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "desc",
+    "roots": "first",
+    "rotation": "min",
+    "matches": 145,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c a",
+        "predicted_first_cycle": [
+          "a",
+          "c"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\ntsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ],
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "first",
+    "roots": "desc",
+    "rotation": "last",
+    "matches": 144,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c a",
+        "predicted_first_cycle": [
+          "b",
+          "a"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\ntsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ],
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "desc",
+    "roots": "asc",
+    "rotation": "first",
+    "matches": 143,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c a",
+        "predicted_first_cycle": [
+          "a",
+          "c"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\ntsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ],
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "asc",
+    "roots": "first",
+    "rotation": "first",
+    "matches": 138,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c b",
+        "predicted_first_cycle": [
+          "a",
+          "b"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: c\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "c",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "desc",
+    "roots": "desc",
+    "rotation": "last",
+    "matches": 131,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a",
+        "predicted_first_cycle": [
+          "b",
+          "a"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "asc",
+    "roots": "desc",
+    "rotation": "last",
+    "matches": 126,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c a",
+        "predicted_first_cycle": [
+          "b",
+          "a"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\ntsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ],
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "asc",
+    "roots": "first",
+    "rotation": "last",
+    "matches": 123,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b b a",
+        "predicted_first_cycle": [
+          "b",
+          "a"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "last",
+    "roots": "first",
+    "rotation": "first",
+    "matches": 118,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c a",
+        "predicted_first_cycle": [
+          "a",
+          "c"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\ntsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ],
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "first",
+    "roots": "first",
+    "rotation": "last",
+    "matches": 114,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b b a",
+        "predicted_first_cycle": [
+          "b",
+          "a"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "first",
+    "roots": "first",
+    "rotation": "first",
+    "matches": 111,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c b",
+        "predicted_first_cycle": [
+          "a",
+          "b"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: c\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "c",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "last",
+    "roots": "first",
+    "rotation": "first",
+    "matches": 109,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c a",
+        "predicted_first_cycle": [
+          "a",
+          "c"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\ntsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ],
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "asc",
+    "roots": "first",
+    "rotation": "first",
+    "matches": 108,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b c c a",
+        "predicted_first_cycle": [
+          "a",
+          "b",
+          "c"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\nc\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "desc",
+    "roots": "first",
+    "rotation": "first",
+    "matches": 108,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c a",
+        "predicted_first_cycle": [
+          "a",
+          "c"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\ntsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ],
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "first",
+    "roots": "first",
+    "rotation": "first",
+    "matches": 102,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b c c a",
+        "predicted_first_cycle": [
+          "a",
+          "b",
+          "c"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\nc\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "last",
+    "roots": "first",
+    "rotation": "last",
+    "matches": 99,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b b a",
+        "predicted_first_cycle": [
+          "b",
+          "a"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "desc",
+    "roots": "first",
+    "rotation": "first",
+    "matches": 95,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b a c b a c a",
+        "predicted_first_cycle": [
+          "a",
+          "c"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nc\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\ntsort: -: input contains a loop:\ntsort: a\ntsort: c\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ],
+          [
+            "a",
+            "c"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "desc",
+    "roots": "first",
+    "rotation": "last",
+    "matches": 95,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b b a",
+        "predicted_first_cycle": [
+          "b",
+          "a"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "first",
+    "roots": "first",
+    "rotation": "last",
+    "matches": 91,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b b a",
+        "predicted_first_cycle": [
+          "b",
+          "a"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "last",
+    "roots": "first",
+    "rotation": "last",
+    "matches": 89,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b b a",
+        "predicted_first_cycle": [
+          "b",
+          "a"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "desc",
+    "roots": "first",
+    "rotation": "last",
+    "matches": 86,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b b a",
+        "predicted_first_cycle": [
+          "b",
+          "a"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "asc",
+    "roots": "first",
+    "rotation": "last",
+    "matches": 84,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b b a",
+        "predicted_first_cycle": [
+          "b",
+          "a"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "asc",
+    "roots": "desc",
+    "rotation": "first",
+    "matches": 74,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b b a",
+        "predicted_first_cycle": [
+          "b",
+          "a"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "asc",
+    "roots": "desc",
+    "rotation": "first",
+    "matches": 71,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b b a",
+        "predicted_first_cycle": [
+          "b",
+          "a"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "first",
+    "roots": "desc",
+    "rotation": "first",
+    "matches": 60,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b b a",
+        "predicted_first_cycle": [
+          "b",
+          "a"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "last",
+    "roots": "desc",
+    "rotation": "first",
+    "matches": 59,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b b a",
+        "predicted_first_cycle": [
+          "b",
+          "a"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "first",
+    "roots": "desc",
+    "rotation": "first",
+    "matches": 56,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b b a",
+        "predicted_first_cycle": [
+          "b",
+          "a"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "last",
+    "roots": "desc",
+    "rotation": "first",
+    "matches": 55,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b b a",
+        "predicted_first_cycle": [
+          "b",
+          "a"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "desc",
+    "roots": "desc",
+    "rotation": "first",
+    "matches": 54,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b b a",
+        "predicted_first_cycle": [
+          "b",
+          "a"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "desc",
+    "roots": "desc",
+    "rotation": "first",
+    "matches": 51,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b b a",
+        "predicted_first_cycle": [
+          "b",
+          "a"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "desc",
+    "roots": "asc",
+    "rotation": "last",
+    "matches": 50,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b b a",
+        "predicted_first_cycle": [
+          "b",
+          "a"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "last",
+    "roots": "asc",
+    "rotation": "last",
+    "matches": 49,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b b a",
+        "predicted_first_cycle": [
+          "b",
+          "a"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "desc",
+    "roots": "asc",
+    "rotation": "last",
+    "matches": 48,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b b a",
+        "predicted_first_cycle": [
+          "b",
+          "a"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "first",
+    "roots": "asc",
+    "rotation": "last",
+    "matches": 48,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b b a",
+        "predicted_first_cycle": [
+          "b",
+          "a"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "in",
+    "adjacency": "asc",
+    "roots": "asc",
+    "rotation": "last",
+    "matches": 33,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b b a",
+        "predicted_first_cycle": [
+          "b",
+          "a"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "last",
+    "roots": "asc",
+    "rotation": "last",
+    "matches": 31,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b b a",
+        "predicted_first_cycle": [
+          "b",
+          "a"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "first",
+    "roots": "asc",
+    "rotation": "last",
+    "matches": 29,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b b a",
+        "predicted_first_cycle": [
+          "b",
+          "a"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "orientation": "out",
+    "adjacency": "asc",
+    "roots": "asc",
+    "rotation": "last",
+    "matches": 20,
+    "compared": 457,
+    "counterexample": [
+      {
+        "input": "a b b a",
+        "predicted_first_cycle": [
+          "b",
+          "a"
+        ],
+        "gnu": {
+          "exit": 1,
+          "stdout": "a\nb\n",
+          "stderr": "tsort: -: input contains a loop:\ntsort: a\ntsort: b\n"
+        },
+        "cycles": [
+          [
+            "a",
+            "b"
+          ]
+        ]
+      }
+    ]
+  }
+]

@@ -1,0 +1,38 @@
+Recommendations, implemented conservatively; no ruling is decided here.
+
+R-bu36-1: retain boreutils#49's named random-source refusal. 152 new
+known-byte oracle rows; simple forward/backward modulo and unbiased
+byte-rejection models all fail. Best tested model matches 34/125 successful
+permutations; exact EOF outcomes also retained. This is an unsuccessful
+attempt, not a proof that black-box derivation is impossible.
+
+R-bu36-2: retain boreutils#50's complex-cycle refusal. 576 new oracle rows
+(all 64 three-node directed graphs plus 256 four-node graphs and reversed
+edge-order variants), 457 cyclic. None of 72 independently written DFS
+orientation/order/root/rotation models matches even every first diagnostic
+cycle (best 264/457). Full output and diagnostic order retained. Existing
+simple-cycle/DAG implementation and refusal ledger remain untouched.
+
+R-bu36-3: keep optional boreutils#51 open. Bounded comm/join storage is not
+cheap relative to this pass; no implementation or before/after RSS claim.
+
+R-bu36-4: #58's eleven account-name rows and #59's seven numeric-boundary
+rows remain EXACT inherited Darwin qualifications. Every original measured
+row reviewed against attribution run40165219687, both code heads and all
+three GNU9.11 providers. No expected output changed and no GNU-bug claim.
+#60's twelve NaN rows use the measured Darwin spelling instead of skips;
+both platform models are tested. Recommend closing #60 only after native
+Darwin CI validates the final head. No Mac build or fresh Darwin claim.
+
+R-bu36-5: retain new signal-mask limits explicitly. Wolf0.2.35 has disposition
+setters but no mask query/setter. Nonempty env --block-signal refuses125.
+--default-signal only proceeds with a known, unblocked Linux mask; otherwise
+refuses125, never runs the command. --list-signal-handling reads documented
+Linux /proc masks; Darwin refuses125. Empty signal lists are no-ops.
+Missing-surface witnesses compile-error with E0301 and exit2, NOT a skip.
+Ask upstream wolf-lang for a portable query and block/unblock setter.
+
+Unchanged hard boundaries: df needs wolf-lang#686 statfs. cp -a/-d and
+--preserve=links still refuse hard-link identity preservation among sources;
+--preserve=xattr/context/all and ACL marks still need wolf-lang#685.
+No issue filed or closed by this lane.
