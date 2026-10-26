@@ -81,6 +81,8 @@ fn main() -> int {
     var into = false
     var no_target = false
     var strip = false
+    var backup_enabled = false
+    var backup_word = ""
     var refused = ""
     var i = 0
     while i < p.keys.len {
@@ -130,13 +132,9 @@ fn main() -> int {
                 )
             }
         } else if k == "backup" || k == "b" || k == "suffix" {
-            if k == "suffix" { c.suffix = p.values[i] }
-            c.backup = if k == "backup" && p.given[i] {
-                bore.backup_kind(p.values[i])
-            } else {
-                bore.backup_default()
-            }
-            if c.backup < 0 { refused = "invalid backup type {bore.quote(p.values[i])}" }
+            backup_enabled = true
+            if k == "suffix" { c.suffix = if p.values[i].len == 0 then "~" else p.values[i] }
+            if k == "backup" && p.given[i] { backup_word = p.values[i] }
         } else if k == "debug" {
             c.debug = true
             c.verbose = true
@@ -147,6 +145,19 @@ fn main() -> int {
     }
     if !bore.ok(p) {
         return bore.usage_error("mv", p.error)
+    }
+    if backup_enabled {
+        c.backup = if backup_word.len > 0 {
+            bore.backup_kind(backup_word)
+        } else {
+            bore.backup_default()
+        }
+        if c.backup < 0 {
+            return bore.backup_error(
+                "mv",
+                if backup_word.len > 0 then backup_word else (env_get("VERSION_CONTROL") else ""),
+            )
+        }
     }
     if refused.len > 0 {
         bore.warn("mv", refused)
@@ -480,7 +491,7 @@ fn help() -> str {
 
     A move to another file system is refused: it would be a copy, and
     wolf cannot yet copy a file's mode, times, owner or links.
-    Not here yet, and refused by name: -u, -b, -S, --exchange, --debug.
+    Refused by name: --exchange (no atomic name-swap surface).
 
     boreutils: https://github.com/wolffe-lang/boreutils
     """

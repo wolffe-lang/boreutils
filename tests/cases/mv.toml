@@ -971,3 +971,58 @@ name = "bu36 mv 13 False"
 args = ["--update=none-fail", "-b", "a", "b"]
 scratch = { a = "new", b = "old", "b.~3~" = "three" }
 scratch_times = { a = "1000000000.000000001", b = "1500000000.000000001" }
+
+[[case]]
+name = "bu36 mv backup precedence 0"
+args = ["--backup=numbered", "-S", ".bak", "a", "b"]
+scratch = { a = "new", b = "old" }
+
+[[case]]
+name = "bu36 mv backup precedence 1"
+args = ["-S", ".bak", "--backup=numbered", "a", "b"]
+scratch = { a = "new", b = "old" }
+
+[[case]]
+name = "bu36 mv backup precedence 2"
+args = ["--backup=none", "-S", ".bak", "a", "b"]
+scratch = { a = "new", b = "old" }
+
+[[case]]
+name = "bu36 mv backup precedence 3"
+args = ["-S", ".bak", "--backup=none", "a", "b"]
+scratch = { a = "new", b = "old" }
+
+[[case]]
+name = "bu36 mv backup precedence 4"
+args = ["-b", "-S", "", "a", "b"]
+scratch = { a = "new", b = "old" }
+
+[[case]]
+name = "bu36 mv backup precedence 5"
+args = ["--backup=numbered", "-b", "a", "b"]
+scratch = { a = "new", b = "old" }
+
+[[case]]
+name = "bu36 mv backup precedence 6"
+args = ["--backup=numbered", "--backup", "a", "b"]
+scratch = { a = "new", b = "old" }
+
+[[case]]
+name = "bu36 mv backup precedence 7"
+args = ["--backup=none", "-b", "a", "b"]
+scratch = { a = "new", b = "old" }
+
+[[case]]
+name = "bu36 mv backup precedence 8"
+args = ["--backup=bogus", "--backup=simple", "a", "b"]
+scratch = { a = "new", b = "old" }
+
+[[case]]
+name = "bu36 mv backup precedence 9"
+args = ["--backup=bogus", "a", "b"]
+scratch = { a = "new", b = "old" }
+
+[[case]]
+name = "bu36 mv backup precedence 10"
+args = ["--backup=n", "a", "b"]
+scratch = { a = "new", b = "old" }
