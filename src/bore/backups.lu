@@ -18,7 +18,8 @@ pub fn backup_default() -> int {
 
 /// The requested simple suffix, defaulting to a tilde.
 pub fn backup_suffix() -> str {
-    env_get("SIMPLE_BACKUP_SUFFIX") else "~"
+    let value = env_get("SIMPLE_BACKUP_SUFFIX") else "~"
+    if value.len == 0 then "~" else value
 }
 
 /// Choose the next name without changing any entry.
@@ -50,4 +51,13 @@ pub fn backup_name(path: str, kind: int, suffix: str) -> str {
     }
     if kind == 2 || largest > 0 { return "{bare}.~{largest + 1}~" }
     "{bare}{suffix}"
+}
+
+/// Report an invalid/ambiguous final backup control in GNU's option order.
+pub fn backup_error(prog: str, word: str) -> int {
+    let what = if backup_kind(word) == -2 then "ambiguous" else "invalid"
+    eprint(
+        "{prog}: {what} argument {quote(word)} for 'backup type'\nValid arguments are:\n  - 'none', 'off'\n  - 'simple', 'never'\n  - 'existing', 'nil'\n  - 'numbered', 't'\nTry '{prog} --help' for more information.",
+    )
+    1
 }

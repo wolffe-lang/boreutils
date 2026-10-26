@@ -85,6 +85,8 @@ fn main() -> int {
     var target = ""
     var into = false
     var no_target = false
+    var backup_enabled = false
+    var backup_word = ""
     var refused = ""
     var k = 0
     while k < p.keys.len {
@@ -125,18 +127,27 @@ fn main() -> int {
         } else if key == "no-target-directory" {
             no_target = true
         } else if key == "backup" || key == "b" || key == "suffix" {
-            if key == "suffix" { c.suffix = p.values[k] }
-            c.backup = if key == "backup" && p.given[k] {
-                bore.backup_kind(p.values[k])
-            } else {
-                bore.backup_default()
-            }
-            if c.backup < 0 { refused = "invalid backup type {bore.quote(p.values[k])}" }
+            backup_enabled = true
+            if key == "suffix" { c.suffix = if p.values[k].len == 0 then "~" else p.values[k] }
+            if key == "backup" && p.given[k] { backup_word = p.values[k] }
         }
         k += 1
     }
     if !bore.ok(p) {
         return bore.usage_error("ln", p.error)
+    }
+    if backup_enabled {
+        c.backup = if backup_word.len > 0 {
+            bore.backup_kind(backup_word)
+        } else {
+            bore.backup_default()
+        }
+        if c.backup < 0 {
+            return bore.backup_error(
+                "ln",
+                if backup_word.len > 0 then backup_word else (env_get("VERSION_CONTROL") else ""),
+            )
+        }
     }
     if refused.len > 0 {
         bore.warn("ln", refused)
