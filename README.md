@@ -168,7 +168,7 @@ derives no boreutils code from GPL source.
 
 Every shipped utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus, except where a case says otherwise and is
-skipped with its reason. The combined corpus holds **16,674 cases across 105 case files**; `kill` has
+skipped with its reason. The combined corpus holds **16,802 cases across 105 case files**; `kill` has
 365 more that SEND, each run in a container of its own (`tests/kill/`,
 `tools/killtest`: **365 passed, 0 failed** on hasu at bu30, groups,
 `kill 0` and `kill -1` among them), `timeout` 163 more that run a
@@ -186,7 +186,16 @@ release and dev (before: 7,020 / 0 / 130). Six utilities add 1,012 cases:
 alphabet, object kind and private mode, never compared byte for byte.
 `tty` has standard-input pty cases, separate from standard-output ptys.
 
-The newest tools are `split`, `csplit`, `fmt`, `pr`, `ptx`, `od`,
+The latest option pass adds **307 registered rows**, without adding a utility
+or moving a pin. On hasu block B (Linux x86-64, Ubuntu 24.04), the seven
+requested families measure **2,006 passed / 0 failed / 41 named skips** on
+both native tiers, versus **1,663 / 0 / 77** before the pass. These are scoped
+family counts, not a new full-repository green. The independent container
+witness checks complete device-boundary, date and signal-mask state; the
+identity gauntlet measures **1,098 passed / 0 failed / 28 named CI-runner-only
+skips**. No speed numbers were re-measured.
+
+The splitter/formatter set comprises `split`, `csplit`, `fmt`, `pr`, `ptx`, `od`,
 `expr`, `numfmt`, `factor` and `basenc`. Their **2,140 registered cases**
 contain 2,129 GNU comparisons and 11 explicitly named exceptions.
 One factor case contains a separate deterministic corpus of **10,000
@@ -409,35 +418,25 @@ of the working directory (no file identity, wolf-lang#536), and `tee`'s
 seven — five broken-pipe branches of `-p` and `--output-error`, and
 `-i` twice, all of which need a signal ignored (wolf-lang#423).
 
-**`ls` had thirty skips, every one wolf's, and wolf 0.2.27 answered
-twenty-eight of them** (bu20). s218's `fs_stat`, `fs_lstat`,
-`fs_read_link` and `fs_read_dir_entries` give a file's whole record, a
-link's own identity and target, and the directory's own order, so the
-long format and what implies it, `-s`, `-i`, `-u`, `-c`, `--time`,
-`-U`, and every option that must tell a link from its target are
-ordinary cases now: the file holds 710, and kasumi answers 694 and 16
-skips. Six of the sixteen are `-f` and `-aU`, where `.` and `..` stand
-in the directory's own order and the listing call leaves them out
-(wolf-lang#692: right on btrfs, tmpfs and APFS, wrong on ext4); two are
-a terminal whose own width is not 80 (wolf-lang#643); one is `-Z`, a
-security context (no extended attribute, wolf-lang#685); the four former option gaps (`--author`, `--block-size`,
-`--time-style=+FORMAT`, `-Q`) now run (bu36); and three are
-block devices this host does not have.
+**`ls` now has 748 cases: 734 pass and 14 name their skip on hasu**
+(bu36, both native tiers). `--author`, `--block-size`,
+`--time-style=+FORMAT` and `-Q` are implemented. Names still come only from
+`/etc/passwd` and `/etc/group`; ACL/context marks need wolf-lang#685,
+terminal width needs #643, and `.`/`..` placement in the directory's own
+order needs #692. Devices absent from a host stay named environment skips.
+Display-size environment variables are not read; explicit sizes are supported.
 
-**`stat`, `readlink` and `env` add twenty-one skips, and none is a C
-library's** (bu20). `stat`'s eight: `-f` twice (no file-system record,
-wolf-lang#686), `-` (no record of an open handle, #536), `%o` (no I/O
-block size, #684 — the default and terse formats run, with that one
-field masked on both sides), `%C` (#685), and three block devices this
-host lacks. `readlink` has none. `env`'s thirteen: five listings that
-start from the inherited environment, which wolf lists only sorted
-(#535); an entry with an empty name, which `os_exec` refuses; a script
-found through an empty `PATH` component, which sees `./name` where
-GNU's sees `name` (#689); and the remaining signal-mask setter refusal. `-S` and `-v` now run,
-as do ignore actions and Linux mask listings. A default action is supported
-only after proving the inherited mask is known and unblocked; blocked or
-unknown masks are explicitly refused because wolf cannot unblock them.
-Darwin mask query/default paths remain qualified, not reported as parity.
+**`stat`, `readlink` and `env` have sixteen Linux skips in these families.**
+`stat`'s eight retain their named filesystem-record (#686), handle-record
+(#536), I/O-block-size (#684), context (#685) and device qualifications.
+`readlink` has none. `env` now measures **125 / 0 / 8**: five inherited-order
+rows (#535), the empty environment-entry name, the empty PATH component
+(#689), and nonempty `--block-signal`. `-S`, `-v` and ignore actions run;
+Linux `/proc/self/status` supplies complete blocked/ignored mask listings.
+Default actions require a known, already-unblocked Linux mask, since wolf
+has no mask setter. Blocked or unknown default masks, nonempty block actions
+and Darwin mask queries refuse explicitly; empty signal lists are no-ops.
+These are limits, not cross-platform signal parity claims.
 
 **`kill` adds one skip, a non-UTF-8 argument (#406)** (bu27). Until
 bu27 it added 143 on linux: every case naming a signal the host has and
@@ -466,26 +465,29 @@ the signal its command died of, a fault's included, where it exited
 durations and signals, 126 and 127), and the rest run in
 `tools/timeouttest`.
 
-**The file changers add thirty-five skips, and every one is a thing wolf
-cannot do to a file or an option not written** (bu21, bu22). Since wolf
-0.2.28 (s230) a mode can be given at creation and changed, a link of
-either kind made, a time set and the umask read, and `chmod`, `touch`,
-`ln`, `mkdir -m` and `cp -p` are written on them (bu22). `mkdir` and
-`rmdir` have none. `chmod` has none on linux (on macOS, seven: GNU
-changes a link's own mode there and wolf has no call for it). `touch` now shares date's clean-room free-form grammar, including relative
-items, English month names and `MM/DD/YYYY`, plus independent `-r -d`
-reference times. Its four remaining skips are `touch -` twice (times by
-handle, wolf-lang#714), noon and unknown grammar. See
-[the date grammar](docs/touch-date-grammar.txt). `ln`'s three backup gaps (`-b`, `--backup`, `-S`) are retired (bu36). `rm`'s three: `--no-preserve-root` twice, refused on
-purpose, and `--preserve-root=all` now checks each operand's device against its parent before removal (bu36). `mv` now reads update modes, backups and debug; only
-`--exchange` remains skipped (no rename that swaps, #706). `cp`'s nineteen: `-a`, `-d` and
-`--preserve=links`, `xattr`, `context`, `all` (hard links among the
-sources are not tracked; no extended attribute, #685); `-s` and `-l` now create links (bu36); one fifo (#705); five for `--sparse` and `--reflink` with
-anything but `auto` (#703); the five former option gaps `-u`, `-b`/`-S`, `--parents`,
-`--attributes-only` and `-x` now run (bu36). The
-OWNER is the one thing `cp -p` cannot keep (#701): a copy whose owner
-or group came out other than its source's says so by name, status 1.
-Every refusal is BY NAME, status 1, and leaves nothing wrong behind.
+**The changed file tools now have nineteen Linux skips** (bu36).
+`mkdir` and `rmdir` have none; `chmod` has none on Linux (seven on Darwin,
+where GNU changes a link's own mode and wolf has no such call).
+`touch` shares date's clean-room token grammar: relative items, English
+month names, `MM/DD/YYYY`, and independently evaluated `-r -d` reference
+times. Its four skips are `touch -` twice (handle times, wolf-lang#714),
+noon and unknown grammar. The [grammar](docs/touch-date-grammar.txt) names
+the remaining limits, including leap-second zones. `ln` has no skips:
+simple, numbered and numbered-if-existing backups support `-b`, `--backup`
+and `-S`, including arbitrarily long decimal version names.
+`rm` retains two deliberate `--no-preserve-root` refusals; `--preserve-root=all`
+now checks an operand's device against its parent before removal.
+`mv` retains only `--exchange` (#706); update modes, backups and debug run.
+`cp` retains twelve: `-a`, `-d`, `--preserve=links/xattr/context/all`, one
+special file (#705) and five sparse/reflink controls beyond `auto` (#703).
+It does not track hard-link identity among sources, nor read extended
+attributes (#685). Explicit `-s` and `-l` are implemented, as are `-u`,
+backups (`-b`/`--backup`/`-S`), `--parents`, `--attributes-only` and `-x`.
+`--parents` restores newly created parent permissions after copying, with
+requested metadata, and leaves existing parents untouched. A copy whose
+owner/group could not be preserved still refuses that preservation by name
+(#701). Named refusals return status 1 without pretending the missing
+operation happened.
 **And `rm -r /` is refused as GNU refuses it, which is run, not read:**
 `tools/roottest` hands `/` and its spellings to both tiers of `rm` in
 a throwaway container — no mount, no network, as a user and as root
@@ -1336,8 +1338,8 @@ new security-sensitive designs.
 | `env` | done by exec: `-i`, `-u`, `NAME=VALUE`, `-C`, `-a`, `-0`, 125/126/127; the inherited environment in sorted order (wolf-lang#535); `-S` splitting, `-v` tracing and ignore actions; blocked/unknown-mask default actions and nonempty block actions are refused, mask listing is Linux only | `env true` 0.78x (linux) |
 | `mkdir` | done: `-p`, `-v`, `-Z`, `-m` (as GNU makes it: under no mask, fixed after only where the MODE says) | start-up 0.72x; `-p` a thousand deep 0.37x (linux) |
 | `rmdir` | done: `-p`, `-v`, `--ignore-fail-on-non-empty` | start-up 0.72x (linux) |
-| `rm` | done: `-f`, `-r`, `-d`, `-v`, `-i`, `-I`, `--interactive`, `--one-file-system`; a link never followed; `/`, `.` and `..` refused; not `--no-preserve-root` (on purpose) or `--preserve-root=all` | start-up 0.87x; `-r` of 100,000 files 0.94x to 1.02x (linux) |
-| `mv` | done: one rename, into a directory, `-f`, `-i`, `-n`, `-v`, `-T`, `-t`, `--strip-trailing-slashes`, `--no-copy`; ANOTHER FILE SYSTEM REFUSED by name (a copy would lose the mode, the times, the owner, the links); not `-u`, `-b`, `--exchange` (#706) | start-up 1.01x (linux) |
+| `rm` | done: `-f`, `-r`, `-d`, `-v`, `-i`, `-I`, `--interactive`, `--one-file-system`; a link never followed; `/`, `.` and `..` refused; `--preserve-root=all` device guard; not `--no-preserve-root` (on purpose) | start-up 0.87x; `-r` of 100,000 files 0.94x to 1.02x (linux) |
+| `mv` | done: one rename, into a directory, `-f`, `-i`, `-n`, `-v`, `-T`, `-t`, `--strip-trailing-slashes`, `--no-copy`; ANOTHER FILE SYSTEM REFUSED by name (a copy would lose the mode, the times, the owner, the links); update modes, backups and debug; not `--exchange` (#706) | start-up 1.01x (linux) |
 | `cp` | done: bytes by `fs_copy_chunk`, a new file with its source's mode from the first instant, `-r`, `-L`, `-H`, `-P`, a link under `-r` copied as a link, `-p`, `--preserve=mode,timestamps`, `--no-preserve`, `-f`, `-i`, `-n`, `-v`, `-T`, `-t`, `--remove-destination`, `-s`, `-l`, `-u`, backups, `--parents`, `--attributes-only`, `-x`; not the owner (#701), `-a`, `-d`, `--preserve=links/xattr/context/all`, a fifo under `-r` (#705), `--sparse`/`--reflink` beyond `auto` (#703) | start-up 0.92x; 1 GiB 1.00x; `-r` of 100,000 files 0.72x to 0.75x (linux, btrfs; bu21's figures, not re-taken) |
 | `chmod` | done: octal and symbolic modes, a mode given as an option, `-c`, `-f`, `-v`, `-R`, `-H`, `-L`, `-P`, `-h`, `--reference`, `--preserve-root` | not benched |
 | `touch` | done: `-a`, `-m`, `--time`, `-c`, `-h`, `-r`, `-t`, `-d` for epoch, ISO, relative/calendar items, weekdays, English month names and slash dates, including `-r -d`, both times to the nanosecond; not `touch -` (#714), leap-second zones or unnamed grammar | not benched |
@@ -1516,7 +1518,7 @@ table answers it per utility, from the evidence and from nothing else.
   when a passing differential case exercises the option and this
   program does not refuse it. An option that appears only in a case
   where GNU refuses it too — `sort -ng` — is not counted as covered.
-- **Cases** are Linux measurements: existing rows from kasumi, the small-file and checksum rows from hasu; passed / skipped, none failed.
+- **Cases** are Linux measurements: existing rows from kasumi, the small-file/checksum and bu36 option rows from hasu; passed / skipped. Scoped bu36 rows have no failures; the full-repository run is separate.
   CI's macOS leg runs the same cases and skips the `/dev/full` ones as
   well, and the `/proc` and `/sys` ones (`requires`, bu15).
 - **vs GNU** is the band of the rows in the tables above, kasumi only,
@@ -1564,11 +1566,11 @@ table answers it per utility, from the evidence and from nothing else.
 | `mkdir` | 7 / 7 | 262 / 0 | start-up 0.72x; a thousand deep 0.37x | drop-in |
 | `rmdir` | 5 / 5 | 70 / 0 | start-up 0.72x | drop-in |
 | `rm` | 12 / 12 | 224 / 2 (hasu bu36) | start-up 0.87x; `-r` 0.94x to 1.02x | drop-in for scripts that avoid `--no-preserve-root` (refused on purpose: this `rm` does not remove `/`); at a terminal, "write-protected" is the owner's write bit (#633); a tree deeper than the host's path limit is not removed (#707) |
-| `mv` | 17 / 18 | 169 / 1 (hasu bu36) | start-up 1.01x | drop-in for scripts that stay on ONE file system (a move to another is refused, where GNU copies and removes) and avoid `--exchange` (refused by name); update modes, backups and debug are implemented; `-n` is a look and then a rename (#706) |
-| `cp` | 26 / 36 | 272 / 12 (hasu bu36) | start-up 0.92x; 1 GiB 1.00x; `-r` 0.72x to 0.75x | drop-in for scripts that avoid `-a`, `-d`, `--preserve=links`/`xattr`/`context`/`all`, a special file met under `-r`, `--sparse`/`--reflink` beyond `auto`, each refused by name; explicit links, updates, backups, parents, attributes-only and one-file-system are implemented, and do not `-p` a file owned by someone else (the owner is refused by name, #701) |
+| `mv` | 17 / 18 | 186 / 1 (hasu bu36) | start-up 1.01x | drop-in for scripts that stay on ONE file system (a move to another is refused, where GNU copies and removes) and avoid `--exchange` (refused by name); update modes, backups and debug are implemented; `-n` is a look and then a rename (#706) |
+| `cp` | 29 / 36 | 366 / 12 (hasu bu36) | start-up 0.92x; 1 GiB 1.00x; `-r` 0.72x to 0.75x | drop-in for scripts that avoid `-a`, `-d`, `--preserve=links`/`xattr`/`context`/`all`, a special file met under `-r`, `--sparse`/`--reflink` beyond `auto`, each refused by name; explicit links, updates, backups, parents, attributes-only and one-file-system are implemented, and do not `-p` a file owned by someone else (the owner is refused by name, #701) |
 | `chmod` | 14 / 14 | 532 / 0 | not benched | drop-in on linux; on macOS a link named by `-h`/`-P` or met by `-R` is left alone where GNU changes its own mode |
 | `touch` | 11 / 11 | 181 / 4 (hasu bu36) | not benched | drop-in for scripts whose `-d` dates fit the [documented grammar](docs/touch-date-grammar.txt); `touch -` (#714), leap-second zones, noon and unknown date words remain named refusals |
-| `ln` | 16 / 16 | 173 / 0 (hasu bu36) | not benched | drop-in on the tested hard/symbolic link and backup surface |
+| `ln` | 16 / 16 | 190 / 0 (hasu bu36) | not benched | drop-in on the tested hard/symbolic link and backup surface |
 | `kill` | 5 / 5 | 894 / 1, and 365 / 0 that send | not benched | drop-in for scripts that do not `kill 0` from process group 1 (a container's first process and what it starts without job control; refused by name) |
 | `timeout` | 7 / 7 | 116 / 0 (7 skipped on macOS), and 150 / 0 that run a command (13 skipped on kasumi, run on CI) | not benched | drop-in for scripts that do not send timeout itself a fault or host-only signal, nor `-s 33` its group (glibc's own: GNU's timeout dies of it, this one lives) |
 | `id` | 7 / 8 | 64 / 0, and 428 / 0 as root and as users | not benched | drop-in where the accounts are in `/etc/passwd` and `/etc/group` (not macOS's directory service, LDAP or NIS); `-Z` is refused as GNU without SELinux refuses it |
