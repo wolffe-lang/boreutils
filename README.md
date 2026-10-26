@@ -1875,3 +1875,5 @@ Host GNU9.12 was not selected as the oracle. The extra install-program
 flags and the identity pass's shared code do not move these verdicts.
 
 The bu36 option checkpoint measures `ls` on hasu block B in Ubuntu 24.04, GNU 9.11: **734 passed / 0 failed / 14 named skips**, on both native tiers. It adds 38 cases and retires four option skips; account lookup, ACLs, directory order, devices and terminal-width qualifications remain. Numeric explicit block sizes and unit suffixes are supported; display-size environment variables are still not read.
+
+The bu36 `od` repair uses the exact GNU 9.11 Darwin NaN spelling measured in attribution run 40165219687 (boreutils#60), with both platform rules tested independently. Twelve exact Darwin skips are retired, not masked; native Darwin validation is left to CI. The account-name (#58, eleven rows) and numfmt-boundary (#59, seven rows) qualifications remain attributed and explicit.

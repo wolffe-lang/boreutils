@@ -31,3 +31,36 @@ fn test_range_and_diagnostic_controls() {
     assert(overflow.kind == 1, "host overflow")
     assert(quotient(overflow, integer(1)).kind == 1, "overflow cannot collapse to zero")
 }
+
+fn test_gnu_darwin_nan_model() {
+    let half: List[byte] = [1 as byte, 252 as byte]
+    let bfloat: List[byte] = [193 as byte, 255 as byte]
+    let single: List[byte] = [1 as byte, 0 as byte, 192 as byte, 255 as byte]
+    let double: List[byte] = [
+        1 as byte,
+        0 as byte,
+        0 as byte,
+        0 as byte,
+        0 as byte,
+        0 as byte,
+        248 as byte,
+        255 as byte,
+    ]
+    let payloads = [half, bfloat, single, double]
+    let kinds = [2, 3, 4, 8]
+    for i in 0..kinds.len {
+        assert(
+            shortest_model(payloads[i], kinds[i], false, false) == "-nan",
+            "Linux keeps NaN sign",
+        )
+        assert(shortest_model(payloads[i], kinds[i], false, true) == "nan", "Darwin omits NaN sign")
+        var big = List[byte]()
+        var k = payloads[i].len
+        while k > 0 { k -= 1; (mut big).push(payloads[i][k]) }
+        assert(shortest_model(big, kinds[i], true, true) == "nan", "Darwin big endian NaN")
+    }
+    let zero: List[byte] = [0 as byte, 0 as byte, 0 as byte, 128 as byte]
+    let one: List[byte] = [0 as byte, 0 as byte, 128 as byte, 63 as byte]
+    assert(shortest_model(zero, 4, false, true) == "-0", "negative zero is not a NaN")
+    assert(shortest_model(one, 4, false, true) == "1", "finite values unchanged")
+}

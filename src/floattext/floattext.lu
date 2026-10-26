@@ -1021,6 +1021,13 @@ fn same(a: Number, b: Number) -> bool {
 /// both 16-bit formats via binary32, rather than 16-bit round trips.
 /// kind is 2 (binary16), 3 (bfloat16), 4, 8 or 16 (x87 storage).
 pub fn shortest(raw: List[byte], kind: int, big: bool) -> str {
+    shortest_model(raw, kind, big, os_name() == "macos")
+}
+
+/// Select the GNU 9.11 NaN text measured in boreutils#60, attribution
+/// run40165219687: Darwin binary16/bfloat16/32/64 omit a NaN sign.
+/// The selector is explicit so both platform rules run in pure tests.
+pub fn shortest_model(raw: List[byte], kind: int, big: bool, darwin: bool) -> str {
     var data = List[byte]()
     for k in 0..raw.len { (mut data).push(raw[if big then raw.len - k - 1 else k]) }
     var bits: wrapping[u64] = 0
@@ -1066,7 +1073,7 @@ pub fn shortest(raw: List[byte], kind: int, big: bool) -> str {
         }
         shift = (if exponent == 0 then 1 else exponent) - bias - fracbits
     }
-    if special == 2 { return if negative then "-nan" else "nan" }
+    if special == 2 { return if negative && !(darwin && kind != 16) then "-nan" else "nan" }
     if special == 1 { return if negative then "-inf" else "inf" }
     let exact = Lex {
         kind: 0,
