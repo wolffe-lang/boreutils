@@ -168,7 +168,7 @@ derives no boreutils code from GPL source.
 
 Every shipped utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus, except where a case says otherwise and is
-skipped with its reason. The combined corpus holds **16,495 cases across 105 case files**; `kill` has
+skipped with its reason. The combined corpus holds **16,533 cases across 105 case files**; `kill` has
 365 more that SEND, each run in a container of its own (`tests/kill/`,
 `tools/killtest`: **365 passed, 0 failed** on hasu at bu30, groups,
 `kill 0` and `kill -1` among them), `timeout` 163 more that run a
@@ -420,9 +420,8 @@ skips. Six of the sixteen are `-f` and `-aU`, where `.` and `..` stand
 in the directory's own order and the listing call leaves them out
 (wolf-lang#692: right on btrfs, tmpfs and APFS, wrong on ext4); two are
 a terminal whose own width is not 80 (wolf-lang#643); one is `-Z`, a
-security context (no extended attribute, wolf-lang#685); four are
-options not written yet (`--author`, `--block-size`,
-`--time-style=+FORMAT`, `-Q`), each refused by name; and three are
+security context (no extended attribute, wolf-lang#685); the four former option gaps (`--author`, `--block-size`,
+`--time-style=+FORMAT`, `-Q`) now run (bu36); and three are
 block devices this host does not have.
 
 **`stat`, `readlink` and `env` add twenty-one skips, and none is a C
@@ -1557,7 +1556,7 @@ table answers it per utility, from the evidence and from nothing else.
 | `pwd` | 4 / 4 | 44 / 1 | start-up 0.80x | drop-in for scripts that avoid `-L` with a `$PWD` naming a same-time twin of the working directory (wolf-lang#536) |
 | `sleep` | 2 / 2 | 61 / 0 | start-up 0.88x, `sleep 0.1` 1.00x | drop-in |
 | `nproc` | 4 / 4 | 78 / 0 | start-up 0.80x | drop-in outside a fractional cgroup cpu quota (wolf-lang#537) |
-| `ls` | 47 / 60 | 694 / 16 | 0.60x to 1.99x; the long format 1.22x beside a GNU that also asks for each name's ACL | drop-in for scripts that avoid `-v`, the quoting styles but `-N`, `--author`, `--block-size`, `--time-style=+FORMAT`, `-Z`, the colour and filtering options (each refused by name), do not list files with ACLs in the long format (no `+`, wolf-lang#685), and do not need `.` and `..` placed by `-f` on ext4 (#692); owners named from `/etc/passwd` and `/etc/group` only; on a terminal, one 80 wide or reporting no size (#643) |
+| `ls` | 51 / 60 | 734 / 14 (hasu bu36) | 0.60x to 1.99x; the long format 1.22x beside a GNU that also asks for each name's ACL | drop-in for scripts that avoid `-v`, quoting styles beyond `-N`/`-b`/`-Q`, `-Z`, the colour and filtering options (each refused by name), do not list files with ACLs in the long format (no `+`, wolf-lang#685), and do not need `.` and `..` placed by `-f` on ext4 (#692); owners named from `/etc/passwd` and `/etc/group` only; on a terminal, one 80 wide or reporting no size (#643) |
 | `stat` | 7 / 8 | 152 / 8 | start-up 0.77x; 0.69x to 0.75x over many operands | drop-in for scripts that avoid `-f` (wolf-lang#686), `-` (#536), `%C`, and `%o` or the default format's `IO Block:` field, which prints `?` (#684) |
 | `readlink` | 10 / 10 | 100 / 0 | start-up 0.77x | drop-in |
 | `env` | 8 / 14 | 90 / 13 | `env true` 0.78x | drop-in for scripts that avoid `-S`, `-v` and the signal options (each refused by name), and do not read the ORDER of the environment they did not start from `-i` (wolf-lang#535) |
@@ -1873,3 +1872,5 @@ No inherited implementation or expected output was changed. The cells,
 complete differences and issue drafts are in `tests/gaps/bu35/darwin-*.txt`.
 Host GNU9.12 was not selected as the oracle. The extra install-program
 flags and the identity pass's shared code do not move these verdicts.
+
+The bu36 option checkpoint measures `ls` on hasu block B in Ubuntu 24.04, GNU 9.11: **734 passed / 0 failed / 14 named skips**, on both native tiers. It adds 38 cases and retires four option skips; account lookup, ACLs, directory order, devices and terminal-width qualifications remain. Numeric explicit block sizes and unit suffixes are supported; display-size environment variables are still not read.

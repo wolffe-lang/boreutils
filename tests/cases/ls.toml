@@ -4092,20 +4092,17 @@ tty = 80
 [[case]]
 name = "--author"
 tree = "kinds"
-args = ["-l", "--author"]
-skip = "--author (a fourth name column) is not written yet: refused by name, status 2"
+args = ["-ln", "--author"]
 
 [[case]]
 name = "--block-size"
 tree = "kinds"
-args = ["-l", "--block-size=1"]
-skip = "--block-size, and the LS_BLOCK_SIZE, BLOCK_SIZE and BLOCKSIZE variables, are not written yet: refused by name, status 2"
+args = ["-ln", "--block-size=1"]
 
 [[case]]
 name = "--time-style=+FORMAT"
 tree = "kinds"
-args = ["-l", "--time-style=+%Y"]
-skip = "--time-style=+FORMAT needs date's format language, not written yet: refused by name, status 2"
+args = ["-ln", "--time-style=+%Y"]
 
 [[case]]
 name = "-Z"
@@ -4116,6 +4113,233 @@ skip = "a security context is an extended attribute, which wolf cannot read (wol
 [[case]]
 name = "-Q under -l"
 tree = "kinds"
-args = ["-lQ"]
-skip = "the quoting styles but -N are not written yet: refused by name, status 2"
+args = ["-lnQ"]
 
+
+[[case]]
+name = "bu36 ls 0 ['--author']"
+tree = "plain"
+args = ["--author"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 1 ['-ln', '--author']"
+tree = "plain"
+args = ["-ln", "--author"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 2 ['-ng', '--author']"
+tree = "plain"
+args = ["-ng", "--author"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 3 ['-no', '--author']"
+tree = "plain"
+args = ["-no", "--author"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 4 ['-nG', '--author']"
+tree = "plain"
+args = ["-nG", "--author"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 5 ['-Q']"
+tree = "plain"
+args = ["-Q"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 6 ['-CQ', '-w40']"
+tree = "plain"
+args = ["-CQ", "-w40"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 7 ['-Q', '-N']"
+tree = "plain"
+args = ["-Q", "-N"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 8 ['-N', '-Q']"
+tree = "plain"
+args = ["-N", "-Q"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 9 ['-bQ']"
+tree = "plain"
+args = ["-bQ"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 10 ['-Qb']"
+tree = "plain"
+args = ["-Qb"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 11 ['-Qq']"
+tree = "plain"
+args = ["-Qq"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 12 ['-lns', '--block-size=1']"
+tree = "plain"
+args = ["-lns", "--block-size=1"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 13 ['-sn', '--block-size=1']"
+tree = "plain"
+args = ["-sn", "--block-size=1"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 14 ['-lns', '--block-size=3']"
+tree = "plain"
+args = ["-lns", "--block-size=3"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 15 ['-sn', '--block-size=3']"
+tree = "plain"
+args = ["-sn", "--block-size=3"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 16 ['-lns', '--block-size=512']"
+tree = "plain"
+args = ["-lns", "--block-size=512"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 17 ['-sn', '--block-size=512']"
+tree = "plain"
+args = ["-sn", "--block-size=512"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 18 ['-lns', '--block-size=1024']"
+tree = "plain"
+args = ["-lns", "--block-size=1024"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 19 ['-sn', '--block-size=1024']"
+tree = "plain"
+args = ["-sn", "--block-size=1024"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 20 ['-lns', '--block-size=2K']"
+tree = "plain"
+args = ["-lns", "--block-size=2K"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 21 ['-sn', '--block-size=2K']"
+tree = "plain"
+args = ["-sn", "--block-size=2K"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 22 ['-lns', '--block-size=K']"
+tree = "plain"
+args = ["-lns", "--block-size=K"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 23 ['-sn', '--block-size=K']"
+tree = "plain"
+args = ["-sn", "--block-size=K"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 24 ['-lns', '--block-size=MB']"
+tree = "plain"
+args = ["-lns", "--block-size=MB"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 25 ['-sn', '--block-size=MB']"
+tree = "plain"
+args = ["-sn", "--block-size=MB"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 26 ['-lns', '--block-size=MiB']"
+tree = "plain"
+args = ["-lns", "--block-size=MiB"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 27 ['-sn', '--block-size=MiB']"
+tree = "plain"
+args = ["-sn", "--block-size=MiB"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 28 ['-lns', '--block-size=human-readable']"
+tree = "plain"
+args = ["-lns", "--block-size=human-readable"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 29 ['-sn', '--block-size=human-readable']"
+tree = "plain"
+args = ["-sn", "--block-size=human-readable"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 30 ['-lns', '--block-size=si']"
+tree = "plain"
+args = ["-lns", "--block-size=si"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 31 ['-sn', '--block-size=si']"
+tree = "plain"
+args = ["-sn", "--block-size=si"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 32 ['-ln', '--time-style=+']"
+tree = "plain"
+args = ["-ln", "--time-style=+"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 33 ['-ln', '--time-style=+%Y']"
+tree = "plain"
+args = ["-ln", "--time-style=+%Y"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 34 ['-ln', '--time-style=+%Y|%m|%d|%s|%N|%z']"
+tree = "plain"
+args = ["-ln", "--time-style=+%Y|%m|%d|%s|%N|%z"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 35 ['-ln', '--time-style=+%c']"
+tree = "plain"
+args = ["-ln", "--time-style=+%c"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 36 ['-ln', '--time-style=+OLD\\nNEW']"
+tree = "plain"
+args = ["-ln", "--time-style=+OLD\nNEW"]
+env = { TZ = "UTC0" }
+
+[[case]]
+name = "bu36 ls 37 ['-ln', '--time-style=+%F\\n%R']"
+tree = "plain"
+args = ["-ln", "--time-style=+%F\n%R"]
+env = { TZ = "UTC0" }

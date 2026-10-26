@@ -100,12 +100,12 @@
 //!   such a name is
 //!   reported and skipped, status 1, where bu18 failed the whole
 //!   directory.
-//! - `-v`, `--sort=width`, the quoting styles but `-N` (`-b -Q
+//! - `-v`, `--sort=width`, quoting styles beyond `-N`, `-b`, `-Q` (`
 //!   --quoting-style`, and the `QUOTING_STYLE` variable is not read),
-//!   `-I --ignore --hide -B`, `-D`, `-Z`, `--author`,
-//!   `--color=always`, `--hyperlink`, `--zero`, `--block-size` (and the
+//!   `-I --ignore --hide -B`, `-D`, `-Z`,
+//!   `--color=always`, `--hyperlink`, `--zero` (and the
 //!   `LS_BLOCK_SIZE`, `BLOCK_SIZE` and `BLOCKSIZE` variables are not
-//!   read) and `--time-style=+FORMAT` are not written yet, and are
+//!   read) are not written yet, and are
 //!   refused by name (status 2) rather than ignored.
 
 use bore
@@ -143,6 +143,11 @@ struct Opts {
     numeric: bool,
     human: int,
     kibi: bool,
+    author: bool,
+    double_quote: bool,
+    block_size: int,
+    block_suffix: str,
+    custom_time: str,
     refused: str,
 }
 
@@ -401,6 +406,11 @@ pub fn command() -> int {
         numeric: false,
         human: 0,
         kibi: false,
+        author: false,
+        double_quote: false,
+        block_size: 0,
+        block_suffix: "",
+        custom_time: "",
         refused: "",
     }
     var i = 0
@@ -591,11 +601,25 @@ fn take_option(mut o: Opts, k: str, v: str, given: bool) -> int {
         // printed, so `ls --time-style=bogus` lists and exits 0.
         o.style_word = v
         o.time_style = -2
+    } else if k == "author" {
+        o.author = true
+    } else if k == "quote-name" {
+        o.double_quote = true
+        o.literal = true
+        o.escape = false
+        o.quote = false
+    } else if k == "block-size" {
+        if !take_block_size(mut o, v) {
+            bore.warn(program(), "invalid --block-size argument {bore.quote(v)}")
+            return 2
+        }
     } else if k == "escape" {
+        o.double_quote = false
         o.escape = true
         o.literal = true
         o.hide = false
     } else if k == "literal" {
+        o.double_quote = false
         o.escape = false
         o.literal = true
     } else if k == "format" {
@@ -749,8 +773,12 @@ fn take_option(mut o: Opts, k: str, v: str, given: bool) -> int {
     } else if k == "size" {
         o.blocks = true
     } else if k == "human-readable" {
+        o.block_size = 0
+        o.block_suffix = ""
         o.human = 1
     } else if k == "si" {
+        o.block_size = 0
+        o.block_suffix = ""
         o.human = 2
     } else if k == "kibibytes" {
         o.kibi = true
@@ -782,9 +810,12 @@ fn take_time_style(mut o: Opts, word: str) -> int {
         return 0
     }
     if w.starts_with("+") {
-        if o.refused.len == 0 {
-            o.refused = "--time-style=+FORMAT is not written yet"
+        o.custom_time = w[1..]
+        if o.custom_time.count("\n") > 1 {
+            bore.warn(program(), "invalid time style format {bore.quote(o.custom_time)}")
+            return 2
         }
+        o.time_style = 4
         return 0
     }
     let m = bore.argmatch(w, style_words(), style_meanings())
@@ -1681,11 +1712,15 @@ fn blocks_text(blocks: int, o: Opts, cx: Ctx) -> str {
     if o.human == 2 {
         return bore.human(blocks * 512, true)
     }
-    "{blocks_units(blocks, o, cx)}"
+    "{blocks_units(blocks, o, cx)}{o.block_suffix}"
 }
 
 /// The blocks in the unit `-s` counts in when no `-h` asked.
 fn blocks_units(blocks: int, o: Opts, cx: Ctx) -> int {
+    if o.block_size > 0 {
+        let n = blocks * 512
+        return n / o.block_size + if n % o.block_size > 0 then 1 else 0
+    }
     if cx.posix && !o.kibi {
         return blocks
     }
@@ -1694,7 +1729,7 @@ fn blocks_units(blocks: int, o: Opts, cx: Ctx) -> int {
 
 /// How wide entry `at`'s blocks print.
 fn blocks_width(d: Dir, at: int, o: Opts, cx: Ctx) -> int {
-    if o.human != 0 {
+    if o.human != 0 || o.block_suffix.len > 0 {
         return blocks_text(word(d, at, 8), o, cx).len
     }
     digits(blocks_units(word(d, at, 8), o, cx))
@@ -1716,7 +1751,7 @@ fn push_prefix(mut bytes: List[byte], d: Dir, at: int, o: Opts, cx: Ctx, ino_w: 
     if o.blocks {
         if !reached {
             push_right(mut bytes, "?", blk_w)
-        } else if o.human != 0 {
+        } else if o.human != 0 || o.block_size > 0 {
             push_right(mut bytes, blocks_text(word(d, at, 8), o, cx), blk_w)
         } else {
             push_count(mut bytes, blocks_units(word(d, at, 8), o, cx), blk_w)
@@ -1886,6 +1921,10 @@ fn is_number(text: str) -> bool {
 
 /// A file's size as the long format prints it under `-h` or `--si`.
 fn human_size(n: int, o: Opts) -> str {
+    if o.block_size > 0 {
+        let units = n / o.block_size + if n % o.block_size > 0 then 1 else 0
+        return "{units}{o.block_suffix}"
+    }
     bore.human(n, o.human == 2)
 }
 
@@ -1893,6 +1932,14 @@ fn human_size(n: int, o: Opts) -> str {
 /// forms.
 fn styled_time(secs: int, nanos: int, o: Opts, cx: Ctx) -> str {
     let c = bore.civil_in(cx.zone, secs)
+    if o.time_style == 4 {
+        var fmt = o.custom_time
+        let split = fmt.find("\n") else -1
+        if split >= 0 {
+            fmt = if recent(secs, nanos, cx) then fmt[split + 1..] else fmt[0..split]
+        }
+        return bore.date_format(fmt, bore.Instant { secs: secs, nanos: nanos }, cx.zone) else "?"
+    }
     if o.time_style == style_full_iso() {
         return bore.full_stamp(c, nanos)
     }
@@ -1994,7 +2041,7 @@ fn print_long(
             if w > nlink_w {
                 nlink_w = w
             }
-            if o.owner {
+            if o.owner || o.author {
                 if d.recs[base + 6] != uid {
                     uid = d.recs[base + 6]
                     user = owner_text(uid, o, cx)
@@ -2023,7 +2070,7 @@ fn print_long(
                     minor_w = mi
                 }
             } else {
-                let sw = if o.human != 0 {
+                let sw = if o.human != 0 || o.block_size > 0 {
                     human_size(d.recs[base + 1], o).len
                 } else {
                     digits(d.recs[base + 1])
@@ -2067,6 +2114,10 @@ fn print_long(
                 (mut bytes).push(32 as byte)
                 push_left(mut bytes, "?", group_w)
             }
+            if o.author {
+                (mut bytes).push(32 as byte)
+                push_left(mut bytes, "?", owner_w)
+            }
             (mut bytes).push(32 as byte)
             push_right(mut bytes, "?", size_w)
             (mut bytes).push(32 as byte)
@@ -2106,13 +2157,22 @@ fn print_long(
                 push_left(mut bytes, group, group_w)
             }
         }
+        if o.author {
+            let author = owner_text(d.recs[base + 6], o, cx)
+            (mut bytes).push(32 as byte)
+            if is_number(author) {
+                push_right(mut bytes, author, owner_w)
+            } else {
+                push_left(mut bytes, author, owner_w)
+            }
+        }
         (mut bytes).push(32 as byte)
         if kind == bore.kind_char() || kind == bore.kind_block() {
             push_spaces(mut bytes, size_w - (major_w + 2 + minor_w))
             push_count(mut bytes, bore.dev_major(d.recs[base + 11], cx.linux), major_w)
             push_text(mut bytes, ", ")
             push_count(mut bytes, bore.dev_minor(d.recs[base + 11], cx.linux), minor_w)
-        } else if o.human != 0 {
+        } else if o.human != 0 || o.block_size > 0 {
             push_right(mut bytes, human_size(d.recs[base + 1], o), size_w)
         } else {
             push_count(mut bytes, d.recs[base + 1], size_w)
@@ -2200,6 +2260,7 @@ fn indicator(d: Dir, at: int, o: Opts) -> str {
 /// terminal (`bore.quote_name`, quoted only when it has to be: `'with
 /// space'`, `'new'$'\n''line'`), else literally, through `shown`.
 fn label(name: str, o: Opts) -> str {
+    if o.double_quote { return c_quoted(name) }
     if o.escape { return escaped(name) }
     if o.quote {
         return bore.quote_name(name)
@@ -2209,6 +2270,7 @@ fn label(name: str, o: Opts) -> str {
 
 /// The columns `label` takes: the quoted form is all printable ASCII.
 fn label_width(name: str, o: Opts) -> int {
+    if o.double_quote { return c_quoted(name).len }
     if o.escape { return escaped(name).len }
     if o.quote {
         return bore.quote_name(name).len
@@ -2562,7 +2624,7 @@ fn help() -> str {
           --version              print the version and exit
 
     Not here yet, and refused by name: -v, the quoting styles but -b and -N,
-    --author, --block-size, --time-style=+FORMAT, and the colour and
+    The colour and
     filtering options. On a terminal the width is -w, COLUMNS or 80: the
     terminal's own width cannot be asked. Owners and groups are named
     from /etc/passwd and /etc/group only.
@@ -2608,5 +2670,64 @@ fn escaped(name: str) -> str {
         }
         for octet in piece.bytes() { (mut bytes).push(octet) }
     }
+    str_from_utf8(bytes) else name
+}
+
+// GNU documented display units, measured independently against 9.11.
+// A unit without a numeric coefficient prints that suffix on every value.
+fn take_block_size(mut o: Opts, word: str) -> bool {
+    var text = word
+    if text.starts_with("'") { text = text[1..] }
+    if text == "human-readable" || text == "si" {
+        o.human = if text == "si" then 2 else 1
+        o.block_size = 0
+        o.block_suffix = ""
+        return true
+    }
+    var numeric = false
+    if text.len > 0 { numeric = text.bytes()[0] as int >= 48 && text.bytes()[0] as int <= 57 }
+    let parsed = bore.parse_count(if numeric then text else "1{text}") else { return false }
+    let unit = bore.count_value(parsed)
+    if bore.count_minus(parsed) || unit < 1 { return false }
+    o.block_size = unit
+    o.human = 0
+    o.block_suffix = if numeric then "" else text
+    true
+}
+
+// C quoting is separate from shell quoting (-Q is never a shell word).
+fn c_quoted(name: str) -> str {
+    var bytes = List[byte]()
+    (mut bytes).push(34 as byte)
+    for b in name.bytes() {
+        let n = b as int
+        var text = ""
+        if n == 34 {
+            text = "\\\""
+        } else if n == 92 {
+            text = "\\\\"
+        } else if n == 7 {
+            text = "\\a"
+        } else if n == 8 {
+            text = "\\b"
+        } else if n == 9 {
+            text = "\\t"
+        } else if n == 10 {
+            text = "\\n"
+        } else if n == 11 {
+            text = "\\v"
+        } else if n == 12 {
+            text = "\\f"
+        } else if n == 13 {
+            text = "\\r"
+        } else if n < 32 || n >= 127 {
+            text = "\\{n / 64}{n / 8 % 8}{n % 8}"
+        } else {
+            (mut bytes).push(b)
+            continue
+        }
+        push_text(mut bytes, text)
+    }
+    (mut bytes).push(34 as byte)
     str_from_utf8(bytes) else name
 }
