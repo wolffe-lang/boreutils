@@ -48,6 +48,19 @@
 #     `List[T]()` and pushes, because lupin 0.1.36 refused list
 #     literals, so the literal's element type is unreachable here.
 #
+# ## The bump to 0.2.36 / 0.1.58 (r41p, 2026-10-31)
+#
+# One release on each half, with the bundled std 78b9d3cb. Each digest
+# was read from the release API twice and compared with r41-evidence's
+# published readback table; the linux x86-64 pair was hashed twice after
+# download on hasu. r41's published-compiler control ran trunk 0f7a57b
+# at the 0.2.36 archive: 16,647 passed, 0 failed, 156 named skips on
+# both native tiers, unchanged. The seven new prelude names (env_arg0,
+# env_args_bytes, VaList and the four va_* calls) declare no bore name.
+# env_args now traps argument-utf8 on a non-UTF-8 argument where it
+# aborted, and env_args_bytes and env_arg0 can read what GNU reads
+# (wolf-lang#406, #899); no utility uses them at this pin.
+#
 # ## The bump to 0.2.35 / 0.1.56 (bu30, 2026-10-23)
 #
 # One release on each half, with the bundled std 2386522e. Each digest
@@ -577,26 +590,28 @@
 # TAG names, which is the thing this file pins.
 
 [wolf]
-version = "0.2.35"
+version = "0.2.36"
 repo = "wolffe-lang/wolf-lang"
-rev = "cf0c13d38479f444b69bb8356ad5709d07eff323"
-version_line = "wolf 0.2.35 (wolfgang, pin cf0c13d)"
-aarch64-apple-darwin = "240b84d079b1b9a0d88681ac08fca4816f84778e2d6c94c435ceb2dd6a5f042a"
-x86_64-unknown-linux-gnu = "4cc4045bbbb605c07835bc4f32685953c784eeef4cd3139a48b457dfc90dad1a"
-aarch64-unknown-linux-gnu = "30ccded432264b7ddd4ebf738d4f895d12091ca604e2da4c2f831da807886f3e"
+rev = "5adf3d91f75b3545ff8d38e5b6693b0b9f367a05"
+version_line = "wolf 0.2.36 (wolfgang, pin 5adf3d9)"
+aarch64-apple-darwin = "b79d55845f349d56789d9d1cb057ee88b5a7128d3b6dd77ca070707cfa4aa632"
+x86_64-unknown-linux-gnu = "d383c74c8cd123b9d9dfaa268271d4f004294f85c2b230237d0ef07027d9500d"
+aarch64-unknown-linux-gnu = "3d5bd9ef47d3d198dd67fb3f995dff3ef7b169097529fa0e7ae8524e723be3d4"
 
 [lupin]
-# The reference interpreter wolf 0.2.35 declares as its pairing:
-# `wolf --version` line 2 reads "paired with lupin 0.1.56 (reference
-# interpreter), pin 294d626". Its spec pin is wolf v0.2.24, as 0.1.54's
-# was. The `rev` below is the commit the 0.1.56 TAG names.
-version = "0.1.56"
+# The reference interpreter wolf 0.2.36 declares as its pairing:
+# `wolf --version` line 2 reads "paired with lupin 0.1.58 (reference
+# interpreter), pin a5378e3". Its spec pin moved at 0.1.57 from wolf
+# v0.2.24 to a5378e3, a wolf-lang trunk commit between v0.2.35 and
+# v0.2.36 (the C variadic clause). The `rev` below is the commit the
+# 0.1.58 TAG names.
+version = "0.1.58"
 repo = "wolffe-lang/wolf-interp"
-rev = "28547b4324524d5477a6e54e4f6888462461a21f"
-version_line = "lupin 0.1.56 (wolf-interp, reference interpreter at pin 294d626)"
-aarch64-apple-darwin = "9133bfdbb95f6a18745439bf0b2b5280860a5bfeaf9ae038ea120a72d58f7687"
-x86_64-unknown-linux-gnu = "ad703550ac4787e8e4bb26989d591a731410274d7332f2b4e8b9a64c878822cc"
-aarch64-unknown-linux-gnu = "e2719ab28df566ad7b92714191bac00599fbca6c95b6b579d470497b482dd591"
+rev = "6240efe5570dba1a33ba6269e3ba44bae33dd972"
+version_line = "lupin 0.1.58 (wolf-interp, reference interpreter at pin a5378e3)"
+aarch64-apple-darwin = "c1b0277133c052892be10539062666e873e874997cbb5be300cffe2c309ec055"
+x86_64-unknown-linux-gnu = "34f52792bb59bc7565e0edc1235cd47d9a6ad13d5e6528993627f2e699b62193"
+aarch64-unknown-linux-gnu = "00e40fa22d99046b28357f56092075cdb3e3e36a21cc44bf04d6b46605db432c"
 
 [std]
 # wolf-std ships no release archive, so the tree is pinned by commit:
@@ -722,5 +737,12 @@ aarch64-unknown-linux-gnu = "e2719ab28df566ad7b92714191bac00599fbca6c95b6b579d47
 # --deny-warnings on both tiers, 94 builds each, 0 failed, 0 warnings
 # (`notes/bu29/ev/b151.log`); 70 of the 94 binaries differ between the
 # two (`bore` reaches `std.signal` and `std.process`).
+# MOVED AT THE 0.2.35 BUMP to wolf-std 2386522e (bu30), the commit the
+# 0.2.35 archives bundle.
+# MOVED AT THE 0.2.36 BUMP to wolf-std 78b9d3cb (r41p), the commit the
+# 0.2.36 archives bundle (`std/STD-REV`, read on hasu from the linux
+# x86-64 archive). 2386522e -> 78b9d3cb touches std.fs, json, list, os,
+# process, signal, term and time; r41's control above built every
+# utility against the bundle.
 repo = "wolffe-lang/wolf-std"
-rev = "2386522eb059cca5a84108562c2c0a0e72345d34"
+rev = "78b9d3cbc41d51db44d18c40b6694403644d1c83"
