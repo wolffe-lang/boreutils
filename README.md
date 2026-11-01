@@ -204,8 +204,8 @@ The splitter/formatter set comprises `split`, `csplit`, `fmt`, `pr`, `ptx`, `od`
 `expr`, `numfmt`, `factor` and `basenc`. Their **2,140 registered cases**
 contain 2,129 GNU comparisons and 11 explicitly named exceptions.
 One factor case contains a separate deterministic corpus of **10,000
-full-range unsigned 64-bit integers**. The toolchain remains wolf **0.2.35** / lupin **0.1.56**, bundled
-std `2386522e`; the oracle remains **GNU coreutils 9.11**, `LC_ALL=C` and
+full-range unsigned 64-bit integers**. The toolchain is now wolf **0.2.36** / lupin **0.1.58**, bundled
+std `78b9d3cb`; the oracle remains **GNU coreutils 9.11**, `LC_ALL=C` and
 `_POSIX2_VERSION=200112`.
 
 `split` supports byte, line, bounded-record and numbered/round-robin
@@ -311,7 +311,7 @@ read failures, short records, EBCDIC compositions, overwrite pass shapes,
 random sources and dynamic/static/wolf buffering witnesses. Run it only in a
 throwaway Ubuntu container, with both tiers built.
 
-`df` is **blocked**, not shipped: wolf 0.2.35 has no `statfs`/`statvfs`
+`df` is **blocked**, not shipped: wolf 0.2.36 has no `statfs`/`statvfs`
 record (wolf-lang#686), despite PAX implementing those Linux calls. The
 compiler witness is `tests/gaps/bu34/statvfs/main.lu`; a blocked PAX row for
 its ext2 `/dev/vda2` root and tmpfs `/tmp` is drafted in
