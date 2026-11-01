@@ -137,8 +137,10 @@ against GNU. The short form for a new utility:
 - Descriptors 0, 1 and 2 are read and written directly since wolf
   0.2.26 (`[os.fs.std]`); `bore.stdout()` still comes BEFORE any input
   file, because GNU checks standard output first.
-- A non-UTF-8 argument aborts the runtime in `env_args`
-  (wolf-lang#406), so no utility can handle one yet.
+- A non-UTF-8 argument makes `env_args` trap `argument-utf8` (exit 134;
+  wolf 0.2.36, wolf-lang#406), so no utility can handle one yet.
+  `env_args_bytes` reads every argument as bytes and `env_arg0` the
+  invocation name (#899); no utility uses them at this pin.
 - `print`/`print_raw` discard write errors and are one `write(2)` per
   call (wolf-lang#408): use `bore.Out`.
 - **What wolf can do to a file** (bu21's census, `notes/bu21/census/`,
