@@ -42,8 +42,8 @@ trunk (the merge base) exactly as a pull request's, so a plant can ask for
 the pull-request tier without opening one; a path no rule names runs full.
 
 PROSE IS NARROW (RULES, below): notes/ (the lanes' notes, probes and
-evidence), README.md and CLAUDE.md. No step reads them, and
-ci/tiers-test.py trips when a line of tools/ or tests/ that reads a file
+evidence), README.md, CONTRIBUTING.md and CLAUDE.md. No step reads them,
+and ci/tiers-test.py trips when a line of tools/ or tests/ that reads a file
 starts naming one.
 
 `verdict` checks a finished run: exit 0 when the plan succeeded, the jobs it
@@ -146,6 +146,7 @@ RULES = [
     # Prose: no step reads it (ci/tiers-test.py T5).
     ("notes/**", PROSE),
     ("README.md", PROSE),
+    ("CONTRIBUTING.md", PROSE),
     ("CLAUDE.md", PROSE),
     # The utilities, their cases and harness, the pins and the oracle, CI.
     ("src/**", GAUNTLET),
