@@ -175,8 +175,9 @@ skipped with its reason. The combined corpus holds **16,803 cases across 105 cas
 command (`tests/timeout/`, `tools/timeouttest`: **150 passed, 0
 failed** on hasu at bu30, and 13 skipped there: twelve that need a
 core written as a file, which run on CI's ubuntu runner, and one of
-macOS's), and the six identity tools 1,126 more that
-run as root and as users or change an owner (`tests/ids/`,
+macOS's), and the six identity tools and `hostid` 1,132 more that
+run as root and as users, change an owner, or write the files `hostid`
+reads (`tests/ids/`,
 `tools/idtest`: 28 of them only on CI's macOS runner). The prior text-tool measurement in an unprivileged Ubuntu 24.04 container on hasu
 (linux x86-64, CPUs 0–5), at wolf 0.2.35 / lupin 0.1.56 with bundled
 std `2386522e`, answers **8,005 passed, 0 failed, 157 skipped** on both
@@ -1636,7 +1637,7 @@ table answers it per utility, from the evidence and from nothing else.
 | `[` | grammar and closing bracket | 1,490 / 0 | not benched (hasu) | drop-in; same measured access behavior as test |
 | `uname` | all documented switches | 98 / 0 | not benched (hasu) | drop-in for Linux raw fields; macOS raw fields are refused (#907) |
 | `hostname` | print only | 5 / 0 | not benched (hasu) | Linux print operation; setting and raw macOS name refused |
-| `hostid` | scoped above | 6 / 0 | not benched (hasu) | Linux persisted ID or files-first hosts address; missing resolver refused |
+| `hostid` | scoped above | 6 / 0 (5 / 1 on a host where neither source answers, boreutils#70), and 6 / 0 in containers | not benched (hasu) | Linux persisted ID or files-first hosts address; missing resolver refused |
 | `arch` | common options | 5 / 0 | not benched (hasu) | drop-in |
 | `uptime` | scoped above | 6 / 0 plus clock shape | not benched (hasu) | Linux procfs/utmp, with independent elapsed-time bounds |
 | `users` | FILE and common options | 9 / 0 | not benched (hasu) | Linux utmp with UTF-8 text; default stale-pid filtering included |
