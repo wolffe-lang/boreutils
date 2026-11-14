@@ -1,12 +1,13 @@
 # GNU 9.11 host identifier: both processes see the same host sources.
 #
 # Row 0 prints the identifier, so its answer is the host's (boreutils#70):
-# boreutils reads /etc/hostid, else this host's IPv4 line in /etc/hosts
-# when the host database reads files first, and GNU asks the resolver,
-# which also answers from DNS. `host_id` runs it only where one of
-# boreutils' two sources answers, and skips it by name anywhere else. The
-# rows that set both sources themselves, and the refusal where neither
-# answers, run in a container: tests/ids/cases.toml, tools/idtest.
+# GNU reads /etc/hostid, else asks the resolver, which answers from
+# /etc/hosts only when the host database reads files first and a line
+# names this host, and otherwise from DNS; boreutils reads the two files
+# and has no resolver. `host_id` runs the row only where GNU answers from
+# the files, and skips it by name anywhere else. The rows that write both
+# files themselves, and the refusals where neither answers, run in a
+# container: tests/ids/cases.toml, tools/idtest.
 
 [[case]]
 name = "0 []"
