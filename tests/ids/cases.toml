@@ -6378,3 +6378,29 @@ args = []
 setup = "rm -f /etc/hostid; printf '10.20.30.40 %s\\n' \"$(uname -n)\" > /etc/hosts; sed -i 's/^hosts:.*/hosts: dns files/' /etc/nsswitch.conf"
 ours = { exit = 1, stdout = "", stderr = "hostid: host address unavailable: wolf has no host-address resolver\n" }
 expect = { exit = 0, stdout = "140a281e\n" }
+
+[[case]]
+name = "hostid: a ::1 line naming this host, then an IPv4 line"
+util = "hostid"
+args = []
+setup = "rm -f /etc/hostid; N=$(uname -n); printf '::1 %s\\n10.5.6.7 %s\\n' \"$N\" \"$N\" > /etc/hosts"
+
+[[case]]
+name = "hostid: a ::1 line naming this host alone"
+util = "hostid"
+args = []
+setup = "rm -f /etc/hostid; printf '::1 %s\\n' \"$(uname -n)\" > /etc/hosts"
+
+[[case]]
+name = "hostid: a line with an octet above 255 is passed over"
+util = "hostid"
+args = []
+setup = "rm -f /etc/hostid; N=$(uname -n); printf '300.1.1.1 %s\\n10.5.6.7 %s\\n' \"$N\" \"$N\" > /etc/hosts"
+
+[[case]]
+name = "hostid: a leading zero is no address, refused where GNU prints zero"
+util = "hostid"
+args = []
+setup = "rm -f /etc/hostid; printf '010.1.1.1 %s\\n' \"$(uname -n)\" > /etc/hosts"
+ours = { exit = 1, stdout = "", stderr = "hostid: host address unavailable: wolf has no host-address resolver\n" }
+expect = { exit = 0, stdout = "00000000\n" }

@@ -248,6 +248,20 @@ case("hostid", [], name="hostid: the host database reads dns first, refused",
      setup="rm -f /etc/hostid; " + HOSTS + "; "
      "sed -i 's/^hosts:.*/hosts: dns files/' /etc/nsswitch.conf",
      ours=REFUSED, expect={"exit": 0, "stdout": "140a281e\n"})
+# boreutils#72: the lines of /etc/hosts GNU reads otherwise than as a plain
+# dotted quad, each measured against GNU 9.11 first: a ::1 line naming this
+# host reads as 127.0.0.1 (007f0100), a line with an octet above 255 is
+# passed over, and 010.1.1.1 is no address at all (with nothing else to
+# answer here, GNU prints its zero and this repository refuses).
+case("hostid", [], name="hostid: a ::1 line naming this host, then an IPv4 line",
+     setup="rm -f /etc/hostid; N=$(uname -n); printf '::1 %s\\n10.5.6.7 %s\\n' \"$N\" \"$N\" > /etc/hosts")
+case("hostid", [], name="hostid: a ::1 line naming this host alone",
+     setup="rm -f /etc/hostid; printf '::1 %s\\n' \"$(uname -n)\" > /etc/hosts")
+case("hostid", [], name="hostid: a line with an octet above 255 is passed over",
+     setup="rm -f /etc/hostid; N=$(uname -n); printf '300.1.1.1 %s\\n10.5.6.7 %s\\n' \"$N\" \"$N\" > /etc/hosts")
+case("hostid", [], name="hostid: a leading zero is no address, refused where GNU prints zero",
+     setup="rm -f /etc/hostid; printf '010.1.1.1 %s\\n' \"$(uname -n)\" > /etc/hosts",
+     ours=REFUSED, expect={"exit": 0, "stdout": "00000000\n"})
 
 with open("tests/ids/cases.toml", "w") as fh:
     fh.write("# tests/ids/cases.toml — written by notes/bu24/gen/id_cases.py; run by\n"
