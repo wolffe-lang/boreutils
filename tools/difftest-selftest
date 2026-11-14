@@ -63,7 +63,25 @@ for control in "tee: two names of one file, by bytes alone" \
         exit 1
     fi
 done
-echo "$out" | grep -E '^(FAIL|difftest:)'
+# boreutils#70: `host_id` runs a case only where hostid's sources answer on
+# this host. The harness must say what it found, and the planted case must
+# then be a FAIL where they answer and a SKIP by name where they do not:
+# the key can move a case from run to skipped, never to `ok`.
+found=$(echo "$out" | grep "^difftest: hostid's sources here: " || true)
+case "$found" in
+    *"; the host_id cases run") want="FAIL true: a host_id case is still compared" ;;
+    *"; the host_id cases are skipped") want="SKIP true: a host_id case is still compared (" ;;
+    *)
+        echo "difftest-selftest: REFUSED — no line said what hostid's sources are here:"
+        echo "$out"
+        exit 1 ;;
+esac
+if ! echo "$out" | grep -qF "$want"; then
+    echo "difftest-selftest: REFUSED — the host_id plant is not '$want':"
+    echo "$out"
+    exit 1
+fi
+echo "$out" | grep -E '^(FAIL|SKIP true: a host_id|difftest:)'
 echo "difftest-selftest: the harness saw every planted difference"
 
 # THE REFUSALS (bu21). A utility that changes the file system is never

@@ -1,8 +1,17 @@
 # GNU 9.11 host identifier: both processes see the same host sources.
+#
+# Row 0 prints the identifier, so its answer is the host's (boreutils#70):
+# boreutils reads /etc/hostid, else this host's IPv4 line in /etc/hosts
+# when the host database reads files first, and GNU asks the resolver,
+# which also answers from DNS. `host_id` runs it only where one of
+# boreutils' two sources answers, and skips it by name anywhere else. The
+# rows that set both sources themselves, and the refusal where neither
+# answers, run in a container: tests/ids/cases.toml, tools/idtest.
 
 [[case]]
 name = "0 []"
 args = []
+host_id = true
 skip_on = { Darwin = "no gethostid or host-address resolver surface" }
 
 [[case]]

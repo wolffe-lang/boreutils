@@ -6,3 +6,10 @@
 [[case]]
 name = "true is not false"
 gnu_util = "false"
+
+# boreutils#70: a `host_id` case still fails where hostid's sources answer,
+# and is a SKIP by name where they do not; never an `ok`.
+[[case]]
+name = "a host_id case is still compared"
+gnu_util = "false"
+host_id = true
