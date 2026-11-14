@@ -5,6 +5,9 @@
 //! The address rotation below was measured in the container. If no
 //! hosts-file address is available, refuse the missing resolver surface
 //! instead of printing zero or substituting a hash of the hostname.
+//! Which hosts lines give an address was measured against GNU 9.11 too
+//! (boreutils#72): a strict dotted quad, and `::1` as 127.0.0.1; any
+//! other line naming the host is passed over.
 
 use bore
 
@@ -18,6 +21,42 @@ fn hex(n: int) -> str {
         value /= 16
     }
     text
+}
+
+/// One part of a dotted quad as GNU reads it: one to three ASCII digits,
+/// no leading zero, at most 255; -1 for anything else.
+fn octet(part: str) -> int {
+    if part.len == 0 || part.len > 3 { return -1 }
+    if part.len > 1 && part.starts_with("0") { return -1 }
+    var n = 0
+    for b in part.bytes() {
+        let d = b as int - 48
+        if d < 0 || d > 9 { return -1 }
+        n = n * 10 + d
+    }
+    if n > 255 { return -1 }
+    n
+}
+
+/// A hosts line's address as four octets, or an empty list for a line GNU
+/// passes over. `::1` is the loopback address, read as 127.0.0.1.
+fn address(text: str) -> List[int] {
+    var nums = List[int]()
+    if text == "::1" {
+        (mut nums).push(127)
+        (mut nums).push(0)
+        (mut nums).push(0)
+        (mut nums).push(1)
+        return nums
+    }
+    let parts = text.split(".")
+    if parts.len != 4 { return List[int]() }
+    for part in parts {
+        let n = octet(part)
+        if n < 0 { return List[int]() }
+        (mut nums).push(n)
+    }
+    nums
 }
 
 fn identifier() -> int ! {unsupported} {
@@ -48,14 +87,8 @@ fn identifier() -> int ! {unsupported} {
         var matches = false
         for i in 1..fields.len { if fields[i].lower() == hostname.lower() { matches = true } }
         if !matches { continue }
-        let parts = fields[0].split(".")
-        if parts.len != 4 { continue }
-        var nums = List[int]()
-        for part in parts {
-            let n = part.to_int() else |_| { return unsupported }
-            if n < 0 || n > 255 { return unsupported }
-            (mut nums).push(n)
-        }
+        let nums = address(fields[0])
+        if nums.len != 4 { continue }
         return nums[1] * 16777216 + nums[0] * 65536 + nums[3] * 256 + nums[2]
     }
     unsupported
