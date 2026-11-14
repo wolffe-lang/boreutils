@@ -4,7 +4,9 @@
 `id`, `whoami`, `groups` and `logname` answer for WHO runs them, and
 `chown` and `chgrp` change who owns a file. Neither can be measured on a
 shared host: this lane may not run as another user there or change an
-owner there. So every case here runs in a THROWAWAY CONTAINER, one per
+owner there. `hostid` answers for the HOST, from /etc/hostid and
+/etc/hosts, which a case may write only where nothing else reads them
+(boreutils#70). So every case here runs in a THROWAWAY CONTAINER, one per
 case, made from an image this tool builds and removes again:
 
   - no volume and no bind mount, of anything; `--network none`;
@@ -30,6 +32,7 @@ Case file (tests/ids/cases.toml), any number of [[case]] tables:
 
   name = "chown: a user by name"   # required, unique
   util = "chown"                   # id whoami groups logname chown chgrp
+                                   #   hostid
   args = ["-v", "alice", "f"]
   as = "alice"                     # the actor (default root); ACTORS below
   setup = "chmod 0700 d"           # shell run as root in /work after the
@@ -90,7 +93,7 @@ import tomllib
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CASES = os.path.join(ROOT, "tests", "ids", "cases.toml")
 TIERS = (("release", ["--release"]), ("dev", []))
-UTILS = ("id", "whoami", "groups", "logname", "chown", "chgrp")
+UTILS = ("id", "whoami", "groups", "logname", "chown", "chgrp", "hostid")
 KEYS = {"name", "util", "args", "as", "setup", "tty", "utmp", "env",
         "compare", "ours", "expect", "self", "skip", "gnu_sub"}
 FIELDS = ("exit", "stdout", "stderr", "tree")
@@ -230,7 +233,7 @@ def read(text, sides):
 
 
 def build(out, static):
-    """The six on both tiers, static when they go into a container."""
+    """The seven on both tiers, static when they go into a container."""
     wolf = os.path.join(ROOT, ".wolf-bin", "wolf")
     if not os.access(wolf, os.X_OK):
         die("no .wolf-bin/wolf (run tools/fetch-toolchain)")
@@ -339,7 +342,7 @@ def main(argv):
     image = image or "ubuntu:24.04"
     if gnudir is None:
         die("--gnu DIR is required: GNU coreutils 9.11's id, whoami, groups, "
-            "logname, chown and chgrp")
+            "logname, chown, chgrp and hostid")
     with open(cases_path, "rb") as fh:
         cases = tomllib.load(fh).get("case", [])
     seen = set()
@@ -408,6 +411,8 @@ def main(argv):
             if only and not any(o in label for o in only):
                 continue
             reason = c.get("skip")
+            if reason is None and not boxed and c["util"] == "hostid":
+                reason = "no container here: the case writes the image's /etc/hostid and /etc/hosts"
             if reason is None and not boxed and not c.get("self"):
                 reason = "no container here: the case runs as an account of the image"
             if reason is None and boxed and c.get("self"):

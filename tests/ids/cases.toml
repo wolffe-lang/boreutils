@@ -6338,3 +6338,43 @@ util = "chown"
 args = ["-v", ":", "f"]
 self = true
 compare = ["exit", "stderr", "tree"]
+
+[[case]]
+name = "hostid: /etc/hostid, read before /etc/hosts"
+util = "hostid"
+args = []
+setup = "printf '\\170\\126\\064\\022' > /etc/hostid; printf '10.20.30.40 %s\\n' \"$(uname -n)\" > /etc/hosts"
+
+[[case]]
+name = "hostid: this host's IPv4 line in /etc/hosts"
+util = "hostid"
+args = []
+setup = "rm -f /etc/hostid; printf '10.20.30.40 %s\\n' \"$(uname -n)\" > /etc/hosts"
+
+[[case]]
+name = "hostid: /etc/hosts with a comment, another host, a tab, an alias and this host's name in capitals"
+util = "hostid"
+args = []
+setup = "rm -f /etc/hostid; N=$(uname -n); printf '# %s\\n10.9.8.7 other\\n\\n10.20.30.40\\talias %s # x\\n10.1.1.1 %s\\n' \"$N\" \"$(printf %s \"$N\" | tr a-z A-Z)\" \"$N\" > /etc/hosts"
+
+[[case]]
+name = "hostid: a /etc/hostid shorter than four bytes is passed over"
+util = "hostid"
+args = []
+setup = "printf '\\170\\126' > /etc/hostid; printf '10.20.30.40 %s\\n' \"$(uname -n)\" > /etc/hosts"
+
+[[case]]
+name = "hostid: no source answers, refused where GNU prints zero"
+util = "hostid"
+args = []
+setup = "rm -f /etc/hostid; printf '127.0.0.1 localhost\\n' > /etc/hosts"
+ours = { exit = 1, stdout = "", stderr = "hostid: host address unavailable: wolf has no host-address resolver\n" }
+expect = { exit = 0, stdout = "00000000\n" }
+
+[[case]]
+name = "hostid: the host database reads dns first, refused"
+util = "hostid"
+args = []
+setup = "rm -f /etc/hostid; printf '10.20.30.40 %s\\n' \"$(uname -n)\" > /etc/hosts; sed -i 's/^hosts:.*/hosts: dns files/' /etc/nsswitch.conf"
+ours = { exit = 1, stdout = "", stderr = "hostid: host address unavailable: wolf has no host-address resolver\n" }
+expect = { exit = 0, stdout = "140a281e\n" }

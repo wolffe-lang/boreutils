@@ -12,12 +12,14 @@ seen = set()
 
 
 def case(util, args, as_="root", **kw):
+    named = "name" in kw
     name = kw.pop("name", None) or f"{util}: {shlex.join(args) or '(none)'} as {as_}"
     if kw.get("tty"):
         name += " on a terminal"
     if kw.get("utmp"):
         name += " with " + ", ".join(f"{t}/{l}/{u}" for t, l, u in kw["utmp"])
-    if kw.get("setup"):
+    # A case given its own name says what its setup is for in it.
+    if kw.get("setup") and not named:
         name += f" after `{kw['setup']}`"
     assert name not in seen, name
     seen.add(name)
@@ -214,6 +216,39 @@ for util, args in (("chgrp", ["-v", "{g2}", "f"]), ("chgrp", ["-v", "{gid}", "f"
                    ("chown", ["-v", "", "f"]), ("chown", ["-v", ":", "f"])):
     case(util, args, "root", name=f"{util}: {shlex.join(args)} as this runner", self=True, compare=SELF)
 
+# hostid (boreutils#70): the identifier from sources the case itself writes
+# in the container, so no row depends on the runner. boreutils reads the
+# first four bytes of /etc/hostid, else this host's IPv4 line of /etc/hosts
+# when the host database reads files first; GNU asks the resolver, which in
+# a container with no network answers from the files alone. Each answer
+# below was measured against GNU 9.11's binary by hand first, in a fresh
+# --network none ubuntu:24.04 container: 12345678 for the bytes 78 56 34
+# 12, 140a281e for 10.20.30.40, and 00000000 when nothing answers.
+HOSTS = "printf '10.20.30.40 %s\\n' \"$(uname -n)\" > /etc/hosts"
+REFUSED = {"exit": 1, "stdout": "",
+           "stderr": "hostid: host address unavailable: wolf has no host-address resolver\n"}
+case("hostid", [], name="hostid: /etc/hostid, read before /etc/hosts",
+     setup="printf '\\170\\126\\064\\022' > /etc/hostid; " + HOSTS)
+case("hostid", [], name="hostid: this host's IPv4 line in /etc/hosts",
+     setup="rm -f /etc/hostid; " + HOSTS)
+case("hostid", [], name="hostid: /etc/hosts with a comment, another host, a tab, an alias "
+     "and this host's name in capitals",
+     setup="rm -f /etc/hostid; N=$(uname -n); printf '# %s\\n10.9.8.7 other\\n\\n"
+     "10.20.30.40\\talias %s # x\\n10.1.1.1 %s\\n' \"$N\" \"$(printf %s \"$N\" | tr a-z A-Z)\" "
+     "\"$N\" > /etc/hosts")
+case("hostid", [], name="hostid: a /etc/hostid shorter than four bytes is passed over",
+     setup="printf '\\170\\126' > /etc/hostid; " + HOSTS)
+# Refused BY DESIGN where GNU answers: with no source, GNU prints an
+# invented zero; with dns read before files, a resolver this repository
+# cannot ask could answer first (with no network here, GNU's falls back).
+case("hostid", [], name="hostid: no source answers, refused where GNU prints zero",
+     setup="rm -f /etc/hostid; printf '127.0.0.1 localhost\\n' > /etc/hosts",
+     ours=REFUSED, expect={"exit": 0, "stdout": "00000000\n"})
+case("hostid", [], name="hostid: the host database reads dns first, refused",
+     setup="rm -f /etc/hostid; " + HOSTS + "; "
+     "sed -i 's/^hosts:.*/hosts: dns files/' /etc/nsswitch.conf",
+     ours=REFUSED, expect={"exit": 0, "stdout": "140a281e\n"})
+
 with open("tests/ids/cases.toml", "w") as fh:
     fh.write("# tests/ids/cases.toml — written by notes/bu24/gen/id_cases.py; run by\n"
              "# tools/idtest, one throwaway container a case. Do not edit by hand:\n"
@@ -221,5 +256,9 @@ with open("tests/ids/cases.toml", "w") as fh:
     for c in cases:
         fh.write("\n[[case]]\n")
         for k, v in c.items():
-            fh.write(f"{k} = {json.dumps(v)}\n")
+            if isinstance(v, dict):
+                v = "{ " + ", ".join(f"{kk} = {json.dumps(vv)}" for kk, vv in v.items()) + " }"
+                fh.write(f"{k} = {v}\n")
+            else:
+                fh.write(f"{k} = {json.dumps(v)}\n")
 print(len(cases), "cases")

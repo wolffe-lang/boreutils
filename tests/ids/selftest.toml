@@ -30,6 +30,15 @@ tty = true
 utmp = [[7, "{tty}", "alice"]]
 ours = { stdout = "", exit = 1 }
 
+# boreutils#70: a setup reaches the sources hostid reads. GNU reads this
+# host's line in /etc/hosts (140a281e); ours read a /etc/hostid planted for
+# them alone (bytes 01 02 03 04).
+[[case]]
+name = "plant: a /etc/hostid only ours read"
+util = "hostid"
+args = []
+setup = "rm -f /etc/hostid; printf '10.20.30.40 %s\\n' \"$(uname -n)\" > /etc/hosts; [ \"$who\" = gnu ] || printf '\\001\\002\\003\\004' > /etc/hostid"
+
 [[case]]
 name = "control: the actor's own id"
 util = "id"
