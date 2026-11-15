@@ -43,6 +43,31 @@ The `test` utility treats `--version` as a string operand, not a version query.
 Release checks record that unavailable option explicitly; the other utilities
 identify the shared family version.
 
+When the Homebrew/AUR recipes are published, only the packaging dispatcher
+`bore` is installed on PATH: `bore cat FILE`, for example. Utilities stay under
+`/usr/lib/boreutils/bin/` on AUR and `libexec/boreutils/bin/` under Homebrew.
+No system commands are replaced, and the recipes declare no replacement of
+coreutils. Unprefixed names require an explicit opt-in:
+
+```sh
+# AUR:
+export PATH="/usr/lib/boreutils/bin:$PATH"
+# Homebrew:
+export PATH="$(brew --prefix boreutils)/libexec/boreutils/bin:$PATH"
+```
+
+Alternatively, choose individual links in your own bin directory:
+
+```sh
+mkdir -p "$HOME/.local/bin"
+ln -s /usr/lib/boreutils/bin/cat "$HOME/.local/bin/bore-cat"
+# Homebrew alternative, instead of the preceding link:
+ln -s "$(brew --prefix boreutils)/libexec/boreutils/bin/cat" "$HOME/.local/bin/bore-cat"
+```
+
+These commands never force or overwrite an existing link. Pick the names you
+want; installing a package does not make these links for you.
+
 
 ## Why
 
