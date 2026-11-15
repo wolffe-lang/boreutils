@@ -9,6 +9,38 @@ faster than GNU. Speed is measured per utility and never promised.
 GNU's `cat` and `wc` are already fast, so beating them counts as a
 finding, not as a requirement.
 
+## Install 0.1.0
+
+Release preparation targets macOS arm64 (`aarch64-apple-darwin`) and Linux
+x86-64 (`x86_64-unknown-linux-gnu`). A release workflow creates a **draft**;
+these instructions apply only once `v0.1.0` has been published on the
+[release page](https://github.com/wolffe-lang/boreutils/releases).
+Other platforms have no prebuilt archive in this release.
+
+Download `boreutils-0.1.0-TARGET.tar.gz` and its `.sha256` sidecar into an empty
+directory, replacing `TARGET` with your platform above. Before unpacking, run:
+
+```sh
+# Linux:
+sha256sum -c boreutils-0.1.0-TARGET.tar.gz.sha256
+# macOS:
+shasum -a 256 -c boreutils-0.1.0-TARGET.tar.gz.sha256
+tar -xzf boreutils-0.1.0-TARGET.tar.gz
+cd boreutils-0.1.0-TARGET
+./cat --version
+```
+
+The archive contains the executables, license, documentation, toolchain pins
+and `BUILD.json` provenance. Keep it outside system directories and add its
+absolute directory to your PATH if desired. Checksums detect altered bytes;
+they do not replace a trusted download channel or constitute signed releases.
+Homebrew and AUR recipes are prepared separately after published hashes are
+known; preparation does not imply that either package is already available.
+
+The archive contains separate utility executables, not one multicall binary.
+Try them by explicit path; do not replace your system core utilities.
+
+
 ## Why
 
 - **A second large production wolf codebase, after

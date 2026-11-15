@@ -75,6 +75,7 @@
 name: ci
 
 on:
+  workflow_call:
   push:
     branches: [trunk]
     paths:
@@ -161,14 +162,14 @@ jobs:
         if: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-matrix') || contains(github.event.pull_request.labels.*.name, 'ci') || contains(github.event.pull_request.labels.*.name, 'release-matrix') }}
         id: plan
         env:
-          EVENT: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'release-matrix') && 'push' || github.event_name }}
+          EVENT: ${{ startsWith(github.ref, 'refs/tags/') && 'workflow_dispatch' || (github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'release-matrix') && 'push' || github.event_name) }}
           ACTION: ${{ github.event.action }}
           LABEL: ${{ github.event.label.name }}
           LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          IN_TIER: ${{ inputs.tier }}
+          IN_TIER: ${{ startsWith(github.ref, 'refs/tags/') && 'full' || inputs.tier }}
           # one job alone, by name (bu25): tier partial
-          IN_ONLY: ${{ inputs.only }}
+          IN_ONLY: ${{ startsWith(github.ref, 'refs/tags/') && 'all' || inputs.only }}
         run: python3 ci/tiers.py plan --merge --github-output "$GITHUB_OUTPUT"
 
       - name: local gate wiring proof
