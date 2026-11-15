@@ -1,3 +1,4 @@
+# Generated from ci.yml by the pinned release-adapter; checked for drift.
 name: release gate
 on:
   workflow_call:
@@ -7,7 +8,6 @@ on:
         value: ${{ jobs.complete.outputs.tested-sha }}
 permissions:
   contents: read
-  issues: write
 jobs:
   verify:
     runs-on: ubuntu-24.04
@@ -30,15 +30,655 @@ jobs:
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           test "$(git rev-parse "refs/tags/$GITHUB_REF_NAME^{commit}")" = "$GITHUB_SHA"
           echo "sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
-  ci:
+  plan:
     needs: verify
-    uses: ./.github/workflows/ci.yml
+    name: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      tier: ${{ steps.plan.outputs.tier }}
+      jobs: ${{ steps.plan.outputs.jobs }}
+      matrix_gauntlet: ${{ steps.plan.outputs.matrix_gauntlet }}
+    steps:
+      # Depth 2: a pull request's run checks out its merge commit, and the
+      # plan reads that commit against its first parent. A dispatch reads
+      # its branch against trunk's merge base, so it takes the history.
+      - uses: actions/checkout@v4
+        if: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-matrix') || contains(github.event.pull_request.labels.*.name, 'ci') || contains(github.event.pull_request.labels.*.name, 'release-matrix') }}
+        with:
+          fetch-depth: ${{ github.event_name == 'workflow_dispatch' && '0' || '2' }}
+      - name: the planner can say no (ci/tiers-test.py)
+        if: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-matrix') || contains(github.event.pull_request.labels.*.name, 'ci') || contains(github.event.pull_request.labels.*.name, 'release-matrix') }}
+        run: python3 ci/tiers-test.py
+      - name: the plan
+        if: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-matrix') || contains(github.event.pull_request.labels.*.name, 'ci') || contains(github.event.pull_request.labels.*.name, 'release-matrix') }}
+        id: plan
+        env:
+          EVENT: workflow_dispatch
+          ACTION: ${{ github.event.action }}
+          LABEL: ${{ github.event.label.name }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          IN_TIER: full
+          # one job alone, by name (bu25): tier partial
+          IN_ONLY: all
+        run: python3 ci/tiers.py plan --merge --github-output "$GITHUB_OUTPUT"
+
+      - name: local gate wiring proof
+        if: ${{ github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-matrix') || contains(github.event.pull_request.labels.*.name, 'ci') || contains(github.event.pull_request.labels.*.name, 'release-matrix') }}
+        run: python3 -I ci/local-gate-test.py
+      - name: local evidence gate
+        if: ${{ !(github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-matrix') || contains(github.event.pull_request.labels.*.name, 'ci') || contains(github.event.pull_request.labels.*.name, 'release-matrix')) }}
+        run: echo 'Local gauntlet evidence is the gate; request ci or full-matrix for CI.'
+  gauntlet:
+    needs: plan
+    if: ${{ (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-matrix') || contains(github.event.pull_request.labels.*.name, 'ci') || contains(github.event.pull_request.labels.*.name, 'release-matrix')) && (contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'gauntlet')) }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # The hosts are the plan's (ci/tiers.py MATRIX): linux (the oracle
+        # on PATH, no prefix) and macOS (Homebrew's g-prefixed GNU) in the
+        # full tier, linux alone in a pull request's.
+        include: ${{ fromJSON(needs.plan.outputs.matrix_gauntlet || '[]') }}
+    runs-on: ${{ matrix.os }}
+    # Run 40168612318: release alone took 33m Linux / 34m macOS.
+    # Darwin's projected full job is 54m29 (completed tail from
+    # 40097789140); 66m leaves 21% headroom. Keep all per-case bounds.
+    timeout-minutes: ${{ matrix.os == 'macos-latest' && 66 || 90 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: the bench tool, and macOS's GNU
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            brew install --quiet coreutils hyperfine
+          else
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq hyperfine || {
+              echo "::notice::no hyperfine package; taking the release binary"
+              v=1.19.0
+              url="https://github.com/sharkdp/hyperfine/releases/download/v$v/hyperfine_${v}_amd64.deb"
+              curl -sSfL -o /tmp/hyperfine.deb "$url"
+              sudo dpkg -i /tmp/hyperfine.deb
+            }
+          fi
+          hyperfine --version
+
+      # Keyed on the pin file, so bumping the oracle of record is what
+      # invalidates it and nothing else does.
+      - name: the oracle of record, cached
+        uses: actions/cache@v4
+        with:
+          path: .gnu-bin
+          key: gnu-oracle-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gnu-oracle.toml') }}
+
+      - name: the oracle of record, by digest
+        shell: bash
+        run: |
+          set -euo pipefail
+          prefix='${{ matrix.gnu_prefix }}'
+          dir=$(BORE_GNU_PREFIX="$prefix" tools/fetch-oracle)
+          if [ -n "$dir" ]; then
+            # A staged build's binaries are unprefixed, whatever the host
+            # would otherwise call them.
+            echo "$dir" >> "$GITHUB_PATH"
+            prefix=""
+          fi
+          echo "BORE_GNU_PREFIX=$prefix" >> "$GITHUB_ENV"
+
+      - name: the pinned toolchain, by digest
+        run: tools/fetch-toolchain
+
+      - name: wolf fmt --check
+        run: tools/check-fmt
+
+      - name: build (release)
+        run: tools/build
+
+      - name: wolf test
+        run: tools/check-test
+
+      - name: the differential suite against the oracle of record
+        run: tools/difftest
+
+      # bu35. Only this container's ptys and login database are changed;
+      # complete termios state is compared, not merely successful exits.
+      - name: Identity and terminal state in a disposable container (bu35)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm --memory 4g -e BORE_UTMP_CONTAINER=1 \
+            -v "$PWD:/lane:ro" -w /lane ubuntu:24.04 bash -c '
+              set -euo pipefail
+              ulimit -c 0
+              apt-get update -qq
+              apt-get install -y -qq python3 util-linux acl
+              taskset -c 0-3 python3 -I tests/identity-terminal/check.py
+              taskset -c 0-3 python3 -I tests/identity-terminal/selinux-field.py
+              taskset -c 0-3 python3 -I tests/identity-terminal/access-not-yet.py
+            '
+
+      - name: Checksum vectors, interoperability and bounded memory (bu32)
+        run: tools/checksumtest
+
+      - name: the harness sees a difference (the planted red)
+        run: tools/difftest-selftest
+
+      - name: Text-tool shape plants and bounded codecs
+        run: tools/texttest
+
+      # boreutils#10. Three macOS reds have ended at exit 141 with an
+      # empty transcript, so the harness is gated on keeping its report:
+      # a broken pipe of its own does not take the run down, and a run
+      # killed outright still leaves every case it had already decided.
+      - name: the report survives the process (boreutils#10)
+        run: tools/difftest-evidence
+
+      # boreutils#27. A `tty` case read nothing, now and then on macOS,
+      # from a program that had written and exited: the harness's own
+      # last close of the terminal end discarded it. The gate widens the
+      # race on purpose (the reader 5 ms late) and every byte of every
+      # trial must arrive; against the harness as it was, 394 of 800
+      # trials were lost on macos-latest (run 39026452370).
+      - name: the terminal read keeps a quick child's output (boreutils#27)
+        run: tools/ttyprobe --trials 100 --settle 0,5 --bytes 24,1000 --readers harness --gate
+
+      # B98. The `field` leg's ruling is a shell script, so it is tested
+      # like one: every exit code the leg can produce, judged, plus a
+      # REAL planted SIGPIPE death of `tools/difftest` whose pipeline
+      # status is 0 — which is how the leg died unnoticed in run
+      # 35673565877 in the first place.
+      - name: a death on the field leg is loud (B98)
+        run: tools/field-verdict-selftest
+
+      # bu21. `rm -r /` must be refused, and the refusal is run as a
+      # program only where `/` is disposable: one throwaway container a
+      # case, nothing mounted, no network, as a user and as root INSIDE
+      # the container, both tiers built static, GNU 9.11 beside them, a
+      # sentinel tree summed before and after. Linux only: the programs
+      # are linux binaries and macOS runners have no container engine.
+      # tools/difftest refuses these operands everywhere else.
+      - name: rm, mv and cp where / is disposable (a throwaway container)
+        if: runner.os == 'Linux'
+        run: tools/roottest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin
+
+      # bu28 (boreutils#41 (4)): `kill -l` and `-t` of every number
+      # 0..140000 and a sample of the int range, against GNU's own `kill`,
+      # on both tiers. It sends nothing. Since wolf 0.2.33 the rows that
+      # read as signal 0 have their words too, so no number is left by
+      # design: any parting is red.
+      - name: kill -l and -t of every number, against GNU (boreutils#34, #41)
+        run: |
+          tools/build --dev kill
+          tools/killprobe --table --gnu .gnu-bin/bin/kill target/release/kill target/dev/kill
+
+      # bu23. `kill` sends, so tools/difftest refuses every case of it
+      # that could, and the sending cases run here: one throwaway
+      # container a case, nothing mounted, no network, a process-id
+      # namespace of its own, every target a process the case's script
+      # started inside it, GNU 9.11's OWN kill beside both tiers (the
+      # oracle is built with --enable-install-program=kill; the tool
+      # refuses a `kill` that is procps' or util-linux's). The selftest
+      # first: the tool must fail three planted differences by name.
+      - name: kill where it sends (a throwaway container a case)
+        if: runner.os == 'Linux'
+        run: |
+          tools/killtest-selftest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin
+          tools/killtest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin
+
+      # macOS has no container engine, and its signal NUMBERS are the
+      # ones a linux list gets wrong (USR1 is 30 here). The runner is
+      # itself a throwaway machine: the cases that name only processes
+      # they started run on it directly, and the ones that name a
+      # process group or a literal id are skipped by name.
+      - name: kill where it sends (this runner, the test's own children)
+        if: runner.os == 'macOS'
+        run: |
+          tools/killtest-selftest --engine none --gnu .gnu-bin/bin
+          tools/killtest --engine none --gnu .gnu-bin/bin
+
+      # bu27. `timeout` runs a command, leads a process group with it and
+      # signals that group at the expiry, so tools/difftest refuses every
+      # case of it that could start a command, and those run here: one
+      # throwaway container a case, nothing mounted, no network, as a user
+      # of the image, every process a signal reaches one the case started,
+      # GNU 9.11's timeout beside both tiers. The selftest first: five
+      # planted differences must fail by name.
+      #
+      # bu28: a core is a FILE in the case's own directory only under a
+      # relative core pattern, so this throwaway runner is set to one
+      # (`core.%p`; its own is printed first) and timeouttest's cores-on
+      # cases run here and must (BORE_CORE_REQUIRE=1: a skip FAILS). Under
+      # `ulimit -c 0`, the default for every other case, it dumps none.
+      - name: timeout where it runs a command (a throwaway container a case)
+        if: runner.os == 'Linux'
+        run: |
+          echo "the runner's core pattern: $(cat /proc/sys/kernel/core_pattern)"
+          sudo sysctl -w kernel.core_pattern=core.%p
+          export BORE_CORE_REQUIRE=1
+          tools/timeouttest-selftest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin
+          tools/timeouttest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin
+
+      # macOS has no container engine. The runner is itself a throwaway
+      # machine: each case runs on it in a session of its own, so the group
+      # a timeout leads holds only that case's processes (timeouttest
+      # refuses this mode anywhere GITHUB_ACTIONS is not true). The oracle
+      # is the one difftest runs on this host: the staged 9.11 build when
+      # tools/fetch-oracle staged one (Homebrew moved to 9.12 on
+      # 2026-10-18: run 39159007328 was refused for it), else Homebrew's
+      # gtimeout at the oracle's version.
+      - name: timeout where it runs a command (this runner, a session a case)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          if [ -x .gnu-bin/bin/timeout ]; then g=.gnu-bin/bin; p=""
+          else g=$(dirname "$(command -v gtimeout)"); p="--gnu-prefix g"; fi
+          tools/timeouttest-selftest --engine none --gnu "$g" $p
+          tools/timeouttest --engine none --gnu "$g" $p
+
+      # bu24. `id`, `whoami`, `groups` and `logname` answer for WHO runs
+      # them, and `chown` and `chgrp` change owners: tools/difftest runs
+      # only what changes nothing, and refuses a chown/chgrp case that
+      # names a file. Here: one throwaway container a case, nothing
+      # mounted, no network, the accounts the image's own, each case run
+      # as root and as users of that image, both tiers built static, GNU
+      # 9.11 beside them, every owner and mode read back. The selftest
+      # first: four planted differences must fail by name.
+      - name: the identity tools as root and as users (a throwaway container a case)
+        if: runner.os == 'Linux'
+        run: |
+          tools/idtest-selftest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin
+          tools/idtest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin
+
+      # macOS has no container engine. The runner is itself a throwaway
+      # machine: the `self` cases run on it as its own user, on trees the
+      # case makes in a fresh temporary directory, changing only to ids
+      # and groups that user already has (idtest refuses this mode
+      # anywhere GITHUB_ACTIONS is not true).
+      - name: the identity tools on this runner, as its own user
+        if: runner.os == 'macOS'
+        run: tools/idtest --engine none --gnu .gnu-bin/bin
+
+      # bu25. `cat f >> f` without its refusal copies until the disk is
+      # full (boreutils#28), so no case of it runs where a disk can fill:
+      # one throwaway container a case, nothing mounted, no network, every
+      # file on an 8 MiB tmpfs, every side under a file-size limit and an
+      # alarm, as root and as a user, GNU 9.11's cat beside both tiers. The
+      # selftest first: the limit and the alarm must each be seen to stop
+      # a side, and two planted differences must fail by name.
+      - name: cat where its input is its output (a throwaway container a case)
+        if: runner.os == 'Linux'
+        run: |
+          tools/inouttest-selftest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin
+          tools/inouttest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin
+
+      # macOS has no container engine. The runner is itself a throwaway
+      # machine: the cases run on it as its own user, in a fresh temporary
+      # directory, under the same file-size limit and alarm (inouttest
+      # refuses this mode anywhere GITHUB_ACTIONS is not true).
+      - name: cat where its input is its output (this runner, under a file-size limit)
+        if: runner.os == 'macOS'
+        run: |
+          tools/inouttest-selftest --engine none --gnu .gnu-bin/bin
+          tools/inouttest --engine none --gnu .gnu-bin/bin
+
+      - name: smoke bench
+        run: tools/bench --scale 0.0005 --runs 3
+
+  # Not a verdict. The distro's own GNU is what a user on that distro
+  # actually has, and the cases that name a version range with gnu_min /
+  # gnu_max are claims about it — this leg is what keeps those claims
+  # from rotting. It carries continue-on-error because a divergence here
+  # is a finding to record, not a broken build; a failure annotation
+  # under it is an ANNOUNCED ADVISORY.
+  field:
+    name: the field's GNU (information, not a verdict)
+    needs: plan
+    if: ${{ (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-matrix') || contains(github.event.pull_request.labels.*.name, 'ci') || contains(github.event.pull_request.labels.*.name, 'release-matrix')) && (contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'field')) }}
+    runs-on: ubuntu-latest
+    # NO `continue-on-error` on the job any more (B98). It made the leg
+    # non-blocking about everything, including its own death: in run
+    # 35673565877 `tools/difftest` here took exit 141 from signal 13,
+    # left a partial report, and the job reported `success`, because
+    # linux's pipe block is 4096 bytes and macOS's is 16384 so only the
+    # macOS deaths were ever loud enough to notice. The advisory now
+    # lives on the one step that earns it — the differential run, whose
+    # exit 1 is a divergence and is DATA — and `tools/field-verdict`
+    # decides which of the two a given exit code is.
+    # The same release build exceeded the old 30m cap in 40168612318.
+    timeout-minutes: 45
+    env:
+      BORE_GNU_PREFIX: ""
+      BORE_ORACLE_ANY: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: what this runner ships
+        # Through `env`: `true` is a shell builtin and the builtin
+        # ignores --version, so the bare spelling prints nothing at all.
+        run: env true --version | head -1
+
+      - name: the pinned toolchain, by digest
+        run: tools/fetch-toolchain
+
+      - name: build (release)
+        run: tools/build
+
+      # `continue-on-error` HERE, not on the job: a divergence against
+      # the runner's own GNU is the finding this leg exists to make.
+      - name: the differential suite against the distro's GNU
+        id: differential
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          tools/difftest
+          code=$?
+          set -e
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          exit $code
+
+      # And the ruling, which is NOT continue-on-error: a leg that
+      # cannot say whether it finished has produced no information, so a
+      # signal death or a harness refusal reds the build even though a
+      # verdict difference does not (B98).
+      - name: what that exit code MEANS (B98)
+        shell: bash
+        run: tools/field-verdict '${{ steps.differential.outputs.code }}'
+
+  # boreutils#27, by dispatch only (`only: ttyprobe`): the terminal read
+  # measured on the runner it fails on, the race widened on purpose.
+  ttyprobe:
+    name: the terminal read, measured (boreutils#27)
+    # On request (`only: ttyprobe`), and every night (tier nightly).
+    needs: plan
+    if: ${{ (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-matrix') || contains(github.event.pull_request.labels.*.name, 'ci') || contains(github.event.pull_request.labels.*.name, 'release-matrix')) && (contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'ttyprobe')) }}
+    runs-on: macos-latest
+    # A reader that loses a child's output waits 0.6 s at each loss (the
+    # close it makes on itself), so the report alone takes about twenty
+    # minutes against the reader as it was (run 39036256039 reached 30).
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - name: the probe, every reader (a report)
+        run: tools/ttyprobe --trials 200 --settle 0,1,5,20 --bytes 24,1000
+      - name: the probe, the harness's reader (the gate)
+        run: tools/ttyprobe --trials 200 --settle 0,5 --bytes 24,1000 --readers harness --gate
+
+  # boreutils#27, by dispatch only (`only: macos-suite`): `ls`'s cases,
+  # 33 of them on a terminal, ten times over on one macOS runner.
+  macos-suite:
+    name: the ls suite, repeated (boreutils#27)
+    # On request alone (`only`): no other tier runs it.
+    needs: plan
+    if: ${{ (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-matrix') || contains(github.event.pull_request.labels.*.name, 'ci') || contains(github.event.pull_request.labels.*.name, 'release-matrix')) && (contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'macos-suite')) }}
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: macOS's GNU
+        run: brew install --quiet coreutils
+      - name: the oracle of record, cached
+        uses: actions/cache@v4
+        with:
+          path: .gnu-bin
+          key: gnu-oracle-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gnu-oracle.toml') }}
+      - name: the oracle of record, by digest
+        shell: bash
+        run: |
+          set -euo pipefail
+          dir=$(BORE_GNU_PREFIX=g tools/fetch-oracle)
+          prefix=g
+          if [ -n "$dir" ]; then
+            echo "$dir" >> "$GITHUB_PATH"
+            prefix=""
+          fi
+          echo "BORE_GNU_PREFIX=$prefix" >> "$GITHUB_ENV"
+      - name: the pinned toolchain, by digest
+        run: tools/fetch-toolchain
+      - name: build ls (release)
+        run: tools/build ls
+      - name: the ls suite, ten times; every run's verdict kept
+        shell: bash
+        run: |
+          # Not -e (the runner's `bash -e` default): a red run is counted
+          # (boreutils#39).
+          set +e -uo pipefail
+          bad=0
+          for n in 1 2 3 4 5 6 7 8 9 10; do
+            tools/difftest ls > "ls-$n.log" 2>&1
+            code=$?
+            echo "run $n: exit $code; $(grep -E '^difftest: ' "ls-$n.log")"
+            grep -A6 '^FAIL' "ls-$n.log" || true
+            [ "$code" -eq 0 ] || bad=$((bad + 1))
+          done
+          echo "the ls suite: $bad of 10 runs red"
+          [ "$bad" -eq 0 ]
+
+  # boreutils#28, by dispatch only (`only: inout`): tools/inouttest alone,
+  # for a plant.
+  inout:
+    name: cat where its input is its output (boreutils#28)
+    # On request alone (`only`): no other tier runs it.
+    needs: plan
+    if: ${{ (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-matrix') || contains(github.event.pull_request.labels.*.name, 'ci') || contains(github.event.pull_request.labels.*.name, 'release-matrix')) && (contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'inout')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: the oracle of record, cached
+        uses: actions/cache@v4
+        with:
+          path: .gnu-bin
+          key: gnu-oracle-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gnu-oracle.toml') }}
+      - name: the oracle of record, by digest
+        run: tools/fetch-oracle
+      - name: the pinned toolchain, by digest
+        run: tools/fetch-toolchain
+      - name: inouttest (a throwaway container a case)
+        run: |
+          tools/inouttest-selftest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin
+          tools/inouttest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin
+
+  # boreutils#36 and #34, by dispatch only (`only: kill-macos` or
+  # `kill-ubuntu`, one job on one host). killprobe hands one list of
+  # numbers to GNU's `kill -l` / `-t` and to ours (nothing is sent);
+  # then killtest, whole, three times, and its `placing:` cases twenty
+  # times, every run's verdict kept. Last, and NOT a verdict: the case
+  # #36 retired (`{pid0} -l`, each side asked about its own target's id)
+  # thirty times, its reds counted, so the dispatch that shows the fix
+  # stable also shows what it fixed.
+  kill:
+    name: kill, measured and repeated (boreutils#36, #34)
+    # On request alone (`only`): no other tier runs it.
+    needs: plan
+    if: ${{ (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-matrix') || contains(github.event.pull_request.labels.*.name, 'ci') || contains(github.event.pull_request.labels.*.name, 'release-matrix')) && (contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'kill')) }}
+    runs-on: ${{ inputs.only == 'kill-macos' && 'macos-latest' || 'ubuntu-latest' }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: macOS's GNU
+        if: runner.os == 'macOS'
+        run: brew install --quiet coreutils
+      - name: the oracle of record, cached
+        uses: actions/cache@v4
+        with:
+          path: .gnu-bin
+          key: gnu-oracle-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gnu-oracle.toml') }}
+      - name: the oracle of record, by digest
+        shell: bash
+        run: |
+          set -euo pipefail
+          prefix=""
+          [ "$RUNNER_OS" = "macOS" ] && prefix=g
+          dir=$(BORE_GNU_PREFIX="$prefix" tools/fetch-oracle)
+          if [ -n "$dir" ]; then
+            echo "$dir" >> "$GITHUB_PATH"
+            prefix=""
+          fi
+          echo "BORE_GNU_PREFIX=$prefix" >> "$GITHUB_ENV"
+      - name: the pinned toolchain, by digest
+        run: tools/fetch-toolchain
+      - name: build kill (both tiers)
+        run: |
+          tools/build kill
+          tools/build --dev kill
+      - name: kill -l and -t of every number, against GNU (boreutils#34)
+        run: tools/killprobe --table --gnu .gnu-bin/bin/kill target/release/kill target/dev/kill
+      - name: killtest, three times whole and twenty times its placing cases (boreutils#36)
+        shell: bash
+        run: |
+          # Not -e (the runner's `bash -e` default): a red run is counted.
+          set +e -uo pipefail
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            kt="tools/killtest --engine none --gnu .gnu-bin/bin"
+          else
+            kt="tools/killtest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin"
+          fi
+          $kt --record placing: | grep '^#' || true
+          bad=0
+          # The first whole run builds both tiers into target/killtest
+          # (static on linux); every later run takes those.
+          for n in 1 2 3; do
+            bin=""
+            [ "$n" -eq 1 ] || bin="--bin target/killtest"
+            $kt $bin > "whole-$n.log" 2>&1
+            code=$?
+            echo "whole run $n: exit $code; $(grep -E '^killtest: [0-9]+ passed' "whole-$n.log")"
+            grep -A4 '^FAIL' "whole-$n.log" || true
+            [ "$code" -eq 0 ] || bad=$((bad + 1))
+          done
+          for n in $(seq 1 20); do
+            $kt --bin target/killtest placing: > "placing-$n.log" 2>&1
+            code=$?
+            echo "placing run $n: exit $code; $(grep -E '^killtest: [0-9]+ passed' "placing-$n.log")"
+            grep -A4 '^FAIL' "placing-$n.log" || true
+            [ "$code" -eq 0 ] || bad=$((bad + 1))
+          done
+          echo "killtest: $bad of 23 runs red"
+          [ "$bad" -eq 0 ]
+      - name: the retired case, thirty times (information, not a verdict)
+        shell: bash
+        run: |
+          # Not -e (the runner's `bash -e` default): a red run is counted.
+          set +e -uo pipefail
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            kt="tools/killtest --engine none --gnu .gnu-bin/bin"
+          else
+            kt="tools/killtest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin"
+          fi
+          printf '[[case]]\nname = "retired: {pid0} -l"\nargs = ["{pid0}", "-l"]\n' > "$RUNNER_TEMP/retired.toml"
+          red=0
+          for n in $(seq 1 30); do
+            out=$($kt --bin target/killtest --cases "$RUNNER_TEMP/retired.toml" 2>&1)
+            code=$?
+            [ "$code" -eq 0 ] || red=$((red + 1))
+            echo "retired run $n: exit $code; $(echo "$out" | grep -E '^    ' | tr '\n' ' ')"
+          done
+          echo "the retired case: $red of 30 runs red"
+
+  # bu27, by dispatch only (`only: timeout-macos` or `timeout-ubuntu`, one
+  # job on one host): tools/timeouttest's selftest, then the whole suite
+  # three times, every run's verdict kept, for a plant or a flake count.
+  timeout:
+    name: timeout, repeated (bu27)
+    # On request alone (`only`): no other tier runs it.
+    needs: plan
+    if: ${{ (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-matrix') || contains(github.event.pull_request.labels.*.name, 'ci') || contains(github.event.pull_request.labels.*.name, 'release-matrix')) && (contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'timeout')) }}
+    runs-on: ${{ inputs.only == 'timeout-macos' && 'macos-latest' || 'ubuntu-latest' }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: macOS's GNU
+        if: runner.os == 'macOS'
+        run: brew install --quiet coreutils
+      - name: the oracle of record, cached
+        uses: actions/cache@v4
+        with:
+          path: .gnu-bin
+          key: gnu-oracle-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gnu-oracle.toml') }}
+      - name: the oracle of record, by digest
+        shell: bash
+        run: |
+          set -euo pipefail
+          prefix=""
+          [ "$RUNNER_OS" = "macOS" ] && prefix=g
+          dir=$(BORE_GNU_PREFIX="$prefix" tools/fetch-oracle)
+          echo "the oracle: ${dir:-the host GNU, prefix $prefix}"
+      - name: the pinned toolchain, by digest
+        run: tools/fetch-toolchain
+      - name: timeouttest, the selftest, then three times whole
+        shell: bash
+        run: |
+          # Not -e (the runner's `bash -e` default): a red run is counted.
+          set +e -uo pipefail
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            if [ -x .gnu-bin/bin/timeout ]; then g=.gnu-bin/bin; p=""
+            else g=$(dirname "$(command -v gtimeout)"); p="--gnu-prefix g"; fi
+            tt="tools/timeouttest --engine none --gnu $g $p"
+            tools/timeouttest-selftest --engine none --gnu "$g" $p
+          else
+            # bu28: a file core pattern, so the cores-on cases run and must.
+            echo "the runner's core pattern: $(cat /proc/sys/kernel/core_pattern)"
+            sudo sysctl -w kernel.core_pattern=core.%p
+            export BORE_CORE_REQUIRE=1
+            tt="tools/timeouttest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin"
+            tools/timeouttest-selftest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin
+          fi
+          selftest=$?
+          bad=0
+          for n in 1 2 3; do
+            bin=""
+            [ "$n" -eq 1 ] || bin="--bin target/timeouttest"
+            $tt $bin > "whole-$n.log" 2>&1
+            code=$?
+            echo "whole run $n: exit $code; $(grep -E '^timeouttest: [0-9]+ passed' "whole-$n.log")"
+            grep -A6 '^FAIL' "whole-$n.log" || true
+            [ "$code" -eq 0 ] || bad=$((bad + 1))
+          done
+          echo "timeouttest: selftest exit $selftest; $bad of 3 runs red"
+          [ "$selftest" -eq 0 ] && [ "$bad" -eq 0 ]
+
+  # The run's verdict, and its name: `tier full`, `tier pr` or `tier noop`.
+  # It needs every job, runs unless the run was cancelled, and fails unless
+  # the plan succeeded, the jobs and hosts it chose are the tier's, every
+  # chosen job succeeded and every other job was skipped (ci/tiers.py
+  # verdict). lane-audit.sh reads this job's name and conclusion.
+  tier:
+    name: tier ${{ needs.plan.outputs.tier || 'unplanned' }}
+    if: ${{ (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-matrix') || contains(github.event.pull_request.labels.*.name, 'ci') || contains(github.event.pull_request.labels.*.name, 'release-matrix')) && (!cancelled()) }}
+    needs:
+      - plan
+      - gauntlet
+      - field
+      - ttyprobe
+      - macos-suite
+      - inout
+      - kill
+      - timeout
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: every chosen job succeeded, every other was skipped
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: python3 ci/tiers.py verdict
+
+  # A red nightly opens an issue (ruling #92): a scheduled run has no lane
+  # watching it, so the red has to come and find one. One open issue per
+  # workflow, its title the dedupe key; a further red night comments on it
+  # (ci/nightly-red.sh, tested by ci/tiers-test.py T8). Never on a pull
+  # request, a push or a dispatch: those reds have a lane attached already.
   complete:
-    needs: [verify, ci]
+    needs: [verify, tier]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       tested-sha: ${{ needs.verify.outputs.sha }}
     steps:
       - name: complete release profile
-        run: echo 'PROFILE complete: full-every-suite'
+        run: echo 'PROFILE-complete full-every-suite'
