@@ -39,6 +39,9 @@ known; preparation does not imply that either package is already available.
 
 The archive contains separate utility executables, not one multicall binary.
 Try them by explicit path; do not replace your system core utilities.
+The `test` utility treats `--version` as a string operand, not a version query.
+Release checks record that unavailable option explicitly; the other utilities
+identify the shared family version.
 
 
 ## Why

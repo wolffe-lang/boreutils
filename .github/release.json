@@ -129,6 +129,13 @@
       "{bin}/printf",
       "%s\\n",
       "release-smoke"
+    ],
+    [
+      "{bin}/test",
+      "--version"
     ]
-  ]
+  ],
+  "version_exemptions": {
+    "test": "POSIX test treats --version as an operand; the shared family version is observed through the other utilities"
+  }
 }
