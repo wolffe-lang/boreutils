@@ -70,6 +70,18 @@ fn main() -> int {
         bore.warn("uptime", "procfs uptime/load and utmp layout unsupported on this host")
         return 1
     }
+    if os_name() == "pax" {
+        var missing = false
+        if !fs_exists("/proc/uptime") {
+            bore.warn("uptime", "/proc/uptime is unavailable")
+            missing = true
+        }
+        if !fs_exists("/proc/loadavg") {
+            bore.warn("uptime", "/proc/loadavg is unavailable")
+            missing = true
+        }
+        if missing { return 1 }
+    }
     let now = bore.Instant { secs: time_unix_ms() / 1000, nanos: 0 }
     let path = if p.operands.len == 0 then bore.login_path() else p.operands[0]
     var users = 0, boot: int = -1
