@@ -1565,8 +1565,10 @@ The test names 148 unavailable settings/aliases, plus a saved restore form;
 the exact list by termios field is `notes/bu35-evidence/termios-issue.txt`.
 No unsupported flag is silently left unchanged.
 
-`users`, `who`, `pinky` and `uptime` read the documented 384-byte Linux
-x86-64 utmp ABI; other layouts are explicitly refused. An explicit FILE retains stale sessions; default `users`/`who`
+`users`, `who`, `pinky` and `uptime` read the documented 384-byte x86-64
+utmp ABI on Linux and PAX; other layouts are explicitly refused. On PAX,
+`uptime` reports missing `/proc/uptime` and `/proc/loadavg` rather than
+inventing values (pax#459). An explicit FILE retains stale sessions; default `users`/`who`
 and uptime counts omit positive pids absent from procfs. `pinky` keeps
 those sessions, as GNU does. Other host layouts, raw non-UTF-8 record text,
 DNS canonicalization and account services outside `/etc/passwd` are named
