@@ -32,7 +32,7 @@ fixture = ''.join('\\%03o' % b for b in record)
 commands = [
     "who >/tmp/tl42-out 2>/tmp/tl42-err; if test $? -eq 0 && test ! -s /tmp/tl42-out; then echo PASS-who-empty; else echo FAIL-who-empty; cat /tmp/tl42-err; fi",
     "users >/tmp/tl42-out 2>/tmp/tl42-err; if test $? -eq 0 && test ! -s /tmp/tl42-out; then echo PASS-users-empty; else echo FAIL-users-empty; cat /tmp/tl42-err; fi",
-    "pinky >/tmp/tl42-out 2>/tmp/tl42-err; if grep 'utmp layout unsupported' /tmp/tl42-err; then echo FAIL-pinky-abi; else echo PASS-pinky-abi; fi",
+    "pinky >/tmp/tl42-out 2>/tmp/tl42-err; if test $? -eq 0; then echo PASS-pinky-abi; else echo FAIL-pinky-abi; cat /tmp/tl42-err; fi",
     "uptime >/tmp/tl42-out 2>/tmp/tl42-err; if test $? -ne 0 && grep /proc/uptime /tmp/tl42-err && grep /proc/loadavg /tmp/tl42-err; then echo PASS-uptime-sources; else echo FAIL-uptime-sources; cat /tmp/tl42-err; fi",
     "printf '" + fixture + "' > /tmp/tl42-utmp",
     "who /tmp/tl42-utmp >/tmp/tl42-out 2>/tmp/tl42-err; if grep alice /tmp/tl42-out; then echo PASS-who-record; else echo FAIL-who-record; cat /tmp/tl42-err; fi",
