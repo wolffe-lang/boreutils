@@ -9,6 +9,7 @@ PAX's login record writer at pax#453 (user/auth/utmp.lu). The image and
 guest are disposable.
 """
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -34,7 +35,7 @@ commands = [
     "users >/tmp/tl42-out 2>/tmp/tl42-err; if test $? -eq 0 && test ! -s /tmp/tl42-out; then echo PASS-users-empty; else echo FAIL-users-empty; cat /tmp/tl42-err; fi",
     "pinky >/tmp/tl42-out 2>/tmp/tl42-err; if test $? -eq 0; then echo PASS-pinky-abi; else echo FAIL-pinky-abi; cat /tmp/tl42-err; fi",
     "uptime >/tmp/tl42-out 2>/tmp/tl42-err; if test $? -ne 0 && grep /proc/uptime /tmp/tl42-err && grep /proc/loadavg /tmp/tl42-err; then echo PASS-uptime-sources; else echo FAIL-uptime-sources; cat /tmp/tl42-err; fi",
-    "printf '" + fixture + "' > /tmp/tl42-utmp",
+    "printf '" + fixture + "' > /tmp/tl42-utmp; echo TL42_WROTE",
     "who /tmp/tl42-utmp >/tmp/tl42-out 2>/tmp/tl42-err; if grep alice /tmp/tl42-out; then echo PASS-who-record; else echo FAIL-who-record; cat /tmp/tl42-err; fi",
     "echo TL42_COMPLETE",
 ]
@@ -53,6 +54,8 @@ try:
     s.settimeout(1)
     end = time.monotonic() + 90
     sent = False
+    done = re.compile(rb'\r\n(PASS-|FAIL-)\S+\r\n|\r\nTL42_WROTE\r\n')
+    seen = 0
     while time.monotonic() < end:
         try:
             chunk = s.recv(65536)
@@ -62,8 +65,18 @@ try:
             break
         data += chunk
         if not sent and b'run 1: /bin/env' in data and b'$ ' in data:
-            s.sendall(('\r'.join(commands) + '\r').encode())
+            time.sleep(1)
             sent = True
+            seen = len(data)
+            pending = list(commands)
+            s.sendall((pending.pop(0) + '\r').encode())
+        elif sent and pending:
+            # One command at a time: a burst of typed lines is lost or
+            # garbled on the serial console while the shell is busy.
+            tail = data[seen:]
+            if done.search(tail) and tail.endswith(b'$ '):
+                seen = len(data)
+                s.sendall((pending.pop(0) + '\r').encode())
         if b'\r\nTL42_COMPLETE\r\n' in data:
             break
     sys.stdout.buffer.write(data)
