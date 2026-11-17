@@ -4,6 +4,8 @@ use bore
 
 fn main() {
     assert(bore.login_abi("linux", "x86_64"), "measured glibc ABI")
+    assert(bore.login_abi("pax", "x86_64"), "measured PAX ABI")
+    assert(!bore.login_abi("pax", "aarch64"), "unmeasured PAX ABI")
     assert(!bore.login_abi("linux", "aarch64"), "unmeasured Linux ABI")
     assert(!bore.login_abi("macos", "aarch64"), "Darwin has another layout")
     assert(!bore.login_abi("windows", "x86_64"), "not a Linux record")
