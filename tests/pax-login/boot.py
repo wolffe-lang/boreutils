@@ -4,14 +4,14 @@
 Prediction before implementation: the image's current tools reject the x86-64
 PAX ABI; after accepting that layout, empty who/users succeed, a constructed
 USER_PROCESS is listed, and uptime identifies missing procfs sources.
-The 384-byte record and field offsets are documented in utmp(5), also the
-format of PAX login records. The image and guest are disposable.
+The 384-byte record and field offsets are documented in utmp(5) and in
+PAX's login record writer at pax#453 (user/auth/utmp.lu). The image and
+guest are disposable.
 """
 import os
 import socket
 import subprocess
 import sys
-import tempfile
 import time
 
 image = os.path.abspath(sys.argv[1])
