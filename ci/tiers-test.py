@@ -76,9 +76,9 @@ FULL_LEG_TIERS = ("full", "nightly")
 PUSH_BRANCHES = "trunk"
 OTHER_HOST_JOBS = ("ttyprobe", "macos-suite", "kill", "timeout")
 # The gauntlet's two legs before tl28 (.github/workflows/ci.yml at trunk 43ee185).
-BEFORE_HOSTS = {"matrix_gauntlet": [{"os": "ubuntu-latest", "gnu_prefix": ""}, {"os": "macos-latest", "gnu_prefix": "g"}]}
+BEFORE_HOSTS = {"matrix_gauntlet": [{"os": "ubuntu-24.04", "gnu_prefix": ""}, {"os": "macos-latest", "gnu_prefix": "g"}]}
 ALL_HOSTS = BEFORE_HOSTS
-PR_HOSTS = {"matrix_gauntlet": [{"os": "ubuntu-latest", "gnu_prefix": ""}]}
+PR_HOSTS = {"matrix_gauntlet": [{"os": "ubuntu-24.04", "gnu_prefix": ""}]}
 CODE_PATH = ("src/ls/ls.lu", ["gauntlet", "field"])
 PR_PATHS = [(p, ["gauntlet", "field"]) for p in [
     "src/ls/ls.lu", "src/kill/kill.lu", "tests/ls/cases.toml", "tests/kill/cases.toml", "tools/difftest",

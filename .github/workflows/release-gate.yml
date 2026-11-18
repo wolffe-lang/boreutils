@@ -33,7 +33,7 @@ jobs:
   plan:
     needs: verify
     name: plan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       tier: ${{ steps.plan.outputs.tier }}
@@ -231,7 +231,7 @@ jobs:
     name: the field's GNU (information, not a verdict)
     needs: plan
     if: ${{ (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-matrix') || contains(github.event.pull_request.labels.*.name, 'ci') || contains(github.event.pull_request.labels.*.name, 'release-matrix')) && (contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'field')) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
       BORE_GNU_PREFIX: ""
@@ -326,7 +326,7 @@ jobs:
     name: cat where its input is its output (boreutils#28)
     needs: plan
     if: ${{ (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-matrix') || contains(github.event.pull_request.labels.*.name, 'ci') || contains(github.event.pull_request.labels.*.name, 'release-matrix')) && (contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'inout')) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
@@ -348,7 +348,7 @@ jobs:
     name: kill, measured and repeated (boreutils#36, #34)
     needs: plan
     if: ${{ (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-matrix') || contains(github.event.pull_request.labels.*.name, 'ci') || contains(github.event.pull_request.labels.*.name, 'release-matrix')) && (contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'kill')) }}
-    runs-on: ${{ inputs.only == 'kill-macos' && 'macos-latest' || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.only == 'kill-macos' && 'macos-latest' || 'ubuntu-24.04' }}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -432,7 +432,7 @@ jobs:
     name: timeout, repeated (bu27)
     needs: plan
     if: ${{ (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-matrix') || contains(github.event.pull_request.labels.*.name, 'ci') || contains(github.event.pull_request.labels.*.name, 'release-matrix')) && (contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'timeout')) }}
-    runs-on: ${{ inputs.only == 'timeout-macos' && 'macos-latest' || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.only == 'timeout-macos' && 'macos-latest' || 'ubuntu-24.04' }}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -496,7 +496,7 @@ jobs:
       - inout
       - kill
       - timeout
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4

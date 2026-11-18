@@ -11,7 +11,7 @@
 # THE ORACLE OF RECORD (B44). `gnu-oracle.toml` names the one GNU
 # release boreutils is drop-in for, and the gauntlet runs against THAT
 # release on every host rather than against whatever the runner image
-# happens to ship — ubuntu-latest ships 9.4, where Homebrew and Arch
+# happens to ship — ubuntu-24.04 ships 9.4, where Homebrew and Arch
 # ship 9.11, and they differ. `tools/fetch-oracle` installs it by
 # digest, cached on the pin file's hash so the build is paid once.
 # `tools/difftest` refuses to return a verdict against any other
@@ -140,7 +140,7 @@ jobs:
   # runs first: a planner that cannot say no plans nothing.
   plan:
     name: plan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       tier: ${{ steps.plan.outputs.tier }}
@@ -445,7 +445,7 @@ jobs:
     name: the field's GNU (information, not a verdict)
     needs: plan
     if: ${{ (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-matrix') || contains(github.event.pull_request.labels.*.name, 'ci') || contains(github.event.pull_request.labels.*.name, 'release-matrix')) && (contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'field')) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # NO `continue-on-error` on the job any more (B98). It made the leg
     # non-blocking about everything, including its own death: in run
     # 35673565877 `tools/difftest` here took exit 141 from signal 13,
@@ -572,7 +572,7 @@ jobs:
     # On request alone (`only`): no other tier runs it.
     needs: plan
     if: ${{ (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-matrix') || contains(github.event.pull_request.labels.*.name, 'ci') || contains(github.event.pull_request.labels.*.name, 'release-matrix')) && (contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'inout')) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
@@ -603,7 +603,7 @@ jobs:
     # On request alone (`only`): no other tier runs it.
     needs: plan
     if: ${{ (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-matrix') || contains(github.event.pull_request.labels.*.name, 'ci') || contains(github.event.pull_request.labels.*.name, 'release-matrix')) && (contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'kill')) }}
-    runs-on: ${{ inputs.only == 'kill-macos' && 'macos-latest' || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.only == 'kill-macos' && 'macos-latest' || 'ubuntu-24.04' }}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -695,7 +695,7 @@ jobs:
     # On request alone (`only`): no other tier runs it.
     needs: plan
     if: ${{ (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-matrix') || contains(github.event.pull_request.labels.*.name, 'ci') || contains(github.event.pull_request.labels.*.name, 'release-matrix')) && (contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'timeout')) }}
-    runs-on: ${{ inputs.only == 'timeout-macos' && 'macos-latest' || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.only == 'timeout-macos' && 'macos-latest' || 'ubuntu-24.04' }}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -766,7 +766,7 @@ jobs:
       - inout
       - kill
       - timeout
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
@@ -784,7 +784,7 @@ jobs:
     name: nightly red, an issue
     needs: tier
     if: ${{ failure() && github.event_name == 'schedule' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
       contents: read

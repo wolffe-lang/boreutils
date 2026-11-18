@@ -92,7 +92,7 @@ def special(a, every, log):
 # every other tier the legs PR_LEG keeps.
 MATRIX = {
     "gauntlet": [
-        {"os": "ubuntu-latest", "gnu_prefix": ""},
+        {"os": "ubuntu-24.04", "gnu_prefix": ""},
         {"os": "macos-latest", "gnu_prefix": "g"},
     ],
 }
@@ -100,7 +100,7 @@ MATRIX = {
 
 def pr_leg(job, leg):
     """Whether the pull-request tier runs this leg of a matrix job."""
-    return leg.get("os") == "ubuntu-latest"
+    return leg.get("os") == "ubuntu-24.04"
 
 
 # The jobs a dispatch's `only` input runs alone (bu25), by its value.
