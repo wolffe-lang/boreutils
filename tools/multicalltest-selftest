@@ -243,28 +243,32 @@ else
     proved "dispositions: SKIP with its reason (no /proc on this host)"
 fi
 
-# size: the control is the separate `true` as `bore`; the plants are every
-# program `bore` carries in one file (code carried twice), a ceiling of one
-# byte, and a size file with no entry for this host.
+# size, in loadable bytes (what an exec maps: an ELF's PT_LOAD filesz, a
+# Mach-O's __TEXT and __DATA segments; file size is printed, never judged).
+# The control is the separate `true` as `bore`. The plants: a program whose
+# loadable bytes pass every program `bore` carries together (a minimal ELF
+# whose one PT_LOAD claims 1 TiB, so it is past the bound on any host, with a
+# ceiling of its own loadable bytes so the bound is all it can fail); a
+# ceiling of one byte; a size file with no entry for this host; and a `bore`
+# that is no program at all (the good stand-in, a script): no verdict, status 2.
 host="$(uname -s)-$(uname -m)"
 printf '["%s"]\nceiling = 1000000000\n' "$host" > "$work/size-roomy.toml"
 printf '["%s"]\nceiling = 1\n' "$host" > "$work/size-tiny.toml"
 printf '["Plan9-mips"]\nceiling = 1000000000\n' > "$work/size-other.toml"
-for n in $names; do cat "$bin/$n"; done > "$work/fat"
-# Past the roomy ceiling on every host, as the separate programs alone are
-# where each is 15 MB (hosted Linux): a sparse tail, so it costs no disk.
-python3 -I -c 'import os, sys; f = open(sys.argv[1], "r+b"); f.truncate(max(os.path.getsize(sys.argv[1]), 1000000001))' "$work/fat"
+python3 -I -c 'import struct, sys
+n = 1 << 40
+eh = b"\x7fELF" + bytes([2, 1, 1]) + bytes(9) + struct.pack("<HHIQQQIHHHHHH", 2, 62, 1, 0x401000, 64, 0, 0, 64, 56, 1, 64, 0, 0)
+ph = struct.pack("<IIQQQQQQ", 1, 5, 0, 0x400000, 0x400000, n, n, 0x1000)
+open(sys.argv[1], "wb").write(eh + ph)' "$work/fat"
 chmod +x "$work/fat"
-# The fat stand-in's own ceiling is its size, so the no-duplication bound is
-# the one thing it can fail, whatever the host's programs weigh.
-printf '["%s"]\nceiling = %s\n' "$host" "$(wc -c < "$work/fat" | tr -d ' ')" > "$work/size-fat.toml"
+printf '["%s"]\nceiling = %s\n' "$host" "$((1 << 40))" > "$work/size-fat.toml"
 mt --bore "$bin/true" --size "$work/size-roomy.toml" size
 must 0 "size with the separate true as bore"
 line "ok   bore-size: within the no-duplication bound"
 line "ok   bore-size: within the ceiling 1000000000 for $host"
 mt --bore "$work/fat" --size "$work/size-fat.toml" size
-must 1 "size with every program bore carries in one file"
-seen "FAIL bore-size: the no-duplication bound: "
+must 1 "size with a program past every carried program's loadable bytes together"
+seen "FAIL bore-size: the no-duplication bound: 1099511627776 > "
 fails 1
 mt --bore "$bin/true" --size "$work/size-tiny.toml" size
 must 1 "size under a one-byte ceiling"
@@ -272,9 +276,12 @@ seen "FAIL bore-size: ceiling: "
 fails 1
 mt --bore "$bin/true" --size "$work/size-other.toml" size
 must 1 "size with no ceiling for this host"
-seen "size-other.toml records none for $host (bore is $(wc -c < "$bin/true" | tr -d ' ') bytes here)"
+seen "size-other.toml records none for $host (bore has "
 fails 1
-proved "size: the control green, the three plants red by name"
+mt --bore "$good" --size "$work/size-roomy.toml" size
+must 2 "size with a bore that is no program"
+seen "is not an ELF or Mach-O program"
+proved "size: the control green, the three plants red by name, a script no verdict"
 
 # no-hub: the table, a link named dd or timeout, and the sources.
 mt --bore "$good" no-hub
