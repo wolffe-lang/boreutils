@@ -1,11 +1,19 @@
 # The size ceilings (M6, its second half): for each host, keyed by
-# `System-machine` as Python's platform module names it, the most bytes
-# `bore` may have. Each ceiling is 1.15 times the size of `bore` measured at
-# a recorded build, named beside it with its run or host; raising one is a
-# reviewed one-line change with its reason. A host with no entry is red
-# ("records none"): the first measured build at this branch's head fills
-# them in.
+# `System-machine` as Python's platform module names it, the most loadable
+# bytes `bore` may have: what an exec maps, an ELF's PT_LOAD filesz or a
+# Mach-O's __TEXT, __DATA_CONST and __DATA filesize. The file size is not
+# judged; on linux it is mostly symbol and debug sections. Each ceiling is
+# 1.15 times the loadable bytes of `bore` measured at a recorded build, named
+# beside it; raising one is a reviewed one-line change with its reason. A
+# host with no entry is red ("records none").
 #
-# [Linux-x86_64]
-# ceiling = <bytes>
-# measured = "<bytes> at <commit>, <run or host>"
+# Both builds are of bore's source as of 18663be (the commits after it change
+# only the tools).
+
+[Linux-x86_64]
+ceiling = 2473102
+measured = "2150524 at 18663be, a dynamic release build on ubuntu 24.04 x86-64, as CI builds it"
+
+[Darwin-arm64]
+ceiling = 2129100
+measured = "1851392 at 18663be, a release build on macOS arm64"
