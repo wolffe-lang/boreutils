@@ -112,6 +112,7 @@ use bore
 
 /// What the command line asked for.
 struct Opts {
+    prog: str,
     all: int,
     directory: bool,
     recursive: bool,
@@ -357,24 +358,19 @@ fn six_months() -> int {
     15778476
 }
 
-fn program() -> str {
-    let path = os_exe() else "ls"
-    let name = bore.last_name(path)
-    if name == "dir" || name == "vdir" { return name }
-    "ls"
-}
-
-/// Shared entry: dir defaults to -C -b, vdir to -l -b, ls is unchanged.
-pub fn command() -> int {
-    let p = bore.parse(options(), env_args(), bore.permute())
+/// Shared entry for PROG (ls, dir or vdir) on ARGS, the arguments after its
+/// name: dir defaults to -C -b, vdir to -l -b, ls is unchanged.
+pub fn command(prog: str, args: List[str]) -> int {
+    let p = bore.parse(options(), args, bore.permute())
     var out = bore.stdout()
     var o = Opts {
+        prog: prog,
         all: 0,
         directory: false,
         recursive: false,
-        format: if program() == "dir" {
+        format: if prog == "dir" {
             vertical()
-        } else if program() == "vdir" {
+        } else if prog == "vdir" {
             long_format()
         } else {
             one_per_line()
@@ -393,8 +389,8 @@ pub fn command() -> int {
         hide: false,
         hide_given: false,
         quote: false,
-        literal: program() != "ls",
-        escape: program() != "ls",
+        literal: prog != "ls",
+        escape: prog != "ls",
         format_given: false,
         deref: follow_dir_operands(),
         deref_given: false,
@@ -419,11 +415,11 @@ pub fn command() -> int {
         let v = p.values[i]
         if k == "help" {
             bore.put(mut out, help()) else |_| {}
-            return done(mut out, 0)
+            return done(mut out, prog, 0)
         }
         if k == "version" {
-            bore.put(mut out, bore.version_text(program())) else |_| {}
-            return done(mut out, 0)
+            bore.put(mut out, bore.version_text(prog)) else |_| {}
+            return done(mut out, prog, 0)
         }
         let status = take_option(mut o, k, v, p.given[i])
         if status != 0 {
@@ -432,7 +428,7 @@ pub fn command() -> int {
         i += 1
     }
     if !bore.ok(p) {
-        eprint("{program()}: {p.error}\nTry '{program()} --help' for more information.")
+        eprint("{prog}: {p.error}\nTry '{prog} --help' for more information.")
         return 2
     }
     if o.sort == by_version() && o.refused.len == 0 {
@@ -442,7 +438,7 @@ pub fn command() -> int {
         o.refused = "--sort=width is not written yet"
     }
     if o.refused.len > 0 {
-        bore.warn(program(), o.refused)
+        bore.warn(prog, o.refused)
         return 2
     }
     // Measured: a time option sorts by that time only where it has no
@@ -467,7 +463,7 @@ pub fn command() -> int {
                 return status
             }
             if o.refused.len > 0 {
-                bore.warn(program(), o.refused)
+                bore.warn(prog, o.refused)
                 return 2
             }
         }
@@ -486,7 +482,7 @@ pub fn command() -> int {
     // closed descriptor 1 is not a terminal.
     let tty = os_isatty(1) else false
     if tty {
-        if !o.format_given && program() == "ls" {
+        if !o.format_given && prog == "ls" {
             o.format = vertical()
         }
         if !o.hide_given {
@@ -498,7 +494,7 @@ pub fn command() -> int {
     }
     if o.format == vertical() || o.format == across() || o.format == with_commas() {
         if !o.width_given {
-            o.width = columns()
+            o.width = columns(prog)
         }
     }
     // The tables and the zone a long listing reads, once, out here:
@@ -530,18 +526,18 @@ pub fn command() -> int {
     var failed = false
     let status = list_operands(mut out, o, cx, operands, mut failed)
     if failed {
-        bore.write_error(out, program(), "write error")
+        bore.write_error(out, prog, "write error")
         return 2
     }
-    done(mut out, status)
+    done(mut out, prog, status)
 }
 
 /// `bore.finish`, but a failed write is status 2: measured for `ls >&-`
 /// and `ls > /dev/full`, where the utilities `bore.finish` was measured
 /// on say 1.
-fn done(mut out: bore.Out, status: int) -> int {
+fn done(mut out: bore.Out, prog: str, status: int) -> int {
     bore.flush(mut out) else |_| {
-        bore.write_error(out, program(), "write error")
+        bore.write_error(out, prog, "write error")
         return 2
     }
     status
@@ -610,7 +606,7 @@ fn take_option(mut o: Opts, k: str, v: str, given: bool) -> int {
         o.quote = false
     } else if k == "block-size" {
         if !take_block_size(mut o, v) {
-            bore.warn(program(), "invalid --block-size argument {bore.quote(v)}")
+            bore.warn(o.prog, "invalid --block-size argument {bore.quote(v)}")
             return 2
         }
     } else if k == "escape" {
@@ -626,7 +622,7 @@ fn take_option(mut o: Opts, k: str, v: str, given: bool) -> int {
         let m = bore.argmatch(v, format_words(), format_meanings())
         if m < 0 {
             return bore.argmatch_error(
-                program(),
+                o.prog,
                 v,
                 "format",
                 format_words(),
@@ -658,14 +654,14 @@ fn take_option(mut o: Opts, k: str, v: str, given: bool) -> int {
     } else if k == "sort" {
         let m = bore.argmatch(v, sort_words(), sort_meanings())
         if m < 0 {
-            return bore.argmatch_error(program(), v, "sort", sort_words(), sort_meanings(), m == -2)
+            return bore.argmatch_error(o.prog, v, "sort", sort_words(), sort_meanings(), m == -2)
         }
         o.sort = m
         o.sort_given = true
     } else if k == "time" {
         let m = bore.argmatch(v, time_words(), time_meanings())
         if m < 0 {
-            return bore.argmatch_error(program(), v, "time", time_words(), time_meanings(), m == -2)
+            return bore.argmatch_error(o.prog, v, "time", time_words(), time_meanings(), m == -2)
         }
         o.time_kind = m
         o.time_given = true
@@ -690,7 +686,7 @@ fn take_option(mut o: Opts, k: str, v: str, given: bool) -> int {
             let m = bore.argmatch(v, when_words(), when_meanings())
             if m < 0 {
                 return bore.argmatch_error(
-                    program(),
+                    o.prog,
                     v,
                     "classify",
                     when_words(),
@@ -708,7 +704,7 @@ fn take_option(mut o: Opts, k: str, v: str, given: bool) -> int {
         let m = bore.argmatch(v, indicator_words(), indicator_meanings())
         if m < 0 {
             return bore.argmatch_error(
-                program(),
+                o.prog,
                 v,
                 "indicator-style",
                 indicator_words(),
@@ -741,7 +737,7 @@ fn take_option(mut o: Opts, k: str, v: str, given: bool) -> int {
             let m = bore.argmatch(v, when_words(), when_meanings())
             if m < 0 {
                 return bore.argmatch_error(
-                    program(),
+                    o.prog,
                     v,
                     "color",
                     when_words(),
@@ -756,7 +752,7 @@ fn take_option(mut o: Opts, k: str, v: str, given: bool) -> int {
     } else if k == "width" {
         let w = line_width(v)
         if w < 0 {
-            bore.warn(program(), "invalid line width: {bore.quote(v)}")
+            bore.warn(o.prog, "invalid line width: {bore.quote(v)}")
             return 2
         }
         o.width = w
@@ -764,7 +760,7 @@ fn take_option(mut o: Opts, k: str, v: str, given: bool) -> int {
     } else if k == "tabsize" {
         let t = line_width(v)
         if t < 0 {
-            bore.warn(program(), "invalid tab size: {bore.quote(v)}")
+            bore.warn(o.prog, "invalid tab size: {bore.quote(v)}")
             return 2
         }
         o.tab = t
@@ -812,7 +808,7 @@ fn take_time_style(mut o: Opts, word: str) -> int {
     if w.starts_with("+") {
         o.custom_time = w[1..]
         if o.custom_time.count("\n") > 1 {
-            bore.warn(program(), "invalid time style format {bore.quote(o.custom_time)}")
+            bore.warn(o.prog, "invalid time style format {bore.quote(o.custom_time)}")
             return 2
         }
         o.time_style = 4
@@ -822,7 +818,7 @@ fn take_time_style(mut o: Opts, word: str) -> int {
     if m < 0 {
         let what = if m == -2 then "ambiguous" else "invalid"
         eprint(
-            "{program()}: {what} argument {bore.quote(word)} for 'time style'\nValid arguments are:\n  - [posix-]full-iso\n  - [posix-]long-iso\n  - [posix-]iso\n  - [posix-]locale\n  - +FORMAT (e.g., +%H:%M) for a 'date'-style format\nTry '{program()} --help' for more information.",
+            "{o.prog}: {what} argument {bore.quote(word)} for 'time style'\nValid arguments are:\n  - [posix-]full-iso\n  - [posix-]long-iso\n  - [posix-]iso\n  - [posix-]locale\n  - +FORMAT (e.g., +%H:%M) for a 'date'-style format\nTry '{o.prog} --help' for more information.",
         )
         return 2
     }
@@ -857,7 +853,7 @@ fn line_width(v: str) -> int {
 /// The line width `-C`, `-x` and `-m` use without `-w`: `COLUMNS` when
 /// it is a count (0 is no limit), else 80, warning about a bad one as
 /// GNU does — only when a format that uses the width asked.
-fn columns() -> int {
+fn columns(prog: str) -> int {
     let c = env_get("COLUMNS") else |_| {
         return 80
     }
@@ -866,10 +862,7 @@ fn columns() -> int {
     }
     let w = line_width(c)
     if w < 0 {
-        bore.warn(
-            program(),
-            "ignoring invalid width in environment variable COLUMNS: {bore.quote(c)}",
-        )
+        bore.warn(prog, "ignoring invalid width in environment variable COLUMNS: {bore.quote(c)}")
         return 80
     }
     w
@@ -897,7 +890,7 @@ fn list_operands(
         (mut ops.es).push(entry(name, "", -1))
         let code = stat_operand(mut ops, at, o, mut status)
         if code != 0 {
-            bore.warn(program(), "cannot access {quote_always(name)}: {reason(code)}")
+            bore.warn(o.prog, "cannot access {quote_always(name)}: {reason(code)}")
             status = 2
         } else if ops.es[at].kind == bore.kind_dir() && !o.directory {
             (mut dir_at).push(at)
@@ -994,10 +987,7 @@ fn list_here(
         }
         if here.len == 20 {
             if inside(here, ancestors) {
-                bore.warn(
-                    program(),
-                    "{bore.quote_name(path)}: not listing already-listed directory",
-                )
+                bore.warn(o.prog, "{bore.quote_name(path)}: not listing already-listed directory")
                 return 2
             }
             (mut mine).push(bore.rec_dev(here))
@@ -1072,24 +1062,15 @@ fn read_directory(mut d: Dir, path: str, o: Opts, mut status: int) -> bool {
         var plain = true
         let names = fs_read_dir(path) else |e| match e {
             denied => {
-                bore.warn(
-                    program(),
-                    "cannot open directory {quote_always(path)}: {bore.io_error()}",
-                )
+                bore.warn(o.prog, "cannot open directory {quote_always(path)}: {bore.io_error()}")
                 return false
             },
             not_found => {
-                bore.warn(
-                    program(),
-                    "cannot open directory {quote_always(path)}: {bore.io_error()}",
-                )
+                bore.warn(o.prog, "cannot open directory {quote_always(path)}: {bore.io_error()}")
                 return false
             },
             io => {
-                bore.warn(
-                    program(),
-                    "cannot open directory {quote_always(path)}: {bore.io_error()}",
-                )
+                bore.warn(o.prog, "cannot open directory {quote_always(path)}: {bore.io_error()}")
                 return false
             },
             utf8 => {
@@ -1112,7 +1093,7 @@ fn read_directory(mut d: Dir, path: str, o: Opts, mut status: int) -> bool {
         }
     }
     let raw = fs_read_dir_entries(path) else |_| {
-        bore.warn(program(), "cannot open directory {quote_always(path)}: {bore.io_error()}")
+        bore.warn(o.prog, "cannot open directory {quote_always(path)}: {bore.io_error()}")
         return false
     }
     for r in raw {
@@ -1121,7 +1102,7 @@ fn read_directory(mut d: Dir, path: str, o: Opts, mut status: int) -> bool {
         }
         let n = str_from_utf8(r[1..]) else |_| {
             bore.warn(
-                program(),
+                o.prog,
                 "{quote_always(path)}: a name here is not UTF-8, which no path call can name yet (wolf-lang#687)",
             )
             status = 1
@@ -1347,10 +1328,7 @@ fn link_facts(mut d: Dir, at: int, o: Opts) -> int {
     if o.format == long_format() {
         var read = true
         let bytes = fs_read_link(path) else |_| {
-            bore.warn(
-                program(),
-                "cannot read symbolic link {quote_always(path)}: {bore.io_error()}",
-            )
+            bore.warn(o.prog, "cannot read symbolic link {quote_always(path)}: {bore.io_error()}")
             read = false
             status = 1
             List[byte]()
@@ -1419,7 +1397,7 @@ fn stat_listed(mut d: Dir, at: int, o: Opts) -> int {
     let follow = o.deref == follow_always()
     let code = load(mut d, at, path, follow)
     if code != 0 {
-        bore.warn(program(), "cannot access {quote_always(path)}: {reason(code)}")
+        bore.warn(o.prog, "cannot access {quote_always(path)}: {reason(code)}")
         if follow && !was_typed {
             // What the link itself is, for the row's first character.
             let own = record(path, false)
