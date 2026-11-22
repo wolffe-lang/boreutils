@@ -69,16 +69,20 @@ NIGHTLY = None            # (its tier, its jobs); None: the full tier
 FULL_LEG_TIERS = ("full",)  # the tiers that run every leg
 WORKFLOW_FILE = "ci.yml"
 WORKFLOW_NAME = "ci"
-WORKFLOW_JOBS = ["plan", "gauntlet", "field", "ttyprobe", "macos-suite", "inout", "kill", "timeout", "tier", "nightly-red"]
-FULL_JOBS = ["gauntlet", "field"]
-NIGHTLY = ("nightly", ["gauntlet", "field", "ttyprobe"])
+WORKFLOW_JOBS = ["plan", "gauntlet", "links", "field", "ttyprobe", "macos-suite", "inout", "kill", "timeout", "tier",
+                 "nightly-red"]
+# `links` (bu37): the behaviour tests through bore's links, on both hosts, in
+# the full tier and the nightly; never in a pull request's tier.
+FULL_JOBS = ["gauntlet", "links", "field"]
+NIGHTLY = ("nightly", ["gauntlet", "links", "field", "ttyprobe"])
 FULL_LEG_TIERS = ("full", "nightly")
 PUSH_BRANCHES = "trunk"
 OTHER_HOST_JOBS = ("ttyprobe", "macos-suite", "kill", "timeout")
 # The gauntlet's two legs before tl28 (.github/workflows/ci.yml at trunk 43ee185).
 BEFORE_HOSTS = {"matrix_gauntlet": [{"os": "ubuntu-24.04", "gnu_prefix": ""}, {"os": "macos-latest", "gnu_prefix": "g"}]}
-ALL_HOSTS = BEFORE_HOSTS
-PR_HOSTS = {"matrix_gauntlet": [{"os": "ubuntu-24.04", "gnu_prefix": ""}]}
+ALL_HOSTS = dict(BEFORE_HOSTS, matrix_links=[{"os": "ubuntu-24.04", "gnu_prefix": ""}, {"os": "macos-latest", "gnu_prefix": "g"}])
+PR_HOSTS = {"matrix_gauntlet": [{"os": "ubuntu-24.04", "gnu_prefix": ""}],
+            "matrix_links": [{"os": "ubuntu-24.04", "gnu_prefix": ""}]}
 CODE_PATH = ("src/ls/ls.lu", ["gauntlet", "field"])
 PR_PATHS = [(p, ["gauntlet", "field"]) for p in [
     "src/ls/ls.lu", "src/kill/kill.lu", "tests/ls/cases.toml", "tests/kill/cases.toml", "tools/difftest",
@@ -112,10 +116,10 @@ def extra_checks(say, plan, expect, blocks, wf):
         expect("T1 a dispatch with only=%s" % only, plan(event="workflow_dispatch", flags=["--input", "only=" + only]), "partial", [job])
     expect("T1 a dispatch with only=all", plan(event="workflow_dispatch", flags=["--input", "only=all"]), "full", FULL_JOBS)
     expect("T1 a dispatch with only=all, tier pr, code", plan(["src/ls/ls.lu"], event="workflow_dispatch", tier="pr",
-                                                             flags=["--input", "only=all"]), "pr", FULL_JOBS)
+                                                             flags=["--input", "only=all"]), "pr", CODE_PATH[1])
     say(plan(event="workflow_dispatch", flags=["--input", "only=nonesuch"])["tier"].startswith("ERROR rc=2"), "T1 an only that is no choice is refused")
     expect("T1 only means nothing to a pull request", plan(["src/ls/ls.lu"], flags=["--input", "only=ttyprobe"],
-                                                         event="pull_request", action="synchronize"), "pr", FULL_JOBS)
+                                                         event="pull_request", action="synchronize"), "pr", CODE_PATH[1])
     pr = dict(event="pull_request", action="synchronize")
     on_request = {"ttyprobe", "macos-suite", "inout", "kill", "timeout"}
     say(not [p for p, _ in PR_PATHS if on_request & set(plan([p], **pr)["jobs"])] and not on_request & set(plan(event="push")["jobs"]),
@@ -125,9 +129,10 @@ def extra_checks(say, plan, expect, blocks, wf):
         "T4 the only input's choices are bu25's, unchanged")
     say("          IN_ONLY: ${{ inputs.only }}\n" in blocks["plan"], "T4 the plan reads the only input")
     say("    runs-on: macos-latest\n" in blocks["ttyprobe"], "T4 the terminal read is measured on macOS, as before")
-    night = ["gauntlet", "field", "ttyprobe"]
+    night = ["gauntlet", "links", "field", "ttyprobe"]
     vexpect("a green nightly", run_of("nightly", night, hosts=ALL_HOSTS), 0)
-    vexpect("a nightly without the terminal read", run_of("nightly", night[:2], hosts=ALL_HOSTS), 1)
+    vexpect("a nightly without the terminal read", run_of("nightly", [j for j in night if j != "ttyprobe"], hosts=ALL_HOSTS), 1)
+    vexpect("a nightly without the links", run_of("nightly", [j for j in night if j != "links"], hosts=ALL_HOSTS), 1)
     vexpect("a nightly on the pull request's hosts", run_of("nightly", night, hosts=PR_HOSTS), 1)
     vexpect("a nightly whose terminal read failed", run_of("nightly", night, {"ttyprobe": {"result": "failure", "outputs": {}}}, hosts=ALL_HOSTS), 1)
     vexpect("a green partial run of kill", run_of("partial", ["kill"]), 0)
