@@ -1,0 +1,286 @@
+#!/bin/sh
+# multicalltest-selftest — prove every step of tools/multicalltest can see
+# a difference.
+#
+# tools/multicalltest holds `bore`, the multicall program, to the separate
+# programs it replaces. A gate nobody has watched fail is not a gate, and
+# the steps must work before `bore` exists, so this runs the tool against
+# stand-ins for it: shell scripts that hand each utility to its separate
+# program in target/release. The good stand-in must pass every step; for
+# each step a stand-in planted with one difference must fail by the step's
+# name, and the cases beside the plant must still pass. Run tools/build
+# first; the startup step needs hyperfine and /usr/bin/time. The
+# dispositions step reads /proc/self/status, so off linux its SKIP, with
+# its reason, is what is checked.
+set -eu
+BORE_ROOT=$(cd "$(dirname "$0")/.." && pwd)
+cd "$BORE_ROOT"
+bin=$BORE_ROOT/target/release
+for u in true cat echo env nohup dd timeout yes; do
+    if [ ! -x "$bin/$u" ]; then
+        echo "multicalltest-selftest: no $bin/$u; run tools/build first"
+        exit 1
+    fi
+done
+for t in hyperfine /usr/bin/time; do
+    if ! command -v "$t" > /dev/null; then
+        echo "multicalltest-selftest: no $t; the startup step needs it"
+        exit 1
+    fi
+done
+work=$(mktemp -d "${TMPDIR:-/tmp}/bore-multicalltest-selftest.XXXXXX")
+trap 'rm -rf "$work"' EXIT
+set -f
+
+# The utilities `bore` carries, in byte order: every src/*.lu entry but the
+# tests, `bore` itself, `dd` and `timeout`.
+names=$(ls src | sed -n 's/\.lu$//p' | grep -v '_test$' | grep -vx -e bore -e dd -e timeout | LC_ALL=C sort)
+
+# standin DIR VARIANT: write DIR/bore, a stand-in for `bore`, with the
+# separate dd and timeout beside it. Each variant but `good` is planted
+# with one difference:
+#   census        its table lacks yes
+#   refusals      an unknown utility exits 1, not 127
+#   dispositions  every utility runs under nohup (HUP ignored)
+#   size          (none: the size plants are files, below)
+#   startup       every utility starts 50 ms late
+#   nohub         dd is in its table
+#   siblings      `bore dd` and `bore timeout` search PATH, and --help does
+#                 not say the two are separate programs
+standin() {
+    mkdir -p "$1"
+    ln -s "$bin/dd" "$1/dd"
+    ln -s "$bin/timeout" "$1/timeout"
+    extra='' drop='/' wrap='' nap='' search='' unknown=127
+    case $2 in
+    good) ;;
+    census) drop=yes ;;
+    refusals) unknown=1 ;;
+    dispositions) wrap=$bin/nohup ;;
+    startup) nap=0.05 ;;
+    nohub) extra=dd ;;
+    siblings) search=1 ;;
+    *) echo "multicalltest-selftest: no stand-in $2"; exit 1 ;;
+    esac
+    {
+        echo '#!/bin/sh'
+        echo "# A stand-in for bore ($2), written by tools/multicalltest-selftest."
+        printf "bin='%s'\nnames='%s'\n" "$bin" "$names"
+        printf "extra='%s' drop='%s' wrap='%s' nap='%s' search='%s' unknown=%s\n" \
+            "$extra" "$drop" "$wrap" "$nap" "$search" "$unknown"
+        cat <<'EOF'
+here=${0%/*}
+self=${0##*/}
+usage() {
+    echo 'Usage: bore UTILITY [ARGUMENT]...'
+    echo '  or:  bore --list | --help | --version'
+    [ -n "$search" ] && return 0
+    echo 'dd and timeout are separate programs; bore dd and'
+    echo 'bore timeout run the ones installed beside bore.'
+}
+table() {
+    { printf '%s\n' "$names"; [ -z "$extra" ] || printf '%s\n' "$extra"; } |
+        grep -vxF -e "$drop" | LC_ALL=C sort
+}
+run() {
+    u=$1
+    shift
+    [ -z "$nap" ] || sleep "$nap"
+    [ -z "$wrap" ] || exec "$wrap" "$bin/$u" "$@"
+    exec "$bin/$u" "$@"
+}
+if [ "$self" != bore ]; then
+    if table | grep -qxF -e "$self"; then run "$self" "$@"; fi
+    printf 'bore: unknown program name: %s\n' "$self" >&2
+    exit 127
+fi
+if [ $# -eq 0 ]; then usage; exit 0; fi
+case $1 in
+--list) table; exit 0 ;;
+--help) usage; exit 0 ;;
+--version) echo 'bore (boreutils) a stand-in'; exit 0 ;;
+esac
+u=$1
+shift
+case $u in
+dd|timeout)
+    if [ -n "$search" ]; then
+        if command -v "$u" > /dev/null; then exec "$u" "$@"; fi
+    elif [ -x "$here/$u" ]; then
+        exec "$here/$u" "$@"
+    fi
+    ;;
+*)
+    if table | grep -qxF -e "$u"; then run "$u" "$@"; fi
+    ;;
+esac
+printf 'bore: unknown utility: %s\n' "$u" >&2
+exit "$unknown"
+EOF
+    } > "$1/bore"
+    chmod +x "$1/bore"
+}
+for v in good census refusals dispositions startup nohub siblings; do
+    standin "$work/$v" "$v"
+done
+good=$work/good/bore
+
+refuse() {
+    echo "multicalltest-selftest: REFUSED — $1. Output was:"
+    echo "$out"
+    exit 1
+}
+# mt ARGS...: run the tool; its output in $out, its status in $status.
+mt() { out=$(tools/multicalltest "$@" 2>&1) && status=0 || status=$?; }
+# must STATUS WHAT: the last run exited STATUS.
+must() { [ "$status" -eq "$1" ] || refuse "$2 exited $status; it must exit $1"; }
+# line TEXT: the last run printed exactly this line; seen TEXT: a line
+# holding it; fails N: exactly N FAIL lines.
+line() { echo "$out" | grep -qxF -e "$1" || refuse "no line '$1'"; }
+seen() { echo "$out" | grep -qF -e "$1" || refuse "no line holding '$1'"; }
+fails() {
+    n=$(echo "$out" | grep -c '^FAIL ' || true)
+    [ "$n" -eq "$1" ] || refuse "$n FAIL lines, not $1"
+}
+
+# No `bore` yet: every step is red, never a pass and never a harness error.
+mt --bore "$work/absent/bore" census refusals
+must 1 "the tool with no multicall program"
+line "END bore-census exit=1"
+line "END bore-refusals exit=1"
+
+# A harness that cannot run is status 2, never a verdict.
+mt --bore "$good" --cases "$work/no-such-cases.toml" refusals
+must 2 "refusals with no cases file"
+seen "multicalltest: bore-refusals: the harness cannot run: "
+
+# census
+mt --bore "$good" census
+must 0 "census through the good stand-in"
+seen "ok   bore-census: \`bore --list\` names the "
+mt --bore "$work/census/bore" census
+must 1 "census through a stand-in whose table lacks yes"
+line "FAIL bore-census: missing yes"
+fails 1
+
+# refusals
+cases=tests/selftest-multicalltest/cases.toml
+mt --bore "$good" --cases "$cases" refusals
+must 0 "refusals through the good stand-in"
+for c in "no operand" "unknown utility" "unknown program name" \
+         "a utility by its link" "a utility by bore NAME"; do
+    line "ok   bore-refusals: $c"
+done
+mt --bore "$work/refusals/bore" --cases "$cases" refusals
+must 1 "refusals through a stand-in whose unknown utility exits 1"
+seen "FAIL bore-refusals: unknown utility  argv="
+fails 1
+for c in "no operand" "unknown program name" "a utility by its link" "a utility by bore NAME"; do
+    line "ok   bore-refusals: $c"
+done
+
+# dispositions
+if [ -r /proc/self/status ]; then
+    mt --bore "$good" dispositions
+    must 0 "dispositions through the good stand-in"
+    for c in "cat /proc/self/status" "env cat /proc/self/status" \
+             "nohup cat /proc/self/status" "timeout 5 cat /proc/self/status"; do
+        seen "ok   bore-dispositions: $c: "
+    done
+    mt --bore "$work/dispositions/bore" dispositions
+    must 1 "dispositions through a stand-in that runs every utility under nohup"
+    for c in "cat /proc/self/status" "env cat /proc/self/status" "timeout 5 cat /proc/self/status"; do
+        line "FAIL bore-dispositions: $c"
+    done
+    # nohup ignores HUP in every form, so there the plant changes nothing.
+    seen "ok   bore-dispositions: nohup cat /proc/self/status: "
+else
+    mt --bore "$good" dispositions
+    must 0 "dispositions on a host without /proc"
+    seen "SKIP bore-dispositions: this host ("
+fi
+
+# size: the control is the separate `true` as `bore`; the plants are every
+# program `bore` carries in one file (code carried twice), a ceiling of one
+# byte, and a size file with no entry for this host.
+host="$(uname -s)-$(uname -m)"
+printf '["%s"]\nceiling = 1000000000\n' "$host" > "$work/size-roomy.toml"
+printf '["%s"]\nceiling = 1\n' "$host" > "$work/size-tiny.toml"
+printf '["Plan9-mips"]\nceiling = 1000000000\n' > "$work/size-other.toml"
+for n in $names; do cat "$bin/$n"; done > "$work/fat"
+chmod +x "$work/fat"
+mt --bore "$bin/true" --size "$work/size-roomy.toml" size
+must 0 "size with the separate true as bore"
+line "ok   bore-size: within the no-duplication bound"
+line "ok   bore-size: within the ceiling 1000000000 for $host"
+mt --bore "$work/fat" --size "$work/size-roomy.toml" size
+must 1 "size with every program bore carries in one file"
+seen "FAIL bore-size: the no-duplication bound: "
+fails 1
+mt --bore "$bin/true" --size "$work/size-tiny.toml" size
+must 1 "size under a one-byte ceiling"
+seen "FAIL bore-size: ceiling: "
+fails 1
+mt --bore "$bin/true" --size "$work/size-other.toml" size
+must 1 "size with no ceiling for this host"
+seen "size-other.toml records none for $host (bore is $(wc -c < "$bin/true" | tr -d ' ') bytes here)"
+fails 1
+
+# no-hub: the table, a link named dd or timeout, and the sources.
+mt --bore "$good" no-hub
+must 0 "no-hub through the good stand-in"
+seen "ok   bore-no-hub: neither dd nor timeout is in the table"
+mt --bore "$work/nohub/bore" no-hub
+must 1 "no-hub through a stand-in whose table holds dd"
+line "FAIL bore-no-hub: dd is in the table (\`bore --list\` names it)"
+seen "FAIL bore-no-hub: dd by a link to bore: "
+fails 2
+# A copy of src/ with calls planted in a file of a utility's module: three
+# calls count; a comment, a string and dd.lu's and timeout.lu's own calls
+# do not.
+cp -R src "$work/src"
+mkdir -p "$work/src/cmd/sleep"
+cat > "$work/src/cmd/sleep/plant.lu" <<'EOF'
+// os_signal_listen(signal.user()) in a comment does not count
+pub fn plant() -> int {
+    let words = "os_signal_wait and net_accept in a string do not count"
+    os_signal_listen(signal.user()) else |_| {}
+    let f = net_accept
+    os_signal_wait_fds(fds, set) else |_| {}  // os_signal_wait in a comment does not count
+    0
+}
+EOF
+mt --bore "$good" --src "$work/src" no-hub
+must 1 "no-hub over sources with planted calls"
+line "FAIL bore-no-hub: src/cmd/sleep/plant.lu:4 names os_signal_listen, which makes the signal hub before main"
+line "FAIL bore-no-hub: src/cmd/sleep/plant.lu:5 names net_accept, which makes the readiness set before main"
+line "FAIL bore-no-hub: src/cmd/sleep/plant.lu:6 names os_signal_wait_fds, which makes the signal hub before main"
+fails 3
+
+# siblings
+mt --bore "$good" siblings
+must 0 "siblings through the good stand-in"
+for c in "dd beside: " "dd absent: " "timeout beside: " "timeout absent: " \
+         "--help says dd and timeout are separate programs"; do
+    seen "ok   bore-siblings: $c"
+done
+mt --bore "$work/siblings/bore" siblings
+must 1 "siblings through a stand-in that searches PATH"
+line "FAIL bore-siblings: dd beside"
+line "FAIL bore-siblings: timeout beside"
+seen "FAIL bore-siblings: dd absent: "
+seen "FAIL bore-siblings: timeout absent: "
+seen "FAIL bore-siblings: --help: "
+fails 5
+
+# startup, last: the slowest. The control is the separate `true` as `bore`.
+mt --bore "$bin/true" startup
+must 0 "startup with the separate true as bore"
+seen "ok   bore-startup: true: "
+seen "ok   bore-startup: cat: "
+mt --bore "$work/startup/bore" startup
+must 1 "startup through a stand-in that starts 50 ms late"
+seen "FAIL bore-startup: true: "
+seen "FAIL bore-startup: cat: "
+
+echo "multicalltest-selftest: every step sees its plant"

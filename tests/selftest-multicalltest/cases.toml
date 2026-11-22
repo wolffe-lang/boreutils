@@ -1,0 +1,38 @@
+# Refusal cases for tools/multicalltest-selftest's stand-ins for `bore`.
+# The selftest's planted stand-in answers an unknown utility with status 1,
+# so "unknown utility" must fail by name and the others must pass.
+
+[[case]]
+name = "no operand"
+args = []
+stdout = """Usage: bore UTILITY [ARGUMENT]...
+  or:  bore --list | --help | --version
+dd and timeout are separate programs; bore dd and
+bore timeout run the ones installed beside bore.
+"""
+status = 0
+
+[[case]]
+name = "unknown utility"
+args = ["frob"]
+stderr = "bore: unknown utility: frob\n"
+status = 127
+
+[[case]]
+name = "unknown program name"
+argv0 = "frob"
+stderr = "bore: unknown program name: frob\n"
+status = 127
+
+[[case]]
+name = "a utility by its link"
+argv0 = "echo"
+args = ["by", "its", "link"]
+stdout = "by its link\n"
+status = 0
+
+[[case]]
+name = "a utility by bore NAME"
+args = ["echo", "by", "name"]
+stdout = "by name\n"
+status = 0
