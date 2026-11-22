@@ -9,5 +9,5 @@
 use checksum
 
 fn main() -> int {
-    checksum.command("sum", 3, 16)
+    checksum.command("sum", 3, 16, env_args())
 }

@@ -28,11 +28,12 @@ struct Settings {
     ignore: bool,
 }
 
-/// Run a checksum command. default_kind follows digest_new's kind table.
-/// All errors are diagnosed here and returned as process status, never rows.
-pub fn command(prog: str, default_kind: int, default_bits: int) -> int {
+/// Run a checksum command on ARGS, the arguments after the utility's name.
+/// default_kind follows digest_new's kind table. All errors are diagnosed
+/// here and returned as process status, never rows.
+pub fn command(prog: str, default_kind: int, default_bits: int, args: List[str]) -> int {
     var out = bore.stdout()
-    let p = bore.parse(checksum_options(prog), env_args(), bore.permute())
+    let p = bore.parse(checksum_options(prog), args, bore.permute())
     var c = Settings {
         prog: prog,
         kind: default_kind,

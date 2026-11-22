@@ -5,4 +5,4 @@
 
 use codec
 
-fn main() -> int { codec.run("base64", 6) }
+fn main() -> int { codec.run("base64", 6, env_args()) }

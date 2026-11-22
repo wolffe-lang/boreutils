@@ -9,5 +9,5 @@
 use checksum
 
 fn main() -> int {
-    checksum.command("md5sum", 4, 128)
+    checksum.command("md5sum", 4, 128, env_args())
 }

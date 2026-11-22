@@ -232,13 +232,14 @@ fn take_spec(mut c: OwnerCfg, s: Spec) {
     }
 }
 
-/// The whole program; `chgrp` says which front end.
-pub fn owner_main(chgrp: bool) -> int {
+/// The whole program on ARGS, the arguments after the utility's name;
+/// `chgrp` says which front end.
+pub fn owner_main(chgrp: bool, args: List[str]) -> int {
     var prog = "chown"
     if chgrp {
         prog = "chgrp"
     }
-    let p = parse(owner_options(), env_args(), permute())
+    let p = parse(owner_options(), args, permute())
     var out = stdout()
     var c = OwnerCfg {
         prog: prog,

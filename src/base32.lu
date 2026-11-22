@@ -5,4 +5,4 @@
 
 use codec
 
-fn main() -> int { codec.run("base32", 5) }
+fn main() -> int { codec.run("base32", 5, env_args()) }

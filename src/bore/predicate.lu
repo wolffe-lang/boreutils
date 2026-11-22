@@ -296,9 +296,10 @@ fn predicate_eval(args: List[str], mut scan: PredicateScan) -> bool {
     result
 }
 
-/// Entrypoint shared by test and [. Status is true/false/syntax = 0/1/2.
-pub fn predicate_main(prog: str) -> int {
-    var args = env_args()
+/// Entrypoint shared by test and [, on CMD_ARGS, the arguments after the
+/// utility's name. Status is true/false/syntax = 0/1/2.
+pub fn predicate_main(prog: str, cmd_args: List[str]) -> int {
+    var args = copy cmd_args
     if prog == "[" {
         if args.len == 1 && (args[0] == "--help" || args[0] == "--version") {
             var out = stdout()

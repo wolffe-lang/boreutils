@@ -9,5 +9,5 @@
 use checksum
 
 fn main() -> int {
-    checksum.command("sha224sum", 6, 224)
+    checksum.command("sha224sum", 6, 224, env_args())
 }

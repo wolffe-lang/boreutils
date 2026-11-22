@@ -9,5 +9,5 @@
 use checksum
 
 fn main() -> int {
-    checksum.command("b2sum", 10, 512)
+    checksum.command("b2sum", 10, 512, env_args())
 }

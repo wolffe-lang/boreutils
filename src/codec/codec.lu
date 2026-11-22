@@ -5,8 +5,9 @@
 use bore
 use numcli
 
-/// Execute the RFC 4648 CLI with five- or six-bit alphabet symbols.
-pub fn run(prog: str, width: int) -> int {
+/// Execute the RFC 4648 CLI with five- or six-bit alphabet symbols, on
+/// ARGS, the arguments after the utility's name.
+pub fn run(prog: str, width: int, args: List[str]) -> int {
     var out = bore.stdout()
     var spec = List[bore.Opt]()
     (mut spec).push(bore.flag("d", "decode"))
@@ -14,7 +15,7 @@ pub fn run(prog: str, width: int) -> int {
     (mut spec).push(bore.takes("w", "wrap"))
     (mut spec).push(bore.flag("", "help"))
     (mut spec).push(bore.flag("", "version"))
-    let p = bore.parse(spec, env_args(), bore.permute())
+    let p = bore.parse(spec, args, bore.permute())
     var decode = false, ignore = false, wrap = 76
     for k in 0..p.keys.len {
         let key = p.keys[k]
