@@ -95,6 +95,11 @@ MATRIX = {
         {"os": "ubuntu-24.04", "gnu_prefix": ""},
         {"os": "macos-latest", "gnu_prefix": "g"},
     ],
+    # bu37: the behaviour tests through bore's links, on both hosts.
+    "links": [
+        {"os": "ubuntu-24.04", "gnu_prefix": ""},
+        {"os": "macos-latest", "gnu_prefix": "g"},
+    ],
 }
 
 

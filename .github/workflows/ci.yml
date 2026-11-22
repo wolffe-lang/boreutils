@@ -146,6 +146,7 @@ jobs:
       tier: ${{ steps.plan.outputs.tier }}
       jobs: ${{ steps.plan.outputs.jobs }}
       matrix_gauntlet: ${{ steps.plan.outputs.matrix_gauntlet }}
+      matrix_links: ${{ steps.plan.outputs.matrix_links }}
     steps:
       # Depth 2: a pull request's run checks out its merge commit, and the
       # plan reads that commit against its first parent. A dispatch reads
@@ -519,6 +520,106 @@ jobs:
   # from rotting. It carries continue-on-error because a divergence here
   # is a finding to record, not a broken build; a failure annotation
   # under it is an ANNOUNCED ADVISORY.
+  links:
+    # The behaviour tests that run a utility where it acts, through `bore`'s
+    # links: kill where it sends, the identity tools as root and as users,
+    # rm, mv and cp where / is disposable, cat where its input is its
+    # output. Each tool takes --bin DIR, DIR/release and DIR/dev holding its
+    # programs; here every name there is a link to `bore`, which dispatches
+    # on the name it is run under (a container case copies the program in,
+    # so the copy is `bore` under the utility's name). `bore` is built here
+    # alone, in both tiers, static on linux through a cc that adds -static
+    # as the tools build their own, so this job takes nothing from the
+    # gauntlet and runs beside it. timeout stays a separate program: `bore
+    # timeout` runs it, and the gauntlet's multicall step holds that hand-off.
+    needs: plan
+    if: ${{ (github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'full-matrix') || contains(github.event.pull_request.labels.*.name, 'ci') || contains(github.event.pull_request.labels.*.name, 'release-matrix')) && (contains(fromJSON(needs.plan.outputs.jobs || '[]'), 'links')) }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.matrix_links || '[]') }}
+    runs-on: ${{ matrix.os }}
+    # Predicted, before its first run: linux 20-24m, macOS 16-20m.
+    timeout-minutes: ${{ matrix.os == 'macos-latest' && 30 || 40 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Keyed on the pin file, so bumping the oracle of record is what
+      # invalidates it and nothing else does.
+      - name: the oracle of record, cached
+        uses: actions/cache@v4
+        with:
+          path: .gnu-bin
+          key: gnu-oracle-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('gnu-oracle.toml') }}
+
+      - name: the oracle of record, by digest
+        shell: bash
+        run: |
+          set -euo pipefail
+          prefix='${{ matrix.gnu_prefix }}'
+          dir=$(BORE_GNU_PREFIX="$prefix" tools/fetch-oracle)
+          if [ -n "$dir" ]; then
+            # A staged build's binaries are unprefixed, whatever the host
+            # would otherwise call them.
+            echo "$dir" >> "$GITHUB_PATH"
+            prefix=""
+          fi
+          echo "BORE_GNU_PREFIX=$prefix" >> "$GITHUB_ENV"
+
+      - name: the pinned toolchain, by digest
+        run: tools/fetch-toolchain
+
+      - name: bore in both tiers, and a link to it for every utility it carries
+        id: bore
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$RUNNER_OS" = Linux ]; then
+            mkdir -p "$RUNNER_TEMP/cc-static"
+            printf '#!/bin/sh\nexec %s -static "$@"\n' "$(command -v cc)" > "$RUNNER_TEMP/cc-static/cc"
+            chmod +x "$RUNNER_TEMP/cc-static/cc"
+            export PATH="$RUNNER_TEMP/cc-static:$PATH"
+          fi
+          tools/build bore
+          tools/build --dev bore
+          links="$RUNNER_TEMP/bore-links"
+          names=$(ls src | sed -n 's/\.lu$//p' | grep -v '_test$' | grep -vx -e bore -e dd -e shred -e sleep -e sync -e tail -e timeout)
+          for tier in release dev; do
+            mkdir -p "$links/$tier"
+            cp "target/$tier/bore" "$links/$tier/bore"
+            for n in $names; do ln -s bore "$links/$tier/$n"; done
+            echo "$tier: $(ls "$links/$tier" | wc -l | tr -d ' ') entries; $(file -b "$links/$tier/bore" | cut -c1-90)"
+          done
+          echo "BORE_LINKS=$links" >> "$GITHUB_ENV"
+
+      - name: kill where it sends, through bore's links (a throwaway container a case)
+        if: ${{ !cancelled() && steps.bore.outcome == 'success' && runner.os == 'Linux' }}
+        run: tools/killtest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin --bin "$BORE_LINKS"
+
+      - name: kill where it sends, through bore's links (this runner, the test's own children)
+        if: ${{ !cancelled() && steps.bore.outcome == 'success' && runner.os == 'macOS' }}
+        run: tools/killtest --engine none --gnu .gnu-bin/bin --bin "$BORE_LINKS"
+
+      - name: the identity tools through bore's links, as root and as users (a throwaway container a case)
+        if: ${{ !cancelled() && steps.bore.outcome == 'success' && runner.os == 'Linux' }}
+        run: tools/idtest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin --bin "$BORE_LINKS"
+
+      - name: the identity tools through bore's links, on this runner as its own user
+        if: ${{ !cancelled() && steps.bore.outcome == 'success' && runner.os == 'macOS' }}
+        run: tools/idtest --engine none --gnu .gnu-bin/bin --bin "$BORE_LINKS"
+
+      - name: rm, mv and cp through bore's links, where / is disposable (a throwaway container)
+        if: ${{ !cancelled() && steps.bore.outcome == 'success' && runner.os == 'Linux' }}
+        run: tools/roottest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin --bin "$BORE_LINKS"
+
+      - name: cat through bore's links, where its input is its output (a throwaway container a case)
+        if: ${{ !cancelled() && steps.bore.outcome == 'success' && runner.os == 'Linux' }}
+        run: tools/inouttest --engine docker --image ubuntu:24.04 --gnu .gnu-bin/bin --bin "$BORE_LINKS"
+
+      - name: cat through bore's links, where its input is its output (this runner, under a file-size limit)
+        if: ${{ !cancelled() && steps.bore.outcome == 'success' && runner.os == 'macOS' }}
+        run: tools/inouttest --engine none --gnu .gnu-bin/bin --bin "$BORE_LINKS"
+
   field:
     name: the field's GNU (information, not a verdict)
     needs: plan
@@ -838,6 +939,7 @@ jobs:
     needs:
       - plan
       - gauntlet
+      - links
       - field
       - ttyprobe
       - macos-suite
