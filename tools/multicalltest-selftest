@@ -363,9 +363,9 @@ else
 fi
 
 # startup's verdict, at exact figures (--judge-startup HOST SEP_S MC_S
-# SEP_RSS MC_RSS: the step's own function), on linux's ruled limits: the
-# least wall time within max(+10 %, +0.5 ms) of the separate program's, the
-# peak resident size within +2 MiB. Each limit is held exactly: on it is
+# SEP_RSS MC_RSS: the step's own function), on its limits, the same on
+# every host: the least wall time within max(+10 %, +0.5 ms) of the separate
+# program's, the peak resident size within +2 MiB. Each limit is held exactly: on it is
 # green, a step past it red.
 judge() { # EXPECT STATUS, then the five figures
     want=$1; shift
@@ -386,12 +386,11 @@ seen "peak separate 970752, multicall 3067904 bytes (limit +2097152)"
 judge 1 Linux 0.000120 0.000120 970752 3072000
 seen "FAIL bore-startup: judged: "
 seen "multicall 3072000 bytes (limit +2097152)"
-# macOS ships the separate programs: its wall time is held to a regression
-# ceiling on dyld's own cost, max(1.5x, +1 ms), and its peak to +2 MiB.
-judge 0 Darwin 0.000120 0.001120 970752 3067904
-seen "ok   bore-startup: judged: least wall separate 0.120 ms, multicall 1.120 ms (limit 1.120)"
-judge 1 Darwin 0.000120 0.001220 970752 970752
-seen "FAIL bore-startup: judged: least wall separate 0.120 ms, multicall 1.220 ms (limit 1.120)"
+# macOS is held to the same limits.
+judge 0 Darwin 0.000120 0.000620 970752 3067904
+seen "ok   bore-startup: judged: least wall separate 0.120 ms, multicall 0.620 ms (limit 0.620)"
+judge 1 Darwin 0.000120 0.000720 970752 970752
+seen "FAIL bore-startup: judged: least wall separate 0.120 ms, multicall 0.720 ms (limit 0.620)"
 judge 1 Darwin 0.000120 0.000120 970752 3072000
 seen "FAIL bore-startup: judged: "
 proved "startup's verdict: the ruled limits held exactly, +0.6 ms and +2 MiB and a page red"
