@@ -2,11 +2,13 @@
 """multicalltest - the rows that hold `bore`, the multicall program, to the
 separate programs it replaces.
 
-`bore` carries every utility but `dd` and `timeout`, the two that listen for
-signals: a program that names a signal-listening call makes the runtime's
-signal hub (a thread and two pipes) before `main`, on every run, so those two
-stay separate programs, and `bore dd` and `bore timeout` run the ones
-installed beside `bore`.
+`bore` carries every utility but six, which stay separate programs (the
+SEPARATE_ONLY tuple): `dd` and `timeout` name a signal-listening call, which
+makes the runtime's signal hub (a thread and two pipes) before `main` on every
+run, and those two with `sleep`, `tail`, `sync` and `shred` reach
+`time_sleep_ms` or `fs_sync`, which link the runtime's thread path (about 78
+pages that every utility in `bore` would carry). `bore NAME` for one of the six
+runs the one installed beside `bore`.
 
 Each step prints `ok   bore-STEP: ...` or `FAIL bore-STEP: ...` lines, a SKIP
 only with its reason, and `END bore-STEP exit=N`; the tool exits 0 when every
@@ -14,8 +16,8 @@ step it ran is green, 1 when a step is red, and 2 when the harness itself
 cannot run (a missing program, a malformed file).
 
   census        `bore --list` is, byte for byte, the sorted names of the
-                `src/*.lu` entries less `bore`, `dd` and `timeout`, one a
-                line, and the entries less `bore` are the binaries
+                `src/*.lu` entries less `bore` and the six, one a line, and
+                the entries less `bore` are the binaries
                 `.github/release.json` ships; both ways
   refusals      every case of the refusal file: argv[0] (text, or bytes as
                 `argv0_hex`), the arguments, and the exact stdout, stderr
@@ -35,18 +37,24 @@ cannot run (a missing program, a malformed file).
                 program's, and the peak resident size `/usr/bin/time`
                 reports (the small parent: its own size is the floor,
                 printed) is within +1 MiB
-  no-hub        `dd` and `timeout` are not in `bore`: `bore --list` names
-                neither, and a link named after either is an unknown program
-                name; and no file under src/ but those two entries and the
-                tests names a call that makes the signal hub or the
-                readiness set before `main` (HUB_CALLS, REACTOR_CALLS), so a
-                later utility cannot bring the hub back quietly
-  siblings      `bore dd` and `bore timeout` with the separate program beside
-                `bore` run it (stdout, stderr and status equal to running it
-                directly), and with none beside `bore` answer `bore: unknown
-                utility: NAME`, status 127; PATH holds decoys of both names,
-                so a PATH search is red; `bore --help` says the two are
-                separate programs
+  no-hub        the six are not in `bore`: `bore --list` names none, and a
+                link named after one is an unknown program name; and no file
+                under src/ but the six entries and the tests names a call
+                that makes the signal hub or the readiness set before `main`
+                (HUB_CALLS, REACTOR_CALLS) or links the runtime's thread path
+                (THREAD_CALLS, std `time.sleep`), so a later utility cannot
+                bring either back quietly
+  symbols       (linux: an ELF `bore`) its symbol table names none of
+                OFFENDING (`pthread_create`, `pthread_getattr_np`, glibc's
+                scanf); a FAIL names the utility whose code reaches the
+                symbol first, by a backward search over the references
+                `objdump -d` shows, or the symbol alone without objdump
+  siblings      for each of the six, `bore NAME` with the separate program
+                beside `bore` runs it (stdout, stderr and status equal to
+                running it directly), and with none beside `bore` answers
+                `bore: unknown utility: NAME`, status 127; PATH holds decoys
+                of all six names, so a PATH search is red; `bore --help` says
+                the six are separate programs
 
 usage: tools/multicalltest [--bore PATH] [--bin DIR] [--cases FILE]
                            [--size FILE] [--src DIR] [STEP...]
@@ -57,27 +65,37 @@ usage: tools/multicalltest [--bore PATH] [--bin DIR] [--cases FILE]
   --src DIR     the sources the census and no-hub read (default src)
 """
 
+import collections
 import json
 import os
 import platform
 import re
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
 import tomllib
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-STEPS = ("census", "refusals", "dispositions", "size", "startup", "no-hub", "siblings")
+STEPS = ("census", "refusals", "dispositions", "size", "startup", "no-hub", "symbols", "siblings")
 # The utilities that stay separate programs, never in `bore`.
-SEPARATE_ONLY = ("dd", "timeout")
+SEPARATE_ONLY = ("dd", "shred", "sleep", "sync", "tail", "timeout")
 # The calls that make the signal hub before `main` (`[os.signal.hub]`), and
 # those that make the readiness set before `main` (`[os.net.reactor]`).
 HUB_CALLS = ("os_signal_listen", "os_signal_wait", "os_signal_wait_fd", "os_signal_wait_fds",
              "os_wait_ready", "os_ready_wait")
 REACTOR_CALLS = ("net_accept", "net_read", "net_read_bytes", "net_write", "net_write_bytes",
                  "net_writev", "net_writev_head")
-BEFORE_MAIN = re.compile(r"\b(" + "|".join(HUB_CALLS + REACTOR_CALLS) + r")\b")
+# The calls that link the runtime's thread path: a blocking wait starts a
+# compensation worker through std::thread (pthread_create, and with its
+# stack-overflow setup glibc's pthread_getattr_np and scanf).
+THREAD_CALLS = ("time_sleep_ms", "fs_sync", "fs_sync_dir", "time.sleep")
+BEFORE_MAIN = re.compile(r"\b(" + "|".join(re.escape(c) for c in HUB_CALLS + REACTOR_CALLS + THREAD_CALLS) + r")\b")
+# What M8 refuses in bore's symbol table, and the code it blames.
+OFFENDING = ("pthread_create", "pthread_getattr_np", "__isoc23_sscanf", "__vfscanf_internal")
+UTILITY_CODE = re.compile(r"^_W(?:cmd\.|m_)([A-Za-z0-9_]+)\.")
+WOLF_CODE = re.compile(r"^_W")
 STRING = re.compile(r'"(?:\\.|[^"\\])*"')
 SIG = re.compile(rb"^(SigBlk|SigIgn|SigCgt|Threads):.*$", re.M)
 DISPOSITION_COMMANDS = (
@@ -181,7 +199,7 @@ def step_census(o):
         red = 1
     if not red:
         print(f"ok   bore-census: `bore --list` names the {len(want)} utilities it carries; "
-              f"those and {' and '.join(SEPARATE_ONLY)} are the {len(every)} .github/release.json ships")
+              f"those and the six ({', '.join(SEPARATE_ONLY)}) are the {len(every)} .github/release.json ships")
     return red
 
 
@@ -408,14 +426,191 @@ def step_no_hub(o):
                 files.append(rel)
     for rel in files:
         for line, name in before_main_calls(os.path.join(src, rel)):
-            print(f"FAIL bore-no-hub: src/{rel}:{line} names {name}, which makes "
-                  f"{'the signal hub' if name in HUB_CALLS else 'the readiness set'} before main")
+            what = ("makes the signal hub before main" if name in HUB_CALLS else
+                    "makes the readiness set before main" if name in REACTOR_CALLS else
+                    "links the runtime's thread path")
+            print(f"FAIL bore-no-hub: src/{rel}:{line} names {name}, which {what}")
             red = 1
     if not red:
-        print(f"ok   bore-no-hub: neither {' nor '.join(SEPARATE_ONLY)} is in the table, and none of the "
-              f"{len(files)} files under src/ (all but {', '.join(n + '.lu' for n in SEPARATE_ONLY)} and the "
-              f"tests) names a call that makes the signal hub or the readiness set")
+        print(f"ok   bore-no-hub: none of the six separate programs is in the table "
+              f"({', '.join(SEPARATE_ONLY)}), and none of the {len(files)} files under src/ (all but "
+              f"their entries and the tests) names a call that makes the signal hub or the readiness "
+              f"set or links the runtime's thread path")
     return red
+
+
+def elf_tables(path):
+    """An x86-64 ELF's functions by address (every name at each address),
+    the canonical name of each (an imported function, a dynamic build's, is
+    its own name), and a reader for the GOT and .data.rel.ro words; None
+    when the file is not a 64-bit little-endian ELF."""
+    with open(path, "rb") as fh:
+        b = fh.read()
+    if b[:4] != b"\x7fELF" or b[4] != 2 or b[5] != 1:
+        return None
+    shoff, = struct.unpack_from("<Q", b, 0x28)
+    shentsize, shnum, shstrndx = struct.unpack_from("<HHH", b, 0x3A)
+    secs = [struct.unpack_from("<IIQQQQIIQQ", b, shoff + i * shentsize) for i in range(shnum)]
+    names_at = collections.defaultdict(set)
+    imported = set()
+    got_import = {}
+    data = []
+    shstr = secs[shstrndx]
+
+    def symname(tab, sec, i):
+        nm, = struct.unpack_from("<I", b, sec[4] + i * 24)
+        o = tab[4] + nm
+        return b[o:b.index(b"\0", o)].decode("utf-8", "replace")
+    for sec in secs:
+        if sec[1] in (2, 11):  # SHT_SYMTAB, SHT_DYNSYM: what the program imports
+            st = secs[sec[6]]
+            for i in range(sec[5] // 24):
+                nm, info, other, shndx, value, size = struct.unpack_from("<IBBHQQ", b, sec[4] + i * 24)
+                # A weak undefined reference links no code (a static build
+                # leaves it 0), so only a strong one is an import.
+                if shndx == 0 and nm and info >> 4 != 2:
+                    imported.add(symname(st, sec, i).split("@")[0])
+        if sec[1] == 4 and secs[sec[6]][1] == 11:  # SHT_RELA against .dynsym: GOT slots
+            dyn = secs[sec[6]]
+            dst = secs[dyn[6]]
+            for i in range(sec[5] // 24):
+                off, rinfo, addend = struct.unpack_from("<QQq", b, sec[4] + i * 24)
+                if (rinfo & 0xffffffff) in (1, 6, 7) and rinfo >> 32:
+                    got_import[off] = symname(dst, dyn, rinfo >> 32).split("@")[0]
+    for sec in secs:
+        o = shstr[4] + sec[0]
+        secname = b[o:b.index(b"\0", o)].decode("utf-8", "replace")
+        if secname in (".got", ".got.plt", ".data.rel.ro"):
+            data.append((secname, sec[3], sec[3] + sec[5], sec[4]))
+        if sec[1] != 2:  # SHT_SYMTAB
+            continue
+        st = secs[sec[6]]
+        for i in range(sec[5] // 24):
+            nm, info, other, shndx, value, size = struct.unpack_from("<IBBHQQ", b, sec[4] + i * 24)
+            if (info & 0xf) == 2 and value:  # STT_FUNC
+                o = st[4] + nm
+                names_at[value].add(b[o:b.index(b"\0", o)].decode("utf-8", "replace"))
+    canon = {n: n for n in imported}
+    for addr, names in names_at.items():
+        c = min(names, key=lambda n: (n.startswith("_"), len(n), n))
+        for n in names:
+            canon[n] = c
+    first = {addr: canon[next(iter(names))] for addr, names in names_at.items()}
+
+    def pointed(addr, lea):
+        """The functions a rip-relative address leads to: a GOT slot's one
+        pointer; a vtable's ([drop, size, align, method...]) when an
+        instruction takes its address."""
+        if addr in got_import:
+            return [got_import[addr]]
+        for secname, lo, hi, off in data:
+            if not lo <= addr < hi:
+                continue
+            if secname != ".data.rel.ro":
+                return [first[w] for w in [struct.unpack_from("<Q", b, off + addr - lo)[0]] if w in first] if addr + 8 <= hi else []
+            if not lea:
+                return []
+            ws = [struct.unpack_from("<Q", b, off + addr - lo + 8 * i)[0] for i in range(40) if addr + 8 * i + 8 <= hi]
+            shaped = lambda i: i + 2 < len(ws) and ws[i + 1] < 1 << 20 and ws[i + 2] in (1, 2, 4, 8, 16, 32, 64)
+            if not (shaped(0) and (ws[0] in first or ws[0] == 0)):
+                return [first[ws[0]]] if ws and ws[0] in first else []
+            out = [first[ws[0]]] if ws[0] in first else []
+            for i in range(3, len(ws)):
+                if ws[i] not in first or shaped(i):
+                    break
+                out.append(first[ws[i]])
+            return out
+        return []
+    return canon, pointed
+
+
+LABEL = re.compile(r"^([0-9a-f]+) <(.+)>:$")
+TARGET = re.compile(r"<([^>+]+)(?:\+0x[0-9a-f]+)?>")
+COMMENT = re.compile(r"#\s*(?:0x)?([0-9a-f]+)")
+
+
+def callers(path, canon, pointed, objdump):
+    """Every function's callers and referrers, from `objdump -d`: direct
+    calls and jumps, rip-relative addresses, GOT slots and vtables."""
+    p = subprocess.run([objdump, "-d", "--no-show-raw-insn", path], capture_output=True, text=True,
+                       errors="replace", timeout=600)
+    if p.returncode != 0:
+        raise HarnessError(f"objdump -d exited {p.returncode}: {p.stderr.strip()[:200]}")
+    rev = collections.defaultdict(set)
+    fn = None
+    for line in p.stdout.splitlines():
+        m = LABEL.match(line)
+        if m:
+            fn = canon.get(m.group(2), m.group(2))
+            continue
+        if fn is None or ":" not in line:
+            continue
+        targets = {canon.get(t.split("@")[0], t.split("@")[0]) for t in TARGET.findall(line)}
+        c = COMMENT.search(line)
+        if c and "(%rip)" in line:
+            targets.update(pointed(int(c.group(1), 16), "lea" in line))
+        for t in targets:
+            if t != fn:
+                rev[t].add(fn)
+    return rev
+
+
+def nearest(rev, start, match):
+    """The functions nearest `start` in the callers' graph that `match`
+    accepts, and one path from the first of them."""
+    seen, prev, frontier = {start}, {}, [start]
+    while frontier:
+        hits = sorted(f for f in frontier if match(f))
+        if hits:
+            path = [hits[0]]
+            while path[-1] != start:
+                path.append(prev[path[-1]])
+            return hits, path
+        nxt = []
+        for f in frontier:
+            for c in sorted(rev.get(f, ())):
+                if c not in seen:
+                    seen.add(c)
+                    prev[c] = f
+                    nxt.append(c)
+        frontier = nxt
+    return [], []
+
+
+def step_symbols(o):
+    if platform.system() != "Linux":
+        print(f"SKIP bore-symbols: this host ({platform.system()}) links glibc dynamically or not at all; "
+              f"the symbols are checked on linux, where bore is static")
+        return 0
+    tables = elf_tables(o["bore"])
+    if tables is None:
+        print(f"SKIP bore-symbols: {o['bore']} is not a 64-bit ELF program, so it has no symbol table to read")
+        return 0
+    canon, pointed = tables
+    present = [s for s in OFFENDING if s in canon]
+    if not present:
+        print(f"ok   bore-symbols: no pthread_create, pthread_getattr_np or scanf in bore's symbol table "
+              f"({len(set(canon.values()))} functions)")
+        return 0
+    objdump = shutil.which("objdump")
+    rev = callers(o["bore"], canon, pointed, objdump) if objdump else None
+    for s in present:
+        if rev is None:
+            print(f"FAIL bore-symbols: {s} (no objdump on PATH to say which utility reaches it)")
+            continue
+        hits, path = nearest(rev, canon[s], lambda f: UTILITY_CODE.match(f))
+        if hits:
+            names = sorted({UTILITY_CODE.match(h).group(1) for h in hits})
+            print(f"FAIL bore-symbols: {s}, reached first from {', '.join(names)}: "
+                  f"{' -> '.join(f[:48] for f in path)}")
+            continue
+        hits, path = nearest(rev, canon[s], lambda f: WOLF_CODE.match(f))
+        if hits:
+            print(f"FAIL bore-symbols: {s}, reached first from wolf code {hits[0][:60]} (no utility's code "
+                  f"by name): {' -> '.join(f[:48] for f in path)}")
+        else:
+            print(f"FAIL bore-symbols: {s} (no code was found to reach it)")
+    return 1
 
 
 def step_siblings(o):
@@ -443,7 +638,11 @@ def step_siblings(o):
             fh.write("one line of text\nand a second\n")
         env = dict(os.environ, PATH=f"{decoys}:/usr/bin:/bin")
         calls = {"dd": ([f"if={small}", "bs=4", "status=none"], [f"if={top}/absent"], ["--version"]),
-                 "timeout": (["5", os.path.join(o["bin"], "echo"), "beside"], [], ["--version"])}
+                 "timeout": (["5", os.path.join(o["bin"], "echo"), "beside"], [], ["--version"]),
+                 "sleep": (["0"], ["--frob"], ["--version"]),
+                 "tail": (["-n", "1", small], [f"{top}/absent"], ["--version"]),
+                 "sync": ([small], ["--frob"], ["--version"]),
+                 "shred": ([f"{top}/absent"], ["--frob"], ["--version"])}
         for n in SEPARATE_ONLY:
             bad = []
             for args in calls[n]:
@@ -467,11 +666,12 @@ def step_siblings(o):
                 print(f"FAIL bore-siblings: {n} absent: {have!r}, not {want!r}")
         code, out, err = run(["bore", "--help"], executable=os.path.join(alone, "bore"), env=env)
         said = b" ".join(out.split())
-        if code == 0 and b"dd and timeout are separate programs" in said:
-            print("ok   bore-siblings: --help says dd and timeout are separate programs")
+        if code == 0 and b"dd, shred, sleep, sync, tail and timeout are separate programs" in said:
+            print("ok   bore-siblings: --help says dd, shred, sleep, sync, tail and timeout are separate programs")
         else:
             red = 1
-            print(f"FAIL bore-siblings: --help: status {code}, it does not say dd and timeout are separate programs")
+            print(f"FAIL bore-siblings: --help: status {code}, it does not say dd, shred, sleep, sync, tail "
+                  f"and timeout are separate programs")
     return red
 
 
