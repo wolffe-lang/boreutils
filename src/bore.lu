@@ -1,0 +1,359 @@
+//! member: false
+//! bore - the boreutils utilities in one program, each chosen by the name it
+//! is run under: a link named after a utility is that utility, given the
+//! arguments its own program would be given.
+//!
+//! Six utilities are not here: dd, shred, sleep, sync, tail and timeout name
+//! calls that make the runtime start a signal hub or link its thread path,
+//! which every utility here would then pay for on every run. They stay
+//! separate programs.
+//!
+//! Nothing runs, opens or changes before the utility starts: the table is
+//! the only lookup.
+
+use bore
+use checksum
+use codec
+use listing
+use cmd.arch
+use cmd.basename
+use cmd.basenc
+use cmd.cat
+use cmd.chcon
+use cmd.chmod
+use cmd.chroot
+use cmd.comm
+use cmd.cp
+use cmd.csplit
+use cmd.cut
+use cmd.date
+use cmd.dircolors
+use cmd.dirname
+use cmd.du
+use cmd.echo
+use cmd.env
+use cmd.expand
+use cmd.expr
+use cmd.factor
+use cmd.false_
+use cmd.fmt
+use cmd.fold
+use cmd.groups
+use cmd.head
+use cmd.hostid
+use cmd.hostname
+use cmd.id
+use cmd.install
+use cmd.join
+use cmd.kill
+use cmd.link
+use cmd.ln
+use cmd.logname
+use cmd.mkdir
+use cmd.mkfifo
+use cmd.mknod
+use cmd.mktemp
+use cmd.mv
+use cmd.nice
+use cmd.nl
+use cmd.nohup
+use cmd.nproc
+use cmd.numfmt
+use cmd.od
+use cmd.paste
+use cmd.pathchk
+use cmd.pinky
+use cmd.pr
+use cmd.printenv
+use cmd.printf
+use cmd.ptx
+use cmd.pwd
+use cmd.readlink
+use cmd.realpath
+use cmd.rm
+use cmd.rmdir
+use cmd.runcon
+use cmd.seq
+use cmd.shuf
+use cmd.sort
+use cmd.split
+use cmd.stat
+use cmd.stdbuf
+use cmd.stty
+use cmd.tac
+use cmd.tee
+use cmd.touch
+use cmd.tr
+use cmd.true_
+use cmd.truncate
+use cmd.tsort
+use cmd.tty
+use cmd.uname
+use cmd.unexpand
+use cmd.uniq
+use cmd.unlink
+use cmd.uptime
+use cmd.users
+use cmd.wc
+use cmd.who
+use cmd.whoami
+use cmd.yes
+
+/// The utilities bore carries, in byte order.
+fn names() -> List[str] {
+    var n = List[str]()
+    (mut n).push("[")
+    (mut n).push("arch")
+    (mut n).push("b2sum")
+    (mut n).push("base32")
+    (mut n).push("base64")
+    (mut n).push("basename")
+    (mut n).push("basenc")
+    (mut n).push("cat")
+    (mut n).push("chcon")
+    (mut n).push("chgrp")
+    (mut n).push("chmod")
+    (mut n).push("chown")
+    (mut n).push("chroot")
+    (mut n).push("cksum")
+    (mut n).push("comm")
+    (mut n).push("cp")
+    (mut n).push("csplit")
+    (mut n).push("cut")
+    (mut n).push("date")
+    (mut n).push("dir")
+    (mut n).push("dircolors")
+    (mut n).push("dirname")
+    (mut n).push("du")
+    (mut n).push("echo")
+    (mut n).push("env")
+    (mut n).push("expand")
+    (mut n).push("expr")
+    (mut n).push("factor")
+    (mut n).push("false")
+    (mut n).push("fmt")
+    (mut n).push("fold")
+    (mut n).push("groups")
+    (mut n).push("head")
+    (mut n).push("hostid")
+    (mut n).push("hostname")
+    (mut n).push("id")
+    (mut n).push("install")
+    (mut n).push("join")
+    (mut n).push("kill")
+    (mut n).push("link")
+    (mut n).push("ln")
+    (mut n).push("logname")
+    (mut n).push("ls")
+    (mut n).push("md5sum")
+    (mut n).push("mkdir")
+    (mut n).push("mkfifo")
+    (mut n).push("mknod")
+    (mut n).push("mktemp")
+    (mut n).push("mv")
+    (mut n).push("nice")
+    (mut n).push("nl")
+    (mut n).push("nohup")
+    (mut n).push("nproc")
+    (mut n).push("numfmt")
+    (mut n).push("od")
+    (mut n).push("paste")
+    (mut n).push("pathchk")
+    (mut n).push("pinky")
+    (mut n).push("pr")
+    (mut n).push("printenv")
+    (mut n).push("printf")
+    (mut n).push("ptx")
+    (mut n).push("pwd")
+    (mut n).push("readlink")
+    (mut n).push("realpath")
+    (mut n).push("rm")
+    (mut n).push("rmdir")
+    (mut n).push("runcon")
+    (mut n).push("seq")
+    (mut n).push("sha1sum")
+    (mut n).push("sha224sum")
+    (mut n).push("sha256sum")
+    (mut n).push("sha384sum")
+    (mut n).push("sha512sum")
+    (mut n).push("shuf")
+    (mut n).push("sort")
+    (mut n).push("split")
+    (mut n).push("stat")
+    (mut n).push("stdbuf")
+    (mut n).push("stty")
+    (mut n).push("sum")
+    (mut n).push("tac")
+    (mut n).push("tee")
+    (mut n).push("test")
+    (mut n).push("touch")
+    (mut n).push("tr")
+    (mut n).push("true")
+    (mut n).push("truncate")
+    (mut n).push("tsort")
+    (mut n).push("tty")
+    (mut n).push("uname")
+    (mut n).push("unexpand")
+    (mut n).push("uniq")
+    (mut n).push("unlink")
+    (mut n).push("uptime")
+    (mut n).push("users")
+    (mut n).push("vdir")
+    (mut n).push("wc")
+    (mut n).push("who")
+    (mut n).push("whoami")
+    (mut n).push("yes")
+    n
+}
+
+/// Whether LIST holds NAME.
+fn holds(list: List[str], name: str) -> bool {
+    for n in list {
+        if n == name {
+            return true
+        }
+    }
+    false
+}
+
+/// Run NAME, one of names(), on ARGS: what its own program does with them.
+fn run(name: str, args: List[str]) -> int {
+    if name == "[" then return bore.predicate_main("[", args)
+    if name == "arch" then return arch.main(args)
+    if name == "b2sum" then return checksum.command("b2sum", 10, 512, args)
+    if name == "base32" then return codec.run("base32", 5, args)
+    if name == "base64" then return codec.run("base64", 6, args)
+    if name == "basename" then return basename.main(args)
+    if name == "basenc" then return basenc.main(args)
+    if name == "cat" then return cat.main(args)
+    if name == "chcon" then return chcon.main(args)
+    if name == "chgrp" then return bore.owner_main(true, args)
+    if name == "chmod" then return chmod.main(args)
+    if name == "chown" then return bore.owner_main(false, args)
+    if name == "chroot" then return chroot.main(args)
+    if name == "cksum" then return checksum.command("cksum", 0, 32, args)
+    if name == "comm" then return comm.main(args)
+    if name == "cp" then return cp.main(args)
+    if name == "csplit" then return csplit.main(args)
+    if name == "cut" then return cut.main(args)
+    if name == "date" then return date.main(args)
+    if name == "dir" then return listing.command()
+    if name == "dircolors" then return dircolors.main(args)
+    if name == "dirname" then return dirname.main(args)
+    if name == "du" then return du.main(args)
+    if name == "echo" then return echo.main(args)
+    if name == "env" then return env.main(args)
+    if name == "expand" then return expand.main(args)
+    if name == "expr" then return expr.main(args)
+    if name == "factor" then return factor.main(args)
+    if name == "false" then return false_.main(args)
+    if name == "fmt" then return fmt.main(args)
+    if name == "fold" then return fold.main(args)
+    if name == "groups" then return groups.main(args)
+    if name == "head" then return head.main(args)
+    if name == "hostid" then return hostid.main(args)
+    if name == "hostname" then return hostname.main(args)
+    if name == "id" then return id.main(args)
+    if name == "install" then return install.main(args)
+    if name == "join" then return join.main(args)
+    if name == "kill" then return kill.main(args)
+    if name == "link" then return link.main(args)
+    if name == "ln" then return ln.main(args)
+    if name == "logname" then return logname.main(args)
+    if name == "ls" then return listing.command()
+    if name == "md5sum" then return checksum.command("md5sum", 4, 128, args)
+    if name == "mkdir" then return mkdir.main(args)
+    if name == "mkfifo" then return mkfifo.main(args)
+    if name == "mknod" then return mknod.main(args)
+    if name == "mktemp" then return mktemp.main(args)
+    if name == "mv" then return mv.main(args)
+    if name == "nice" then return nice.main(args)
+    if name == "nl" then return nl.main(args)
+    if name == "nohup" then return nohup.main(args)
+    if name == "nproc" then return nproc.main(args)
+    if name == "numfmt" then return numfmt.main(args)
+    if name == "od" then return od.main(args)
+    if name == "paste" then return paste.main(args)
+    if name == "pathchk" then return pathchk.main(args)
+    if name == "pinky" then return pinky.main(args)
+    if name == "pr" then return pr.main(args)
+    if name == "printenv" then return printenv.main(args)
+    if name == "printf" then return printf.main(args)
+    if name == "ptx" then return ptx.main(args)
+    if name == "pwd" then return pwd.main(args)
+    if name == "readlink" then return readlink.main(args)
+    if name == "realpath" then return realpath.main(args)
+    if name == "rm" then return rm.main(args)
+    if name == "rmdir" then return rmdir.main(args)
+    if name == "runcon" then return runcon.main(args)
+    if name == "seq" then return seq.main(args)
+    if name == "sha1sum" then return checksum.command("sha1sum", 5, 160, args)
+    if name == "sha224sum" then return checksum.command("sha224sum", 6, 224, args)
+    if name == "sha256sum" then return checksum.command("sha256sum", 7, 256, args)
+    if name == "sha384sum" then return checksum.command("sha384sum", 8, 384, args)
+    if name == "sha512sum" then return checksum.command("sha512sum", 9, 512, args)
+    if name == "shuf" then return shuf.main(args)
+    if name == "sort" then return sort.main(args)
+    if name == "split" then return split.main(args)
+    if name == "stat" then return stat.main(args)
+    if name == "stdbuf" then return stdbuf.main(args)
+    if name == "stty" then return stty.main(args)
+    if name == "sum" then return checksum.command("sum", 3, 16, args)
+    if name == "tac" then return tac.main(args)
+    if name == "tee" then return tee.main(args)
+    if name == "test" then return bore.predicate_main("test", args)
+    if name == "touch" then return touch.main(args)
+    if name == "tr" then return tr.main(args)
+    if name == "true" then return true_.main(args)
+    if name == "truncate" then return truncate.main(args)
+    if name == "tsort" then return tsort.main(args)
+    if name == "tty" then return tty.main(args)
+    if name == "uname" then return uname.main(args)
+    if name == "unexpand" then return unexpand.main(args)
+    if name == "uniq" then return uniq.main(args)
+    if name == "unlink" then return unlink.main(args)
+    if name == "uptime" then return uptime.main(args)
+    if name == "users" then return users.main(args)
+    if name == "vdir" then return listing.command()
+    if name == "wc" then return wc.main(args)
+    if name == "who" then return who.main(args)
+    if name == "whoami" then return whoami.main(args)
+    if name == "yes" then return yes.main(args)
+    127
+}
+
+/// The bytes of PATH after its last slash.
+fn base_name(path: List[byte]) -> List[byte] {
+    var start = path.len
+    while start > 0 && path[start - 1] != 47 as byte {
+        start -= 1
+    }
+    path[start..]
+}
+
+/// `bore: unknown WHAT: NAME` on standard error, NAME as its bytes are,
+/// and the status 127.
+fn refuse(what: str, name: List[byte]) -> int {
+    var line = "bore: unknown {what}: ".bytes()
+    for b in name {
+        (mut line).push(b)
+    }
+    (mut line).push(10 as byte)
+    fs_write_chunk(2, line) else |_| {}
+    127
+}
+
+fn main() -> int {
+    let argv = env_args_bytes()
+    var raw = List[byte]()
+    if argv.len > 0 {
+        raw = base_name(argv[0])
+    }
+    let name = str_from_utf8(raw) else |_| {
+        return refuse("program name", raw)
+    }
+    if holds(names(), name) {
+        return run(name, env_args())
+    }
+    refuse("program name", raw)
+}
