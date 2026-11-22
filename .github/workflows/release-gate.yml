@@ -152,6 +152,9 @@ jobs:
       - name: the harness sees a difference (the planted red)
         run: tools/difftest-selftest
 
+      - name: the toolchain fetch survives a refused download
+        run: tools/fetch-toolchain-selftest
+
       - name: the multicall harness sees its plants
         shell: bash
         run: |
