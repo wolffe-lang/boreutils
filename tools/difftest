@@ -370,7 +370,22 @@ verdict — which is what CI's non-blocking "field" leg is for.
                                  #   THIS GNU utility as the oracle, so a
                                  #   case can plant a known difference
 
-usage: tools/difftest [--bin DIR] [--cases DIR] [util ...]
+Two options hold boreutils against itself rather than against GNU, for
+the multicall program `bore`:
+
+  --against DIR   the reference side is boreutils' own separate program
+                  DIR/<util>, not GNU: no oracle is found or asserted
+                  (its environment still applies), every field is
+                  compared RAW (stderr and a changer's stdout keep each
+                  side's own name, because both sides must print the same
+                  bytes), GNU's version bounds, `needs` and `gnu_keep` do
+                  not apply, and `gnu_util` names the reference program
+  --multicall BORE  the side under test is run as `BORE <util> args...`
+                  with argv[0] `bore`, the multicall's own form; --bin DIR
+                  of links named after each utility is the other form
+
+usage: tools/difftest [--bin DIR | --multicall BORE] [--against DIR]
+                      [--cases DIR] [util ...]
 """
 
 import os
@@ -410,6 +425,9 @@ SCRATCH = ("scratch", "scratch_dirs", "scratch_links", "scratch_modes",
            "scratch_keep", "scratch_sizes")
 # What a case compares when descriptor 1 is closed: there is no stdout.
 CLOSED = ("stderr", "exit")
+# Set by --against: every field is compared as the programs wrote it,
+# because both sides are boreutils and must name themselves alike.
+RAW = False
 
 
 def gnu_version(line):
@@ -1016,7 +1034,7 @@ def substitute(value, top):
     return value if top is None else value.replace("{scratch}", top)
 
 
-def run(exe, argv0, case, base_env, top=None, now=0, fresh=True):
+def run(exe, argv0, case, base_env, top=None, now=0, fresh=True, lead=()):
     env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin")}
     env.update(base_env)
     env.update({k: substitute(v, top) for k, v in case.get("env", {}).items()})
@@ -1059,7 +1077,7 @@ def run(exe, argv0, case, base_env, top=None, now=0, fresh=True):
     if case.get("tty_stdin") and tty is None:
         tty = 80
     if tty is not None:
-        return run_tty(exe, argv0, case, env, cwd, stdin, data, timeout, int(tty), top, now)
+        return run_tty(exe, argv0, case, env, cwd, stdin, data, timeout, int(tty), top, now, lead)
     if sink is not None:
         stdout = open(sink, "wb", buffering=0)
     elif closed:
@@ -1067,7 +1085,7 @@ def run(exe, argv0, case, base_env, top=None, now=0, fresh=True):
     else:
         stdout = subprocess.PIPE
     proc = subprocess.Popen(
-        [argv0] + [substitute(a, top) for a in case.get("args", [])],
+        [argv0] + list(lead) + [substitute(a, top) for a in case.get("args", [])],
         executable=exe, env=env,
         stdin=stdin, stdout=stdout, stderr=subprocess.PIPE,
         # `prog >&-`: the child reaches main with descriptor 1 closed.
@@ -1116,9 +1134,9 @@ def run(exe, argv0, case, base_env, top=None, now=0, fresh=True):
             stdin.close()
         if hasattr(stdout, "close"):
             stdout.close()
-    if case.get("_changer") and case.get("_util") != "shuf":
+    if case.get("_changer") and case.get("_util") != "shuf" and not RAW:
         out = prog_lines(out, argv0, case.get("_util"))
-    result = {"stdout": masked(out, case), "stderr": masked(normalize(err, argv0, case.get("_util")), case),
+    result = {"stdout": masked(out, case), "stderr": masked(err if RAW else normalize(err, argv0, case.get("_util")), case),
               "exit": status(proc.returncode)}
     if "stdin_offset" in case:
         result["offset"] = offset
@@ -1219,7 +1237,7 @@ def temp_result(result, case, top, cwd):
     return result
 
 
-def run_tty(exe, argv0, case, env, cwd, stdin, data, timeout, cols, top, now=0):
+def run_tty(exe, argv0, case, env, cwd, stdin, data, timeout, cols, top, now=0, lead=()):
     """`run` with standard output on a pseudo-terminal `cols` wide.
 
     The pty is made here and its size set before the child starts, so a
@@ -1251,7 +1269,7 @@ def run_tty(exe, argv0, case, env, cwd, stdin, data, timeout, cols, top, now=0):
     slave_name = os.ttyname(slave)
     fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, cols, 0, 0))
     proc = subprocess.Popen(
-        [argv0] + [substitute(a, top) for a in case.get("args", [])],
+        [argv0] + list(lead) + [substitute(a, top) for a in case.get("args", [])],
         executable=exe, env=env, stdin=slave if case.get("tty_stdin") else stdin, stdout=slave,
         stderr=subprocess.PIPE, cwd=cwd, restore_signals=True)
     if data is not None:
@@ -1313,7 +1331,7 @@ def run_tty(exe, argv0, case, env, cwd, stdin, data, timeout, cols, top, now=0):
             tty_error = f"terminal name is not the actual slave {slave_name!r}"
         else:
             out = b"<PTY>\n"
-    result = {"stdout": masked(out, case), "stderr": masked(normalize(err, argv0, case.get("_util")), case),
+    result = {"stdout": masked(out, case), "stderr": masked(err if RAW else normalize(err, argv0, case.get("_util")), case),
               "exit": status(proc.returncode)}
     result["tty_error"] = tty_error
     if top is not None:
@@ -1510,29 +1528,11 @@ def load(path, util=None):
     return cases
 
 
-def main(argv):
-    # THE REPORT IS WRITTEN AS IT IS DECIDED (boreutils#10). Python block-
-    # buffers a stdout that is not a terminal, which is exactly what CI
-    # gives this harness, so a run that died took every verdict it had
-    # already reached with it: three macOS gauntlets ended at exit 141
-    # with NOTHING between `Run tools/difftest` and the error line. A
-    # gate that loses its evidence when it fails cannot be used to
-    # diagnose the thing that killed it. Line buffering costs one write
-    # per case and makes the transcript survive any death, SIGKILL
-    # included — see tools/difftest-evidence, which kills a run to check.
-    sys.stdout.reconfigure(line_buffering=True)
-    bindir = os.path.join(ROOT, "target", "release")
-    cases = CASES
-    while argv[:1] in (["--bin"], ["--cases"]):
-        if len(argv) < 2:
-            die(f"{argv[0]} needs a directory")
-        if argv[0] == "--bin":
-            bindir = os.path.abspath(argv[1])
-        else:
-            cases = os.path.abspath(argv[1])
-        argv = argv[2:]
-    utils = argv or sorted(f[:-5] for f in os.listdir(cases)
-                           if f.endswith(".toml"))
+def gnu_oracle(table, base_env, side):
+    """Find GNU on PATH, say which it is, and assert it is the oracle of
+    record (or, with $BORE_ORACLE_ANY, say that this run is information).
+    Returns (prefix, version line, version tuple, loose)."""
+    want = str(table["version"])
     prefix = gnu_prefix()
     probe = shutil.which(prefix + "true")
     if probe is None:
@@ -1542,14 +1542,11 @@ def main(argv):
     have = gnu_version(version)
     print(f"difftest: gnu = {version} (prefix {prefix!r}) on "
           f"{platform.system()} {platform.machine()}")
-    print(f"difftest: bore = {bindir}")
+    print(f"difftest: bore = {side}")
 
     # The oracle of record, asserted. A drifting oracle is the failure
     # this check exists for: it is not that the wrong GNU gives wrong
     # answers, it is that nobody notices which GNU gave them.
-    table = oracle_of_record()
-    want = str(table["version"])
-    base_env = oracle_env(table)
     if base_env:
         shown = " ".join(f"{k}={v}" for k, v in sorted(base_env.items()))
         print(f"difftest: oracle environment, {shown}")
@@ -1569,6 +1566,64 @@ def main(argv):
 
     # The build profile, asserted — and on the `field` leg, reported.
     assert_probe(table, prefix, base_env, loose)
+    return prefix, version, have, loose
+
+
+def main(argv):
+    # THE REPORT IS WRITTEN AS IT IS DECIDED (boreutils#10). Python block-
+    # buffers a stdout that is not a terminal, which is exactly what CI
+    # gives this harness, so a run that died took every verdict it had
+    # already reached with it: three macOS gauntlets ended at exit 141
+    # with NOTHING between `Run tools/difftest` and the error line. A
+    # gate that loses its evidence when it fails cannot be used to
+    # diagnose the thing that killed it. Line buffering costs one write
+    # per case and makes the transcript survive any death, SIGKILL
+    # included — see tools/difftest-evidence, which kills a run to check.
+    sys.stdout.reconfigure(line_buffering=True)
+    global RAW
+    bindir = os.path.join(ROOT, "target", "release")
+    cases = CASES
+    against = multicall = None
+    while argv[:1] in (["--bin"], ["--cases"], ["--against"], ["--multicall"]):
+        if len(argv) < 2:
+            die(f"{argv[0]} needs a {'program' if argv[0] == '--multicall' else 'directory'}")
+        if argv[0] == "--bin":
+            bindir = os.path.abspath(argv[1])
+        elif argv[0] == "--cases":
+            cases = os.path.abspath(argv[1])
+        elif argv[0] == "--against":
+            against = os.path.abspath(argv[1])
+        else:
+            multicall = os.path.abspath(argv[1])
+        argv = argv[2:]
+    utils = argv or sorted(f[:-5] for f in os.listdir(cases)
+                           if f.endswith(".toml"))
+    if multicall is not None and not os.access(multicall, os.X_OK):
+        die(f"no multicall program at {multicall}")
+    side = (f"{multicall}, run as `bore <util> ...`" if multicall is not None
+            else bindir)
+    table = oracle_of_record()
+    want = str(table["version"])
+    base_env = oracle_env(table)
+    if against is not None:
+        # --against: the reference side is boreutils' own separate program
+        # for each utility, so no GNU is asked for or asserted; the oracle's
+        # environment still applies, so the cases mean what they mean
+        # against GNU. Every field is compared raw (RAW): both sides are
+        # boreutils and must name themselves alike, byte for byte.
+        RAW = True
+        prefix = ""
+        version = have = None
+        loose = False
+        print(f"difftest: against = {against} (boreutils' separate "
+              f"programs, every field compared raw; no GNU) on "
+              f"{platform.system()} {platform.machine()}")
+        print(f"difftest: bore = {side}")
+        if base_env:
+            shown = " ".join(f"{k}={v}" for k, v in sorted(base_env.items()))
+            print(f"difftest: oracle environment, {shown}")
+    else:
+        prefix, version, have, loose = gnu_oracle(table, base_env, side)
 
     # One mask for the harness and so for every tree it lays out and
     # every child that names none (bu21): a mode is the same on every
@@ -1585,11 +1640,11 @@ def main(argv):
     told_host_id = False
     for util in utils:
         entries = loaded[util]
-        bore = os.path.join(bindir, util)
+        bore = multicall if multicall is not None else os.path.join(bindir, util)
         if not os.access(bore, os.X_OK):
             die(f"no boreutils binary at {bore} (run tools/build)")
         foreign = own = None
-        if util in str(table.get("needs", "")).split():
+        if against is None and util in str(table.get("needs", "")).split():
             own, foreign = own_program(prefix, util, want, loose)
             if foreign is not None and not loose:
                 die(foreign)
@@ -1605,9 +1660,14 @@ def main(argv):
                 if not os.environ.get("BORE_SELFTEST"):
                     die(f"{util}: gnu_util is for the self-test only")
                 oracle = case["gnu_util"]
-            gnu = own if own is not None and oracle == util else shutil.which(prefix + oracle)
-            if gnu is None:
-                die(f"GNU '{prefix}{oracle}' not found on PATH")
+            if against is not None:
+                gnu = os.path.join(against, oracle)
+                if not os.access(gnu, os.X_OK):
+                    die(f"no separate program at {gnu} to hold {util} against (run tools/build)")
+            else:
+                gnu = own if own is not None and oracle == util else shutil.which(prefix + oracle)
+                if gnu is None:
+                    die(f"GNU '{prefix}{oracle}' not found on PATH")
             label = f"{util}: {case['name']}"
             if "skip" in case:
                 skipped += 1
@@ -1690,7 +1750,11 @@ def main(argv):
                 if keep:
                     populate(case, top, now)
                     laid = snapshot(top)
-                b = run(bore, util, case, base_env, top, now, fresh=not keep)
+                if multicall is not None:
+                    b = run(bore, "bore", case, base_env, top, now,
+                            fresh=not keep, lead=[util])
+                else:
+                    b = run(bore, util, case, base_env, top, now, fresh=not keep)
                 g = run(gnu, prefix + oracle, case, base_env, top, now,
                         fresh=not keep)
                 # A kept tree is for a program that changes nothing.
@@ -1701,7 +1765,7 @@ def main(argv):
                 if top is not None:
                     unlock(holder)
                     shutil.rmtree(holder, ignore_errors=True)
-            if g is not None and "gnu_keep" in case:
+            if g is not None and "gnu_keep" in case and against is None:
                 keep = re.compile(case["gnu_keep"].encode())
                 g["stdout"] = b"".join(
                     line for line in g["stdout"].splitlines(keepends=True)
@@ -1721,7 +1785,7 @@ def main(argv):
                 if case.get("tty_name"):
                     print(f"    tty errors: bore={None if b is None else b.get('tty_error')!r}, gnu={None if g is None else g.get('tty_error')!r}")
                 print(show("bore", b, fields))
-                print(show("gnu ", g, fields))
+                print(show("gnu " if against is None else "sep ", g, fields))
     print(f"difftest: {passed} passed, {failed} failed, {skipped} skipped")
     return 1 if failed else 0
 
