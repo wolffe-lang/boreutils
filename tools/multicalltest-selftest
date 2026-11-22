@@ -16,7 +16,7 @@ set -eu
 BORE_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$BORE_ROOT"
 bin=$BORE_ROOT/target/release
-for u in true cat echo env nohup dd timeout yes; do
+for u in true cat echo env nohup yes dd shred sleep sync tail timeout; do
     if [ ! -x "$bin/$u" ]; then
         echo "multicalltest-selftest: no $bin/$u; run tools/build first"
         exit 1
@@ -33,12 +33,13 @@ trap 'rm -rf "$work"' EXIT
 set -f
 
 # The utilities `bore` carries, in byte order: every src/*.lu entry but the
-# tests, `bore` itself, `dd` and `timeout`.
-names=$(ls src | sed -n 's/\.lu$//p' | grep -v '_test$' | grep -vx -e bore -e dd -e timeout | LC_ALL=C sort)
+# tests, `bore` itself, and the six that stay separate programs.
+six='dd shred sleep sync tail timeout'
+names=$(ls src | sed -n 's/\.lu$//p' | grep -v '_test$' | grep -vx -e bore -e dd -e shred -e sleep -e sync -e tail -e timeout | LC_ALL=C sort)
 
 sleep_bin=$(command -v sleep)
 # standin DIR VARIANT: write DIR/bore, a stand-in for `bore`, with the
-# separate dd and timeout beside it. Each variant but `good` is planted
+# six separate programs beside it. Each variant but `good` is planted
 # with one difference:
 #   census        its table lacks yes
 #   refusals      an unknown utility exits 1, not 127
@@ -46,12 +47,11 @@ sleep_bin=$(command -v sleep)
 #   size          (none: the size plants are files, below)
 #   startup       every utility starts 50 ms late
 #   nohub         dd is in its table
-#   siblings      `bore dd` and `bore timeout` search PATH, and --help does
-#                 not say the two are separate programs
+#   siblings      `bore NAME` for the six searches PATH, and --help does not
+#                 say they are separate programs
 standin() {
     mkdir -p "$1"
-    ln -s "$bin/dd" "$1/dd"
-    ln -s "$bin/timeout" "$1/timeout"
+    for n in $six; do ln -s "$bin/$n" "$1/$n"; done
     extra='' drop='/' wrap='' nap='' search='' unknown=127
     case $2 in
     good) ;;
@@ -84,8 +84,8 @@ usage() {
     echo 'Usage: bore UTILITY [ARGUMENT]...'
     echo '  or:  bore --list | --help | --version'
     [ -n "$search" ] && return 0
-    echo 'dd and timeout are separate programs; bore dd and'
-    echo 'bore timeout run the ones installed beside bore.'
+    echo 'dd, shred, sleep, sync, tail and timeout are'
+    echo 'separate programs; bore runs the one installed beside it.'
 }
 # Its own work is the shell's builtins and absolute paths alone: links to it
 # may be first on PATH, so a grep or a sort found there would be itself.
@@ -122,7 +122,7 @@ esac
 u=$1
 shift
 case $u in
-dd|timeout)
+dd|shred|sleep|sync|tail|timeout)
     if [ -n "$search" ]; then
         if command -v "$u" > /dev/null; then exec "$u" "$@"; fi
     elif [ -x "$here/$u" ]; then
@@ -278,15 +278,16 @@ proved "size: the control green, the three plants red by name"
 # no-hub: the table, a link named dd or timeout, and the sources.
 mt --bore "$good" no-hub
 must 0 "no-hub through the good stand-in"
-seen "ok   bore-no-hub: neither dd nor timeout is in the table"
+seen "ok   bore-no-hub: none of the six separate programs is in the table"
 mt --bore "$work/nohub/bore" no-hub
 must 1 "no-hub through a stand-in whose table holds dd"
 line "FAIL bore-no-hub: dd is in the table (\`bore --list\` names it)"
 seen "FAIL bore-no-hub: dd by a link to bore: "
 fails 2
-# A copy of src/ with calls planted in a file of a utility's module: three
-# calls count; a comment, a string and dd.lu's and timeout.lu's own calls
-# do not.
+# A copy of src/ with calls planted in a file of a utility's module: six
+# calls count (three that make the hub or the readiness set, three that link
+# the runtime's thread path); a comment, a string and the six separate
+# programs' own calls do not.
 cp -R src "$work/src"
 mkdir -p "$work/src/cmd/sleep"
 cat > "$work/src/cmd/sleep/plant.lu" <<'EOF'
@@ -296,6 +297,9 @@ pub fn plant() -> int {
     os_signal_listen(signal.user()) else |_| {}
     let f = net_accept
     os_signal_wait_fds(fds, set) else |_| {}  // os_signal_wait in a comment does not count
+    time_sleep_ms(10)
+    fs_sync(fd) else |_| {}
+    time.sleep(1)
     0
 }
 EOF
@@ -304,25 +308,51 @@ must 1 "no-hub over sources with planted calls"
 line "FAIL bore-no-hub: src/cmd/sleep/plant.lu:4 names os_signal_listen, which makes the signal hub before main"
 line "FAIL bore-no-hub: src/cmd/sleep/plant.lu:5 names net_accept, which makes the readiness set before main"
 line "FAIL bore-no-hub: src/cmd/sleep/plant.lu:6 names os_signal_wait_fds, which makes the signal hub before main"
-fails 3
+line "FAIL bore-no-hub: src/cmd/sleep/plant.lu:7 names time_sleep_ms, which links the runtime's thread path"
+line "FAIL bore-no-hub: src/cmd/sleep/plant.lu:8 names fs_sync, which links the runtime's thread path"
+line "FAIL bore-no-hub: src/cmd/sleep/plant.lu:9 names time.sleep, which links the runtime's thread path"
+fails 6
 proved "no-hub: the good stand-in green, the table and source plants red by name"
 
 # siblings
 mt --bore "$good" siblings
 must 0 "siblings through the good stand-in"
-for c in "dd beside: " "dd absent: " "timeout beside: " "timeout absent: " \
-         "--help says dd and timeout are separate programs"; do
-    seen "ok   bore-siblings: $c"
+for n in $six; do
+    seen "ok   bore-siblings: $n beside: "
+    seen "ok   bore-siblings: $n absent: "
 done
+seen "ok   bore-siblings: --help says dd, shred, sleep, sync, tail and timeout are separate programs"
 mt --bore "$work/siblings/bore" siblings
 must 1 "siblings through a stand-in that searches PATH"
-line "FAIL bore-siblings: dd beside"
-line "FAIL bore-siblings: timeout beside"
-seen "FAIL bore-siblings: dd absent: "
-seen "FAIL bore-siblings: timeout absent: "
+for n in $six; do
+    line "FAIL bore-siblings: $n beside"
+    seen "FAIL bore-siblings: $n absent: "
+done
 seen "FAIL bore-siblings: --help: "
-fails 5
-proved "siblings: the good stand-in green, the plant red in all five cases"
+fails 13
+proved "siblings: the good stand-in green, the plant red in all thirteen cases"
+
+# symbols (M8's second half): on linux, bore's symbol table names nothing of
+# the runtime's thread path. The control is the separate `true`; the plant
+# is the separate `sleep`, which carries all four symbols when it is static
+# and imports the two pthread ones when it is linked dynamically (scanf then
+# stays inside libc). Off linux, and for a program that is not ELF, the step
+# is a SKIP with its reason.
+mt --bore "$bin/true" symbols
+must 0 "symbols with the separate true as bore"
+if [ "$(uname -s)" = Linux ]; then
+    seen "ok   bore-symbols: no pthread_create, pthread_getattr_np or scanf in "
+    mt --bore "$bin/sleep" symbols
+    must 1 "symbols with the separate sleep as bore"
+    seen "FAIL bore-symbols: pthread_create"
+    seen "FAIL bore-symbols: pthread_getattr_np"
+    n=$(echo "$out" | grep -c '^FAIL ' || true)
+    [ "$n" -eq 2 ] || [ "$n" -eq 4 ] || refuse "$n FAIL lines, not 2 (dynamic) or 4 (static)"
+    proved "symbols: the separate true green, the separate sleep red by each symbol"
+else
+    seen "SKIP bore-symbols: "
+    proved "symbols: SKIP with its reason (not linux)"
+fi
 
 # startup, last: the slowest. The control is the separate `true` as `bore`.
 mt --bore "$bin/true" startup
