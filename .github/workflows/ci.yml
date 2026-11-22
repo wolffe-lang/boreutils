@@ -189,9 +189,12 @@ jobs:
         include: ${{ fromJSON(needs.plan.outputs.matrix_gauntlet || '[]') }}
     runs-on: ${{ matrix.os }}
     # Run 40168612318: release alone took 33m Linux / 34m macOS.
-    # Darwin's projected full job is 54m29 (completed tail from
-    # 40097789140); 66m leaves 21% headroom. Keep all per-case bounds.
-    timeout-minutes: ${{ matrix.os == 'macos-latest' && 66 || 90 }}
+    # macOS: the job took 56.1m in run 45020645280 and 61.0m in run
+    # 45028308303, which added the multicall step (1.4m of it). Its
+    # release build alone took 32.8, 35.8 and 39.4m across those runs and
+    # 45028851797, so the slowest build with the rest of the 61.0m run is
+    # 64.6m; 79m leaves 22% headroom. Keep all per-case bounds.
+    timeout-minutes: ${{ matrix.os == 'macos-latest' && 79 || 90 }}
     steps:
       - uses: actions/checkout@v4
 
