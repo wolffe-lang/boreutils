@@ -142,17 +142,22 @@ fails() {
     n=$(echo "$out" | grep -c '^FAIL ' || true)
     [ "$n" -eq "$1" ] || refuse "$n FAIL lines, not $1"
 }
+# proved WHAT: one line for each part proved, with the seconds so far.
+t0=$(date +%s)
+proved() { echo "multicalltest-selftest: $1 ($(( $(date +%s) - t0 )) s)"; }
 
 # No `bore` yet: every step is red, never a pass and never a harness error.
 mt --bore "$work/absent/bore" census refusals
 must 1 "the tool with no multicall program"
 line "END bore-census exit=1"
 line "END bore-refusals exit=1"
+proved "no bore: every step red"
 
 # A harness that cannot run is status 2, never a verdict.
 mt --bore "$good" --cases "$work/no-such-cases.toml" refusals
 must 2 "refusals with no cases file"
 seen "multicalltest: bore-refusals: the harness cannot run: "
+proved "a harness that cannot run: status 2"
 
 # census
 mt --bore "$good" census
@@ -162,6 +167,7 @@ mt --bore "$work/census/bore" census
 must 1 "census through a stand-in whose table lacks yes"
 line "FAIL bore-census: missing yes"
 fails 1
+proved "census: the good stand-in green, the plant red by name"
 
 # refusals
 cases=tests/selftest-multicalltest/cases.toml
@@ -178,6 +184,7 @@ fails 1
 for c in "no operand" "unknown program name" "a utility by its link" "a utility by bore NAME"; do
     line "ok   bore-refusals: $c"
 done
+proved "refusals: the good stand-in green, the plant red by name"
 
 # dispositions
 if [ -r /proc/self/status ]; then
@@ -194,10 +201,12 @@ if [ -r /proc/self/status ]; then
     done
     # nohup ignores HUP in every form, so there the plant changes nothing.
     seen "ok   bore-dispositions: nohup cat /proc/self/status: "
+    proved "dispositions: the good stand-in green, the plant red by name"
 else
     mt --bore "$good" dispositions
     must 0 "dispositions on a host without /proc"
     seen "SKIP bore-dispositions: this host ("
+    proved "dispositions: SKIP with its reason (no /proc on this host)"
 fi
 
 # size: the control is the separate `true` as `bore`; the plants are every
@@ -225,6 +234,7 @@ mt --bore "$bin/true" --size "$work/size-other.toml" size
 must 1 "size with no ceiling for this host"
 seen "size-other.toml records none for $host (bore is $(wc -c < "$bin/true" | tr -d ' ') bytes here)"
 fails 1
+proved "size: the control green, the three plants red by name"
 
 # no-hub: the table, a link named dd or timeout, and the sources.
 mt --bore "$good" no-hub
@@ -256,6 +266,7 @@ line "FAIL bore-no-hub: src/cmd/sleep/plant.lu:4 names os_signal_listen, which m
 line "FAIL bore-no-hub: src/cmd/sleep/plant.lu:5 names net_accept, which makes the readiness set before main"
 line "FAIL bore-no-hub: src/cmd/sleep/plant.lu:6 names os_signal_wait_fds, which makes the signal hub before main"
 fails 3
+proved "no-hub: the good stand-in green, the table and source plants red by name"
 
 # siblings
 mt --bore "$good" siblings
@@ -272,6 +283,7 @@ seen "FAIL bore-siblings: dd absent: "
 seen "FAIL bore-siblings: timeout absent: "
 seen "FAIL bore-siblings: --help: "
 fails 5
+proved "siblings: the good stand-in green, the plant red in all five cases"
 
 # startup, last: the slowest. The control is the separate `true` as `bore`.
 mt --bore "$bin/true" startup
@@ -282,5 +294,6 @@ mt --bore "$work/startup/bore" startup
 must 1 "startup through a stand-in that starts 50 ms late"
 seen "FAIL bore-startup: true: "
 seen "FAIL bore-startup: cat: "
+proved "startup: the control green, the plant red by name"
 
 echo "multicalltest-selftest: every step sees its plant"
