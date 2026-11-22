@@ -279,6 +279,13 @@ jobs:
       - name: the harness sees a difference (the planted red)
         run: tools/difftest-selftest
 
+      # The toolchain fetch against stand-ins on the loopback: a release
+      # host that refuses each archive once (retried and staged), one that
+      # refuses every time (given up after four tries) and one that serves
+      # the wrong bytes (refused by digest).
+      - name: the toolchain fetch survives a refused download
+        run: tools/fetch-toolchain-selftest
+
       # The multicall harness (tools/multicalltest) holds `bore` to the
       # separate programs it replaces. Until `bore` exists, the selftest
       # runs it against stand-ins (shell scripts handing each utility to
