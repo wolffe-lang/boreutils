@@ -151,6 +151,26 @@ jobs:
       - name: the harness sees a difference (the planted red)
         run: tools/difftest-selftest
 
+      - name: the multicall harness sees its plants
+        shell: bash
+        run: |
+          set -euo pipefail
+          v=1.19.0
+          case "$RUNNER_OS-$RUNNER_ARCH" in
+            Linux-X64) t=x86_64-unknown-linux-musl; sum=825287143f397774093539ca2458854ab3735c0e8a1aaf075c22edce7d261556 ;;
+            macOS-ARM64) t=aarch64-apple-darwin; sum=502e7c7f99e7e1919321eaa23a4a694c34b1b92d99cbd773a4a2497e100e088f ;;
+            *) echo "::error::no pinned hyperfine for $RUNNER_OS-$RUNNER_ARCH"; exit 1 ;;
+          esac
+          a="hyperfine-v$v-$t.tar.gz"
+          curl -sSfL -o "$RUNNER_TEMP/$a" "https://github.com/sharkdp/hyperfine/releases/download/v$v/$a"
+          have=$(python3 -c 'import hashlib, sys; print(hashlib.sha256(open(sys.argv[1], "rb").read()).hexdigest())' "$RUNNER_TEMP/$a")
+          [ "$have" = "$sum" ] || { echo "::error::$a has sha256 $have, not the pinned $sum"; exit 1; }
+          tar -xzf "$RUNNER_TEMP/$a" -C "$RUNNER_TEMP"
+          export PATH="$RUNNER_TEMP/hyperfine-v$v-$t:$PATH"
+          hyperfine --version
+          [ -x /usr/bin/time ] || { sudo apt-get install -y -qq time; }
+          tools/multicalltest-selftest
+
       - name: Text-tool shape plants and bounded codecs
         run: tools/texttest
 
