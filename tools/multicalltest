@@ -38,12 +38,9 @@ cannot run (a missing program, a malformed file).
   startup       `true` and `cat SMALL`, separate against a link to `bore`:
                 the least wall time over ten alternating hyperfine blocks of
                 20 runs, and the peak resident size `/usr/bin/time` reports
-                (the small parent: its own size is the floor, printed). The
-                limits are the ruled ones on linux: the wall time within
-                max(+10 %, +0.5 ms) of the separate program's, the peak
-                within +2 MiB. On macOS (which ships the separate programs)
-                the wall time is held to the regression ceiling max(1.5x,
-                +1 ms), dyld's own cost, and the peak to +2 MiB.
+                (the small parent: its own size is the floor, printed). On
+                every host the wall time is within max(+10 %, +0.5 ms) of
+                the separate program's, and the peak within +2 MiB.
                 `--judge-startup HOST SEP_S MC_S SEP_RSS MC_RSS` prints the
                 verdict on given figures (seconds, bytes) and exits 0 or 1
   no-hub        the six are not in `bore`: `bore --list` names none, and a
@@ -427,12 +424,10 @@ def peak_rss(argv, runs=50):
 def judge_startup(name, host, s, m, rs, rm):
     """The verdict on a separate program's and the multicall's least wall
     time (seconds) and peak resident size (bytes): (green, line). Whole
-    nanoseconds, so a figure on a limit is on it."""
+    nanoseconds, so a figure on a limit is on it. The limits are the same on
+    every host; `host` names where the figures were taken."""
     s_ns, m_ns = int(round(s * 1e9)), int(round(m * 1e9))
-    if host == "Darwin":
-        limit_ns = max(s_ns * 3 // 2, s_ns + 1_000_000)
-    else:
-        limit_ns = max(s_ns * 11 // 10, s_ns + 500_000)
+    limit_ns = max(s_ns * 11 // 10, s_ns + 500_000)
     rss_limit = 2 * 1024 * 1024
     line = (f"{name}: least wall separate {s_ns / 1e6:.3f} ms, multicall {m_ns / 1e6:.3f} ms "
             f"(limit {limit_ns / 1e6:.3f}); peak separate {rs}, multicall {rm} bytes (limit +{rss_limit})")
