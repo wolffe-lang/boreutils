@@ -29,9 +29,12 @@ cannot run (a missing program, a malformed file).
                 separate programs, for links to `bore` named after them, and
                 for `bore NAME` (`timeout` is the separate program in every
                 form; the `cat` it starts is the form's)
-  size          bytes(bore) is at most bytes(true) plus the excess over
-                `true` of every utility it carries (no code carried twice),
-                and at most the ceiling the size file records for this host
+  size          in loadable bytes, what an exec maps (an ELF's PT_LOAD
+                filesz, a Mach-O's __TEXT and __DATA segments; the file size,
+                mostly debug sections on linux, is printed and never judged):
+                bore's are at most true's plus the excess over true of every
+                utility it carries (no code carried twice), and at most the
+                ceiling the size file records for this host
   startup       `true` and `cat SMALL`, separate against a link to `bore`:
                 the least wall time over ten alternating hyperfine blocks of
                 20 runs is within max(1.5x, +1 ms) of the separate
@@ -279,6 +282,44 @@ def step_dispositions(o):
     return red
 
 
+def loadable(path):
+    """The bytes an exec maps from the program at `path`: an ELF's PT_LOAD
+    filesz summed, a Mach-O's __TEXT, __DATA_CONST and __DATA filesize
+    summed (its __LINKEDIT, the symbols, is left out as an ELF's sections
+    are); None for a file that is neither."""
+    with open(path, "rb") as fh:
+        h = fh.read(64)
+        if h[:4] == b"\x7fELF" and len(h) == 64 and h[4] == 2 and h[5] == 1:
+            phoff, = struct.unpack_from("<Q", h, 0x20)
+            phentsize, phnum = struct.unpack_from("<HH", h, 0x36)
+            fh.seek(phoff)
+            ph = fh.read(phentsize * phnum)
+            total = 0
+            for i in range(phnum):
+                if len(ph) < (i + 1) * phentsize:
+                    return None
+                p_type, = struct.unpack_from("<I", ph, i * phentsize)
+                if p_type == 1:
+                    total += struct.unpack_from("<Q", ph, i * phentsize + 32)[0]
+            return total
+        if h[:4] == b"\xcf\xfa\xed\xfe" and len(h) >= 32:
+            ncmds, sizeofcmds = struct.unpack_from("<II", h, 16)
+            fh.seek(32)
+            cmds = fh.read(sizeofcmds)
+            total, at = 0, 0
+            for _ in range(ncmds):
+                if at + 8 > len(cmds):
+                    return None
+                cmd, size = struct.unpack_from("<II", cmds, at)
+                if cmd == 0x19:  # LC_SEGMENT_64
+                    seg = cmds[at + 8:at + 24].rstrip(b"\0")
+                    if seg in (b"__TEXT", b"__DATA_CONST", b"__DATA"):
+                        total += struct.unpack_from("<Q", cmds, at + 48)[0]
+                at += size
+            return total
+    return None
+
+
 def step_size(o):
     names = in_bore(o["src"])
     sizes = {}
@@ -286,13 +327,19 @@ def step_size(o):
         p = os.path.join(o["bin"], n)
         if not os.path.isfile(p):
             raise HarnessError(f"no separate program {p}")
-        sizes[n] = os.path.getsize(p)
-    bore = os.path.getsize(o["bore"])
+        sizes[n] = loadable(p)
+        if sizes[n] is None:
+            raise HarnessError(f"{p} is not an ELF or Mach-O program")
+    bore = loadable(o["bore"])
+    if bore is None:
+        raise HarnessError(f"{o['bore']} is not an ELF or Mach-O program: no loadable bytes to weigh")
     true = sizes["true"]
     bound = true + sum(s - true for s in sizes.values())
     host = f"{platform.system()}-{platform.machine()}"
-    print(f"bore-size: bore {bore} bytes; the {len(names)} separate programs it replaces {sum(sizes.values())} bytes; "
-          f"true {true}; the no-duplication bound {bound}; host {host}")
+    print(f"bore-size: loadable bytes: bore {bore}; the {len(names)} separate programs it replaces "
+          f"{sum(sizes.values())}; true {true}; the no-duplication bound {bound}; host {host}")
+    print(f"bore-size: file size (information, never a verdict): bore {os.path.getsize(o['bore'])}, "
+          f"true {os.path.getsize(os.path.join(o['bin'], 'true'))}")
     red = 0
     if bore <= bound:
         print("ok   bore-size: within the no-duplication bound")
@@ -306,7 +353,7 @@ def step_size(o):
         raise HarnessError(f"{o['size']}: {e}")
     entry = ceilings.get(host)
     if not isinstance(entry, dict) or type(entry.get("ceiling")) is not int:
-        print(f"FAIL bore-size: ceiling: {o['size']} records none for {host} (bore is {bore} bytes here)")
+        print(f"FAIL bore-size: ceiling: {o['size']} records none for {host} (bore has {bore} loadable bytes here)")
         return 1
     if bore <= entry["ceiling"]:
         print(f"ok   bore-size: within the ceiling {entry['ceiling']} for {host}")
