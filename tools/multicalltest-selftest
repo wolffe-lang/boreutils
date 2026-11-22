@@ -250,6 +250,9 @@ printf '["%s"]\nceiling = 1000000000\n' "$host" > "$work/size-roomy.toml"
 printf '["%s"]\nceiling = 1\n' "$host" > "$work/size-tiny.toml"
 printf '["Plan9-mips"]\nceiling = 1000000000\n' > "$work/size-other.toml"
 for n in $names; do cat "$bin/$n"; done > "$work/fat"
+# Past the roomy ceiling on every host, as the separate programs alone are
+# where each is 15 MB (hosted Linux): a sparse tail, so it costs no disk.
+python3 -I -c 'import os, sys; f = open(sys.argv[1], "r+b"); f.truncate(max(os.path.getsize(sys.argv[1]), 1000000001))' "$work/fat"
 chmod +x "$work/fat"
 mt --bore "$bin/true" --size "$work/size-roomy.toml" size
 must 0 "size with the separate true as bore"
