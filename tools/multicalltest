@@ -1,0 +1,520 @@
+#!/usr/bin/env python3
+"""multicalltest - the rows that hold `bore`, the multicall program, to the
+separate programs it replaces.
+
+`bore` carries every utility but `dd` and `timeout`, the two that listen for
+signals: a program that names a signal-listening call makes the runtime's
+signal hub (a thread and two pipes) before `main`, on every run, so those two
+stay separate programs, and `bore dd` and `bore timeout` run the ones
+installed beside `bore`.
+
+Each step prints `ok   bore-STEP: ...` or `FAIL bore-STEP: ...` lines, a SKIP
+only with its reason, and `END bore-STEP exit=N`; the tool exits 0 when every
+step it ran is green, 1 when a step is red, and 2 when the harness itself
+cannot run (a missing program, a malformed file).
+
+  census        `bore --list` is, byte for byte, the sorted names of the
+                `src/*.lu` entries less `bore`, `dd` and `timeout`, one a
+                line, and the entries less `bore` are the binaries
+                `.github/release.json` ships; both ways
+  refusals      every case of the refusal file: argv[0] (text, or bytes as
+                `argv0_hex`), the arguments, and the exact stdout, stderr
+                and status `bore` must answer
+  dispositions  (linux: /proc/self/status) `cat /proc/self/status`, and the
+                same through `env`, `nohup` and `timeout 5`: the SigBlk,
+                SigIgn, SigCgt and Threads lines are the same for the
+                separate programs, for links to `bore` named after them, and
+                for `bore NAME` (`timeout` is the separate program in every
+                form; the `cat` it starts is the form's)
+  size          bytes(bore) is at most bytes(true) plus the excess over
+                `true` of every utility it carries (no code carried twice),
+                and at most the ceiling the size file records for this host
+  startup       `true` and `cat SMALL`, separate against a link to `bore`:
+                the least wall time over ten alternating hyperfine blocks of
+                20 runs is within max(1.5x, +1 ms) of the separate
+                program's, and the peak resident size `/usr/bin/time`
+                reports (the small parent: its own size is the floor,
+                printed) is within +1 MiB
+  no-hub        `dd` and `timeout` are not in `bore`: `bore --list` names
+                neither, and a link named after either is an unknown program
+                name; and no file under src/ but those two entries and the
+                tests names a call that makes the signal hub or the
+                readiness set before `main` (HUB_CALLS, REACTOR_CALLS), so a
+                later utility cannot bring the hub back quietly
+  siblings      `bore dd` and `bore timeout` with the separate program beside
+                `bore` run it (stdout, stderr and status equal to running it
+                directly), and with none beside `bore` answer `bore: unknown
+                utility: NAME`, status 127; PATH holds decoys of both names,
+                so a PATH search is red; `bore --help` says the two are
+                separate programs
+
+usage: tools/multicalltest [--bore PATH] [--bin DIR] [--cases FILE]
+                           [--size FILE] [--src DIR] [STEP...]
+  --bore PATH   the multicall program (default target/release/bore)
+  --bin DIR     the separate programs (default target/release)
+  --cases FILE  the refusal cases (default tests/multicall/cases.toml)
+  --size FILE   the size ceilings (default tests/multicall/size.toml)
+  --src DIR     the sources the census and no-hub read (default src)
+"""
+
+import json
+import os
+import platform
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import tomllib
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+STEPS = ("census", "refusals", "dispositions", "size", "startup", "no-hub", "siblings")
+# The utilities that stay separate programs, never in `bore`.
+SEPARATE_ONLY = ("dd", "timeout")
+# The calls that make the signal hub before `main` (`[os.signal.hub]`), and
+# those that make the readiness set before `main` (`[os.net.reactor]`).
+HUB_CALLS = ("os_signal_listen", "os_signal_wait", "os_signal_wait_fd", "os_signal_wait_fds",
+             "os_wait_ready", "os_ready_wait")
+REACTOR_CALLS = ("net_accept", "net_read", "net_read_bytes", "net_write", "net_write_bytes",
+                 "net_writev", "net_writev_head")
+BEFORE_MAIN = re.compile(r"\b(" + "|".join(HUB_CALLS + REACTOR_CALLS) + r")\b")
+STRING = re.compile(r'"(?:\\.|[^"\\])*"')
+SIG = re.compile(rb"^(SigBlk|SigIgn|SigCgt|Threads):.*$", re.M)
+DISPOSITION_COMMANDS = (
+    ["cat", "/proc/self/status"],
+    ["env", "cat", "/proc/self/status"],
+    ["nohup", "cat", "/proc/self/status"],
+    ["timeout", "5", "cat", "/proc/self/status"],
+)
+
+
+class HarnessError(Exception):
+    """The harness cannot run: status 2, never a verdict."""
+
+
+def utilities(src):
+    """The utilities, as tools/build finds them: every top-level src/*.lu
+    that is not a test, less the multicall program itself, in byte order."""
+    names = [f[:-3] for f in os.listdir(src)
+             if f.endswith(".lu") and not f.endswith("_test.lu")]
+    return sorted((n for n in names if n != "bore"), key=lambda n: n.encode())
+
+
+def in_bore(src):
+    """The utilities `bore` carries: all of them but SEPARATE_ONLY."""
+    return [n for n in utilities(src) if n not in SEPARATE_ONLY]
+
+
+def run(argv, executable=None, env=None, timeout=30):
+    p = subprocess.run(argv, executable=executable, env=env, timeout=timeout,
+                       stdin=subprocess.DEVNULL, capture_output=True)
+    return p.returncode, p.stdout, p.stderr
+
+
+def run_named(bore, argv):
+    """Run `bore` with exactly `argv`. A name that can be a file name is
+    given by a link of that name as well, so a program that learns its name
+    from the path it was started by (a script) is asked the same question;
+    any other argv[0] (bytes that are not text, a name holding `/`) is
+    passed as argv[0] alone."""
+    name = argv[0]
+    plain = name and b"/" not in name and name not in (b".", b"..")
+    try:
+        name.decode("utf-8")
+    except UnicodeDecodeError:
+        plain = False
+    if not plain:
+        return run(argv, executable=bore)
+    with tempfile.TemporaryDirectory(prefix="bore-named.") as top:
+        link = os.path.join(os.fsencode(top), name)
+        os.symlink(os.fsencode(bore), link)
+        return run(argv, executable=link)
+
+
+def links_to(bore, names, top):
+    """A directory of symbolic links, one named after each utility, each to
+    `bore`: the shape the image carries in /bin."""
+    d = os.path.join(top, "links")
+    os.mkdir(d)
+    for n in names:
+        os.symlink(bore, os.path.join(d, n))
+    return d
+
+
+def listed(o):
+    """`bore --list`'s names, and whether it answered as it must (status 0,
+    no stderr, every name ended by a newline); the reasons it did not are
+    printed under `step`."""
+    code, out, err = run(["bore", "--list"], executable=o["bore"])
+    have = out.decode("utf-8", "replace").split("\n")
+    problems = []
+    if code != 0 or err:
+        problems.append(f"`bore --list` exited {code} with stderr {err!r}")
+    if have and have[-1] == "":
+        have.pop()
+    else:
+        problems.append("`bore --list` does not end in a newline")
+    return have, problems
+
+
+def step_census(o):
+    want = in_bore(o["src"])
+    have, problems = listed(o)
+    red = 0
+    for p in problems:
+        print(f"FAIL bore-census: {p}")
+        red = 1
+    for n in sorted(set(want) - set(have), key=str.encode):
+        print(f"FAIL bore-census: missing {n}")
+        red = 1
+    for n in sorted(set(have) - set(want), key=str.encode):
+        print(f"FAIL bore-census: extra {n}")
+        red = 1
+    if not red and have != want:
+        print("FAIL bore-census: the names are not one a line in byte order")
+        red = 1
+    every = utilities(o["src"])
+    with open(os.path.join(ROOT, ".github", "release.json"), "rb") as fh:
+        shipped = sorted(json.load(fh)["binaries"], key=str.encode)
+    for n in sorted(set(every) ^ set(shipped), key=str.encode):
+        print(f"FAIL bore-census: {n} is {'in src/ but not' if n in every else 'shipped but not in src/,'} in .github/release.json")
+        red = 1
+    if not red:
+        print(f"ok   bore-census: `bore --list` names the {len(want)} utilities it carries; "
+              f"those and {' and '.join(SEPARATE_ONLY)} are the {len(every)} .github/release.json ships")
+    return red
+
+
+def step_refusals(o):
+    try:
+        with open(o["cases"], "rb") as fh:
+            cases = tomllib.load(fh).get("case", [])
+    except (OSError, tomllib.TOMLDecodeError) as e:
+        raise HarnessError(f"{o['cases']}: {e}")
+    if not cases:
+        raise HarnessError(f"{o['cases']}: no cases")
+    red = 0
+    keys = {"name", "argv0", "argv0_hex", "args", "stdout", "stderr", "status"}
+    for c in cases:
+        if set(c) - keys or "name" not in c or "status" not in c:
+            raise HarnessError(f"{o['cases']}: malformed case {c.get('name', '?')!r}")
+        argv0 = bytes.fromhex(c["argv0_hex"]) if "argv0_hex" in c else c.get("argv0", "bore").encode()
+        argv = [argv0] + [a.encode() for a in c.get("args", [])]
+        code, out, err = run_named(o["bore"], argv)
+        want = (c.get("stdout", "").encode(), c.get("stderr", "").encode(), c["status"])
+        if (out, err, code) == want:
+            print(f"ok   bore-refusals: {c['name']}")
+        else:
+            red = 1
+            print(f"FAIL bore-refusals: {c['name']}  argv={argv!r}")
+            print(f"    want: status {want[2]} stdout {want[0]!r} stderr {want[1]!r}")
+            print(f"    have: status {code} stdout {out!r} stderr {err!r}")
+    return red
+
+
+def step_dispositions(o):
+    if not os.path.exists("/proc/self/status"):
+        print(f"SKIP bore-dispositions: this host ({platform.system()}) has no /proc/self/status to read them from")
+        return 0
+    red = 0
+    carried = in_bore(o["src"])
+    with tempfile.TemporaryDirectory(prefix="bore-dispositions.") as top:
+        links = links_to(o["bore"], carried, top)
+        for cmd in DISPOSITION_COMMANDS:
+            label = " ".join(cmd)
+            seen = {}
+            bad = 0
+            # A utility `bore` does not carry is its separate program in
+            # the link form too; `bore NAME` runs the one beside `bore`.
+            first = links if cmd[0] in carried else o["bin"]
+            for form, path, exe, argv in (
+                    ("separate", o["bin"], os.path.join(o["bin"], cmd[0]), [cmd[0]] + cmd[1:]),
+                    ("link", links, os.path.join(first, cmd[0]), [cmd[0]] + cmd[1:]),
+                    ("bore NAME", links, o["bore"], ["bore"] + cmd)):
+                env = dict(os.environ, PATH=f"{path}:/usr/bin:/bin")
+                code, out, err = run(argv, executable=exe, env=env)
+                lines = b"\n".join(m.group(0) for m in SIG.finditer(out))
+                if code != 0 or lines.count(b"\n") != 3:
+                    print(f"FAIL bore-dispositions: {label} ({form}) exited {code}, stderr {err!r}, read {lines!r}")
+                    bad = 1
+                seen[form] = lines
+            if len(set(seen.values())) != 1:
+                bad = 1
+                print(f"FAIL bore-dispositions: {label}")
+                for form, lines in seen.items():
+                    print(f"    {form}: {lines.decode('utf-8', 'replace').replace(chr(10), '  ')}")
+            elif not bad:
+                print(f"ok   bore-dispositions: {label}: {seen['separate'].decode().replace(chr(10), '  ')}")
+            red |= bad
+    return red
+
+
+def step_size(o):
+    names = in_bore(o["src"])
+    sizes = {}
+    for n in names:
+        p = os.path.join(o["bin"], n)
+        if not os.path.isfile(p):
+            raise HarnessError(f"no separate program {p}")
+        sizes[n] = os.path.getsize(p)
+    bore = os.path.getsize(o["bore"])
+    true = sizes["true"]
+    bound = true + sum(s - true for s in sizes.values())
+    host = f"{platform.system()}-{platform.machine()}"
+    print(f"bore-size: bore {bore} bytes; the {len(names)} separate programs it replaces {sum(sizes.values())} bytes; "
+          f"true {true}; the no-duplication bound {bound}; host {host}")
+    red = 0
+    if bore <= bound:
+        print("ok   bore-size: within the no-duplication bound")
+    else:
+        print(f"FAIL bore-size: the no-duplication bound: {bore} > {bound}")
+        red = 1
+    try:
+        with open(o["size"], "rb") as fh:
+            ceilings = tomllib.load(fh)
+    except (OSError, tomllib.TOMLDecodeError) as e:
+        raise HarnessError(f"{o['size']}: {e}")
+    entry = ceilings.get(host)
+    if not isinstance(entry, dict) or type(entry.get("ceiling")) is not int:
+        print(f"FAIL bore-size: ceiling: {o['size']} records none for {host} (bore is {bore} bytes here)")
+        return 1
+    if bore <= entry["ceiling"]:
+        print(f"ok   bore-size: within the ceiling {entry['ceiling']} for {host}")
+    else:
+        print(f"FAIL bore-size: ceiling: {bore} > {entry['ceiling']} for {host}")
+        red = 1
+    return red
+
+
+def least_wall(commands, blocks=10, runs=20, warmup=5):
+    """The least wall time of each named command over `blocks` hyperfine
+    blocks, the order of the commands alternating from block to block."""
+    hyperfine = shutil.which("hyperfine")
+    if hyperfine is None:
+        raise HarnessError("no hyperfine on PATH")
+    best = {name: None for name, _ in commands}
+    with tempfile.TemporaryDirectory(prefix="bore-startup.") as top:
+        for b in range(blocks):
+            order = commands if b % 2 == 0 else list(reversed(commands))
+            out = os.path.join(top, f"block-{b}.json")
+            argv = [hyperfine, "-N", "--style", "none", "--warmup", str(warmup), "--runs", str(runs),
+                    "--output", "null", "--export-json", out]
+            for name, cmd in order:
+                argv += ["-n", name, cmd]
+            p = subprocess.run(argv, capture_output=True, text=True, timeout=600)
+            if p.returncode != 0:
+                raise HarnessError(f"hyperfine exited {p.returncode}: {p.stderr.strip()}")
+            with open(out) as fh:
+                for r in json.load(fh)["results"]:
+                    # hyperfine 1.x: the name in "command", times in "times";
+                    # 2.x: "name", and one "measurements" entry a run.
+                    name = r.get("name", r["command"])
+                    times = (r["times"] if "times" in r else
+                             [m["time_wall_clock"]["value"] for m in r["measurements"]])
+                    least = min(times)
+                    if best[name] is None or least < best[name]:
+                        best[name] = least
+    return best
+
+
+def peak_rss(argv, runs=50):
+    """The median peak resident size in bytes `/usr/bin/time` reports for
+    `argv` (GNU time's %M is KiB; macOS's -l prints bytes)."""
+    time = "/usr/bin/time"
+    if not os.access(time, os.X_OK):
+        raise HarnessError("no /usr/bin/time (on linux, the `time` package)")
+    macos = platform.system() == "Darwin"
+    values = []
+    for _ in range(runs):
+        cmd = [time, "-l"] + argv if macos else [time, "-f", "PEAK %M"] + argv
+        p = subprocess.run(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                           stderr=subprocess.PIPE, text=True, timeout=60)
+        if macos:
+            m = re.search(r"(\d+)\s+maximum resident set size", p.stderr)
+            v = int(m.group(1)) if m else None
+        else:
+            m = re.search(r"^PEAK (\d+)$", p.stderr, re.M)
+            v = int(m.group(1)) * 1024 if m else None
+        if v is None:
+            raise HarnessError(f"/usr/bin/time printed no peak for {argv}: {p.stderr!r}")
+        values.append(v)
+    values.sort()
+    return values[len(values) // 2]
+
+
+def step_startup(o):
+    red = 0
+    with tempfile.TemporaryDirectory(prefix="bore-startup-links.") as top:
+        links = links_to(o["bore"], in_bore(o["src"]), top)
+        small = os.path.join(top, "small.txt")
+        with open(small, "w") as fh:
+            fh.write("one line of text\nand a second\n")
+        host_true = shutil.which("true") or "/usr/bin/true"
+        floor = peak_rss([host_true])
+        print(f"bore-startup: the floor, /usr/bin/time running {host_true}: peak {floor} bytes")
+        for name, args in (("true", []), ("cat", [small])):
+            sep = [os.path.join(o["bin"], name)] + args
+            mc = [os.path.join(links, name)] + args
+            best = least_wall([("separate", " ".join(sep)), ("multicall", " ".join(mc))])
+            s, m = best["separate"], best["multicall"]
+            limit = max(1.5 * s, s + 0.001)
+            rs, rm = peak_rss(sep), peak_rss(mc)
+            line = (f"{name}: least wall separate {s * 1000:.3f} ms, multicall {m * 1000:.3f} ms "
+                    f"(limit {limit * 1000:.3f}); peak separate {rs}, multicall {rm} bytes (limit +1048576)")
+            if m <= limit and rm - rs <= 1048576:
+                print(f"ok   bore-startup: {line}")
+            else:
+                print(f"FAIL bore-startup: {line}")
+                red = 1
+    return red
+
+
+def before_main_calls(path):
+    """(line number, name) for each call in the file at `path` that makes
+    the signal hub or the readiness set; comments and string literals do
+    not count."""
+    found = []
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        for i, line in enumerate(fh, 1):
+            code = STRING.sub('""', line).split("//", 1)[0]
+            found += [(i, m.group(1)) for m in BEFORE_MAIN.finditer(code)]
+    return found
+
+
+def step_no_hub(o):
+    red = 0
+    have, problems = listed(o)
+    for p in problems:
+        print(f"FAIL bore-no-hub: {p}")
+        red = 1
+    for n in SEPARATE_ONLY:
+        if n in have:
+            print(f"FAIL bore-no-hub: {n} is in the table (`bore --list` names it)")
+            red = 1
+        code, out, err = run_named(o["bore"], [n.encode(), b"--version"])
+        want = (b"", f"bore: unknown program name: {n}\n".encode(), 127)
+        if (out, err, code) != want:
+            print(f"FAIL bore-no-hub: {n} by a link to bore: status {code} stdout {out[:80]!r} stderr {err[:80]!r}, "
+                  f"not the unknown-program-name refusal")
+            red = 1
+    src = o["src"]
+    files = []
+    for top, dirs, names in os.walk(src):
+        dirs[:] = sorted(d for d in dirs if not d.startswith("."))
+        for f in sorted(names):
+            rel = os.path.relpath(os.path.join(top, f), src)
+            if (f.endswith(".lu") and not f.endswith("_test.lu")
+                    and rel not in tuple(n + ".lu" for n in SEPARATE_ONLY)):
+                files.append(rel)
+    for rel in files:
+        for line, name in before_main_calls(os.path.join(src, rel)):
+            print(f"FAIL bore-no-hub: src/{rel}:{line} names {name}, which makes "
+                  f"{'the signal hub' if name in HUB_CALLS else 'the readiness set'} before main")
+            red = 1
+    if not red:
+        print(f"ok   bore-no-hub: neither {' nor '.join(SEPARATE_ONLY)} is in the table, and none of the "
+              f"{len(files)} files under src/ (all but {', '.join(n + '.lu' for n in SEPARATE_ONLY)} and the "
+              f"tests) names a call that makes the signal hub or the readiness set")
+    return red
+
+
+def step_siblings(o):
+    red = 0
+    with tempfile.TemporaryDirectory(prefix="bore-siblings.") as top:
+        decoys = os.path.join(top, "decoys")
+        beside = os.path.join(top, "beside")
+        alone = os.path.join(top, "alone")
+        for d in (decoys, beside, alone):
+            os.mkdir(d)
+        for n in SEPARATE_ONLY:
+            p = os.path.join(decoys, n)
+            with open(p, "w") as fh:
+                fh.write("#!/bin/sh\necho decoy\nexit 99\n")
+            os.chmod(p, 0o755)
+            src = os.path.join(o["bin"], n)
+            if not os.path.isfile(src):
+                raise HarnessError(f"no separate program {src}")
+            shutil.copy2(src, os.path.join(beside, n))
+        # Copies, not links: the directory `bore` runs from is the copy's.
+        for d in (beside, alone):
+            shutil.copy2(o["bore"], os.path.join(d, "bore"))
+        small = os.path.join(top, "small.txt")
+        with open(small, "w") as fh:
+            fh.write("one line of text\nand a second\n")
+        env = dict(os.environ, PATH=f"{decoys}:/usr/bin:/bin")
+        calls = {"dd": ([f"if={small}", "bs=4", "status=none"], [f"if={top}/absent"], ["--version"]),
+                 "timeout": (["5", os.path.join(o["bin"], "echo"), "beside"], [], ["--version"])}
+        for n in SEPARATE_ONLY:
+            bad = []
+            for args in calls[n]:
+                direct = run([n] + args, executable=os.path.join(beside, n), env=env)
+                through = run(["bore", n] + args, executable=os.path.join(beside, "bore"), env=env)
+                if direct != through:
+                    bad.append(f"`bore {n} {' '.join(args)}`: {through!r}, run directly {direct!r}")
+            if bad:
+                red = 1
+                print(f"FAIL bore-siblings: {n} beside")
+                for b in bad:
+                    print(f"    {b}")
+            else:
+                print(f"ok   bore-siblings: {n} beside: `bore {n}` runs the {n} beside it ({len(calls[n])} calls)")
+            have = run(["bore", n] + calls[n][0], executable=os.path.join(alone, "bore"), env=env)
+            want = (127, b"", f"bore: unknown utility: {n}\n".encode())
+            if have == want:
+                print(f"ok   bore-siblings: {n} absent: the unknown-utility refusal")
+            else:
+                red = 1
+                print(f"FAIL bore-siblings: {n} absent: {have!r}, not {want!r}")
+        code, out, err = run(["bore", "--help"], executable=os.path.join(alone, "bore"), env=env)
+        said = b" ".join(out.split())
+        if code == 0 and b"dd and timeout are separate programs" in said:
+            print("ok   bore-siblings: --help says dd and timeout are separate programs")
+        else:
+            red = 1
+            print(f"FAIL bore-siblings: --help: status {code}, it does not say dd and timeout are separate programs")
+    return red
+
+
+def main(argv):
+    o = {"bore": os.path.join(ROOT, "target", "release", "bore"),
+         "bin": os.path.join(ROOT, "target", "release"),
+         "cases": os.path.join(ROOT, "tests", "multicall", "cases.toml"),
+         "size": os.path.join(ROOT, "tests", "multicall", "size.toml"),
+         "src": os.path.join(ROOT, "src")}
+    while argv[:1] in (["--bore"], ["--bin"], ["--cases"], ["--size"], ["--src"]):
+        if len(argv) < 2:
+            print(f"multicalltest: {argv[0]} needs a path", file=sys.stderr)
+            return 2
+        o[argv[0][2:]] = os.path.abspath(argv[1])
+        argv = argv[2:]
+    steps = argv or list(STEPS)
+    for s in steps:
+        if s not in STEPS:
+            print(f"multicalltest: no step {s!r} (steps: {' '.join(STEPS)})", file=sys.stderr)
+            return 2
+    if not os.access(o["bore"], os.X_OK):
+        print(f"multicalltest: no multicall program at {o['bore']} (run tools/build)")
+        for s in steps:
+            print(f"END bore-{s} exit=1")
+        return 1
+    print(f"multicalltest: bore = {o['bore']}; separate programs = {o['bin']}; "
+          f"{platform.system()} {platform.machine()}")
+    worst = 0
+    for s in steps:
+        try:
+            code = globals()["step_" + s.replace("-", "_")](o)
+        except HarnessError as e:
+            print(f"multicalltest: bore-{s}: the harness cannot run: {e}")
+            code = 2
+        except subprocess.TimeoutExpired as e:
+            print(f"FAIL bore-{s}: timed out: {e}")
+            code = 1
+        print(f"END bore-{s} exit={code}")
+        if code and not worst:
+            worst = code
+    return worst
+
+
+if __name__ == "__main__":
+    sys.stdout.reconfigure(line_buffering=True)
+    sys.exit(main(sys.argv[1:]))
