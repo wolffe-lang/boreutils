@@ -207,13 +207,14 @@ cases=tests/selftest-multicalltest/cases.toml
 mt --bore "$good" --cases "$cases" refusals
 must 0 "refusals through the good stand-in"
 for c in "no operand" "unknown utility" "unknown program name" \
-         "a utility by its link" "a utility by bore NAME"; do
+         "a utility by its link" "a utility by bore NAME" "a utility name that is not UTF-8"; do
     line "ok   bore-refusals: $c"
 done
 mt --bore "$work/refusals/bore" --cases "$cases" refusals
 must 1 "refusals through a stand-in whose unknown utility exits 1"
 seen "FAIL bore-refusals: unknown utility  argv="
-fails 1
+seen "FAIL bore-refusals: a utility name that is not UTF-8  argv="
+fails 2
 for c in "no operand" "unknown program name" "a utility by its link" "a utility by bore NAME"; do
     line "ok   bore-refusals: $c"
 done

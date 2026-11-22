@@ -36,3 +36,9 @@ name = "a utility by bore NAME"
 args = ["echo", "by", "name"]
 stdout = "by name\n"
 status = 0
+
+[[case]]
+name = "a utility name that is not UTF-8"
+args_hex = ["ff"]
+stderr_hex = "626f72653a20756e6b6e6f776e207574696c6974793a20ff0a"
+status = 127
