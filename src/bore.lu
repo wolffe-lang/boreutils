@@ -7,7 +7,7 @@
 //! Six utilities are not here: dd, shred, sleep, sync, tail and timeout name
 //! calls that make the runtime start a signal hub or link its thread path,
 //! which every utility here would then pay for on every run. They stay
-//! separate programs.
+//! separate programs, and `bore NAME` runs the one installed beside bore.
 //!
 //! Nothing runs, opens or changes before the utility starts: the table is
 //! the only lookup.
@@ -207,6 +207,18 @@ fn names() -> List[str] {
     n
 }
 
+/// The utilities that stay separate programs.
+fn separate() -> List[str] {
+    var n = List[str]()
+    (mut n).push("dd")
+    (mut n).push("shred")
+    (mut n).push("sleep")
+    (mut n).push("sync")
+    (mut n).push("tail")
+    (mut n).push("timeout")
+    n
+}
+
 /// Whether LIST holds NAME.
 fn holds(list: List[str], name: str) -> bool {
     for n in list {
@@ -368,6 +380,45 @@ fn own(text: str) -> int {
     bore.finish(mut out, "bore", 0)
 }
 
+/// Replace bore with the separate program NAME installed beside it, on ARGS;
+/// with none there, the unknown-utility refusal. The program is handed
+/// bore's environment as env_vars() reads it, and bore's descriptors.
+fn sibling(name: str, raw: List[byte], args: List[str]) -> int {
+    let exe = os_exe() else |_| {
+        return refuse("utility", raw)
+    }
+    let base = bore.last_name(exe)
+    let path = exe[0..exe.len - base.len] + name
+    var argv = List[str]()
+    (mut argv).push(name)
+    for a in args {
+        (mut argv).push(a)
+    }
+    var missing = false
+    os_exec(path, argv, env_vars(), List[int]()) else |e| match e {
+        not_found => {
+            missing = true
+        },
+        denied => {
+            missing = false
+        },
+        io => {
+            missing = false
+        },
+        invalid => {
+            missing = false
+        },
+        unsupported => {
+            missing = false
+        },
+    }
+    if missing {
+        return refuse("utility", raw)
+    }
+    bore.warn("bore", "cannot run {path}")
+    126
+}
+
 fn main() -> int {
     let argv = env_args_bytes()
     var raw = List[byte]()
@@ -406,6 +457,9 @@ fn main() -> int {
     let rest = all[1..]
     if holds(names(), word) {
         return run(word, rest)
+    }
+    if holds(separate(), word) {
+        return sibling(word, argv[1], rest)
     }
     refuse("utility", argv[1])
 }
