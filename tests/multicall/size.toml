@@ -7,13 +7,14 @@
 # beside it; raising one is a reviewed one-line change with its reason. A
 # host with no entry is red ("records none").
 #
-# Both builds are of bore's source as of 18663be (the commits after it change
-# only the tools).
+# Both builds are of bore's source as the commit that runs the six separate
+# programs from `bore NAME` leaves it (the commits after it change only the
+# tools and these files).
 
 [Linux-x86_64]
 ceiling = 2473102
-measured = "2150524 at 18663be, a dynamic release build on ubuntu 24.04 x86-64, as CI builds it"
+measured = "2150524, a dynamic release build on ubuntu 24.04 x86-64, as CI builds it"
 
 [Darwin-arm64]
 ceiling = 2129100
-measured = "1851392 at 18663be, a release build on macOS arm64"
+measured = "1851392, a release build on macOS arm64"
