@@ -1,0 +1,17 @@
+# Cases for `tools/difftest --multicall`, for tools/difftest-selftest.
+# The self-test runs them twice through a stand-in multicall program:
+# one that hands the utility everything after its name, which must pass
+# every case, and a planted one that also hands it its own name, which
+# must fail each case by name.
+
+[[case]]
+name = "words after the name"
+args = ["a", "b"]
+
+[[case]]
+name = "words after the name, on a terminal"
+args = ["a", "b"]
+tty = 80
+
+[[case]]
+name = "no words at all"

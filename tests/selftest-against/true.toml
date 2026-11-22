@@ -1,0 +1,9 @@
+# A planted difference for `tools/difftest --against`, for
+# tools/difftest-selftest: with --against DIR the reference side is
+# boreutils' own separate program DIR/<util> rather than GNU, and
+# $BORE_SELFTEST lets `gnu_util` name a different reference program.
+# The harness passes this file only by FAILING it.
+
+[[case]]
+name = "true is not false"
+gnu_util = "false"

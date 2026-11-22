@@ -1,0 +1,12 @@
+# Controls for `tools/difftest --against` and `--multicall`, for
+# tools/difftest-selftest: the same program on both sides passes, on a
+# pipe and on a terminal.
+
+[[case]]
+name = "the same words"
+args = ["a", "b"]
+
+[[case]]
+name = "the same words on a terminal"
+args = ["a", "b"]
+tty = 80

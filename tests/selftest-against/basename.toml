@@ -1,0 +1,15 @@
+# The raw-stderr plant for `tools/difftest --against`, for
+# tools/difftest-selftest. Both programs say "missing operand" and exit
+# 1, so a comparison that made each side's own name PROG (the rule
+# against GNU) would pass the plant; --against compares the bytes as
+# they are, so it must fail it. The control beside it runs the same
+# program on both sides and must pass.
+
+[[case]]
+name = "a name only one side prints"
+gnu_util = "dirname"
+compare = ["stderr", "exit"]
+
+[[case]]
+name = "a name both sides print"
+compare = ["stderr", "exit"]

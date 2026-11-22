@@ -9,6 +9,59 @@ set -eu
 BORE_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$BORE_ROOT"
 
+# --against and --multicall need no GNU, so they are proved first.
+# --against DIR holds boreutils against its own separate programs in DIR,
+# every field raw: tests/selftest-against plants a different program on
+# the reference side (by `gnu_util`) and a name only one side prints, and
+# runs controls that must pass. --multicall BORE runs the side under test
+# as `BORE <util> args...`: a stand-in multicall that hands the utility
+# everything after its name must pass tests/selftest-multicall, and a
+# planted one that hands it its own name as well must fail each case by
+# name.
+bin=$BORE_ROOT/target/release
+for u in true false basename dirname echo; do
+    if [ ! -x "$bin/$u" ]; then
+        echo "difftest-selftest: no $bin/$u; run tools/build first"
+        exit 1
+    fi
+done
+refuse() {
+    echo "difftest-selftest: REFUSED — $1. Output was:"
+    echo "$out"
+    exit 1
+}
+out=$(BORE_SELFTEST=1 tools/difftest --against "$bin" --cases tests/selftest-against 2>&1) && status=0 || status=$?
+[ "$status" -eq 1 ] || refuse "difftest --against exited $status over its plants; it must exit 1"
+for planted in "true: true is not false" \
+               "basename: a name only one side prints"; do
+    echo "$out" | grep -qF "FAIL $planted" || refuse "the --against plant '$planted' did not fail"
+done
+for control in "basename: a name both sides print" \
+               "echo: the same words" \
+               "echo: the same words on a terminal"; do
+    echo "$out" | grep -qxF "ok   $control" || refuse "the --against control '$control' did not pass"
+done
+stand=$(mktemp -d "${TMPDIR:-/tmp}/bore-multicall-selftest.XXXXXX")
+trap 'rm -rf "$stand"' EXIT
+printf '#!/bin/sh\nname=$1\nshift\nexec "%s/$name" "$@"\n' "$bin" > "$stand/good"
+printf '#!/bin/sh\nexec "%s/$1" "$@"\n' "$bin" > "$stand/planted"
+chmod +x "$stand/good" "$stand/planted"
+out=$(tools/difftest --against "$bin" --multicall "$stand/good" --cases tests/selftest-multicall 2>&1) && status=0 || status=$?
+[ "$status" -eq 0 ] || refuse "difftest --multicall exited $status through a multicall that hands on the right words"
+for control in "echo: words after the name" \
+               "echo: words after the name, on a terminal" \
+               "echo: no words at all"; do
+    echo "$out" | grep -qxF "ok   $control" || refuse "the --multicall control '$control' did not pass"
+done
+out=$(tools/difftest --against "$bin" --multicall "$stand/planted" --cases tests/selftest-multicall 2>&1) && status=0 || status=$?
+[ "$status" -eq 1 ] || refuse "difftest --multicall exited $status through the planted multicall; it must exit 1"
+for planted in "echo: words after the name" \
+               "echo: words after the name, on a terminal" \
+               "echo: no words at all"; do
+    echo "$out" | grep -qF "FAIL $planted" || refuse "the --multicall plant '$planted' did not fail"
+done
+echo "difftest-selftest: --against and --multicall see their plants"
+
 out=$(BORE_SELFTEST=1 tools/difftest --cases tests/selftest 2>&1) && status=0 || status=$?
 if [ "$status" -ne 1 ]; then
     echo "difftest-selftest: REFUSED — difftest exited $status over the planted"
