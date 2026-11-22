@@ -20,8 +20,9 @@ cannot run (a missing program, a malformed file).
                 the entries less `bore` are the binaries
                 `.github/release.json` ships; both ways
   refusals      every case of the refusal file: argv[0] (text, or bytes as
-                `argv0_hex`), the arguments, and the exact stdout, stderr
-                and status `bore` must answer
+                `argv0_hex`), the arguments (`args`, or `args_hex`), and the
+                exact stdout, stderr (each text, or bytes as `stdout_hex`,
+                `stderr_hex`) and status `bore` must answer
   dispositions  (linux: /proc/self/status) `cat /proc/self/status`, and the
                 same through `env`, `nohup` and `timeout 5`: the SigBlk,
                 SigIgn, SigCgt and Threads lines are the same for the
@@ -212,14 +213,25 @@ def step_refusals(o):
     if not cases:
         raise HarnessError(f"{o['cases']}: no cases")
     red = 0
-    keys = {"name", "argv0", "argv0_hex", "args", "stdout", "stderr", "status"}
+    keys = {"name", "argv0", "argv0_hex", "args", "args_hex", "stdout", "stdout_hex", "stderr", "stderr_hex", "status"}
+
+    def text_or_hex(c, key, default):
+        if key in c and key + "_hex" in c:
+            raise HarnessError(f"{o['cases']}: case {c['name']!r} gives both {key} and {key}_hex")
+        if key + "_hex" in c:
+            v = c[key + "_hex"]
+            return [bytes.fromhex(x) for x in v] if isinstance(v, list) else bytes.fromhex(v)
+        v = c.get(key, default)
+        return [x.encode() for x in v] if isinstance(v, list) else v.encode()
     for c in cases:
         if set(c) - keys or "name" not in c or "status" not in c:
             raise HarnessError(f"{o['cases']}: malformed case {c.get('name', '?')!r}")
-        argv0 = bytes.fromhex(c["argv0_hex"]) if "argv0_hex" in c else c.get("argv0", "bore").encode()
-        argv = [argv0] + [a.encode() for a in c.get("args", [])]
+        try:
+            argv = [text_or_hex(c, "argv0", "bore")] + text_or_hex(c, "args", [])
+            want = (text_or_hex(c, "stdout", ""), text_or_hex(c, "stderr", ""), c["status"])
+        except ValueError as e:
+            raise HarnessError(f"{o['cases']}: case {c['name']!r}: {e}")
         code, out, err = run_named(o["bore"], argv)
-        want = (c.get("stdout", "").encode(), c.get("stderr", "").encode(), c["status"])
         if (out, err, code) == want:
             print(f"ok   bore-refusals: {c['name']}")
         else:
