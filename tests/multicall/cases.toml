@@ -1,0 +1,110 @@
+# The refusal rows (M4): what `bore` answers for its own options and for a
+# name it does not carry. tools/multicalltest's refusals step runs each case
+# through a link named `argv0` (default `bore`), or with argv[0] alone when
+# the name cannot be a file name, and compares stdout, stderr and status
+# exactly. The texts are the ruled ones (O1-O6); the version line is every
+# utility's shape (bore.version_text) with `bore` as the name. An empty argv
+# (a caller that execs with none) is the name '': the "an empty name" case
+# holds that path, since no test can exec with an empty argv.
+
+[[case]]
+name = "no operand: the usage"
+args = []
+stdout = """Usage: bore UTILITY [ARGUMENT]...
+  or:  bore --list | --help | --version
+Run the boreutils UTILITY with its ARGUMENTs. A link to bore named after a
+utility runs that utility. dd, shred, sleep, sync, tail and timeout are
+separate programs; bore runs the one installed beside it.
+
+      --list     print the utilities, one a line
+      --help     print this help and exit
+      --version  print the version and exit
+
+boreutils: https://github.com/wolffe-lang/boreutils
+"""
+status = 0
+
+[[case]]
+name = "--help: the usage"
+args = ["--help"]
+stdout = """Usage: bore UTILITY [ARGUMENT]...
+  or:  bore --list | --help | --version
+Run the boreutils UTILITY with its ARGUMENTs. A link to bore named after a
+utility runs that utility. dd, shred, sleep, sync, tail and timeout are
+separate programs; bore runs the one installed beside it.
+
+      --list     print the utilities, one a line
+      --help     print this help and exit
+      --version  print the version and exit
+
+boreutils: https://github.com/wolffe-lang/boreutils
+"""
+status = 0
+
+[[case]]
+name = "--version"
+args = ["--version"]
+stdout = "bore (boreutils) 0.1.0\nLicence GPL-3.0-or-later. There is no warranty.\n"
+status = 0
+
+[[case]]
+name = "an unknown utility"
+args = ["frob", "a"]
+stderr = "bore: unknown utility: frob\n"
+status = 127
+
+[[case]]
+name = "an empty utility name"
+args = [""]
+stderr = "bore: unknown utility: \n"
+status = 127
+
+[[case]]
+name = "bore is not its own utility"
+args = ["bore", "--list"]
+stderr = "bore: unknown utility: bore\n"
+status = 127
+
+[[case]]
+name = "-- is a utility name, not an end of options"
+args = ["--", "cat"]
+stderr = "bore: unknown utility: --\n"
+status = 127
+
+[[case]]
+name = "an option after a utility name is the utility's"
+args = ["frob", "--help"]
+stderr = "bore: unknown utility: frob\n"
+status = 127
+
+[[case]]
+name = "a utility name that is not UTF-8, printed back as its bytes"
+args_hex = ["ff"]
+stderr_hex = "626f72653a20756e6b6e6f776e207574696c6974793a20ff0a"
+status = 127
+
+[[case]]
+name = "a link named after no utility"
+argv0 = "frob"
+args = ["a"]
+stderr = "bore: unknown program name: frob\n"
+status = 127
+
+[[case]]
+name = "an empty name (as an empty argv is)"
+argv0 = ""
+stderr = "bore: unknown program name: \n"
+status = 127
+
+[[case]]
+name = "a program name that is not UTF-8, printed back as its bytes"
+argv0_hex = "ff"
+stderr_hex = "626f72653a20756e6b6e6f776e2070726f6772616d206e616d653a20ff0a"
+status = 127
+
+[[case]]
+name = "a link named after a separate program"
+argv0 = "sleep"
+args = ["0"]
+stderr = "bore: unknown program name: sleep\n"
+status = 127

@@ -1,0 +1,11 @@
+# The size ceilings (M6, its second half): for each host, keyed by
+# `System-machine` as Python's platform module names it, the most bytes
+# `bore` may have. Each ceiling is 1.15 times the size of `bore` measured at
+# a recorded build, named beside it with its run or host; raising one is a
+# reviewed one-line change with its reason. A host with no entry is red
+# ("records none"): the first measured build at this branch's head fills
+# them in.
+#
+# [Linux-x86_64]
+# ceiling = <bytes>
+# measured = "<bytes> at <commit>, <run or host>"
