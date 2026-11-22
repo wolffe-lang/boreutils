@@ -654,7 +654,7 @@ def step_siblings(o):
                  "sleep": (["0"], ["--frob"], ["--version"]),
                  "tail": (["-n", "1", small], [f"{top}/absent"], ["--version"]),
                  "sync": ([small], ["--frob"], ["--version"]),
-                 "shred": ([f"{top}/absent"], ["--frob"], ["--version"])}
+                 "shred": (["-x", f"{top}/absent"], ["--frob"], ["--version"])}
         for n in SEPARATE_ONLY:
             bad = []
             for args in calls[n]:
