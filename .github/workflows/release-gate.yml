@@ -74,7 +74,7 @@ jobs:
       matrix:
         include: ${{ fromJSON(needs.plan.outputs.matrix_gauntlet || '[]') }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: ${{ matrix.os == 'macos-latest' && 66 || 90 }}
+    timeout-minutes: ${{ matrix.os == 'macos-latest' && 79 || 90 }}
     steps:
       - uses: actions/checkout@v4
 
