@@ -1,0 +1,2478 @@
+//!
+//! sort — write the lines of every input, sorted.
+//!
+//! References consulted: POSIX.1-2024 `sort` (the key grammar, `-b -d
+//! -f -i -n -r -t -k -u -c -m -o`, the last-resort comparison); GNU
+//! coreutils 9.11's `sort --help`, the info manual's `sort invocation`
+//! node, and black-box runs of the GNU binary (native `sort` on linux
+//! x86-64 at 9.11 under `LC_ALL=C`), including `--debug`'s key
+//! underlines as the instrument for where a key begins and ends;
+//! uutils/coreutils (MIT) and toybox (0BSD) as design references. Never
+//! GNU source.
+//!
+//! **The locale, stated.** Every comparison here is on BYTES, which is
+//! what GNU `sort` does under `LC_ALL=C` — the oracle's environment
+//! (`gnu-oracle.toml` `[oracle.env]`). Under another locale GNU
+//! collates by `LC_COLLATE` and this program still compares bytes; a
+//! blank is a space, a tab or (only reachable under `-z`) a newline, a
+//! letter is ASCII, `.` is the decimal point and there is no thousands
+//! separator. Measured: under `-z`, GNU splits fields at a newline as it
+//! does at a blank, so `a<LF>b c` has three fields.
+//!
+//! **Stable, and stated.** The sort is a merge sort of line indices,
+//! stable by construction. GNU's is not observable as stable or not,
+//! because after every key compares equal it compares the whole lines
+//! (the "last-resort comparison", reversed by a global `-r`); `-s` and
+//! `-u` turn that off, and then input order decides, as it does here.
+//! `-u` keeps the FIRST of each run of equal lines in input order —
+//! measured: `printf 'B\na\nb\nA\n' | sort -fu` is `a`, `B`.
+//!
+//! **The key, measured with `--debug`.** Without `-t` a field is its
+//! leading blanks plus the non-blanks after them. `-k F.C` starts C-1
+//! characters into field F (after its blanks under `b`); `,F` ends at
+//! the end of field F and `,F.C` ends C characters after field F's
+//! start (after its blanks under `b`) — and that end is NOT clamped to
+//! the field: `-t: -k1,1.4` over `ab:cd` is `ab:c`. A key whose end is
+//! before its start is empty. Global ordering options are inherited by
+//! a key only when the key names no option letter of its own; `-b`
+//! inherited attaches to both ends.
+//!
+//! **Memory, and the external merge.** Input is held in one
+//! `List[byte]` up to a RUN BUDGET (256 MiB by default, `-S` sets it,
+//! never below 64 KiB). Past the budget the held lines are sorted and
+//! written to a temporary file `sortXXXXXX` in `-T DIR`, `$TMPDIR` or
+//! `/tmp` — created exclusively (mode 4), read back sequentially, and
+//! removed — and the runs are merged at most `--batch-size` (16) at a
+//! time. Each run lives in a `region` that dies when the run is
+//! written, which is what keeps the memory flat in the input: a
+//! first-class `region()` inside a function does NOT free at return on
+//! the native tier (measured, 8 × 50 MB peaked at 924 MB), while a
+//! `region run { }` block does (118 MB). No seek is needed
+//! (wolf-lang#426 does not bound this). A `List` grows by doubling and
+//! the arena frees nothing (wolf-std F-0011), so a run costs about three
+//! times its budget — twice for the bytes, and the line index — and a
+//! run never reads past its budget, because one push across a power of
+//! two doubles the list again. Measured on kasumi: 1 GB sorted with the
+//! default budget peaks at 808 MB (GNU: 3.0 GB), and at `-S 10M` the
+//! peak is 41 MB for 100 MB and for 1 GB alike.
+//!
+//! **Temporary files are created with the host's default mode**, 0666
+//! less the umask, where GNU's are 0600: wolf has no surface to create a
+//! file with a mode (wolf-lang#346), so under a permissive umask another
+//! user can read a run while it exists.
+//!
+//! **What is not here.** `-g`, `-V`, `-R`, `--random-source`,
+//! `--files0-from`, `--compress-program` and `--debug` are parsed, so a
+//! command line that combines them wrongly is refused exactly as GNU
+//! refuses it, and are then refused by name (status 2). `--parallel` is
+//! validated and ignored: this program sorts on one thread. `-S N%`
+//! (a share of physical memory) is taken as the default budget, because
+//! wolf has no physical-memory query. A write error names the host's
+//! reason (`os_error_text`, wolf 0.2.26).
+
+use bore
+
+// ------------------------------------------------------------- the model
+
+/// One sort key, or the global ordering options while they are parsed.
+///
+/// `sfield`/`schar` are the fields and characters to skip to the start
+/// (origin 0); `efield` is the 1-origin field the key ends in, or -1 for
+/// the end of the line, and `echar` 0 for the end of that field.
+struct Key {
+    sfield: int,
+    schar: int,
+    sblank: bool,
+    efield: int,
+    echar: int,
+    eblank: bool,
+    numeric: bool,
+    human: bool,
+    month: bool,
+    general: bool,
+    random: bool,
+    version: bool,
+    reverse: bool,
+    fold: bool,
+    dict: bool,
+    nonprint: bool,
+    /// The key named an option letter of its own, so it inherits none.
+    own: bool,
+}
+
+/// Everything a comparison needs.
+struct Conf {
+    keys: List[Key],
+    /// The field separator as a byte value, or -1 for blank-separated.
+    tab: int,
+    /// The global `-r`, which also reverses the last-resort comparison.
+    reverse: bool,
+    stable: bool,
+    unique: bool,
+    /// No key and no ordering option but `-r`: a byte comparison.
+    plain: bool,
+    delim: byte,
+}
+
+/// What the command line asked for beyond the comparison.
+struct Opts {
+    tab: int,
+    output: str,
+    has_output: bool,
+    /// 0 sort, or the check mode's letter: `c` (99) or `C` (67).
+    check: int,
+    merge: bool,
+    stable: bool,
+    unique: bool,
+    zero: bool,
+    budget: int,
+    tmpdir: str,
+    batch: int,
+    unsupported: str,
+}
+
+fn blank_key() -> Key {
+    Key {
+        sfield: 0,
+        schar: 0,
+        sblank: false,
+        efield: -1,
+        echar: 0,
+        eblank: false,
+        numeric: false,
+        human: false,
+        month: false,
+        general: false,
+        random: false,
+        version: false,
+        reverse: false,
+        fold: false,
+        dict: false,
+        nonprint: false,
+        own: false,
+    }
+}
+
+/// Runs `sort` on ARGS, the arguments after its name: argv[1..] as its own
+/// program, argv[2..] through `bore sort`. The status is the utility's.
+pub fn main(args: List[str]) -> int {
+    // Standard output first: with descriptor 1 closed, the first file
+    // opened would take it (wolf-lang#405).
+    var out = bore.stdout()
+    var g = blank_key()
+    var keys = List[Key]()
+    var o = Opts {
+        tab: -1,
+        output: "",
+        has_output: false,
+        check: 0,
+        merge: false,
+        stable: false,
+        unique: false,
+        zero: false,
+        budget: default_budget(),
+        tmpdir: "",
+        batch: 16,
+        unsupported: "",
+    }
+    let p = bore.parse(options(), args, bore.permute())
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i]
+        let v = p.values[i]
+        // Measured: `sort --help >&-` says `write error: Bad file
+        // descriptor`, the shape every utility's --help takes, not the
+        // two-line `fflush failed` a sorted output takes.
+        if k == "help" {
+            emit_text(out, help()) else |_| {
+                bore.write_error(out, "sort", "write error")
+                return 2
+            }
+            return 0
+        }
+        if k == "version" {
+            emit_text(out, bore.version_text("sort")) else |_| {
+                bore.write_error(out, "sort", "write error")
+                return 2
+            }
+            return 0
+        }
+        if k == "ignore-leading-blanks" {
+            g.sblank = true
+            g.eblank = true
+        }
+        if k == "dictionary-order" {
+            g.dict = true
+        }
+        if k == "ignore-case" {
+            g.fold = true
+        }
+        if k == "ignore-nonprinting" {
+            g.nonprint = true
+        }
+        if k == "numeric-sort" {
+            g.numeric = true
+        }
+        if k == "human-numeric-sort" {
+            g.human = true
+        }
+        if k == "month-sort" {
+            g.month = true
+        }
+        if k == "general-numeric-sort" {
+            g.general = true
+        }
+        if k == "random-sort" {
+            g.random = true
+        }
+        if k == "version-sort" {
+            g.version = true
+        }
+        if k == "reverse" {
+            g.reverse = true
+        }
+        if k == "sort" {
+            let m = bore.argmatch(v, sort_words(), sort_meanings())
+            if m < 0 {
+                return bore.argmatch_error(
+                    "sort",
+                    v,
+                    "sort",
+                    sort_words(),
+                    sort_meanings(),
+                    m == -2,
+                )
+            }
+            set_letter(m, mut g)
+        }
+        if k == "key" {
+            var key = blank_key()
+            let err = parse_key(v, mut key)
+            if err.len > 0 {
+                return fail(err)
+            }
+            (mut keys).push(key)
+        }
+        if k == "field-separator" {
+            let t = tab_of(v)
+            if t == -2 {
+                return fail("empty tab")
+            }
+            if t == -3 {
+                return fail("multi-character tab {bore.quote(v)}")
+            }
+            if o.tab >= 0 && o.tab != t {
+                return fail("incompatible tabs")
+            }
+            o.tab = t
+        }
+        if k == "check" || k == "c" || k == "C" {
+            var mode = 99
+            if k == "C" {
+                mode = 67
+            }
+            if k == "check" && p.given[i] {
+                let m = bore.argmatch(v, check_words(), check_meanings())
+                if m < 0 {
+                    return bore.argmatch_error(
+                        "sort",
+                        v,
+                        "check",
+                        check_words(),
+                        check_meanings(),
+                        m == -2,
+                    )
+                }
+                if m == 1 {
+                    mode = 67
+                }
+            }
+            if o.check != 0 && o.check != mode {
+                return fail("options '-cC' are incompatible")
+            }
+            o.check = mode
+        }
+        if k == "merge" {
+            o.merge = true
+        }
+        if k == "output" {
+            if o.has_output && o.output != v {
+                return fail("multiple output files specified")
+            }
+            o.output = v
+            o.has_output = true
+        }
+        if k == "stable" {
+            o.stable = true
+        }
+        if k == "unique" {
+            o.unique = true
+        }
+        if k == "zero-terminated" {
+            o.zero = true
+        }
+        if k == "buffer-size" {
+            let n = parse_size(v)
+            if n == -1 {
+                return fail("invalid -S argument {bore.quote(v)}")
+            }
+            if n == -2 {
+                return fail("invalid suffix in -S argument {bore.quote(v)}")
+            }
+            if n == -3 {
+                return fail("-S argument {bore.quote(v)} too large")
+            }
+            o.budget = if n < min_budget() then min_budget() else n
+        }
+        if k == "temporary-directory" {
+            o.tmpdir = v
+        }
+        if k == "batch-size" {
+            let n = parse_count(v)
+            if n == -1 || n >= 0 && n < 2 {
+                bore.warn("sort", "invalid --batch-size argument {bore.quote(v)}")
+                if n >= 0 {
+                    bore.warn("sort", "minimum --batch-size argument is '2'")
+                }
+                return 2
+            }
+            if n == -2 {
+                return fail("invalid suffix in --batch-size argument {bore.quote(v)}")
+            }
+            o.batch = n
+        }
+        if k == "parallel" {
+            let n = parse_count(v)
+            if n == -1 {
+                return fail("invalid --parallel argument {bore.quote(v)}")
+            }
+            if n == -2 {
+                return fail("invalid suffix in --parallel argument {bore.quote(v)}")
+            }
+            if n == 0 {
+                return fail("number in parallel must be nonzero")
+            }
+        }
+        if k == "debug" {
+            o.unsupported = "--debug"
+        }
+        if k == "files0-from" {
+            o.unsupported = "--files0-from"
+        }
+        if k == "random-source" {
+            o.unsupported = "--random-source"
+        }
+        if k == "compress-program" {
+            o.unsupported = "--compress-program"
+        }
+        i += 1
+    }
+    if !bore.ok(p) {
+        eprint("sort: {p.error}\nTry 'sort --help' for more information.")
+        return 2
+    }
+    // A key that names no option letter inherits every global one; a
+    // global -b attaches to both of its ends.
+    var used = List[Key]()
+    if keys.len == 0 {
+        var d = copy g
+        d.own = false
+        (mut used).push(d)
+    } else {
+        for k in keys {
+            var d = copy k
+            if !d.own {
+                inherit(g, mut d)
+            }
+            (mut used).push(d)
+        }
+    }
+    for k in used {
+        let bad = incompatible(k)
+        if bad.len > 0 {
+            return fail("options '-{bad}' are incompatible")
+        }
+    }
+    if o.check != 0 {
+        let letter = if o.check == 67 then "C" else "c"
+        if o.has_output {
+            return fail("options '-{letter}o' are incompatible")
+        }
+        if p.operands.len > 1 {
+            return fail("extra operand {bore.quote(p.operands[1])} not allowed with -{letter}")
+        }
+    }
+    for k in used {
+        if k.general {
+            o.unsupported = "-g (--general-numeric-sort)"
+        }
+        if k.random {
+            o.unsupported = "-R (--random-sort)"
+        }
+        if k.version {
+            o.unsupported = "-V (--version-sort)"
+        }
+    }
+    if o.unsupported.len > 0 {
+        return fail("{o.unsupported} is not supported by this sort")
+    }
+    var plain = keys.len == 0
+    for k in used {
+        if k.numeric || k.human || k.month || k.fold || k.dict || k.nonprint || k.sblank {
+            plain = false
+        }
+    }
+    let delim = if o.zero then 0 as byte else 10 as byte
+    let c = Conf {
+        keys: used,
+        tab: o.tab,
+        reverse: g.reverse,
+        stable: o.stable,
+        unique: o.unique,
+        plain: plain,
+        delim: delim,
+    }
+    var paths = List[str]()
+    for a in p.operands {
+        (mut paths).push(a)
+    }
+    if paths.len == 0 {
+        (mut paths).push("-")
+    }
+    if o.check != 0 {
+        return check(c, paths[0], o.check == 67)
+    }
+    if o.merge {
+        return merge_mode(c, paths, o, out)
+    }
+    sort_mode(c, paths, o, out)
+}
+
+fn options() -> List[bore.Opt] {
+    // GNU's own long-option table order, which its
+    // "ambiguous; possibilities:" line reports and so is observable.
+    var s = List[bore.Opt]()
+    (mut s).push(bore.flag("b", "ignore-leading-blanks"))
+    (mut s).push(bore.optional("", "check"))
+    (mut s).push(bore.takes("", "compress-program"))
+    (mut s).push(bore.flag("", "debug"))
+    (mut s).push(bore.flag("d", "dictionary-order"))
+    (mut s).push(bore.flag("f", "ignore-case"))
+    (mut s).push(bore.takes("", "files0-from"))
+    (mut s).push(bore.flag("g", "general-numeric-sort"))
+    (mut s).push(bore.flag("i", "ignore-nonprinting"))
+    (mut s).push(bore.takes("k", "key"))
+    (mut s).push(bore.flag("m", "merge"))
+    (mut s).push(bore.flag("M", "month-sort"))
+    (mut s).push(bore.flag("n", "numeric-sort"))
+    (mut s).push(bore.flag("h", "human-numeric-sort"))
+    (mut s).push(bore.flag("V", "version-sort"))
+    (mut s).push(bore.flag("R", "random-sort"))
+    (mut s).push(bore.takes("", "random-source"))
+    (mut s).push(bore.takes("", "sort"))
+    (mut s).push(bore.takes("o", "output"))
+    (mut s).push(bore.flag("r", "reverse"))
+    (mut s).push(bore.flag("s", "stable"))
+    (mut s).push(bore.takes("", "batch-size"))
+    (mut s).push(bore.takes("S", "buffer-size"))
+    (mut s).push(bore.takes("t", "field-separator"))
+    (mut s).push(bore.takes("T", "temporary-directory"))
+    (mut s).push(bore.flag("u", "unique"))
+    (mut s).push(bore.flag("z", "zero-terminated"))
+    (mut s).push(bore.takes("", "parallel"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    // Short-only, so they never appear in an ambiguity list: `-c` is its
+    // own option and takes no word, unlike `--check[=WORD]`.
+    (mut s).push(bore.flag("c", ""))
+    (mut s).push(bore.flag("C", ""))
+    // `-y` is an obsolete option GNU still accepts and ignores, and its
+    // argument is OPTIONAL (boreutils#8): measured, `sort -yr` takes `r`
+    // as `-y`'s word and does not reverse, while `sort -y -r` does.
+    (mut s).push(bore.optional("y", ""))
+    s
+}
+
+/// `sort`'s status for every trouble that is not a check's disorder.
+fn fail(msg: str) -> int {
+    bore.warn("sort", msg)
+    2
+}
+
+/// `--sort`'s vocabulary in GNU's order, each mapped to its letter's
+/// place in `set_letter`.
+fn sort_words() -> List[str] {
+    var w = List[str]()
+    (mut w).push("general-numeric")
+    (mut w).push("human-numeric")
+    (mut w).push("month")
+    (mut w).push("numeric")
+    (mut w).push("random")
+    (mut w).push("version")
+    w
+}
+
+fn sort_meanings() -> List[int] {
+    var m = List[int]()
+    var i = 0
+    while i < 6 {
+        (mut m).push(i)
+        i += 1
+    }
+    m
+}
+
+/// `--check`'s vocabulary: `quiet` and `silent` are one meaning (1,
+/// `-C`), `diagnose-first` the other (0, `-c`).
+fn check_words() -> List[str] {
+    var w = List[str]()
+    (mut w).push("quiet")
+    (mut w).push("silent")
+    (mut w).push("diagnose-first")
+    w
+}
+
+fn check_meanings() -> List[int] {
+    var m = List[int]()
+    (mut m).push(1)
+    (mut m).push(1)
+    (mut m).push(0)
+    m
+}
+
+fn set_letter(m: int, mut k: Key) {
+    if m == 0 {
+        k.general = true
+    } else if m == 1 {
+        k.human = true
+    } else if m == 2 {
+        k.month = true
+    } else if m == 3 {
+        k.numeric = true
+    } else if m == 4 {
+        k.random = true
+    } else {
+        k.version = true
+    }
+}
+
+fn inherit(g: Key, mut k: Key) {
+    k.sblank = g.sblank
+    k.eblank = g.eblank
+    k.numeric = g.numeric
+    k.human = g.human
+    k.month = g.month
+    k.general = g.general
+    k.random = g.random
+    k.version = g.version
+    k.reverse = g.reverse
+    k.fold = g.fold
+    k.dict = g.dict
+    k.nonprint = g.nonprint
+}
+
+/// The option letters of a key GNU names when they cannot be combined,
+/// or `""` when they can. Measured: the letters print in the order
+/// `dfghiMnRV`, `i` is dropped when `d` is present (`-d` subsumes it),
+/// and `-b`/`-r` never print; two of `ghMnRV` together are refused, and
+/// so is `d` or `i` with any of `ghMn`.
+fn incompatible(k: Key) -> str {
+    var kinds = 0
+    if k.general {
+        kinds += 1
+    }
+    if k.human {
+        kinds += 1
+    }
+    if k.month {
+        kinds += 1
+    }
+    if k.numeric {
+        kinds += 1
+    }
+    if k.random {
+        kinds += 1
+    }
+    if k.version {
+        kinds += 1
+    }
+    let textual = k.dict || k.nonprint
+    let numberish = k.general || k.human || k.month || k.numeric
+    if kinds < 2 && !(textual && numberish) {
+        return ""
+    }
+    var s = ""
+    if k.dict {
+        s += "d"
+    }
+    if k.fold {
+        s += "f"
+    }
+    if k.general {
+        s += "g"
+    }
+    if k.human {
+        s += "h"
+    }
+    if k.nonprint && !k.dict {
+        s += "i"
+    }
+    if k.month {
+        s += "M"
+    }
+    if k.numeric {
+        s += "n"
+    }
+    if k.random {
+        s += "R"
+    }
+    if k.version {
+        s += "V"
+    }
+    s
+}
+
+/// `-t`'s argument as a byte value: -2 empty, -3 more than one
+/// character. `\0` is GNU's documented spelling of the NUL separator.
+fn tab_of(v: str) -> int {
+    if v.len == 0 {
+        return -2
+    }
+    if v == "\\0" {
+        return 0
+    }
+    if v.len > 1 {
+        return -3
+    }
+    v.bytes()[0] as int
+}
+
+// -------------------------------------------------------- the key grammar
+
+/// Where a decimal count ends, and its value: `strtoumax`'s shape, so
+/// leading white space and a `+` are taken, a `-` is not, and an
+/// overflow clamps rather than failing (measured: `-k
+/// 99999999999999999999` is accepted).
+struct Count {
+    value: int,
+    next: int,
+}
+
+fn count_at(b: List[byte], at: int) -> Count {
+    var i = at
+    while i < b.len && is_space(b[i] as int) {
+        i += 1
+    }
+    if i < b.len && b[i] as int == 43 {
+        i += 1
+    }
+    let first = i
+    var v = 0
+    while i < b.len && b[i] as int >= 48 && b[i] as int <= 57 {
+        if v < huge() / 10 {
+            v = v * 10 + (b[i] as int - 48)
+        } else {
+            v = huge()
+        }
+        i += 1
+    }
+    if i == first {
+        return Count { value: -1, next: at }
+    }
+    Count { value: v, next: i }
+}
+
+/// A count past any line: fields and offsets clamp here.
+fn huge() -> int {
+    1152921504606846975
+}
+
+fn is_space(n: int) -> bool {
+    n == 32 || n >= 9 && n <= 13
+}
+
+/// The rest of `s` from byte `at`, for a diagnostic.
+fn rest(s: str, at: int) -> str {
+    s.get(at..) else s
+}
+
+/// Parse a KEYDEF, `F[.C][OPTS][,F[.C][OPTS]]`, into `k`. Answers the
+/// whole diagnostic GNU prints, or `""`. Every wording below was read
+/// off GNU 9.11.
+fn parse_key(spec: str, mut k: Key) -> str {
+    let b = spec.bytes()
+    let whole = "invalid field specification {bore.quote(spec)}"
+    let f = count_at(b, 0)
+    if f.value < 0 {
+        return "invalid number at field start: invalid count at start of {bore.quote(spec)}"
+    }
+    if f.value == 0 {
+        return "field number is zero: {whole}"
+    }
+    k.sfield = f.value - 1
+    var i = f.next
+    if i < b.len && b[i] as int == 46 {
+        let c = count_at(b, i + 1)
+        if c.value < 0 {
+            return "invalid number after '.': invalid count at start of {bore.quote(rest(spec, i + 1))}"
+        }
+        if c.value == 0 {
+            return "character offset is zero: {whole}"
+        }
+        k.schar = c.value - 1
+        i = c.next
+    }
+    while i < b.len && letter(b[i] as int, true, mut k) {
+        i += 1
+    }
+    if i < b.len && b[i] as int == 44 {
+        let e = count_at(b, i + 1)
+        if e.value < 0 {
+            return "invalid number after ',': invalid count at start of {bore.quote(rest(spec, i + 1))}"
+        }
+        if e.value == 0 {
+            return "field number is zero: {whole}"
+        }
+        k.efield = e.value
+        i = e.next
+        if i < b.len && b[i] as int == 46 {
+            let c = count_at(b, i + 1)
+            if c.value < 0 {
+                return "invalid number after '.': invalid count at start of {bore.quote(rest(spec, i + 1))}"
+            }
+            k.echar = c.value
+            i = c.next
+        }
+        while i < b.len && letter(b[i] as int, false, mut k) {
+            i += 1
+        }
+    }
+    if i < b.len {
+        return "stray character in field spec: {whole}"
+    }
+    ""
+}
+
+/// Apply one ordering letter to `k`, answering whether it was one. `b`
+/// attaches to the end of the key it follows; the others to the key.
+fn letter(c: int, start: bool, mut k: Key) -> bool {
+    if c == 98 {
+        if start {
+            k.sblank = true
+        } else {
+            k.eblank = true
+        }
+    } else if c == 100 {
+        k.dict = true
+    } else if c == 102 {
+        k.fold = true
+    } else if c == 103 {
+        k.general = true
+    } else if c == 104 {
+        k.human = true
+    } else if c == 105 {
+        k.nonprint = true
+    } else if c == 77 {
+        k.month = true
+    } else if c == 110 {
+        k.numeric = true
+    } else if c == 82 {
+        k.random = true
+    } else if c == 114 {
+        k.reverse = true
+    } else if c == 86 {
+        k.version = true
+    } else {
+        return false
+    }
+    k.own = true
+    true
+}
+
+// ------------------------------------------------------------ the numbers
+
+/// The run budget with no `-S`.
+fn default_budget() -> int {
+    268435456
+}
+
+/// The smallest budget `-S` can set.
+fn min_budget() -> int {
+    65536
+}
+
+/// A `-S` argument in bytes: -1 not a number, -2 a bad suffix, -3 too
+/// large. The unit is KiB when no suffix is given (GNU's documented
+/// default); `%` is a share of physical memory, which wolf cannot ask
+/// for, so it answers the default budget.
+fn parse_size(v: str) -> int {
+    let b = v.bytes()
+    let c = count_at(b, 0)
+    if c.value < 0 || c.next < b.len && b[c.next] as int == 45 {
+        return -1
+    }
+    if c.value >= huge() {
+        return -3
+    }
+    let unit = rest(v, c.next)
+    if unit == "%" {
+        return default_budget()
+    }
+    var mult = 1024
+    if unit == "b" {
+        mult = 1
+    } else if unit.len == 1 {
+        let p = power(unit)
+        if p < 0 {
+            return -2
+        }
+        mult = 1
+        var k = 0
+        while k < p {
+            if mult > huge() / 1024 {
+                return -3
+            }
+            mult = mult * 1024
+            k += 1
+        }
+    } else if unit.len > 1 {
+        return -2
+    }
+    if c.value > 0 && mult > huge() / c.value {
+        return -3
+    }
+    c.value * mult
+}
+
+/// The power of 1024 a `-S` unit letter names, or -1.
+fn power(u: str) -> int {
+    if u == "k" || u == "K" {
+        return 1
+    }
+    if u == "M" {
+        return 2
+    }
+    if u == "G" {
+        return 3
+    }
+    if u == "T" {
+        return 4
+    }
+    if u == "P" {
+        return 5
+    }
+    if u == "E" {
+        return 6
+    }
+    if u == "Z" {
+        return 7
+    }
+    if u == "Y" {
+        return 8
+    }
+    if u == "R" {
+        return 9
+    }
+    if u == "Q" {
+        return 10
+    }
+    -1
+}
+
+/// A plain count (`--batch-size`, `--parallel`): -1 not a number, -2
+/// something after it.
+fn parse_count(v: str) -> int {
+    let b = v.bytes()
+    let c = count_at(b, 0)
+    if c.value < 0 {
+        return -1
+    }
+    if c.next < b.len {
+        return -2
+    }
+    c.value
+}
+
+// ------------------------------------------------------------ comparison
+
+fn is_blank(n: int) -> bool {
+    n == 32 || n == 9 || n == 10
+}
+
+/// Where key `ki` of the line `a[s..e]` begins.
+fn key_begin(c: Conf, ki: int, a: List[byte], s: int, e: int) -> int {
+    var p = s
+    var f = c.keys[ki].sfield
+    if c.tab >= 0 {
+        while f > 0 && p < e {
+            while p < e && a[p] as int != c.tab {
+                p += 1
+            }
+            if p < e {
+                p += 1
+            }
+            f -= 1
+        }
+    } else {
+        while f > 0 && p < e {
+            while p < e && is_blank(a[p] as int) {
+                p += 1
+            }
+            while p < e && !is_blank(a[p] as int) {
+                p += 1
+            }
+            f -= 1
+        }
+    }
+    if c.keys[ki].sblank {
+        while p < e && is_blank(a[p] as int) {
+            p += 1
+        }
+    }
+    let ch = c.keys[ki].schar
+    if ch > e - p {
+        return e
+    }
+    p + ch
+}
+
+/// Where key `ki` of the line `a[s..e]` ends (exclusive).
+fn key_end(c: Conf, ki: int, a: List[byte], s: int, e: int) -> int {
+    if c.keys[ki].efield < 0 {
+        return e
+    }
+    var p = s
+    var f = c.keys[ki].efield - 1
+    if c.tab >= 0 {
+        while f > 0 && p < e {
+            while p < e && a[p] as int != c.tab {
+                p += 1
+            }
+            if p < e {
+                p += 1
+            }
+            f -= 1
+        }
+    } else {
+        while f > 0 && p < e {
+            while p < e && is_blank(a[p] as int) {
+                p += 1
+            }
+            while p < e && !is_blank(a[p] as int) {
+                p += 1
+            }
+            f -= 1
+        }
+    }
+    let ch = c.keys[ki].echar
+    if ch == 0 {
+        if c.tab >= 0 {
+            while p < e && a[p] as int != c.tab {
+                p += 1
+            }
+        } else {
+            while p < e && is_blank(a[p] as int) {
+                p += 1
+            }
+            while p < e && !is_blank(a[p] as int) {
+                p += 1
+            }
+        }
+        return p
+    }
+    if c.keys[ki].eblank {
+        while p < e && is_blank(a[p] as int) {
+            p += 1
+        }
+    }
+    if ch > e - p {
+        return e
+    }
+    p + ch
+}
+
+/// Compare two lines: every key in order, then — unless `-s` or `-u` —
+/// the whole lines as bytes, reversed by a global `-r`.
+fn compare(c: Conf, a: List[byte], sa: int, ea: int, b: List[byte], sb: int, eb: int) -> int {
+    if c.plain {
+        let d = bytes_cmp(a, sa, ea, b, sb, eb)
+        return if c.reverse then -d else d
+    }
+    let d = compare_keys(c, a, sa, ea, b, sb, eb)
+    if d != 0 || c.stable || c.unique {
+        return d
+    }
+    let r = bytes_cmp(a, sa, ea, b, sb, eb)
+    if c.reverse then -r else r
+}
+
+/// Compare the keys only: what `-u` calls equal.
+fn compare_keys(c: Conf, a: List[byte], sa: int, ea: int, b: List[byte], sb: int, eb: int) -> int {
+    if c.plain {
+        let d = bytes_cmp(a, sa, ea, b, sb, eb)
+        return if c.reverse then -d else d
+    }
+    var ki = 0
+    while ki < c.keys.len {
+        let ka = key_begin(c, ki, a, sa, ea)
+        var kae = key_end(c, ki, a, sa, ea)
+        if kae < ka {
+            kae = ka
+        }
+        let kb = key_begin(c, ki, b, sb, eb)
+        var kbe = key_end(c, ki, b, sb, eb)
+        if kbe < kb {
+            kbe = kb
+        }
+        let d = key_cmp(c, ki, a, ka, kae, b, kb, kbe)
+        if d != 0 {
+            return if c.keys[ki].reverse then -d else d
+        }
+        ki += 1
+    }
+    0
+}
+
+fn key_cmp(
+    c: Conf,
+    ki: int,
+    a: List[byte],
+    sa: int,
+    ea: int,
+    b: List[byte],
+    sb: int,
+    eb: int,
+) -> int {
+    if c.keys[ki].numeric {
+        return num_cmp(a, sa, ea, b, sb, eb, false)
+    }
+    if c.keys[ki].human {
+        return num_cmp(a, sa, ea, b, sb, eb, true)
+    }
+    if c.keys[ki].month {
+        let ma = month_of(a, sa, ea)
+        let mb = month_of(b, sb, eb)
+        return if ma < mb then -1 else if ma > mb then 1 else 0
+    }
+    if c.keys[ki].fold || c.keys[ki].dict || c.keys[ki].nonprint {
+        return text_cmp(c, ki, a, sa, ea, b, sb, eb)
+    }
+    bytes_cmp(a, sa, ea, b, sb, eb)
+}
+
+/// `memcmp`, then the shorter first.
+fn bytes_cmp(a: List[byte], sa: int, ea: int, b: List[byte], sb: int, eb: int) -> int {
+    var i = sa
+    var j = sb
+    while i < ea && j < eb {
+        let x = a[i]
+        let y = b[j]
+        if x != y {
+            return if x < y then -1 else 1
+        }
+        i += 1
+        j += 1
+    }
+    if i < ea {
+        return 1
+    }
+    if j < eb {
+        return -1
+    }
+    0
+}
+
+/// `-f`, `-d` and `-i`: skip the bytes the key ignores, fold what is
+/// left, compare.
+fn text_cmp(
+    c: Conf,
+    ki: int,
+    a: List[byte],
+    sa: int,
+    ea: int,
+    b: List[byte],
+    sb: int,
+    eb: int,
+) -> int {
+    let fold = c.keys[ki].fold
+    let dict = c.keys[ki].dict
+    let np = c.keys[ki].nonprint
+    var i = sa
+    var j = sb
+    while true {
+        while i < ea && ignored(a[i] as int, dict, np) {
+            i += 1
+        }
+        while j < eb && ignored(b[j] as int, dict, np) {
+            j += 1
+        }
+        if i >= ea || j >= eb {
+            break
+        }
+        var x = a[i] as int
+        var y = b[j] as int
+        if fold {
+            x = upper(x)
+            y = upper(y)
+        }
+        if x != y {
+            return if x < y then -1 else 1
+        }
+        i += 1
+        j += 1
+    }
+    if i < ea {
+        return 1
+    }
+    if j < eb {
+        return -1
+    }
+    0
+}
+
+/// Whether `-d` or `-i` ignores the byte `n`. `-d` keeps letters,
+/// digits and the two ctype blanks; `-i` keeps the printable bytes; with
+/// both, `-d` decides.
+fn ignored(n: int, dict: bool, np: bool) -> bool {
+    if dict {
+        let alnum = n >= 48 && n <= 57 || n >= 65 && n <= 90 || n >= 97 && n <= 122
+        return !(alnum || n == 32 || n == 9)
+    }
+    if np {
+        return n < 32 || n > 126
+    }
+    false
+}
+
+fn upper(n: int) -> int {
+    if n >= 97 && n <= 122 {
+        return n - 32
+    }
+    n
+}
+
+/// `-n` and `-h`: optional blanks, an optional `-`, digits, an optional
+/// `.` and digits. Compared exactly, digit by digit — no conversion, so
+/// no rounding and no overflow. Signs on zero and leading zeros do not
+/// count. `-h` then orders by the SI suffix that immediately follows
+/// the number (none, then `kK`, `M`, `G`, … `Q`) before the value.
+fn num_cmp(a: List[byte], sa: int, ea: int, b: List[byte], sb: int, eb: int, human: bool) -> int {
+    var i = sa
+    while i < ea && is_blank(a[i] as int) {
+        i += 1
+    }
+    var j = sb
+    while j < eb && is_blank(b[j] as int) {
+        j += 1
+    }
+    var na = false
+    if i < ea && a[i] as int == 45 {
+        na = true
+        i += 1
+    }
+    var nb = false
+    if j < eb && b[j] as int == 45 {
+        nb = true
+        j += 1
+    }
+    let za = is_zero(a, i, ea)
+    let zb = is_zero(b, j, eb)
+    let sga = if za then 0 else if na then -1 else 1
+    let sgb = if zb then 0 else if nb then -1 else 1
+    if sga != sgb {
+        return if sga < sgb then -1 else 1
+    }
+    if sga == 0 {
+        return 0
+    }
+    if human {
+        let ra = suffix_rank(a, i, ea)
+        let rb = suffix_rank(b, j, eb)
+        if ra != rb {
+            let d = if ra < rb then -1 else 1
+            return d * sga
+        }
+    }
+    let m = magnitude_cmp(a, i, ea, b, j, eb)
+    m * sga
+}
+
+fn is_digit(n: int) -> bool {
+    n >= 48 && n <= 57
+}
+
+/// Whether the number at `i` (after its sign) is zero: every digit of
+/// it, whole and fraction, is `0`, or there are none.
+fn is_zero(a: List[byte], at: int, e: int) -> bool {
+    var i = at
+    while i < e && is_digit(a[i] as int) {
+        if a[i] as int != 48 {
+            return false
+        }
+        i += 1
+    }
+    if i < e && a[i] as int == 46 {
+        i += 1
+        while i < e && is_digit(a[i] as int) {
+            if a[i] as int != 48 {
+                return false
+            }
+            i += 1
+        }
+    }
+    true
+}
+
+/// The rank of the SI suffix right after the number at `i`.
+fn suffix_rank(a: List[byte], at: int, e: int) -> int {
+    var i = at
+    while i < e && is_digit(a[i] as int) {
+        i += 1
+    }
+    if i < e && a[i] as int == 46 {
+        i += 1
+        while i < e && is_digit(a[i] as int) {
+            i += 1
+        }
+    }
+    if i >= e {
+        return 0
+    }
+    let s = a[i] as int
+    if s == 107 || s == 75 {
+        return 1
+    }
+    let order = "MGTPEZYRQ".bytes()
+    var k = 0
+    while k < order.len {
+        if order[k] as int == s {
+            return k + 2
+        }
+        k += 1
+    }
+    0
+}
+
+/// Compare two unsigned decimal numbers in place.
+fn magnitude_cmp(a: List[byte], sa: int, ea: int, b: List[byte], sb: int, eb: int) -> int {
+    var i = sa
+    while i < ea && a[i] as int == 48 {
+        i += 1
+    }
+    var j = sb
+    while j < eb && b[j] as int == 48 {
+        j += 1
+    }
+    var li = i
+    while li < ea && is_digit(a[li] as int) {
+        li += 1
+    }
+    var lj = j
+    while lj < eb && is_digit(b[lj] as int) {
+        lj += 1
+    }
+    if li - i != lj - j {
+        return if li - i < lj - j then -1 else 1
+    }
+    while i < li {
+        if a[i] != b[j] {
+            return if a[i] < b[j] then -1 else 1
+        }
+        i += 1
+        j += 1
+    }
+    // The fractions, digit by digit; a missing digit is a zero.
+    var fi = li
+    var fj = lj
+    let da = fi < ea && a[fi] as int == 46
+    let db = fj < eb && b[fj] as int == 46
+    if da {
+        fi += 1
+    }
+    if db {
+        fj += 1
+    }
+    while true {
+        let x = if da && fi < ea && is_digit(a[fi] as int) then a[fi] as int else -1
+        let y = if db && fj < eb && is_digit(b[fj] as int) then b[fj] as int else -1
+        if x < 0 && y < 0 {
+            return 0
+        }
+        let xv = if x < 0 then 48 else x
+        let yv = if y < 0 then 48 else y
+        if xv != yv {
+            return if xv < yv then -1 else 1
+        }
+        if x >= 0 {
+            fi += 1
+        }
+        if y >= 0 {
+            fj += 1
+        }
+    }
+    0
+}
+
+/// `-M`: optional blanks, then the first three bytes folded to upper
+/// case against `JAN` … `DEC`; anything else is 0, below every month.
+fn month_of(a: List[byte], s: int, e: int) -> int {
+    var i = s
+    while i < e && is_blank(a[i] as int) {
+        i += 1
+    }
+    if e - i < 3 {
+        return 0
+    }
+    let x = upper(a[i] as int)
+    let y = upper(a[i + 1] as int)
+    let z = upper(a[i + 2] as int)
+    let names = "JANFEBMARAPRMAYJUNJULAUGSEPOCTNOVDEC".bytes()
+    var m = 0
+    while m < 12 {
+        if names[m * 3] as int == x &&
+            names[m * 3 + 1] as int == y &&
+            names[m * 3 + 2] as int == z {
+            return m + 1
+        }
+        m += 1
+    }
+    0
+}
+
+// --------------------------------------------------------- the sort proper
+
+/// The indices of the lines in `buf`, sorted. `starts` holds each
+/// line's first byte and, last, one past the final delimiter, so line
+/// `i` is `buf[starts[i] .. starts[i + 1] - 1]`.
+///
+/// A bottom-up merge sort over two index lists, after an insertion sort
+/// of each block of 16: stable, and O(n log n) comparisons whatever the
+/// input's order.
+fn sort_index(c: Conf, buf: List[byte], starts: List[int]) -> List[int] {
+    let n = starts.len - 1
+    var a = List[int]()
+    var t = List[int]()
+    var i = 0
+    while i < n {
+        (mut a).push(i)
+        (mut t).push(0)
+        i += 1
+    }
+    let block = 16
+    var lo = 0
+    while lo < n {
+        let hi = if lo + block < n then lo + block else n
+        var k = lo + 1
+        while k < hi {
+            let v = a[k]
+            var j = k - 1
+            var moving = true
+            while moving && j >= lo {
+                let w = a[j]
+                if compare(
+                    c,
+                    buf,
+                    starts[w],
+                    starts[w + 1] - 1,
+                    buf,
+                    starts[v],
+                    starts[v + 1] - 1,
+                ) >
+                    0 {
+                    a[j + 1] = w
+                    j -= 1
+                } else {
+                    moving = false
+                }
+            }
+            a[j + 1] = v
+            k += 1
+        }
+        lo = hi
+    }
+    var width = block
+    var in_a = true
+    while width < n {
+        if in_a {
+            merge_pass(mut t, c, buf, starts, a, width, n)
+        } else {
+            merge_pass(mut a, c, buf, starts, t, width, n)
+        }
+        in_a = !in_a
+        width = width * 2
+    }
+    if in_a then a else t
+}
+
+/// One pass of the bottom-up merge: runs of `width` from `src` into
+/// `dst`, taking from the left run on a tie, which is what makes it
+/// stable.
+fn merge_pass(
+    mut dst: List[int],
+    c: Conf,
+    buf: List[byte],
+    starts: List[int],
+    src: List[int],
+    width: int,
+    n: int,
+) {
+    var lo = 0
+    while lo < n {
+        let mid = if lo + width < n then lo + width else n
+        let hi = if mid + width < n then mid + width else n
+        var i = lo
+        var j = mid
+        var k = lo
+        while i < mid && j < hi {
+            let x = src[i]
+            let y = src[j]
+            if compare(c, buf, starts[y], starts[y + 1] - 1, buf, starts[x], starts[x + 1] - 1) <
+                0 {
+                dst[k] = y
+                j += 1
+            } else {
+                dst[k] = x
+                i += 1
+            }
+            k += 1
+        }
+        while i < mid {
+            dst[k] = src[i]
+            i += 1
+            k += 1
+        }
+        while j < hi {
+            dst[k] = src[j]
+            j += 1
+            k += 1
+        }
+        lo = hi
+    }
+}
+
+// ------------------------------------------------------------- the output
+
+/// How many bytes an output buffer holds.
+fn out_size() -> int {
+    65536
+}
+
+/// Write `bytes` to the destination: standard output when `fd` is -1,
+/// else the file `fd`.
+fn put_out(out: bore.Out, fd: int, bytes: List[byte]) -> () ! {io} {
+    if fd < 0 {
+        bore.write_direct(out, bytes)?
+        return
+    }
+    fs_write_chunk(fd, bytes) else |_| {
+        return io
+    }
+}
+
+/// A zeroed buffer of `out_size()` bytes, filled in place and written
+/// whole, so the output allocates nothing per write (the B152 lesson).
+fn fresh_buffer() -> List[byte] {
+    var b = List[byte]()
+    var i = 0
+    while i < out_size() {
+        (mut b).push(0 as byte)
+        i += 1
+    }
+    b
+}
+
+/// Write `ob[0..n]`: whole when full, else through a list built in a
+/// region of its own.
+fn put_part(out: bore.Out, fd: int, ob: List[byte], n: int) -> () ! {io} {
+    if n == 0 {
+        return
+    }
+    if n == ob.len {
+        put_out(out, fd, ob)?
+        return
+    }
+    var failed = false
+    region tail {
+        var t = List[byte]()
+        var i = 0
+        while i < n {
+            (mut t).push(ob[i])
+            i += 1
+        }
+        put_out(out, fd, t) else |_| {
+            failed = true
+        }
+    }
+    if failed {
+        return io
+    }
+}
+
+/// Write the held lines in `perm`'s order, each with its delimiter,
+/// dropping under `-u` every line whose keys equal the last one kept.
+/// Everything is taken by READ, so a caller inside a `region` may pass
+/// its region-local lists (wolf-lang#418).
+fn emit_lines(
+    c: Conf,
+    buf: List[byte],
+    starts: List[int],
+    perm: List[int],
+    out: bore.Out,
+    fd: int,
+) -> () ! {io} {
+    var ob = fresh_buffer()
+    var n = 0
+    var last = -1
+    var k = 0
+    while k < perm.len {
+        let x = perm[k]
+        k += 1
+        let s = starts[x]
+        let e = starts[x + 1] - 1
+        if c.unique && last >= 0 {
+            if compare_keys(c, buf, starts[last], starts[last + 1] - 1, buf, s, e) == 0 {
+                continue
+            }
+        }
+        last = x
+        var i = s
+        while i <= e {
+            ob[n] = if i == e then c.delim else buf[i]
+            n += 1
+            if n == ob.len {
+                put_out(out, fd, ob)?
+                n = 0
+            }
+            i += 1
+        }
+    }
+    put_part(out, fd, ob, n)?
+}
+
+/// GNU's two lines for a failed flush of standard output, and its
+/// status. `host` is the host's error number, kept from the failed write
+/// (`[os.fs.error]`, wolf 0.2.26).
+///
+/// **The second line is host-shaped, and both shapes are GNU 9.11's.**
+/// With descriptor 1 closed, linux's GNU (Arch's and the staged build
+/// on ubuntu alike) says a bare `write error`, and macOS's Homebrew
+/// build says `write error: Bad file descriptor` — measured on CI, run
+/// 36041719338, the only case in the corpus that differed on macOS. The
+/// two C libraries leave `errno` differently after the failed flush.
+/// The host is told apart the way `bore.stdout` tells it: linux
+/// publishes `/proc/self/fd`, macOS has no `/proc`, and asking by path
+/// opens no descriptor.
+fn write_failed(out: bore.Out, host: int) -> int {
+    let why = if out.closed then bore.bad_descriptor() else bore.reason_of(host)
+    bore.warn("sort", "fflush failed: 'standard output': {why}")
+    if out.closed && !fs_is_dir("/proc/self/fd") {
+        bore.warn("sort", "write error: {why}")
+    } else {
+        bore.warn("sort", "write error")
+    }
+    2
+}
+
+/// The same for a `-o` file.
+fn file_write_failed(path: str, host: int) -> int {
+    bore.warn("sort", "fflush failed: {bore.quote_name(path)}: {bore.reason_of(host)}")
+    bore.warn("sort", "write error")
+    2
+}
+
+/// Open the `-o` file for writing, or report why not and answer -1.
+fn open_output(path: str) -> int {
+    if fs_is_dir(path) {
+        bore.warn("sort", "open failed: {bore.quote_name(path)}: {bore.directory_reason()}")
+        return -1
+    }
+    let fd = fs_open_mode(path, 1) else |e| match e {
+        not_found => {
+            bore.warn("sort", "open failed: {bore.quote_name(path)}: {bore.no_such_file()}")
+            return -1
+        },
+        denied => {
+            bore.warn("sort", "open failed: {bore.quote_name(path)}: {bore.permission_denied()}")
+            return -1
+        },
+        exists => {
+            bore.warn("sort", "open failed: {bore.quote_name(path)}: {bore.io_error()}")
+            return -1
+        },
+        invalid => {
+            bore.warn("sort", "open failed: {bore.quote_name(path)}: {bore.io_error()}")
+            return -1
+        },
+        io => {
+            bore.warn("sort", "open failed: {bore.quote_name(path)}: {bore.io_error()}")
+            return -1
+        },
+    }
+    fd
+}
+
+/// Write `s` straight to standard output.
+fn emit_text(out: bore.Out, s: str) -> () ! {io} {
+    var b = List[byte]()
+    for x in s.bytes() {
+        (mut b).push(x)
+    }
+    bore.write_direct(out, b)?
+}
+
+// ------------------------------------------------------------- the input
+
+/// The bytes asked of the host per read (bu01's measured knee).
+fn read_size() -> int {
+    262144
+}
+
+/// Report an input that could not be opened, in GNU's words.
+fn open_failed(path: str, why: str) {
+    bore.warn("sort", "cannot read: {bore.quote_name(path)}: {why}")
+}
+
+/// Report an input that opened and then failed to read.
+fn read_failed(path: str, why: str) {
+    bore.warn("sort", "read failed: {bore.quote_name(path)}: {why}")
+}
+
+/// Open `path` (`-` is standard input) and answer its descriptor, or
+/// report the failure in GNU's words and answer -1. Measured: a sort or
+/// a merge says `cannot read: NAME`, a check says `open failed: NAME`.
+fn open_in(path: str, checking: bool) -> int {
+    let src = bore.open_input(path) else |e| match e {
+        not_found => {
+            if checking {
+                bore.warn("sort", "open failed: {bore.quote_name(path)}: {bore.no_such_file()}")
+            } else {
+                open_failed(path, bore.no_such_file())
+            }
+            return -1
+        },
+        denied => {
+            if checking {
+                bore.warn(
+                    "sort",
+                    "open failed: {bore.quote_name(path)}: {bore.permission_denied()}",
+                )
+            } else {
+                open_failed(path, bore.permission_denied())
+            }
+            return -1
+        },
+        is_dir => {
+            // Measured: GNU OPENS a directory and fails at the read.
+            read_failed(path, bore.directory_reason())
+            return -1
+        },
+        io => {
+            open_failed(path, bore.io_error())
+            return -1
+        },
+    }
+    src.fd
+}
+
+// ------------------------------------------------------ temporary files
+
+/// The directory runs are written to: `-T`, then `$TMPDIR`, then
+/// `/tmp`, as GNU documents.
+fn temp_dir(o: Opts) -> str {
+    if o.tmpdir.len > 0 {
+        return o.tmpdir
+    }
+    let t = env_get("TMPDIR") else ""
+    if t.len > 0 {
+        return t
+    }
+    "/tmp"
+}
+
+/// A fresh random identity for a temporary file: six characters'
+/// worth, from the operating system's random bytes.
+fn temp_id() -> int {
+    let r = os_random(6)
+    var v = 0
+    for x in r {
+        v = v * 36 + x % 36
+    }
+    v
+}
+
+/// The path of temporary file `id` in `dir`: `sortXXXXXX`, GNU's shape.
+fn temp_path(dir: str, id: int) -> str {
+    let alphabet = "0123456789abcdefghijklmnopqrstuvwxyz"
+    var s = ""
+    var v = id
+    var k = 0
+    while k < 6 {
+        let d = v % 36
+        s = alphabet[d..d + 1] + s
+        v = v / 36
+        k += 1
+    }
+    "{dir}/sort{s}"
+}
+
+/// Create temporary file `id` in `dir`, exclusively. Answers the
+/// descriptor, -1 when the name was taken (try another), or -2 after
+/// reporting why the directory refused it.
+fn create_temp(dir: str, id: int) -> int {
+    let fd = fs_open_mode(temp_path(dir, id), 4) else |e| match e {
+        exists => { return -1 },
+        not_found => {
+            bore.warn(
+                "sort",
+                "cannot create temporary file in {bore.quote(dir)}: {bore.no_such_file()}",
+            )
+            return -2
+        },
+        denied => {
+            bore.warn(
+                "sort",
+                "cannot create temporary file in {bore.quote(dir)}: {bore.permission_denied()}",
+            )
+            return -2
+        },
+        invalid => {
+            bore.warn(
+                "sort",
+                "cannot create temporary file in {bore.quote(dir)}: {bore.io_error()}",
+            )
+            return -2
+        },
+        io => {
+            bore.warn(
+                "sort",
+                "cannot create temporary file in {bore.quote(dir)}: {bore.io_error()}",
+            )
+            return -2
+        },
+    }
+    fd
+}
+
+/// Remove every temporary file in `ids`. A failure is not reportable.
+fn remove_temps(dir: str, ids: List[int]) {
+    for id in ids {
+        fs_remove(temp_path(dir, id)) else |_| {}
+    }
+}
+
+// ------------------------------------------------------------ sort mode
+
+/// Sort `paths` to standard output or `-o`.
+///
+/// Input is gathered into a run of at most `o.budget` bytes (a run ends
+/// at a line boundary, so it may overrun by the rest of one read). When
+/// the input ends inside the first run, it is sorted and written — the
+/// in-memory sort. Otherwise every run is sorted into a temporary file
+/// and the runs are merged.
+///
+/// Everything a run holds lives in `region run`, which dies when the run
+/// has been written. Inside it no call takes both a region-local list
+/// and a `mut` parameter (wolf-lang#418), so the read loop is spelled
+/// in line, and the few bytes of a line that straddles the end of a run
+/// are carried into the next one through `carry`, which lives outside.
+fn sort_mode(c: Conf, paths: List[str], o: Opts, out: bore.Out) -> int {
+    let dir = temp_dir(o)
+    var carry = List[byte]()
+    var ci = 0
+    while ci < read_size() {
+        (mut carry).push(0 as byte)
+        ci += 1
+    }
+    var carry_len = 0
+    var runs = List[int]()
+    var cur = 0
+    var fd = -1
+    var exhausted = false
+    var status = 0
+    var done = false
+    while !done {
+        var id = temp_id()
+        // A run written to a temporary file is recorded AFTER the region
+        // dies: a push inside it would grow `runs` into the region.
+        var spilled = -1
+        region run {
+            var buf = List[byte]()
+            var i = 0
+            while i < carry_len {
+                (mut buf).push(carry[i])
+                i += 1
+            }
+            carry_len = 0
+            var blen = buf.len
+            var full = false
+            while !full && !exhausted && status == 0 {
+                // A run ends when its list reaches the budget, at its last
+                // whole line, and the rest is carried; each read asks for
+                // no more than the budget has left, so the list never
+                // crosses it. Crossing a power of two doubles a list, and
+                // at the default budget that one push cost 512 MiB
+                // (measured: 1 GB sorted at 1,060 MB of peak RSS). With no
+                // whole line held yet, reading goes on.
+                if blen >= o.budget {
+                    var q = blen - 1
+                    while q >= 0 && buf[q] != c.delim {
+                        q -= 1
+                    }
+                    if q >= 0 && blen - (q + 1) <= carry.len {
+                        var k = q + 1
+                        while k < blen {
+                            carry[carry_len] = buf[k]
+                            carry_len += 1
+                            k += 1
+                        }
+                        blen = q + 1
+                        full = true
+                    }
+                }
+                if fd < 0 && !full {
+                    fd = open_in(paths[cur], false)
+                    if fd < 0 {
+                        status = 2
+                    }
+                }
+                if status == 0 && !full {
+                    var at_end = false
+                    var want = o.budget - blen
+                    if want <= 0 || want > read_size() {
+                        want = read_size()
+                    }
+                    region pass {
+                        let chunk = fs_read_chunk(fd, want) else |e| match e {
+                            eof => {
+                                at_end = true
+                                List[byte]()
+                            },
+                            io => {
+                                read_failed(paths[cur], bore.io_error())
+                                status = 2
+                                List[byte]()
+                            },
+                        }
+                        if chunk.len == 0 {
+                            at_end = true
+                        }
+                        in run {
+                            for b in chunk {
+                                (mut buf).push(b)
+                            }
+                        }
+                    }
+                    blen = buf.len
+                    if at_end && status == 0 {
+                        if paths[cur] != "-" {
+                            fs_close(fd) else |_| {}
+                        }
+                        fd = -1
+                        // GNU supplies a missing final delimiter, per
+                        // file: `sort A B` never joins A's last line to
+                        // B's first.
+                        if blen > 0 && buf[blen - 1] != c.delim {
+                            (mut buf).push(c.delim)
+                            blen = buf.len
+                        }
+                        cur += 1
+                        if cur >= paths.len {
+                            exhausted = true
+                        }
+                        if blen >= o.budget {
+                            full = true
+                        }
+                    }
+                }
+            }
+            if status == 0 {
+                var starts = List[int]()
+                if blen > 0 {
+                    (mut starts).push(0)
+                }
+                var k = 0
+                while k < blen {
+                    if buf[k] == c.delim {
+                        (mut starts).push(k + 1)
+                    }
+                    k += 1
+                }
+                if starts.len == 0 {
+                    (mut starts).push(0)
+                }
+                let perm = sort_index(c, buf, starts)
+                if exhausted && runs.len == 0 && carry_len == 0 {
+                    // The in-memory sort: everything fitted in one run.
+                    var ofd = -1
+                    if o.has_output {
+                        ofd = open_output(o.output)
+                    }
+                    if o.has_output && ofd < 0 {
+                        status = 2
+                    } else {
+                        var wrote = true
+                        var host = 0
+                        emit_lines(c, buf, starts, perm, out, ofd) else |_| {
+                            wrote = false
+                            host = bore.host_code()
+                        }
+                        if ofd >= 0 {
+                            fs_close(ofd) else |_| {}
+                        }
+                        if !wrote {
+                            status = if ofd >= 0 {
+                                file_write_failed(o.output, host)
+                            } else {
+                                write_failed(out, host)
+                            }
+                        }
+                    }
+                    done = true
+                } else {
+                    var tfd = -1
+                    while tfd == -1 {
+                        tfd = create_temp(dir, id)
+                        if tfd == -1 {
+                            id = temp_id()
+                        }
+                    }
+                    if tfd < 0 {
+                        status = 2
+                    } else {
+                        spilled = id
+                        emit_lines(c, buf, starts, perm, out, tfd) else |_| {
+                            bore.warn(
+                                "sort",
+                                "write failed: {bore.quote_name(temp_path(dir, id))}: {bore.io_error()}",
+                            )
+                            status = 2
+                        }
+                        fs_close(tfd) else |_| {}
+                    }
+                    if exhausted && carry_len == 0 {
+                        done = true
+                    }
+                }
+            }
+            if status != 0 {
+                done = true
+            }
+        }
+        if spilled >= 0 {
+            (mut runs).push(spilled)
+        }
+    }
+    if status != 0 || runs.len == 0 {
+        remove_temps(dir, runs)
+        return status
+    }
+    let code = merge_runs(c, dir, o, runs, out)
+    code
+}
+
+// ------------------------------------------------------------ the merge
+
+/// The readers of a merge: one slot of `slot` bytes per input in
+/// `pool`, the current line of each as `[ls, le)` (absolute), and the
+/// valid bytes of each slot.
+struct Rd {
+    fds: List[int],
+    names: List[str],
+    pool: List[byte],
+    slot: int,
+    len: List[int],
+    ls: List[int],
+    le: List[int],
+    started: List[bool],
+    eof: List[bool],
+    failed: bool,
+}
+
+fn readers(fds: List[int], names: List[str]) -> Rd {
+    var r = Rd {
+        fds: copy fds,
+        names: copy names,
+        pool: List[byte](),
+        slot: read_size(),
+        len: List[int](),
+        ls: List[int](),
+        le: List[int](),
+        started: List[bool](),
+        eof: List[bool](),
+        failed: false,
+    }
+    var i = 0
+    while i < fds.len * r.slot {
+        (mut r.pool).push(0 as byte)
+        i += 1
+    }
+    var k = 0
+    while k < fds.len {
+        (mut r.len).push(0)
+        (mut r.ls).push(0)
+        (mut r.le).push(0)
+        (mut r.started).push(false)
+        (mut r.eof).push(false)
+        k += 1
+    }
+    r
+}
+
+/// Advance reader `r` to its next line. Answers whether there is one.
+/// A last line with no delimiter is a line, ending at the data's end.
+fn next_line(r: int, delim: byte, mut rd: Rd) -> bool {
+    var pos = r * rd.slot
+    if rd.started[r] {
+        pos = rd.le[r] + 1
+    }
+    rd.started[r] = true
+    while true {
+        let base = r * rd.slot
+        let end = base + rd.len[r]
+        if pos > end {
+            return false
+        }
+        var q = pos
+        while q < end && rd.pool[q] != delim {
+            q += 1
+        }
+        if q < end {
+            rd.ls[r] = pos
+            rd.le[r] = q
+            return true
+        }
+        if rd.eof[r] {
+            if pos < end {
+                rd.ls[r] = pos
+                rd.le[r] = end
+                return true
+            }
+            return false
+        }
+        // Keep the partial line: move it to the slot's start.
+        let keep = end - pos
+        var k = 0
+        while k < keep {
+            rd.pool[base + k] = rd.pool[pos + k]
+            k += 1
+        }
+        rd.len[r] = keep
+        pos = base
+        if keep == rd.slot {
+            grow(mut rd)
+            pos = r * rd.slot
+        }
+        let b2 = r * rd.slot
+        let want = rd.slot - rd.len[r]
+        let fd = rd.fds[r]
+        var got = 0
+        var ended = false
+        var bad = false
+        region pass {
+            let chunk = fs_read_chunk(fd, want) else |e| match e {
+                eof => {
+                    ended = true
+                    List[byte]()
+                },
+                io => {
+                    bad = true
+                    List[byte]()
+                },
+            }
+            var i = 0
+            let at = b2 + rd.len[r]
+            while i < chunk.len {
+                rd.pool[at + i] = chunk[i]
+                i += 1
+            }
+            got = chunk.len
+        }
+        if bad {
+            read_failed(rd.names[r], bore.io_error())
+            rd.failed = true
+            return false
+        }
+        if got == 0 {
+            ended = true
+        }
+        rd.len[r] += got
+        if ended {
+            rd.eof[r] = true
+        }
+    }
+    false
+}
+
+/// Double every slot, keeping each reader's bytes and lines in place
+/// relative to its slot. Only a line longer than a slot reaches here.
+fn grow(mut rd: Rd) {
+    let old = rd.slot
+    let slot = old * 2
+    var pool = List[byte]()
+    var i = 0
+    while i < rd.fds.len * slot {
+        (mut pool).push(0 as byte)
+        i += 1
+    }
+    var r = 0
+    while r < rd.fds.len {
+        var k = 0
+        while k < rd.len[r] {
+            pool[r * slot + k] = rd.pool[r * old + k]
+            k += 1
+        }
+        let shift = r * slot - r * old
+        rd.ls[r] += shift
+        rd.le[r] += shift
+        r += 1
+    }
+    rd.pool = pool
+    rd.slot = slot
+}
+
+/// Merge the readers' lines to the destination. Ties go to the
+/// earlier reader, which keeps a merge of runs stable. Under `-u` a
+/// line whose keys equal the last one written is dropped, and the last
+/// one is kept in `last`, because its slot is overwritten as the
+/// reader moves on. Answers 0, or 2 after a read failure (reported),
+/// or 3 for a write failure (for the caller to report).
+fn merge_into(c: Conf, out: bore.Out, fd: int, mut rd: Rd) -> int {
+    var live = List[bool]()
+    var r = 0
+    while r < rd.fds.len {
+        (mut live).push(next_line(r, c.delim, mut rd))
+        r += 1
+    }
+    if rd.failed {
+        return 2
+    }
+    var ob = fresh_buffer()
+    var n = 0
+    // Under -u, the last line written, in one reused buffer.
+    var last = List[byte]()
+    var llen = 0
+    var have_last = false
+    while true {
+        var best = -1
+        var k = 0
+        while k < live.len {
+            if live[k] {
+                if best < 0 {
+                    best = k
+                } else if compare(
+                    c,
+                    rd.pool,
+                    rd.ls[k],
+                    rd.le[k],
+                    rd.pool,
+                    rd.ls[best],
+                    rd.le[best],
+                ) <
+                    0 {
+                    best = k
+                }
+            }
+            k += 1
+        }
+        if best < 0 {
+            break
+        }
+        let s = rd.ls[best]
+        let e = rd.le[best]
+        var keep = true
+        if c.unique && have_last {
+            keep = compare_keys(c, last, 0, llen, rd.pool, s, e) != 0
+        }
+        if keep {
+            if c.unique {
+                while last.len < e - s {
+                    (mut last).push(0 as byte)
+                }
+                var j = s
+                while j < e {
+                    last[j - s] = rd.pool[j]
+                    j += 1
+                }
+                llen = e - s
+                have_last = true
+            }
+            var i = s
+            while i <= e {
+                ob[n] = if i == e then c.delim else rd.pool[i]
+                n += 1
+                if n == ob.len {
+                    put_out(out, fd, ob) else |_| {
+                        return 3
+                    }
+                    n = 0
+                }
+                i += 1
+            }
+        }
+        live[best] = next_line(best, c.delim, mut rd)
+        if rd.failed {
+            return 2
+        }
+    }
+    put_part(out, fd, ob, n) else |_| {
+        return 3
+    }
+    0
+}
+
+/// Merge the sorted runs `ids`, at most `o.batch` at a time: each
+/// batch of the front becomes one new run in its place, in order, until
+/// one batch remains, which is merged to the output.
+fn merge_runs(c: Conf, dir: str, o: Opts, ids: List[int], out: bore.Out) -> int {
+    var runs = copy ids
+    while runs.len > o.batch {
+        var next = List[int]()
+        var at = 0
+        while at < runs.len {
+            let hi = if at + o.batch < runs.len then at + o.batch else runs.len
+            if hi - at == 1 {
+                (mut next).push(runs[at])
+            } else {
+                var id = temp_id()
+                var tfd = -1
+                while tfd == -1 {
+                    tfd = create_temp(dir, id)
+                    if tfd == -1 {
+                        id = temp_id()
+                    }
+                }
+                if tfd < 0 {
+                    remove_temps(dir, runs)
+                    remove_temps(dir, next)
+                    return 2
+                }
+                var group = List[int]()
+                var k = at
+                while k < hi {
+                    (mut group).push(runs[k])
+                    k += 1
+                }
+                // Each merge's readers and buffers die with its region:
+                // measured, without it 1 GB at -S 10M grew to 61 MB of
+                // peak RSS against 41 MB for 100 MB, 4 MiB per batch.
+                var code = 0
+                region batch {
+                    code = merge_temps(c, dir, group, out, tfd)
+                }
+                fs_close(tfd) else |_| {}
+                remove_temps(dir, group)
+                (mut next).push(id)
+                if code != 0 {
+                    var left = List[int]()
+                    var m = hi
+                    while m < runs.len {
+                        (mut left).push(runs[m])
+                        m += 1
+                    }
+                    remove_temps(dir, left)
+                    remove_temps(dir, next)
+                    return if code == 3 then 2 else code
+                }
+            }
+            at = hi
+        }
+        runs = next
+    }
+    var ofd = -1
+    if o.has_output {
+        ofd = open_output(o.output)
+        if ofd < 0 {
+            remove_temps(dir, runs)
+            return 2
+        }
+    }
+    let code = merge_temps(c, dir, runs, out, ofd)
+    // The host's number for a failed write, before the close clears it.
+    let host = bore.host_code()
+    if ofd >= 0 {
+        fs_close(ofd) else |_| {}
+    }
+    remove_temps(dir, runs)
+    if code == 3 {
+        return if ofd >= 0 then file_write_failed(o.output, host) else write_failed(out, host)
+    }
+    code
+}
+
+/// Open the runs `ids` and merge them to `fd` (or standard output).
+fn merge_temps(c: Conf, dir: str, ids: List[int], out: bore.Out, fd: int) -> int {
+    var fds = List[int]()
+    var names = List[str]()
+    for id in ids {
+        let p = temp_path(dir, id)
+        let f = fs_open(p) else |_| {
+            open_failed(p, bore.io_error())
+            for x in fds {
+                fs_close(x) else |_| {}
+            }
+            return 2
+        }
+        (mut fds).push(f)
+        (mut names).push(p)
+    }
+    var rd = readers(fds, names)
+    let code = merge_into(c, out, fd, mut rd)
+    for x in fds {
+        fs_close(x) else |_| {}
+    }
+    code
+}
+
+// ------------------------------------------------------------ merge mode
+
+/// `-m`: every operand is a sorted input, merged as it stands. Every
+/// input is opened before a line is written, so a missing one fails
+/// the whole command with nothing written.
+fn merge_mode(c: Conf, paths: List[str], o: Opts, out: bore.Out) -> int {
+    var fds = List[int]()
+    for p in paths {
+        let f = open_in(p, false)
+        if f < 0 {
+            for x in fds {
+                fs_close(x) else |_| {}
+            }
+            return 2
+        }
+        (mut fds).push(f)
+    }
+    var ofd = -1
+    if o.has_output {
+        ofd = open_output(o.output)
+        if ofd < 0 {
+            return 2
+        }
+    }
+    var rd = readers(fds, paths)
+    let code = merge_into(c, out, ofd, mut rd)
+    // The host's number for a failed write, before the close clears it.
+    let host = bore.host_code()
+    if ofd >= 0 {
+        fs_close(ofd) else |_| {}
+    }
+    if code == 3 {
+        return if ofd >= 0 then file_write_failed(o.output, host) else write_failed(out, host)
+    }
+    code
+}
+
+// ------------------------------------------------------------ check mode
+
+/// `-c` / `-C`: is the one input sorted? Under `-u`, strictly. The
+/// first disorder is reported as `sort: NAME:N: disorder: LINE` —
+/// written as bytes, because LINE is whatever the input held — and the
+/// status is 1.
+fn check(c: Conf, path: str, quiet: bool) -> int {
+    let fd = open_in(path, true)
+    if fd < 0 {
+        return 2
+    }
+    var fds = List[int]()
+    (mut fds).push(fd)
+    var names = List[str]()
+    (mut names).push(path)
+    var rd = readers(fds, names)
+    // The previous line, copied into one buffer that is reused, so the
+    // check's memory does not grow with its input.
+    var prev = List[byte]()
+    var plen = 0
+    var have = false
+    var n = 0
+    var status = 0
+    while status == 0 && next_line(0, c.delim, mut rd) {
+        n += 1
+        let s = rd.ls[0]
+        let e = rd.le[0]
+        if have {
+            let d = compare(c, prev, 0, plen, rd.pool, s, e)
+            if d > 0 || c.unique && d == 0 {
+                if !quiet {
+                    disorder(path, n, rd.pool, s, e, c.delim)
+                }
+                status = 1
+            }
+        }
+        while prev.len < e - s {
+            (mut prev).push(0 as byte)
+        }
+        var i = s
+        while i < e {
+            prev[i - s] = rd.pool[i]
+            i += 1
+        }
+        plen = e - s
+        have = true
+    }
+    if path != "-" {
+        fs_close(fd) else |_| {}
+    }
+    if rd.failed {
+        return 2
+    }
+    status
+}
+
+/// Write `sort: NAME:N: disorder: LINE` and the line's delimiter to
+/// standard error as bytes: a line need not be UTF-8, and `eprint`
+/// takes a `str`. Measured: under `-z` the message ends in a NUL.
+fn disorder(path: str, n: int, a: List[byte], s: int, e: int, delim: byte) {
+    var b = List[byte]()
+    for x in "sort: {path}:{n}: disorder: ".bytes() {
+        (mut b).push(x)
+    }
+    var i = s
+    while i < e {
+        (mut b).push(a[i])
+        i += 1
+    }
+    (mut b).push(delim)
+    fs_write_chunk(2, b) else |_| {}
+}
+
+fn help() -> str {
+    """
+    Usage: sort [OPTION]... [FILE]...
+    Write the lines of every FILE to standard output, sorted.
+    With no FILE, or when FILE is -, read standard input.
+
+    Ordering:
+      -b, --ignore-leading-blanks  skip the blanks that start a key
+      -d, --dictionary-order       compare only blanks, letters and digits
+      -f, --ignore-case            compare lower case as upper case
+      -i, --ignore-nonprinting     compare only printable bytes
+      -M, --month-sort             JAN < FEB < ... < DEC, anything else first
+      -h, --human-numeric-sort     numbers with an SI suffix (2K, 1G)
+      -n, --numeric-sort           an optional -, digits, an optional fraction
+      -r, --reverse                the greatest first
+          --sort=WORD              month, numeric or human-numeric by name
+    Other options:
+          --batch-size=N           merge at most N runs at once
+      -c, --check                  report the first line out of order; exit 1
+      -C, --check=quiet            exit 1 when out of order, and say nothing
+      -k, --key=KEYDEF             sort on a key; see below
+      -m, --merge                  merge inputs that are each sorted already
+      -o, --output=FILE            write to FILE, after all input is read
+      -s, --stable                 keep input order among equal keys
+      -S, --buffer-size=SIZE       hold at most SIZE of input before a run
+                                     goes to a temporary file (KiB unless a
+                                     suffix b, K, M, G ... says otherwise)
+      -t, --field-separator=SEP    fields end at SEP, not at blanks
+      -T, --temporary-directory=DIR  write runs to DIR, not $TMPDIR or /tmp
+          --parallel=N             accepted; this sort uses one thread
+      -u, --unique                 write the first of each run of equal keys
+      -z, --zero-terminated        lines end with NUL, not newline
+          --help                   print this help and exit
+          --version                print the version and exit
+
+    KEYDEF is F[.C][OPTS][,F[.C][OPTS]]: field F, character C, both from
+    1; the end defaults to the line's end, and C 0 at the end means the
+    field's end. OPTS are the ordering letters bdfhiMnr for this key
+    only. Comparison is by bytes, as GNU sort's under LC_ALL=C.
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}
