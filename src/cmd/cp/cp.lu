@@ -1,0 +1,1229 @@
+//!
+//! cp — copy files, and with -r whole directories.
+//!
+//! References consulted: POSIX.1-2024 `cp`; GNU coreutils 9.11
+//! `cp --help`, the info manual's `cp invocation` node, and black-box
+//! runs of the GNU binary on linux x86-64, every one inside a scratch
+//! directory (kasumi `~/lanes/bu21/gx.sh` and the differential
+//! harness), under `LC_ALL=C`. Never GNU source, nor any other
+//! implementation's.
+//!
+//! GNU's rules, each measured against 9.11:
+//!
+//! - `cp SOURCE DEST` copies one file's bytes; `cp SOURCE...
+//!   DIRECTORY` and `-t DIRECTORY` copy each into the directory under
+//!   its own last name; `-T` never treats DEST as one.
+//! - A DEST that exists is opened and truncated, so it keeps its own
+//!   mode and its own inode, and a DEST that is a link is written
+//!   THROUGH. A DEST that does not exist is created.
+//! - A directory is `-r not specified; omitting directory 'D'` without
+//!   `-r`. With it, the directory is made (or, if DEST's is there,
+//!   added to) and everything in it copied.
+//! - Without `-r` a SOURCE that is a link is followed. Under `-r`
+//!   nothing is followed unless `-L` (every link) or `-H` (the ones on
+//!   the command line) says so.
+//! - `-i` asks before replacing (a "no" is status 1, nothing more
+//!   said), `-n` never replaces and is no failure, `-f` removes a DEST
+//!   it cannot open and tries again, `--remove-destination` removes it
+//!   first. `-v` prints `'A' -> 'B'`.
+//! - A directory copied into itself stops at its own copy: `cannot copy
+//!   a directory, 'D', into itself, 'D/D'`. Under `-L` a link back to a
+//!   directory being read is `cannot copy cyclic symbolic link`.
+//!
+//! **Bytes move by `fs_copy_chunk`** (wolf 0.2.26): on linux
+//! `copy_file_range`, then `sendfile`, `splice`, and a read/write loop;
+//! on macOS the loop. They do not pass through this program.
+//!
+//! - **A new file gets the SOURCE's permission bits less the umask**
+//!   (its set-id bits are dropped), made so from its first instant
+//!   (`fs_open_perm`, wolf 0.2.28); a new directory likewise, made
+//!   owner-writable while it is filled and given its mode after.
+//!   `--no-preserve=mode` asks for creation's 666 (777) less the umask.
+//! - **`-p`** (`--preserve` with no list: mode, ownership, timestamps)
+//!   gives the copy the SOURCE's mode exactly, set-id bits and all, and
+//!   both its times to the nanosecond (`fs_set_mode`, `fs_set_times`,
+//!   bu22), a directory's after what it holds; a DEST that was there
+//!   gets them too. `--preserve=mode,timestamps` names them one at a
+//!   time and `--no-preserve` takes them back.
+//! - A link met under `-r`, or any link under `-P`, is copied as a link
+//!   (its text, `fs_read_link` and `fs_symlink`); under `-p` its own
+//!   times too.
+//!
+//! **What this program cannot do, and does not pretend to.**
+//!
+//! - **The owner and group** cannot be set (wolf-lang#701, and no user
+//!   id to know whether one may: #633). Under `-p` or
+//!   `--preserve=ownership` a copy whose owner or group came out other
+//!   than the SOURCE's says so by name, status 1, the copy kept. (GNU,
+//!   not running as root, gives up such an owner without a word; as
+//!   root it sets it.)
+//! - **`--preserve=links`, `xattr`, `context`, `all` and `-a`, `-d`** are
+//!   refused by name: hard links among the sources are not tracked, and
+//!   wolf reads no extended attribute (wolf-lang#685).
+//! - **A fifo, a socket or a device under `-r`** cannot be made
+//!   (wolf-lang#705): that entry is refused by name, the rest copied.
+//! - **`--sparse` and `--reflink`** with anything but `auto` are
+//!   refused by name (#703). With `auto`, GNU keeps a source's holes
+//!   and shares its extents where the file system can; this program
+//!   takes whatever `fs_copy_chunk` does on the host, which on btrfs is
+//!   the same sharing and elsewhere may fill the holes in. The bytes
+//!   are the same either way.
+//! - A failed copy is `error copying 'A' to 'B'`: the builtin's `io`
+//!   row does not say which side failed (wolf-lang#642), where GNU says
+//!   `error reading` or `error writing`.
+//! - `--copy-contents`, `--keep-directory-symlink` and `--debug` are
+//!   not written yet, and are refused by name. `-Z` does nothing on a
+//!   host without SELinux, as GNU's does there.
+
+use bore
+
+struct Cfg {
+    recursive: bool,
+    /// Which links in SOURCE are followed: 0 none (`-P`), 1 the ones on
+    /// the command line (`-H`), 2 all (`-L`).
+    follow: int,
+    /// 0 replace, 1 `-f`, 2 `-i`, 3 `-n`.
+    over: int,
+    verbose: bool,
+    remove_first: bool,
+    /// False under `--no-preserve=mode`: creation's mode is the one
+    /// asked for.
+    source_mode: bool,
+    /// `-p`'s three: the mode exactly, both times, the owner.
+    keep_mode: bool,
+    keep_times: bool,
+    keep_owner: bool,
+    umask: int,
+    link_mode: int,
+    update: int,
+    backup: int,
+    suffix: str,
+    saved_backup: str,
+    parents: bool,
+    attrs: bool,
+    one_fs: bool,
+}
+
+struct ParentAttrs { dst: str, rec: List[int] }
+
+/// How one copy ended.
+fn copied() -> int {
+    0
+}
+
+fn failed() -> int {
+    1
+}
+
+/// Left alone by `-n`: no failure.
+fn skipped() -> int {
+    2
+}
+
+/// A source directory turned out to be one this run made: the copy is
+/// being copied into itself. The whole operand stops, and its caller
+/// says so in the operand's own names.
+fn into_itself() -> int {
+    3
+}
+
+/// Runs `cp` on ARGS, the arguments after its name: argv[1..] as its own
+/// program, argv[2..] through `bore cp`. The status is the utility's.
+pub fn main(args: List[str]) -> int {
+    let p = bore.parse(options(), args, bore.permute())
+    var out = bore.stdout()
+    var c = Cfg {
+        recursive: false,
+        follow: -1,
+        over: 0,
+        verbose: false,
+        remove_first: false,
+        source_mode: true,
+        keep_mode: false,
+        keep_times: false,
+        keep_owner: false,
+        umask: bore.current_umask(),
+        link_mode: 0,
+        update: 0,
+        backup: 0,
+        suffix: bore.backup_suffix(),
+        saved_backup: "",
+        parents: false,
+        attrs: false,
+        one_fs: false,
+    }
+    var target = ""
+    var into = false
+    var no_target = false
+    var strip = false
+    var backup_enabled = false
+    var backup_word = ""
+    var refused = ""
+    var context = false
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i]
+        if k == "help" {
+            bore.put(mut out, help()) else |_| {}
+            return bore.finish(mut out, "cp", 0)
+        }
+        if k == "version" {
+            bore.put(mut out, bore.version_text("cp")) else |_| {}
+            return bore.finish(mut out, "cp", 0)
+        }
+        if k == "recursive" || k == "R" {
+            c.recursive = true
+        } else if k == "force" {
+            if c.over != 2 && c.over != 3 {
+                c.over = 1
+            }
+        } else if k == "interactive" {
+            c.over = 2
+        } else if k == "no-clobber" {
+            c.over = 3
+        } else if k == "verbose" {
+            c.verbose = true
+        } else if k == "dereference" {
+            c.follow = 2
+        } else if k == "H" {
+            c.follow = 1
+        } else if k == "remove-destination" {
+            c.remove_first = true
+        } else if k == "target-directory" {
+            if into {
+                bore.warn("cp", "multiple target directories specified")
+                return 1
+            }
+            target = p.values[i]
+            into = true
+        } else if k == "no-target-directory" {
+            no_target = true
+        } else if k == "strip-trailing-slashes" {
+            strip = true
+        } else if k == "Z" {
+            // No security context to set on this host.
+        } else if k == "context" {
+            if p.given[i] {
+                context = true
+            }
+        } else if k == "p" {
+            c.keep_mode = true
+            c.keep_times = true
+            c.keep_owner = true
+            c.source_mode = true
+        } else if k == "preserve" {
+            var list = "mode,ownership,timestamps"
+            if p.given[i] {
+                list = p.values[i]
+            }
+            let r = preserve(mut c, list, true)
+            if r == -1 {
+                return 1
+            }
+            if r == -2 && refused.len == 0 {
+                refused = "--preserve=links, xattr, context and all are not supported: hard links among the sources are not tracked, and wolf reads no extended attribute (wolf-lang#685)"
+            }
+        } else if k == "no-preserve" {
+            let r = preserve(mut c, p.values[i], false)
+            if r == -1 {
+                return 1
+            }
+        } else if k == "no-dereference" {
+            c.follow = 0
+        } else if k == "sparse" || k == "reflink" {
+            if (p.given[i] && p.values[i] != "auto" || !p.given[i] && k == "reflink") &&
+                refused.len == 0 {
+                refused = "--{k} is not supported: wolf 0.2.27 can neither find a hole nor ask for a clone (wolf-lang#703)"
+            }
+        } else if k == "symbolic-link" || k == "link" {
+            c.link_mode = if k == "symbolic-link" then 1 else 2
+        } else if k == "update" || k == "u" {
+            let word = if k == "update" && p.given[i] then p.values[i] else "older"
+            c.update = bore.argmatch(word, ["all", "older", "none", "none-fail"], [0, 1, 2, 3])
+            if c.update < 0 {
+                return bore.argmatch_error(
+                    "cp",
+                    word,
+                    "update",
+                    ["all", "older", "none", "none-fail"],
+                    [0, 1, 2, 3],
+                    c.update == -2,
+                )
+            }
+        } else if k == "backup" || k == "b" || k == "suffix" {
+            backup_enabled = true
+            if k == "suffix" { c.suffix = if p.values[i].len == 0 then "~" else p.values[i] }
+            if k == "backup" && p.given[i] { backup_word = p.values[i] }
+        } else if k == "parents" {
+            c.parents = true
+        } else if k == "attributes-only" {
+            c.attrs = true
+        } else if k == "one-file-system" {
+            c.one_fs = true
+        } else if refused.len == 0 {
+            refused = refusal(k)
+        }
+        i += 1
+    }
+    if !bore.ok(p) {
+        return bore.usage_error("cp", p.error)
+    }
+    if backup_enabled {
+        c.backup = if backup_word.len > 0 {
+            bore.backup_kind(backup_word)
+        } else {
+            bore.backup_default()
+        }
+        if c.backup < 0 {
+            return bore.backup_error(
+                "cp",
+                if backup_word.len > 0 then backup_word else (env_get("VERSION_CONTROL") else ""),
+            )
+        }
+    }
+    if refused.len > 0 {
+        bore.warn("cp", refused)
+        return 1
+    }
+    if c.backup > 0 && (c.over == 3 || c.update == 3) {
+        return bore.usage_error(
+            "cp",
+            "--backup is mutually exclusive with -n or --update=none-fail",
+        )
+    }
+    if context {
+        bore.warn("cp", "warning: ignoring --context; it requires an SELinux-enabled kernel")
+    }
+    if c.follow < 0 {
+        c.follow = if c.recursive then 0 else 2
+    }
+    var names = List[str]()
+    for n in p.operands {
+        if strip {
+            (mut names).push(bore.without_slashes(n))
+        } else {
+            (mut names).push(n)
+        }
+    }
+    if names.len == 0 {
+        return bore.usage_error("cp", "missing file operand")
+    }
+    if into && no_target {
+        bore.warn("cp", "cannot combine --target-directory (-t) and --no-target-directory (-T)")
+        return 1
+    }
+    if !into {
+        if names.len == 1 {
+            return bore.usage_error(
+                "cp",
+                "missing destination file operand after {bore.quote_always(names[0])}",
+            )
+        }
+        if no_target {
+            if names.len > 2 {
+                return bore.usage_error("cp", "extra operand {bore.quote_always(names[2])}")
+            }
+        } else if names.len > 2 || is_directory(names[names.len - 1]) {
+            target = names[names.len - 1]
+            let _ = (mut names).pop() else ""
+            into = true
+            if !is_directory(target) {
+                return not_a_target(target, "target")
+            }
+        }
+    } else if !is_directory(target) {
+        return not_a_target(target, "target directory")
+    }
+    if c.parents && !into {
+        return bore.usage_error("cp", "with --parents, the destination must be a directory")
+    }
+    // The directories this run has made, as device and inode pairs: a
+    // source directory that IS one of them is the copy being copied
+    // into itself.
+    var made = List[int]()
+    var status = 0
+    if into {
+        for n in names {
+            var parents = List[ParentAttrs]()
+            var dest = bore.join_name(target, bore.last_name(n))
+            if c.parents {
+                var relative = n
+                while relative.starts_with("/") { relative = relative[1..] }
+                dest = bore.join_name(target, relative)
+                if !make_parents(mut out, c, target, n, mut parents) { status = 1; continue }
+            }
+            if !operand(mut out, c, n, dest, mut made) { status = 1 }
+            if !finish_parents(c, parents) { status = 1 }
+        }
+    } else if !operand(mut out, c, names[0], names[1], mut made) {
+        status = 1
+    }
+    bore.finish(mut out, "cp", status)
+}
+
+/// Copy one operand. Answers false on a failure.
+fn operand(mut out: bore.Out, c: Cfg, src: str, dst: str, mut made: List[int]) -> bool {
+    // The source directories being read, outermost first, as device and
+    // inode pairs: a link followed back to one of them is a cycle.
+    var above = List[int]()
+    let end = any(mut out, c, src, dst, true, List[int](), mut made, mut above)
+    if end == into_itself() {
+        bore.warn(
+            "cp",
+            "cannot copy a directory, {bore.quote_always(src)}, into itself, {bore.quote_always(dst)}",
+        )
+        return false
+    }
+    end != failed()
+}
+
+/// Why the option `k` is refused, or `""`.
+fn refusal(k: str) -> str {
+    if k == "archive" || k == "d" {
+        return "-a and -d are not supported: they preserve hard links among the sources, which this cp does not track"
+    }
+    if k == "copy-contents" || k == "keep-directory-symlink" || k == "debug" {
+        return "--{k} is not written yet"
+    }
+    ""
+}
+
+/// Read a `--preserve` (`on`) or `--no-preserve` list into `c`. Answers
+/// 0, -1 (having said why) for a word that is not one of GNU's, or -2 for
+/// a word this cp refuses (`links`, `xattr`, `context`, `all`, preserved).
+fn preserve(mut c: Cfg, list: str, on: bool) -> int {
+    let flag = if on then "--preserve" else "--no-preserve"
+    var choices = List[str]()
+    var meaning = List[int]()
+    var n = 0
+    for w in ["mode", "timestamps", "ownership", "links", "context", "xattr", "all"] {
+        (mut choices).push(w)
+        (mut meaning).push(n)
+        n += 1
+    }
+    var answer = 0
+    for w in list.split(",") {
+        let which = bore.argmatch(w, choices, meaning)
+        if which < 0 {
+            let _ = bore.argmatch_error("cp", w, flag[2..], choices, meaning, which == -2)
+            return -1
+        }
+        if which == 0 || which == 6 {
+            c.keep_mode = on
+            c.source_mode = on || !(which == 0 || which == 6)
+        }
+        if which == 1 || which == 6 {
+            c.keep_times = on
+        }
+        if which == 2 || which == 6 {
+            c.keep_owner = on
+        }
+        if on && which >= 3 {
+            answer = -2
+        }
+    }
+    answer
+}
+
+fn not_a_target(target: str, what: str) -> int {
+    var why = "Not a directory"
+    let _ = fs_stat(target) else |_| {
+        why = bore.io_error()
+        List[int]()
+    }
+    bore.warn("cp", "{what} {bore.quote_always(target)}: {why}")
+    1
+}
+
+fn is_directory(path: str) -> bool {
+    let r = fs_stat(path) else |_| {
+        return false
+    }
+    bore.rec_kind(r) == bore.kind_dir()
+}
+
+fn confirm(mut out: bore.Out, question: str) -> bool {
+    bore.flush(mut out) else |_| {}
+    eprint_raw("cp: {question}? ")
+    bore.said_yes()
+}
+
+fn say(mut out: bore.Out, c: Cfg, src: str, dst: str) {
+    if c.verbose {
+        let suffix = if c.saved_backup.len > 0 {
+            " (backup: {bore.quote_always(c.saved_backup)})"
+        } else {
+            ""
+        }
+        bore.put(
+            mut out,
+            "{bore.quote_always(src)} -> {bore.quote_always(dst)}{suffix}\n",
+        ) else |_| {}
+    }
+}
+
+/// `mode` in four octal digits.
+fn octal4(mode: int) -> str {
+    let d = "01234567"
+    let a = mode / 512 % 8
+    let b = mode / 64 % 8
+    let e = mode / 8 % 8
+    let f = mode % 8
+    "{d[a..a + 1]}{d[b..b + 1]}{d[e..e + 1]}{d[f..f + 1]}"
+}
+
+/// Copy whatever `src` names to `dst`. `top` says `src` is an operand,
+/// which `-H` follows. `known` is `src`'s own record when its
+/// directory's walk has already read it (without following a link), and
+/// empty otherwise.
+fn any(
+    mut out: bore.Out,
+    c: Cfg,
+    src: str,
+    dst: str,
+    top: bool,
+    known: List[int],
+    mut made: List[int],
+    mut above: List[int],
+) -> int {
+    let follow = c.follow == 2 || top && c.follow == 1
+    var why = ""
+    var rec = List[int]()
+    if known.len > 0 && (!follow || bore.rec_kind(known) != bore.kind_link()) {
+        rec = copy known
+    } else if follow {
+        rec = fs_stat(src) else |_| {
+            why = bore.io_error()
+            List[int]()
+        }
+    } else {
+        rec = fs_lstat(src) else |_| {
+            why = bore.io_error()
+            List[int]()
+        }
+    }
+    if why.len > 0 {
+        bore.warn("cp", "cannot stat {bore.quote_always(src)}: {why}")
+        return failed()
+    }
+    let kind = bore.rec_kind(rec)
+    if kind == bore.kind_dir() {
+        if !c.recursive {
+            bore.warn("cp", "-r not specified; omitting directory {bore.quote_always(src)}")
+            return failed()
+        }
+        if follow && pair_in(above, rec) {
+            bore.warn("cp", "cannot copy cyclic symbolic link {bore.quote_always(src)}")
+            return failed()
+        }
+        return directory(mut out, c, src, dst, rec, mut made, mut above)
+    }
+    var cfg = copy c
+    cfg.saved_backup = ""
+    let to = fs_lstat(dst) else List[int]()
+    if to.len > 0 {
+        if bore.same_file(rec, to) {
+            if c.link_mode == 2 { return copied() }
+            let a = bore.canonical(src, bore.existing())
+            let b = bore.canonical(dst, bore.existing())
+            if a.ok && b.ok && a.path == b.path {
+                bore.warn(
+                    "cp",
+                    "{bore.quote_always(src)} and {bore.quote_always(dst)} are the same file",
+                )
+                return failed()
+            }
+        }
+        if c.update == 3 {
+            bore.warn("cp", "not replacing {bore.quote_always(dst)}")
+            return failed()
+        }
+        if c.update == 2 ||
+            c.update == 1 &&
+                (
+                    bore.rec_secs(rec, 0) < bore.rec_secs(to, 0) ||
+                        bore.rec_secs(rec, 0) == bore.rec_secs(to, 0) &&
+                            bore.rec_nanos(rec, 0) <= bore.rec_nanos(to, 0)
+                ) {
+            return skipped()
+        }
+        if c.backup > 0 && c.over != 3 && bore.rec_kind(to) != bore.kind_dir() {
+            if c.over == 2 && !confirm(mut out, "overwrite {bore.quote_always(dst)}") {
+                return failed()
+            }
+            cfg.saved_backup = bore.backup_name(dst, c.backup, c.suffix)
+            if cfg.saved_backup == src || cfg.saved_backup == dst {
+                bore.warn(
+                    "cp",
+                    "backup name {bore.quote_always(cfg.saved_backup)} would overwrite a source or destination",
+                )
+                return failed()
+            }
+            fs_rename(dst, cfg.saved_backup) else |_| {
+                bore.warn("cp", "cannot backup {bore.quote_always(dst)}: {bore.io_error()}")
+                return failed()
+            }
+        }
+    }
+    var result = copied()
+    if c.link_mode > 0 && (kind != bore.kind_link() || c.link_mode == 1) {
+        result = make_link(mut out, cfg, src, dst, rec)
+    } else if kind == bore.kind_link() {
+        result = link(mut out, cfg, src, dst, rec)
+    } else if kind != bore.kind_file() && c.recursive {
+        bore.warn(
+            "cp",
+            "cannot copy the special file {bore.quote_always(src)} to {bore.quote_always(dst)}: wolf cannot create a fifo, a socket or a device (wolf-lang#705)",
+        )
+        result = failed()
+    } else {
+        result = file(mut out, cfg, src, dst, rec)
+    }
+    if result == failed() && cfg.saved_backup.len > 0 {
+        fs_remove(dst) else |_| {}
+        fs_rename(cfg.saved_backup, dst) else |_| {}
+    }
+    result
+}
+
+/// Copy the bytes of the file `src` (record `rec`) to `dst`.
+fn file(mut out: bore.Out, c: Cfg, src: str, dst: str, rec: List[int]) -> int {
+    var there = true
+    let to = fs_stat(dst) else |_| {
+        there = false
+        List[int]()
+    }
+    var stale = false
+    if !there && dangling(dst) {
+        if !c.remove_first {
+            bore.warn("cp", "not writing through dangling symlink {bore.quote_always(dst)}")
+            return failed()
+        }
+        stale = true
+    }
+    if there {
+        if bore.same_file(rec, to) {
+            bore.warn(
+                "cp",
+                "{bore.quote_always(src)} and {bore.quote_always(dst)} are the same file",
+            )
+            return failed()
+        }
+        if bore.rec_kind(to) == bore.kind_dir() {
+            bore.warn(
+                "cp",
+                "cannot overwrite directory {bore.quote_always(dst)} with non-directory {bore.quote_always(src)}",
+            )
+            return failed()
+        }
+        if c.over == 3 {
+            return skipped()
+        }
+        // "May I write it?" is the owner's write bit (wolf-lang#633).
+        // Only `-i` asks: without it GNU's cp asks nothing, terminal
+        // or not, and lets the host refuse (measured at a terminal).
+        let guarded = bore.rec_mode(to) / 128 % 2 == 0
+        if c.over == 2 {
+            var question = "overwrite {bore.quote_always(dst)}"
+            if guarded {
+                let m = bore.rec_mode(to)
+                question = "unwritable {bore.quote_always(dst)} (mode {octal4(m)}, {bore.mode_text(bore.kind_file(), m)[1..]}); try anyway"
+            }
+            if !confirm(mut out, question) {
+                // A "no" is status 1 to GNU's cp, with nothing more said.
+                return failed()
+            }
+        }
+    }
+    if c.attrs && there {
+        say(mut out, c, src, dst)
+        return keep(c, dst, rec, true)
+    }
+    var reason = ""
+    let from = if c.attrs {
+        -1
+    } else {
+        fs_open(src) else |_| {
+            reason = bore.io_error()
+            -1
+        }
+    }
+    if from < 0 && !c.attrs {
+        bore.warn("cp", "cannot open {bore.quote_always(src)} for reading: {reason}")
+        return failed()
+    }
+    var fresh = !there
+    if there && c.remove_first || stale {
+        fs_remove(dst) else |_| {
+            reason = bore.io_error()
+        }
+        if reason.len > 0 {
+            fs_close(from) else |_| {}
+            bore.warn("cp", "cannot remove {bore.quote_always(dst)}: {reason}")
+            return failed()
+        }
+        fresh = true
+    }
+    var into = -1
+    if !fresh {
+        into = fs_open_mode(dst, 1) else |_| {
+            reason = bore.io_error()
+            -1
+        }
+        if into < 0 && c.over == 1 {
+            // `-f`: a DEST that cannot be opened is removed, and made anew.
+            reason = ""
+            fs_remove(dst) else |_| {
+                reason = bore.io_error()
+            }
+            if reason.len > 0 {
+                fs_close(from) else |_| {}
+                bore.warn("cp", "cannot remove {bore.quote_always(dst)}: {reason}")
+                return failed()
+            }
+            fresh = true
+        }
+    }
+    if fresh {
+        // The SOURCE's permission bits less the umask from the first
+        // instant, or creation's own under `--no-preserve=mode`.
+        let bits = if c.source_mode then bore.rec_mode(rec) % 512 else 438
+        into = fs_open_perm(dst, 4, bits) else |_| {
+            reason = bore.io_error()
+            -1
+        }
+        if into < 0 && dst.ends_with("/") && reason == bore.directory_reason() {
+            // Measured: GNU's words for a new name typed with a slash.
+            reason = "Not a directory"
+        }
+    }
+    if into < 0 {
+        fs_close(from) else |_| {}
+        bore.warn("cp", "cannot create regular file {bore.quote_always(dst)}: {reason}")
+        return failed()
+    }
+    var done = c.attrs
+    var code = 0
+    while !done {
+        let _ = fs_copy_chunk(from, into, 1073741824) else |e| {
+            match e {
+                eof => {},
+                io => { code = bore.host_code() + 1 },
+            }
+            done = true
+            0
+        }
+    }
+    fs_close(from) else |_| {}
+    fs_close(into) else |_| {}
+    if code > 0 {
+        bore.warn(
+            "cp",
+            "error copying {bore.quote_always(src)} to {bore.quote_always(dst)}: {bore.reason_of(code - 1)}",
+        )
+        return failed()
+    }
+    say(mut out, c, src, dst)
+    keep(c, dst, rec, true)
+}
+
+/// `-p` and `--preserve`: give `dst` what `rec` (the SOURCE's record)
+/// says — the times, then the mode, then a word on the owner. `follow`
+/// false is a link's own. Answers `copied()` or `failed()`.
+fn keep(c: Cfg, dst: str, rec: List[int], follow: bool) -> int {
+    if c.keep_times {
+        var why = ""
+        fs_set_times(
+            dst,
+            bore.rec_secs(rec, 1),
+            bore.rec_nanos(rec, 1),
+            bore.rec_secs(rec, 0),
+            bore.rec_nanos(rec, 0),
+            follow,
+        ) else |_| {
+            why = bore.io_error()
+        }
+        if why.len > 0 {
+            bore.warn("cp", "preserving times for {bore.quote_always(dst)}: {why}")
+            return failed()
+        }
+    }
+    if c.keep_mode && follow {
+        var why = ""
+        fs_set_mode(dst, bore.rec_mode(rec) % 4096) else |_| {
+            why = bore.io_error()
+        }
+        if why.len > 0 {
+            bore.warn("cp", "preserving permissions for {bore.quote_always(dst)}: {why}")
+            return failed()
+        }
+    }
+    if c.keep_owner {
+        var now = List[int]()
+        if follow {
+            now = fs_stat(dst) else |_| {
+                List[int]()
+            }
+        } else {
+            now = fs_lstat(dst) else |_| {
+                List[int]()
+            }
+        }
+        if now.len > 0 &&
+            (bore.rec_uid(now) != bore.rec_uid(rec) || bore.rec_gid(now) != bore.rec_gid(rec)) {
+            bore.warn(
+                "cp",
+                "cannot preserve the owner and group of {bore.quote_always(dst)} (uid {bore.rec_uid(rec)}, gid {bore.rec_gid(rec)}): wolf cannot change an owner (wolf-lang#701)",
+            )
+            return failed()
+        }
+    }
+    copied()
+}
+
+/// Copy the symbolic link `src` (record `rec`) as a link: its text, and
+/// under `-p` its own times.
+fn link(mut out: bore.Out, c: Cfg, src: str, dst: str, rec: List[int]) -> int {
+    var why = ""
+    let raw = fs_read_link(src) else |_| {
+        why = bore.io_error()
+        List[byte]()
+    }
+    if why.len > 0 {
+        bore.warn("cp", "cannot read symbolic link {bore.quote_always(src)}: {why}")
+        return failed()
+    }
+    var named = true
+    let text = str_from_utf8(raw) else |_| {
+        named = false
+        ""
+    }
+    if !named {
+        bore.warn(
+            "cp",
+            "cannot copy the symbolic link {bore.quote_always(src)}: its target is not UTF-8, and wolf cannot name it (wolf-lang#687)",
+        )
+        return failed()
+    }
+    var there = true
+    let to = fs_lstat(dst) else |_| {
+        there = false
+        List[int]()
+    }
+    if there {
+        if bore.rec_kind(to) == bore.kind_dir() {
+            bore.warn(
+                "cp",
+                "cannot overwrite directory {bore.quote_always(dst)} with non-directory {bore.quote_always(src)}",
+            )
+            return failed()
+        }
+        if c.over == 3 {
+            return skipped()
+        }
+        fs_remove(dst) else |_| {
+            why = bore.io_error()
+        }
+        if why.len > 0 {
+            bore.warn("cp", "cannot remove {bore.quote_always(dst)}: {why}")
+            return failed()
+        }
+    }
+    fs_symlink(text, dst) else |_| {
+        why = bore.io_error()
+    }
+    if why.len > 0 {
+        bore.warn("cp", "cannot create symbolic link {bore.quote_always(dst)}: {why}")
+        return failed()
+    }
+    say(mut out, c, src, dst)
+    keep(c, dst, rec, false)
+}
+
+/// Whether `path` is a symbolic link whose target is not there.
+fn dangling(path: str) -> bool {
+    let r = fs_lstat(path) else |_| {
+        return false
+    }
+    bore.rec_kind(r) == bore.kind_link()
+}
+
+/// Whether `rec`'s device and inode are one of the pairs in `pairs`.
+fn pair_in(pairs: List[int], rec: List[int]) -> bool {
+    var k = 0
+    while k + 1 < pairs.len {
+        if pairs[k] == bore.rec_dev(rec) && pairs[k + 1] == bore.rec_ino(rec) {
+            return true
+        }
+        k += 2
+    }
+    false
+}
+
+/// `cp -r`: the directory `src` (record `rec`) into `dst`.
+fn directory(
+    mut out: bore.Out,
+    c: Cfg,
+    src: str,
+    dst: str,
+    rec: List[int],
+    mut made: List[int],
+    mut above: List[int],
+) -> int {
+    if pair_in(made, rec) {
+        return into_itself()
+    }
+    var there = true
+    let to = fs_stat(dst) else |_| {
+        there = false
+        List[int]()
+    }
+    if there && bore.rec_kind(to) != bore.kind_dir() {
+        bore.warn(
+            "cp",
+            "cannot overwrite non-directory {bore.quote_always(dst)} with directory {bore.quote_always(src)}",
+        )
+        return failed()
+    }
+    var why = ""
+    // What the copy's mode is to end as: the SOURCE's less the umask (or
+    // creation's 777 less it), or the SOURCE's exactly under `-p`. It is
+    // made owner-writable and searchable meanwhile, so what the SOURCE
+    // holds can be copied into it whatever its mode.
+    let bits = if c.source_mode then bore.rec_mode(rec) % 512 else 511
+    var final = bits & 511 - c.umask % 512
+    if c.keep_mode {
+        final = bore.rec_mode(rec) % 4096
+    }
+    if !there {
+        fs_create_dir_mode(dst, bits | 448) else |_| {
+            why = bore.io_error()
+        }
+        if why.len > 0 {
+            bore.warn("cp", "cannot create directory {bore.quote_always(dst)}: {why}")
+            return failed()
+        }
+        let now = fs_stat(dst) else |_| {
+            List[int]()
+        }
+        if now.len == 0 {
+            bore.warn("cp", "cannot create directory {bore.quote_always(dst)}: {bore.io_error()}")
+            return failed()
+        }
+        (mut made).push(bore.rec_dev(now))
+        (mut made).push(bore.rec_ino(now))
+        say(mut out, c, src, dst)
+    }
+    // Listed AFTER its copy exists, as GNU does: a directory copied
+    // into itself then finds its own copy among its entries.
+    let entries = if c.one_fs && above.len > 0 && bore.rec_dev(rec) != above[0] {
+        List[List[byte]]()
+    } else {
+        fs_read_dir_entries(src) else |_| {
+            why = bore.io_error()
+            List[List[byte]]()
+        }
+    }
+    var status = copied()
+    if why.len > 0 {
+        // Measured: GNU still gives the copy its mode (and, under `-p`,
+        // its times) when the SOURCE cannot be listed.
+        bore.warn("cp", "cannot access {bore.quote_always(src)}: {why}")
+        status = failed()
+    }
+    (mut above).push(bore.rec_dev(rec))
+    (mut above).push(bore.rec_ino(rec))
+    let from = bore.without_slashes(src)
+    let onto = bore.without_slashes(dst)
+    // Every entry's name and its own record, then the order of their
+    // inode numbers: GNU copies a directory in that order, not the
+    // directory's own (measured on ext4 and APFS, where the two part).
+    var names = List[str]()
+    var records = List[int]()
+    var inodes = List[int]()
+    for e in entries {
+        var raw = List[byte]()
+        var i = 1
+        while i < e.len {
+            (mut raw).push(e[i])
+            i += 1
+        }
+        var named = true
+        let base = str_from_utf8(raw) else |_| {
+            named = false
+            ""
+        }
+        if !named {
+            bore.warn(
+                "cp",
+                "cannot copy an entry of {bore.quote_always(src)}: its name is not UTF-8, and wolf cannot name it (wolf-lang#687)",
+            )
+            status = failed()
+            continue
+        }
+        let r = fs_lstat(bore.join_name(from, base)) else |_| {
+            List[int]()
+        }
+        (mut names).push(base)
+        (mut inodes).push(if r.len > 0 then bore.rec_ino(r) else 0)
+        var w = 0
+        while w < 20 {
+            (mut records).push(if r.len > 0 then r[w] else -1)
+            w += 1
+        }
+    }
+    for k in bore.order_by(inodes) {
+        var known = List[int]()
+        if records[k * 20] >= 0 {
+            known = records[k * 20..k * 20 + 20]
+        }
+        let end = any(
+            mut out,
+            c,
+            bore.join_name(from, names[k]),
+            bore.join_name(onto, names[k]),
+            false,
+            known,
+            mut made,
+            mut above,
+        )
+        if end == into_itself() {
+            status = into_itself()
+            break
+        }
+        if end == failed() {
+            status = failed()
+        }
+    }
+    let _ = (mut above).pop() else 0
+    let _ = (mut above).pop() else 0
+    // Set only when creation did not already give it: a call fewer, and
+    // one a host without mode changes (PAX's tree) never refuses.
+    let created = (bits | 448) & 511 - c.umask % 512
+    if !there && final != created || c.keep_mode {
+        var set_why = ""
+        fs_set_mode(dst, final) else |_| {
+            set_why = bore.io_error()
+        }
+        if set_why.len > 0 {
+            bore.warn("cp", "preserving permissions for {bore.quote_always(dst)}: {set_why}")
+            if status == copied() {
+                status = failed()
+            }
+        }
+    }
+    if c.keep_times || c.keep_owner {
+        var quiet = copy c
+        quiet.verbose = false
+        quiet.keep_mode = false
+        if keep(quiet, dst, rec, true) == failed() && status == copied() {
+            status = failed()
+        }
+    }
+    status
+}
+
+fn options() -> List[bore.Opt] {
+    var s = List[bore.Opt]()
+    (mut s).push(bore.flag("a", "archive"))
+    (mut s).push(bore.flag("", "attributes-only"))
+    (mut s).push(bore.optional("", "backup"))
+    (mut s).push(bore.flag("b", ""))
+    (mut s).push(bore.flag("", "copy-contents"))
+    (mut s).push(bore.flag("d", ""))
+    (mut s).push(bore.flag("", "debug"))
+    (mut s).push(bore.flag("f", "force"))
+    (mut s).push(bore.flag("i", "interactive"))
+    (mut s).push(bore.flag("H", ""))
+    (mut s).push(bore.flag("", "keep-directory-symlink"))
+    (mut s).push(bore.flag("l", "link"))
+    (mut s).push(bore.flag("L", "dereference"))
+    (mut s).push(bore.flag("n", "no-clobber"))
+    (mut s).push(bore.flag("P", "no-dereference"))
+    (mut s).push(bore.flag("p", ""))
+    (mut s).push(bore.optional("", "preserve"))
+    (mut s).push(bore.takes("", "no-preserve"))
+    (mut s).push(bore.flag("", "parents"))
+    (mut s).push(bore.flag("R", ""))
+    (mut s).push(bore.flag("r", "recursive"))
+    (mut s).push(bore.optional("", "reflink"))
+    (mut s).push(bore.flag("", "remove-destination"))
+    (mut s).push(bore.takes("", "sparse"))
+    (mut s).push(bore.flag("", "strip-trailing-slashes"))
+    (mut s).push(bore.flag("s", "symbolic-link"))
+    (mut s).push(bore.takes("S", "suffix"))
+    (mut s).push(bore.takes("t", "target-directory"))
+    (mut s).push(bore.flag("T", "no-target-directory"))
+    (mut s).push(bore.optional("", "update"))
+    (mut s).push(bore.flag("u", ""))
+    (mut s).push(bore.flag("v", "verbose"))
+    (mut s).push(bore.flag("x", "one-file-system"))
+    (mut s).push(bore.flag("Z", ""))
+    (mut s).push(bore.optional("", "context"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    s
+}
+
+fn help() -> str {
+    """
+    Usage: cp [OPTION]... [-T] SOURCE DEST
+      or:  cp [OPTION]... SOURCE... DIRECTORY
+      or:  cp [OPTION]... -t DIRECTORY SOURCE...
+    Copy SOURCE to DEST, or each SOURCE into DIRECTORY.
+
+      -r, -R, --recursive   copy directories and what they hold
+      -f, --force           remove a DEST that cannot be opened, and retry
+      -i, --interactive     ask before replacing
+      -n, --no-clobber      never replace a file that is there
+      -L, --dereference     follow every link in SOURCE
+      -H                    follow the links named on the command line
+      -p                    keep the mode exactly and both times (and
+                            say so when the owner cannot be kept)
+          --preserve[=LIST]  keep mode, timestamps, ownership (the
+                            default LIST)
+          --no-preserve=LIST  do not: mode gives a new file creation's
+                            mode, not the SOURCE's
+      -P, --no-dereference  copy a link in SOURCE as a link
+          --remove-destination  remove each DEST before copying to it
+          --strip-trailing-slashes  drop trailing slashes from each SOURCE
+      -t, --target-directory=DIRECTORY  copy every SOURCE into DIRECTORY
+      -T, --no-target-directory  DEST is never a directory to copy into
+      -v, --verbose         say what was copied
+      -Z, --context         accepted; there is no security context to set
+          --help            print this help and exit
+          --version         print the version and exit
+
+    A new file gets SOURCE's permission bits less the umask. Refused by
+    name: -a, -d, --preserve=links, xattr, context or all; a fifo or a
+    device met under -r (it cannot be created); --sparse and --reflink
+    other than auto. Not written yet: -s, -l, -u, -b, --parents,
+    --attributes-only, -x.
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}
+
+// Create requested links, never copy file bytes. Relative symbolic targets
+// only work in the current directory, as GNU documents.
+fn make_link(mut out: bore.Out, c: Cfg, src: str, dst: str, rec: List[int]) -> int {
+    if c.link_mode == 1 && !src.starts_with("/") {
+        let cut = dst.rfind("/") else -1
+        let parent = if cut < 0 then "." else (if cut == 0 then "/" else dst[0..cut])
+        let here = fs_stat(".") else List[int]()
+        let there = fs_stat(parent) else List[int]()
+        if here.len > 0 && there.len > 0 && !bore.same_file(here, there) {
+            bore.warn(
+                "cp",
+                "{bore.quote_always(dst)}: can make relative symbolic links only in current directory",
+            )
+            return failed()
+        }
+    }
+    let old = fs_lstat(dst) else List[int]()
+    if old.len > 0 && bore.same_file(rec, old) {
+        if c.link_mode == 2 { return copied() }
+        bore.warn("cp", "{bore.quote_always(src)} and {bore.quote_always(dst)} are the same file")
+        return failed()
+    }
+    if old.len > 0 {
+        if c.over == 3 { return skipped() }
+        if c.over == 2 && !confirm(mut out, "overwrite {bore.quote_always(dst)}") {
+            return failed()
+        }
+        if bore.rec_kind(old) == bore.kind_dir() {
+            bore.warn(
+                "cp",
+                "cannot overwrite directory {bore.quote_always(dst)} with non-directory {bore.quote_always(src)}",
+            )
+            return failed()
+        }
+        if c.over == 1 || c.remove_first {
+            fs_remove(dst) else |_| {
+                bore.warn("cp", "cannot remove {bore.quote_always(dst)}: {bore.io_error()}")
+                return failed()
+            }
+        }
+    }
+    say(mut out, c, src, dst)
+    var why = ""
+    if c.link_mode == 1 {
+        fs_symlink(src, dst) else |_| { why = bore.io_error() }
+    } else {
+        var target = src
+        if c.follow > 0 {
+            let r = bore.canonical(src, bore.existing())
+            if r.ok { target = r.path }
+        }
+        fs_link(target, dst) else |_| { why = bore.io_error() }
+    }
+    if why.len > 0 {
+        let what = if c.link_mode == 1 then "symbolic" else "hard"
+        bore.warn(
+            "cp",
+            "cannot create {what} link {bore.quote_always(dst)} to {bore.quote_always(src)}: {why}",
+        )
+        return failed()
+    }
+    copied()
+}
+
+// Build the source's parent components under the requested destination.
+fn make_parents(
+    mut out: bore.Out,
+    c: Cfg,
+    target: str,
+    source: str,
+    mut parents: List[ParentAttrs],
+) -> bool {
+    let parts = source.split("/")
+    var onto = target
+    var from = if source.starts_with("/") then "/" else ""
+    for i in 0..parts.len - 1 {
+        let part = parts[i]
+        if part.len == 0 || part == "." { continue }
+        from = if from.len == 0 then part else bore.join_name(from, part)
+        onto = bore.join_name(onto, part)
+        let present = is_directory(onto)
+        if present { continue }
+        let rec = fs_stat(from) else |_| {
+            bore.warn(
+                "cp",
+                "failed to get attributes of {bore.quote_always(from)}: {bore.io_error()}",
+            )
+            return false
+        }
+        fs_create_dir_mode(onto, bore.rec_mode(rec) % 512 | 448) else |_| {
+            bore.warn("cp", "cannot make directory {bore.quote_always(onto)}: {bore.io_error()}")
+            return false
+        }
+        (mut parents).push(ParentAttrs { dst: onto, rec: copy rec })
+        if c.verbose {
+            bore.put(mut out, "{bore.quote_name(from)} -> {bore.quote_name(onto)}\n") else |_| {}
+        }
+    }
+    true
+}
+
+// Restore newly made parent permissions after the copy, deepest first;
+// --preserve restores new parents; existing parents are untouched.
+fn finish_parents(c: Cfg, parents: List[ParentAttrs]) -> bool {
+    var ok = true
+    var k = parents.len
+    while k > 0 {
+        k -= 1
+        let parent = copy parents[k]
+        if keep(c, parent.dst, parent.rec, true) == failed() { ok = false }
+        if !c.keep_mode {
+            let bits = bore.rec_mode(parent.rec) % 512 & 511 - c.umask % 512
+            fs_set_mode(parent.dst, bits) else |_| {
+                bore.warn(
+                    "cp",
+                    "preserving permissions for {bore.quote_always(parent.dst)}: {bore.io_error()}",
+                )
+                ok = false
+            }
+        }
+    }
+    ok
+}
