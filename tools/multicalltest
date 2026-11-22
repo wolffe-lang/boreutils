@@ -35,6 +35,13 @@ cannot run (a missing program, a malformed file).
                 bore's are at most true's plus the excess over true of every
                 utility it carries (no code carried twice), and at most the
                 ceiling the size file records for this host
+  pax-pages     (static ELF programs, PAX's shape) PAX copies every page of
+                a program's PT_LOADs into fresh memory at each exec, so each
+                utility run through `bore` holds all of bore's pages: bore's
+                loadable pages (each PT_LOAD's memory in 4 KiB pages) less
+                the separate `true`'s are at most 512 (2 MiB), printed with
+                the headroom; a dynamic or Mach-O program is a SKIP with its
+                reason
   startup       `true` and `cat SMALL`, separate against a link to `bore`:
                 the least wall time over ten alternating hyperfine blocks of
                 20 runs, and the peak resident size `/usr/bin/time` reports
@@ -84,7 +91,11 @@ import tempfile
 import tomllib
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-STEPS = ("census", "refusals", "dispositions", "size", "startup", "no-hub", "symbols", "siblings")
+STEPS = ("census", "refusals", "dispositions", "size", "pax-pages", "startup", "no-hub", "symbols",
+         "siblings")
+# The pages each running utility may hold over the separate `true` on PAX,
+# which copies every loadable page at each exec: 2 MiB in 4 KiB pages.
+PAX_PAGES = 512
 # The utilities that stay separate programs, never in `bore`.
 SEPARATE_ONLY = ("dd", "shred", "sleep", "sync", "tail", "timeout")
 # The calls that make the signal hub before `main` (`[os.signal.hub]`), and
@@ -363,6 +374,57 @@ def step_size(o):
         print(f"FAIL bore-size: ceiling: {bore} > {entry['ceiling']} for {host}")
         red = 1
     return red
+
+
+def elf_pages(path):
+    """A 64-bit ELF's loadable pages, each PT_LOAD's memory (memsz, so its
+    zeroed tail too) rounded out to 4 KiB pages and summed, and whether it is
+    static (no PT_INTERP): (pages, static); None for any other file."""
+    with open(path, "rb") as fh:
+        h = fh.read(64)
+        if not (h[:4] == b"\x7fELF" and len(h) == 64 and h[4] == 2 and h[5] == 1):
+            return None
+        phoff, = struct.unpack_from("<Q", h, 0x20)
+        phentsize, phnum = struct.unpack_from("<HH", h, 0x36)
+        fh.seek(phoff)
+        ph = fh.read(phentsize * phnum)
+    pages, static = 0, True
+    for i in range(phnum):
+        if len(ph) < (i + 1) * phentsize:
+            return None
+        p_type, = struct.unpack_from("<I", ph, i * phentsize)
+        if p_type == 3:  # PT_INTERP
+            static = False
+        elif p_type == 1:
+            vaddr, = struct.unpack_from("<Q", ph, i * phentsize + 16)
+            memsz, = struct.unpack_from("<Q", ph, i * phentsize + 40)
+            pages += -(-(vaddr + memsz) // 4096) - vaddr // 4096
+    return pages, static
+
+
+def step_pax_pages(o):
+    true = os.path.join(o["bin"], "true")
+    if not os.path.isfile(true):
+        raise HarnessError(f"no separate program {true}")
+    for p in (o["bore"], true):
+        if loadable(p) is None:
+            raise HarnessError(f"{p} is not an ELF or Mach-O program")
+    b, t = elf_pages(o["bore"]), elf_pages(true)
+    if b is None or t is None:
+        print(f"SKIP bore-pax-pages: not ELF programs ({platform.system()}); PAX runs static ELF programs")
+        return 0
+    if not (b[1] and t[1]):
+        which = " and ".join(n for n, e in (("bore", b), ("true", t)) if not e[1])
+        print(f"SKIP bore-pax-pages: {which} dynamic (PT_INTERP); PAX runs static programs, as cc -static builds them")
+        return 0
+    more = b[0] - t[0]
+    line = (f"bore {b[0]} pages, true {t[0]}: +{more} pages for each running utility, "
+            f"the bound {PAX_PAGES} (2 MiB), headroom {PAX_PAGES - more} pages")
+    if more <= PAX_PAGES:
+        print(f"ok   bore-pax-pages: {line}")
+        return 0
+    print(f"FAIL bore-pax-pages: {line}")
+    return 1
 
 
 def least_wall(commands, blocks=10, runs=20, warmup=5):
