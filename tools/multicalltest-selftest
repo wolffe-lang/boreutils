@@ -254,11 +254,14 @@ for n in $names; do cat "$bin/$n"; done > "$work/fat"
 # where each is 15 MB (hosted Linux): a sparse tail, so it costs no disk.
 python3 -I -c 'import os, sys; f = open(sys.argv[1], "r+b"); f.truncate(max(os.path.getsize(sys.argv[1]), 1000000001))' "$work/fat"
 chmod +x "$work/fat"
+# The fat stand-in's own ceiling is its size, so the no-duplication bound is
+# the one thing it can fail, whatever the host's programs weigh.
+printf '["%s"]\nceiling = %s\n' "$host" "$(wc -c < "$work/fat" | tr -d ' ')" > "$work/size-fat.toml"
 mt --bore "$bin/true" --size "$work/size-roomy.toml" size
 must 0 "size with the separate true as bore"
 line "ok   bore-size: within the no-duplication bound"
 line "ok   bore-size: within the ceiling 1000000000 for $host"
-mt --bore "$work/fat" --size "$work/size-roomy.toml" size
+mt --bore "$work/fat" --size "$work/size-fat.toml" size
 must 1 "size with every program bore carries in one file"
 seen "FAIL bore-size: the no-duplication bound: "
 fails 1
