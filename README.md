@@ -144,6 +144,58 @@ the only byte-exact route to standard input and output was reopening
 `/dev/stdin` and `/dev/stdout`; since wolf 0.2.26 boreutils reads
 descriptor 0 and writes descriptor 1 directly, bu19.)
 
+## `bore`, the utilities in one program (experimental)
+
+`tools/build` also builds `bore`, one program that carries 101 of the 107
+utilities and runs each by the name it is run under. A link named after a
+utility is that utility, given the arguments its own program would be
+given; `bore NAME ARG...` runs NAME on the ARGs:
+
+```sh
+ln -s bore cat && ./cat notes.txt   # cat, by its link
+bore cat notes.txt                  # the same, by name
+bore --list                         # the utilities it carries, one a line
+```
+
+Nothing runs, opens or changes before the utility starts. A name `bore`
+does not carry is refused, `bore: unknown utility: NAME` with status 127;
+a link under a name that is no utility is refused the same way, as
+`unknown program name`. Two differences from the separate programs come
+with one program: a utility started under another argv[0] (`exec -a`,
+`env --argv0`) is that other name, and in the `bore NAME` form the
+message for an argument that is not UTF-8 counts `NAME` as argument 1.
+
+`dd`, `shred`, `sleep`, `sync`, `tail` and `timeout` stay separate
+programs. Each makes a call that starts the runtime's signal-handling
+thread (`dd` reports progress on a signal; `timeout` forwards signals to
+its command) or links its thread pool (the waits of `sleep`, `tail`,
+`sync` and `shred`); carried in `bore`, that cost would be in every
+utility's process. `bore NAME` for one of the six runs the program
+installed beside `bore`, and with none there it is the unknown-utility
+refusal.
+
+`bore` is experimental: it is built and tested in CI on every full run
+but is not in the release archives or the packages until a release says
+so. CI holds it to the separate programs on both hosts (`tools/multicalltest`
+and the corpus through it, by link and by name) and runs the behaviour
+tests through its links. Its costs, from hosted CI at the commit that
+wired those checks in:
+
+| | Linux x86-64 (dynamic build) | macOS arm64 | bound |
+|---|---|---|---|
+| loadable bytes | 2,128,673 | 1,851,392 | 2,473,102 and 2,129,100 (1.15 times a recorded build) |
+| `true`, least wall time, separate and `bore` | 0.638 and 0.681 ms | 1.398 and 1.705 ms | max(+10 %, +0.5 ms) |
+| `cat` on a small file, the same | 0.797 and 0.853 ms | 1.477 and 1.745 ms | max(+10 %, +0.5 ms) |
+| peak resident size, `true` and `cat`, more than separate | +958,464 and +1,347,584 bytes | +294,912 and +360,448 bytes | +2 MiB (2,097,152 bytes) |
+
+Loadable bytes are what an exec maps (an ELF's PT_LOAD sizes, a Mach-O's
+`__TEXT`, `__DATA_CONST` and `__DATA`); a file's size on Linux is mostly
+symbol and debug sections and is not the measure. A system that copies
+every loadable page at each exec, as PAX does, gives each running utility
+all of `bore`'s pages: on a static Linux build `bore` has 749 loadable
+pages to `true`'s 284, 465 more of the 512 (2 MiB) allowed, and
+`tools/multicalltest`'s `pax-pages` row holds a static build to that bound.
+
 ## Standard output, and the exit convention
 
 Every boreutils program uses the shared byte-output helpers, buffered or
