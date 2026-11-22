@@ -69,6 +69,14 @@ standin() {
         printf "extra='%s' drop='%s' wrap='%s' nap='%s' search='%s' unknown=%s\n" \
             "$extra" "$drop" "$wrap" "$nap" "$search" "$unknown"
         cat <<'EOF'
+# A stand-in runs at most two deep (`env cat` through links is two): deeper,
+# it is running itself, and it says so instead of forking on.
+depth=$(( ${BORE_STANDIN_DEPTH:-0} + 1 ))
+if [ "$depth" -gt 2 ]; then
+    echo "bore stand-in: $depth deep: it is running itself" >&2
+    exit 125
+fi
+export BORE_STANDIN_DEPTH=$depth
 here=${0%/*}
 self=${0##*/}
 usage() {
@@ -145,6 +153,20 @@ fails() {
 # proved WHAT: one line for each part proved, with the seconds so far.
 t0=$(date +%s)
 proved() { echo "multicalltest-selftest: $1 ($(( $(date +%s) - t0 )) s)"; }
+
+# The stand-ins' own work runs nothing by PATH. The dispositions step puts
+# links to the stand-in first on PATH, where a stand-in that ran grep or sort
+# by PATH ran itself, over and over (on linux, until the runner could not
+# fork). With those links first on PATH, a utility that runs another by PATH
+# must still work; a regression is the depth refusal above, on every host.
+mkdir "$work/links"
+for n in $names; do ln -s "$good" "$work/links/$n"; done
+got=$(PATH="$work/links:/usr/bin:/bin" "$work/links/env" echo through 2>&1) || true
+if [ "$got" != through ]; then
+    out=$got
+    refuse "env echo through links to the good stand-in, those links first on PATH, did not print 'through'"
+fi
+proved "the stand-ins run nothing of their own by PATH"
 
 # No `bore` yet: every step is red, never a pass and never a harness error.
 mt --bore "$work/absent/bore" census refusals
