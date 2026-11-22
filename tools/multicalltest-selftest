@@ -432,6 +432,31 @@ judge 1 Darwin 0.000120 0.000120 970752 3072000
 seen "FAIL bore-startup: judged: "
 proved "startup's verdict: the ruled limits held exactly, +0.6 ms and +2 MiB and a page red"
 
+# --wall-information, for a hosted runner whose speed the wall time follows
+# (on macOS the difference is dyld binding the larger import table, about a
+# fifth of the separate start): the wall-time arm is printed as information,
+# naming the bound and where it is judged; the peak stays a verdict; off a
+# hosted runner the option is refused, so a record always judges both.
+mtenv() { # GITHUB_ACTIONS's value, then the tool's arguments
+    ga=$1; shift
+    out=$(env "GITHUB_ACTIONS=$ga" tools/multicalltest "$@" 2>&1) && status=0 || status=$?
+}
+mtenv true --wall-information --judge-startup Darwin 0.001965 0.002494 1884160 2244608
+must 0 "the wall time as information on a hosted runner, past its bound"
+seen "info bore-startup: judged: least wall separate 1.965 ms, multicall 2.494 ms (limit 2.465): the wall-time bound, max(+10 %, +0.5 ms) of the separate program's, is judged for this host in its record on a quiet host, not on this runner"
+line "ok   bore-startup: judged: peak separate 1884160, multicall 2244608 bytes (limit +2097152)"
+fails 0
+mtenv true --wall-information --judge-startup Darwin 0.000120 0.000120 970752 3072000
+must 1 "the peak past its bound, the wall time as information"
+line "FAIL bore-startup: judged: peak separate 970752, multicall 3072000 bytes (limit +2097152)"
+mtenv "" --wall-information --judge-startup Darwin 0.001965 0.002494 1884160 2244608
+must 2 "the wall time as information off a hosted runner"
+seen "multicalltest: --wall-information is for a hosted runner"
+mtenv true --judge-startup Darwin 0.001965 0.002494 1884160 2244608
+must 1 "the same figures, judged"
+seen "FAIL bore-startup: judged: least wall separate 1.965 ms, multicall 2.494 ms (limit 2.465)"
+proved "startup's wall time as information on a hosted runner: the bound and its record named, the peak judged, refused anywhere else"
+
 # startup, last: the slowest. The control is the separate `true` as `bore`.
 mt --bore "$bin/true" startup
 must 0 "startup with the separate true as bore"
