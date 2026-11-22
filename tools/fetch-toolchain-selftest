@@ -1,0 +1,154 @@
+#!/bin/sh
+# fetch-toolchain-selftest — the toolchain fetch survives a refused request,
+# gives up after a bounded number of them, and still refuses a wrong digest.
+#
+# tools/fetch-toolchain runs in a scratch copy of this repository's tools
+# with a planted wolf-toolchain.toml. Its release archives (two small
+# tarballs, digests pinned in the planted file) come from a stand-in HTTP
+# server on the loopback, and its std tree from a local repository
+# ($BORE_RELEASE_BASE, $BORE_STD_REMOTE). The stand-in answers by plan:
+#   once     403 to the first request for each archive, 200 after: a
+#            refusal that a retry outlives (the tool must stage both)
+#   always   403 to every request: the tool must give up (exit 22) after
+#            its bounded tries (4: the first and 3 more), not spin
+#   wrong    200 with bytes whose digest is not the pin: REFUSED, exit 1
+# No network beyond the loopback, nothing outside the scratch directory.
+set -eu
+BORE_ROOT=$(cd "$(dirname "$0")/.." && pwd)
+. "$BORE_ROOT/tools/lib-toml.sh"
+target=$(host_target) || { echo "fetch-toolchain-selftest: no archive target for this host"; exit 2; }
+work=$(mktemp -d "${TMPDIR:-/tmp}/bore-fetch-selftest.XXXXXX")
+server=
+trap 'if [ -n "$server" ]; then kill "$server" 2>/dev/null || true; fi; rm -rf "$work"' EXIT
+
+refuse() { echo "fetch-toolchain-selftest: REFUSED — $1. Output was:"; echo "$out"; exit 1; }
+proved() { echo "fetch-toolchain-selftest: $1"; }
+
+sha() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | cut -d' ' -f1; else shasum -a 256 "$1" | cut -d' ' -f1; fi; }
+
+# The archives, as the releases lay them out: NAME-VERSION-TARGET/ inside.
+mkdir -p "$work/stage" "$work/serve"
+for name in wolf lupin; do
+    base=$name-0.0.1-$target
+    mkdir -p "$work/stage/$base" "$work/serve/o/$name/releases/download/v0.0.1"
+    echo "$name stand-in" > "$work/stage/$base/README"
+    (cd "$work/stage" && tar -czf "$work/serve/o/$name/releases/download/v0.0.1/$base.tar.gz" "$base")
+done
+wolf_sum=$(sha "$work/serve/o/wolf/releases/download/v0.0.1/wolf-0.0.1-$target.tar.gz")
+lupin_sum=$(sha "$work/serve/o/lupin/releases/download/v0.0.1/lupin-0.0.1-$target.tar.gz")
+
+# std: a local repository whose one commit holds std/.
+git init -q "$work/std-src"
+mkdir -p "$work/std-src/std"
+echo "std stand-in" > "$work/std-src/std/README"
+git -C "$work/std-src" add std
+git -C "$work/std-src" -c user.name=selftest -c user.email=selftest@invalid -c commit.gpgsign=false \
+    commit -q -m "std stand-in"
+git -C "$work/std-src" config uploadpack.allowAnySHA1InWant true
+std_rev=$(git -C "$work/std-src" rev-parse HEAD)
+
+# The scratch repository: the tool, its reader, the planted pins.
+mkdir -p "$work/root/tools"
+cp "$BORE_ROOT/tools/fetch-toolchain" "$BORE_ROOT/tools/lib-toml.sh" "$work/root/tools/"
+cat > "$work/root/wolf-toolchain.toml" <<EOF
+[wolf]
+version = "0.0.1"
+repo = "o/wolf"
+$target = "$wolf_sum"
+
+[lupin]
+version = "0.0.1"
+repo = "o/lupin"
+$target = "$lupin_sum"
+
+[std]
+repo = "o/std"
+rev = "$std_rev"
+EOF
+
+# The stand-in server: PLAN once|always|wrong; it writes its port to a file
+# and one line per request (path and answer) to its log.
+cat > "$work/serve.py" <<'EOF'
+import http.server, os, sys
+plan, root, portfile, log = sys.argv[1:5]
+seen = set()
+class H(http.server.BaseHTTPRequestHandler):
+    def log_message(self, *a):
+        pass
+    def do_GET(self):
+        path = os.path.join(root, self.path.lstrip("/"))
+        first = self.path not in seen
+        seen.add(self.path)
+        if not os.path.isfile(path):
+            code, body = 404, b""
+        elif plan == "always" or (plan == "once" and first):
+            code, body = 403, b"refused\n"
+        else:
+            code, body = 200, open(path, "rb").read()
+            if plan == "wrong":
+                body = body + b"\0"
+        with open(log, "a") as fh:
+            fh.write(f"{code} {self.path}\n")
+        self.send_response(code)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+s = http.server.HTTPServer(("127.0.0.1", 0), H)
+open(portfile + ".tmp", "w").write(str(s.server_address[1]))
+os.rename(portfile + ".tmp", portfile)
+s.serve_forever()
+EOF
+
+# run PLAN: a fresh stand-in under PLAN, then the tool against it.
+run() {
+    rm -rf "$work/root/.wolf-bin" "$work/port" "$work/log"
+    : > "$work/log"
+    python3 -I "$work/serve.py" "$1" "$work/serve" "$work/port" "$work/log" &
+    server=$!
+    i=0
+    while [ ! -f "$work/port" ]; do
+        i=$((i + 1))
+        [ "$i" -le 100 ] || { out="no port from the stand-in"; refuse "the stand-in did not start"; }
+        sleep 0.05
+    done
+    out=$(cd "$work/root" && BORE_RELEASE_BASE="http://127.0.0.1:$(cat "$work/port")" \
+          BORE_STD_REMOTE="file://$work/std-src" TMPDIR="$work" sh tools/fetch-toolchain 2>&1) \
+        && status=0 || status=$?
+    kill "$server" 2>/dev/null || true
+    wait "$server" 2>/dev/null || true
+    server=
+    out="$out
+--- the stand-in's log:
+$(cat "$work/log")"
+}
+must() { [ "$status" -eq "$1" ] || refuse "$2 exited $status; it must exit $1"; }
+answered() { # COUNT CODE NAME: the stand-in answered CODE that many times for NAME's archive
+    n=$(grep -c "^$2 /o/$3/" "$work/log" || true)
+    [ "$n" -eq "$1" ] || refuse "the stand-in answered $2 to $3 $n times, not $1"
+}
+
+run once
+must 0 "the fetch against a stand-in that refuses each archive once"
+answered 1 403 wolf
+answered 1 200 wolf
+answered 1 403 lupin
+answered 1 200 lupin
+[ "$(cat "$work/root/.wolf-bin/STAMP")" = "$target wolf=$wolf_sum lupin=$lupin_sum std=$std_rev" ] \
+    || refuse "no stamp of the planted pins in .wolf-bin/"
+[ -f "$work/root/.wolf-bin/README" ] && [ -f "$work/root/.wolf-bin/std/README" ] \
+    || refuse "the archives or std were not staged"
+proved "a refusal once per archive: retried, both staged and stamped"
+
+run always
+must 22 "the fetch against a stand-in that refuses every request"
+answered 4 403 wolf
+answered 0 403 lupin
+proved "a refusal every time: given up after 4 tries, exit 22"
+
+run wrong
+must 1 "the fetch of bytes whose digest is not the pin"
+echo "$out" | grep -q "REFUSED — wolf-0.0.1-$target.tar.gz sha256" || refuse "no digest refusal"
+answered 1 200 wolf
+proved "a wrong digest: refused, never retried into acceptance"
+
+echo "fetch-toolchain-selftest: every plan answered as it must"
