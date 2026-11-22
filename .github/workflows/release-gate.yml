@@ -167,9 +167,36 @@ jobs:
           [ "$have" = "$sum" ] || { echo "::error::$a has sha256 $have, not the pinned $sum"; exit 1; }
           tar -xzf "$RUNNER_TEMP/$a" -C "$RUNNER_TEMP"
           export PATH="$RUNNER_TEMP/hyperfine-v$v-$t:$PATH"
+          echo "$RUNNER_TEMP/hyperfine-v$v-$t" >> "$GITHUB_PATH"
           hyperfine --version
           [ -x /usr/bin/time ] || { sudo apt-get install -y -qq time; }
           tools/multicalltest-selftest
+
+      - name: the multicall program against the separate programs
+        shell: bash
+        run: |
+          set -euo pipefail
+          rc=0
+          tools/multicalltest || rc=1
+          links="$RUNNER_TEMP/bore-links"
+          mkdir -p "$links"
+          for f in target/release/*; do
+            n=${f##*/}
+            case $n in *.*|bore) continue ;; esac
+            [ -f "$f" ] || continue
+            case " dd shred sleep sync tail timeout " in
+              *" $n "*) ln -s "$PWD/$f" "$links/$n" ;;
+              *) ln -s "$PWD/target/release/bore" "$links/$n" ;;
+            esac
+          done
+          slice=
+          if [ "$RUNNER_OS" = macOS ]; then
+            slice="cat echo ls dir vdir true sha256sum [ test base64 chown"
+          fi
+          set -f
+          tools/difftest --against target/release --bin "$links" $slice || rc=1
+          tools/difftest --against target/release --multicall target/release/bore $slice || rc=1
+          exit "$rc"
 
       - name: Text-tool shape plants and bounded codecs
         run: tools/texttest
