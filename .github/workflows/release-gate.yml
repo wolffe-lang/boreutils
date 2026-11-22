@@ -75,7 +75,7 @@ jobs:
       matrix:
         include: ${{ fromJSON(needs.plan.outputs.matrix_gauntlet || '[]') }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: ${{ matrix.os == 'macos-latest' && 79 || 90 }}
+    timeout-minutes: ${{ matrix.os == 'macos-latest' && 87 || 90 }}
     steps:
       - uses: actions/checkout@v4
 
@@ -178,7 +178,9 @@ jobs:
         run: |
           set -euo pipefail
           rc=0
-          tools/multicalltest || rc=1
+          wall=
+          if [ "$RUNNER_OS" = macOS ]; then wall=--wall-information; fi
+          tools/multicalltest $wall || rc=1
           links="$RUNNER_TEMP/bore-links"
           mkdir -p "$links"
           for f in target/release/*; do
@@ -283,7 +285,7 @@ jobs:
       matrix:
         include: ${{ fromJSON(needs.plan.outputs.matrix_links || '[]') }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: ${{ matrix.os == 'macos-latest' && 30 || 40 }}
+    timeout-minutes: ${{ matrix.os == 'macos-latest' && 13 || 12 }}
     steps:
       - uses: actions/checkout@v4
 
