@@ -283,6 +283,43 @@ must 2 "size with a bore that is no program"
 seen "is not an ELF or Mach-O program"
 proved "size: the control green, the three plants red by name, a script no verdict"
 
+# pax-pages: static ELF programs, each PT_LOAD's memory in 4 KiB pages. The
+# plants are minimal static ELFs beside a `true` of 284 pages: a `bore` 512
+# pages more (on the bound, green), one 513 more (red), and a dynamic one far
+# past it (a SKIP: PAX runs static programs); a script is no verdict.
+mkdir "$work/pax" "$work/pax/bin"
+elf() { # PATH PAGES [interp]
+    python3 -I -c 'import struct, sys
+path, pages, interp = sys.argv[1], int(sys.argv[2]), len(sys.argv) > 3
+n = 2 if interp else 1
+eh = b"\x7fELF" + bytes([2, 1, 1]) + bytes(9) + struct.pack("<HHIQQQIHHHHHH", 2, 62, 1, 0x401000, 64, 0, 0, 64, 56, n, 64, 0, 0)
+ph = struct.pack("<IIQQQQQQ", 3, 4, 0, 0, 0, 0, 0, 1) if interp else b""
+ph += struct.pack("<IIQQQQQQ", 1, 5, 0, 0x400000, 0x400000, 4096, pages * 4096, 0x1000)
+open(path, "wb").write(eh + ph)' "$@"
+    chmod +x "$1"
+}
+elf "$work/pax/bin/true" 284
+elf "$work/pax/at" 796
+elf "$work/pax/past" 797
+elf "$work/pax/dynamic" 4000 interp
+mt --bore "$work/pax/at" --bin "$work/pax/bin" pax-pages
+must 0 "pax-pages with bore 512 pages over true"
+line "ok   bore-pax-pages: bore 796 pages, true 284: +512 pages for each running utility, the bound 512 (2 MiB), headroom 0 pages"
+mt --bore "$work/pax/past" --bin "$work/pax/bin" pax-pages
+must 1 "pax-pages with bore 513 pages over true"
+line "FAIL bore-pax-pages: bore 797 pages, true 284: +513 pages for each running utility, the bound 512 (2 MiB), headroom -1 pages"
+fails 1
+mt --bore "$work/pax/dynamic" --bin "$work/pax/bin" pax-pages
+must 0 "pax-pages with a dynamic bore"
+seen "SKIP bore-pax-pages: "
+mt --bore "$good" --bin "$work/pax/bin" pax-pages
+must 2 "pax-pages with a bore that is no program"
+seen "is not an ELF or Mach-O program"
+mt --bore "$bin/true" pax-pages
+must 0 "pax-pages with the separate true as bore"
+seen "bore-pax-pages: "
+proved "pax-pages: on the bound green, a page past it red, a dynamic program a SKIP, a script no verdict"
+
 # no-hub: the table, a link named dd or timeout, and the sources.
 mt --bore "$good" no-hub
 must 0 "no-hub through the good stand-in"
