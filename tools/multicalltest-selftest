@@ -36,6 +36,7 @@ set -f
 # tests, `bore` itself, `dd` and `timeout`.
 names=$(ls src | sed -n 's/\.lu$//p' | grep -v '_test$' | grep -vx -e bore -e dd -e timeout | LC_ALL=C sort)
 
+sleep_bin=$(command -v sleep)
 # standin DIR VARIANT: write DIR/bore, a stand-in for `bore`, with the
 # separate dd and timeout beside it. Each variant but `good` is planted
 # with one difference:
@@ -66,8 +67,8 @@ standin() {
         echo '#!/bin/sh'
         echo "# A stand-in for bore ($2), written by tools/multicalltest-selftest."
         printf "bin='%s'\nnames='%s'\n" "$bin" "$names"
-        printf "extra='%s' drop='%s' wrap='%s' nap='%s' search='%s' unknown=%s\n" \
-            "$extra" "$drop" "$wrap" "$nap" "$search" "$unknown"
+        printf "extra='%s' drop='%s' wrap='%s' nap='%s' search='%s' unknown=%s sleep_bin='%s'\n" \
+            "$extra" "$drop" "$wrap" "$nap" "$search" "$unknown" "$sleep_bin"
         cat <<'EOF'
 # A stand-in runs at most two deep (`env cat` through links is two): deeper,
 # it is running itself, and it says so instead of forking on.
@@ -86,19 +87,29 @@ usage() {
     echo 'dd and timeout are separate programs; bore dd and'
     echo 'bore timeout run the ones installed beside bore.'
 }
+# Its own work is the shell's builtins and absolute paths alone: links to it
+# may be first on PATH, so a grep or a sort found there would be itself.
+set -f
 table() {
-    { printf '%s\n' "$names"; [ -z "$extra" ] || printf '%s\n' "$extra"; } |
-        grep -vxF -e "$drop" | LC_ALL=C sort
+    for n in $names $extra; do
+        [ "$n" = "$drop" ] || printf '%s\n' "$n"
+    done
+}
+known() {
+    for n in $names $extra; do
+        [ "$n" != "$drop" ] && [ "$n" = "$1" ] && return 0
+    done
+    return 1
 }
 run() {
     u=$1
     shift
-    [ -z "$nap" ] || sleep "$nap"
+    [ -z "$nap" ] || "$sleep_bin" "$nap"
     [ -z "$wrap" ] || exec "$wrap" "$bin/$u" "$@"
     exec "$bin/$u" "$@"
 }
 if [ "$self" != bore ]; then
-    if table | grep -qxF -e "$self"; then run "$self" "$@"; fi
+    if known "$self"; then run "$self" "$@"; fi
     printf 'bore: unknown program name: %s\n' "$self" >&2
     exit 127
 fi
@@ -119,7 +130,7 @@ dd|timeout)
     fi
     ;;
 *)
-    if table | grep -qxF -e "$u"; then run "$u" "$@"; fi
+    if known "$u"; then run "$u" "$@"; fi
     ;;
 esac
 printf 'bore: unknown utility: %s\n' "$u" >&2
