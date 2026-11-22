@@ -344,6 +344,30 @@ fn refuse(what: str, name: List[byte]) -> int {
     127
 }
 
+fn help() -> str {
+    """
+    Usage: bore UTILITY [ARGUMENT]...
+      or:  bore --list | --help | --version
+    Run the boreutils UTILITY with its ARGUMENTs. A link to bore named after a
+    utility runs that utility. dd, shred, sleep, sync, tail and timeout are
+    separate programs; bore runs the one installed beside it.
+
+          --list     print the utilities, one a line
+          --help     print this help and exit
+          --version  print the version and exit
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}
+
+/// bore's own options: TEXT on standard output, status 0 (1 if it cannot be
+/// written, as every utility answers).
+fn own(text: str) -> int {
+    var out = bore.stdout()
+    bore.put(mut out, text) else |_| {}
+    bore.finish(mut out, "bore", 0)
+}
+
 fn main() -> int {
     let argv = env_args_bytes()
     var raw = List[byte]()
@@ -360,10 +384,23 @@ fn main() -> int {
         return refuse("program name", raw)
     }
     if argv.len < 2 {
-        return refuse("utility", List[byte]())
+        return own(help())
     }
     let word = str_from_utf8(argv[1]) else |_| {
         return refuse("utility", argv[1])
+    }
+    if word == "--list" {
+        var text = ""
+        for n in names() {
+            text = text + n + "\n"
+        }
+        return own(text)
+    }
+    if word == "--help" {
+        return own(help())
+    }
+    if word == "--version" {
+        return own(bore.version_text("bore"))
     }
     let all = env_args()
     let rest = all[1..]
