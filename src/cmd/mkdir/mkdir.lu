@@ -1,0 +1,393 @@
+//!
+//! mkdir — make directories.
+//!
+//! References consulted: POSIX.1-2024 `mkdir`; GNU coreutils 9.11
+//! `mkdir --help`, the info manual's `mkdir invocation` node, and
+//! black-box runs of the GNU binary on linux x86-64 in scratch
+//! directories (kasumi `~/lanes/bu21/gx.sh`), under `LC_ALL=C`. Never GNU
+//! source, nor any other implementation's.
+//!
+//! GNU's rules, each measured against 9.11:
+//!
+//! - Each DIRECTORY is one `mkdir(2)` (`fs_create_dir`), and a failure
+//!   is `mkdir: cannot create directory 'NAME': reason` with the host's
+//!   reason, status 1, the other operands still made. The name is
+//!   quoted in the always-quote style (`'q\'uote'`), as typed, trailing
+//!   slash and all.
+//! - `-p` makes every missing component in turn and is content with one
+//!   that is already a directory — reached through a link or not. What
+//!   it names when it fails is the component it stopped AT: `f/x` with
+//!   `f` a file is `'f': Not a directory`; `f` alone is `'f': File
+//!   exists`, and so is a dangling link in any position; a directory it
+//!   may not write is the first name it could not make in it; a
+//!   directory it may not SEARCH is that directory.
+//! - `-v` prints `mkdir: created directory 'NAME'` on standard output
+//!   for each directory actually made — under `-p`, the path as typed up
+//!   to that component, and the whole operand for the last — quoted in
+//!   the shell-escape style (`"q'uote"`, `'new'$'\n''line'`).
+//! - `-Z` and a bare `--context` do nothing on a kernel without SELinux;
+//!   `--context=CTX` warns that it is ignored and carries on.
+//! - No operand is a usage error, status 1.
+//! - `-m MODE` (bu22, wolf 0.2.28) is read as `chmod` reads one
+//!   (`bore.modes`), applied to `a=rwx`: the directory ends with exactly
+//!   that mode, the umask notwithstanding (`-m 775` under 027 is 775,
+//!   `-m 2750` is 2750). It is made with the mode's permission bits
+//!   (`fs_create_dir_mode`, less the umask) and its mode set after
+//!   (`fs_set_mode`) only when creation could not give it — so a
+//!   directory made under a set-group-ID parent keeps the bit it
+//!   inherits when the mode needs no change. An invalid mode is `invalid
+//!   mode 'M'`, status 1, nothing made.
+//! - Under `-p` a missing PARENT gets 777 less the umask, plus `u+wx`
+//!   (so the walk can go on whatever the mask); `-m` names only the last
+//!   component's mode. The umask is read by setting it and putting it
+//!   back (`os_umask`, wolf 0.2.28: POSIX has no other way).
+//!
+//! **What this program cannot do, and does not pretend to.**
+//!
+//! - `-p` walks by PATH, one `mkdir` per prefix, where GNU changes
+//!   directory as it goes: a path longer than the host's limit fails
+//!   here (wolf-lang#707).
+
+use bore
+
+/// Runs `mkdir` on ARGS, the arguments after its name: argv[1..] as its own
+/// program, argv[2..] through `bore mkdir`. The status is the utility's.
+pub fn main(args: List[str]) -> int {
+    let p = bore.parse(options(), args, bore.permute())
+    var out = bore.stdout()
+    var parents = false
+    var verbose = false
+    var mode = false
+    var mode_text = ""
+    var context = false
+    var i = 0
+    while i < p.keys.len {
+        let k = p.keys[i]
+        if k == "help" {
+            bore.put(mut out, help()) else |_| {}
+            return bore.finish(mut out, "mkdir", 0)
+        }
+        if k == "version" {
+            bore.put(mut out, bore.version_text("mkdir")) else |_| {}
+            return bore.finish(mut out, "mkdir", 0)
+        }
+        if k == "parents" {
+            parents = true
+        } else if k == "verbose" {
+            verbose = true
+        } else if k == "mode" {
+            mode = true
+            mode_text = p.values[i]
+        } else if k == "context" && p.given[i] {
+            context = true
+        }
+        i += 1
+    }
+    if !bore.ok(p) {
+        return bore.usage_error("mkdir", p.error)
+    }
+    if p.operands.len == 0 {
+        return bore.usage_error("mkdir", "missing operand")
+    }
+    let umask = bore.current_umask()
+    var c = Cfg { verbose: verbose, want: -1, touched: 0, special: false, as_if: 0, umask: umask }
+    if mode {
+        let m = bore.parse_mode(mode_text) else |_| {
+            bore.warn("mkdir", "invalid mode {bore.quote_always(mode_text)}")
+            return 1
+        }
+        c.want = bore.apply_mode(m, 511, true, umask)
+        c.touched = bore.mode_touches(m, 511, true, umask)
+        // A MODE that has a set-id or sticky bit, or (symbolic) decides
+        // one: GNU then asks mkdir(2) for it less group and other write.
+        c.special = c.want & 3584 != 0 || !bore.mode_is_number(m) && c.touched & 3584 != 0
+    }
+    if context {
+        bore.warn(
+            "mkdir",
+            "warning: ignoring --context; it requires an SELinux/SMACK-enabled kernel",
+        )
+    }
+    var status = 0
+    for name in p.operands {
+        var made = true
+        if parents {
+            made = with_parents(mut out, c, name)
+        } else {
+            made = one(mut out, c, name)
+        }
+        if !made {
+            status = 1
+        }
+    }
+    bore.finish(mut out, "mkdir", status)
+}
+
+struct Cfg {
+    verbose: bool,
+    /// The mode `-m` asked for, twelve bits; -1 without `-m`.
+    want: int,
+    /// The bits `-m`'s MODE decides (`bore.mode_touches`).
+    touched: int,
+    /// Whether the MODE has or decides a set-id or sticky bit.
+    special: bool,
+    /// The mask the directory is made under: none under `-m`, which
+    /// has already been read under the real one (GNU's `mkdir(2)` then
+    /// gets the mode's own bits, measured under `strace`).
+    as_if: int,
+    umask: int,
+}
+
+/// Make the directory `path`: with creation's mode (`want` -1), or as
+/// GNU's `mkdir -m` does (measured under `strace`): made with the mode's
+/// bits — less group and other write when the mode has a set-id or
+/// sticky bit — under the mask `as_if`, and its mode then set to `want`
+/// only when a bit the MODE decides (`touched`) came out otherwise. So
+/// `-m +t` is `1755` whatever the umask, and a set-group-ID bit inherited
+/// from the parent stays unless the MODE decides it. The host's number
+/// for a failure is in `bore.host_code()`.
+fn make(path: str, want: int, touched: int, special: bool, as_if: int) -> Made {
+    var done = Made { code: 0, exists: false }
+    if want < 0 {
+        fs_create_dir(path) else |e| {
+            done.code = host_or_io()
+            match e {
+                exists => { done.exists = true },
+                denied => {},
+                not_found => {},
+                io => {},
+            }
+        }
+        return done
+    }
+    var asked = want
+    if special {
+        asked = want & 4095 - 18
+    }
+    let mask = os_umask(as_if) else 18
+    fs_create_dir_mode(path, asked % 512) else |e| {
+        done.code = host_or_io()
+        match e {
+            exists => { done.exists = true },
+            denied => {},
+            invalid => {},
+            io => {},
+            not_found => {},
+            unsupported => {},
+        }
+    }
+    let _ = os_umask(mask) else 0
+    if done.code != 0 {
+        return done
+    }
+    let r = fs_stat(path) else |_| {
+        done.code = host_or_io()
+        return done
+    }
+    var got = bore.rec_mode(r) % 4096
+    if asked & 512 != 0 && bore.built_for_linux() {
+        // linux's mkdir(2) keeps a sticky bit it is given (macOS's does
+        // not, and GNU then sets it after: CI run 38209631107);
+        // fs_create_dir_mode takes the nine permission bits only.
+        got = got | 512
+    }
+    var set = got
+    if (got ^ want) & touched != 0 {
+        // A set-id bit the directory inherited and the MODE does not
+        // decide stays (measured: `-m u+s` under a set-group-ID parent
+        // is 6777).
+        set = want | got & 3072 & 4095 - touched
+    }
+    if set != bore.rec_mode(r) % 4096 {
+        fs_set_mode(path, set) else |_| {
+            done.code = host_or_io()
+        }
+    }
+    done
+}
+
+/// How a `make` ended: 0, or the host's number (`exists` when the name
+/// was taken).
+struct Made {
+    code: int,
+    exists: bool,
+}
+
+/// The host's number for the call that just failed (5, `Input/output
+/// error`, when it left none).
+fn host_or_io() -> int {
+    let code = bore.host_code()
+    if code == 0 {
+        return 5
+    }
+    code
+}
+
+/// Say that `name` was made, when asked to.
+fn created(mut out: bore.Out, c: Cfg, name: str) {
+    if c.verbose {
+        bore.put(mut out, "mkdir: created directory {bore.quote_always(name)}\n") else |_| {}
+    }
+}
+
+fn cannot(name: str, why: str) {
+    bore.warn("mkdir", "cannot create directory {bore.quote(name)}: {why}")
+}
+
+/// Make `name`, whose parent must exist.
+fn one(mut out: bore.Out, c: Cfg, name: str) -> bool {
+    let done = make(name, c.want, c.touched, c.special, c.as_if)
+    if done.code != 0 {
+        cannot(name, bore.reason_of(done.code))
+        return false
+    }
+    created(mut out, c, name)
+    true
+}
+
+/// Where each prefix of `name` that names one more component ENDS, as a
+/// byte offset: `a//b/` is `a` (1) and then the whole of it (5). The
+/// last component's prefix is the whole operand, slashes included,
+/// because that is what GNU hands the host and what `-v` prints. A name
+/// with no component at all (`''`, `///`) is itself the one prefix.
+fn prefix_ends(name: str) -> List[int] {
+    var ends = List[int]()
+    var i = 0
+    var in_part = false
+    for b in name.bytes() {
+        if b as int == 47 {
+            if in_part {
+                (mut ends).push(i)
+                in_part = false
+            }
+        } else {
+            in_part = true
+        }
+        i += 1
+    }
+    if in_part {
+        (mut ends).push(name.len)
+    } else if ends.len > 0 {
+        ends[ends.len - 1] = name.len
+    } else {
+        (mut ends).push(name.len)
+    }
+    ends
+}
+
+/// Whether `path` names a directory, through a link or not.
+fn is_directory(path: str) -> bool {
+    let r = fs_stat(path) else |_| {
+        return false
+    }
+    bore.rec_kind(r) == bore.kind_dir()
+}
+
+/// Whether `path` names anything at all the host will describe.
+fn describable(path: str) -> bool {
+    let _ = fs_stat(path) else |_| {
+        return false
+    }
+    true
+}
+
+/// Whether the host refused even to LOOK at `path`: its parent may not
+/// be searched.
+fn hidden(path: str) -> bool {
+    let _ = fs_lstat(path) else |e| match e {
+        denied => { return true },
+        not_found => { return false },
+        io => { return false },
+    }
+    false
+}
+
+/// `mkdir -p name`: every missing component, in order.
+fn with_parents(mut out: bore.Out, c: Cfg, name: str) -> bool {
+    // A parent: 777 less the mask, and always the owner's write and
+    // search, so the walk can go on.
+    let parent_mode = 511 - c.umask % 512 | 192
+    let ends = prefix_ends(name)
+    var k = 0
+    while k < ends.len {
+        let prefix = name[0..ends[k]]
+        let last = k == ends.len - 1
+        var taken = false
+        var code = 0
+        var ok = true
+        var want = parent_mode
+        // A parent's set-group-ID bit, inherited, is left alone.
+        var touched = 511
+        var as_if = c.umask
+        if last {
+            want = c.want
+            touched = c.touched
+            as_if = c.as_if
+        }
+        var special = false
+        if last {
+            special = c.special
+        }
+        let done = make(prefix, want, touched, special, as_if)
+        if done.code != 0 {
+            code = done.code
+            ok = false
+            taken = done.exists
+        }
+        if ok {
+            created(mut out, c, prefix)
+        } else if !is_directory(prefix) {
+            if taken {
+                // Something is there and it is not a directory. A file
+                // in the way of a longer path is `Not a directory`; a
+                // dangling link, or the last component, `File exists`.
+                if last || !describable(prefix) {
+                    cannot(prefix, "File exists")
+                } else {
+                    cannot(prefix, "Not a directory")
+                }
+            } else if k > 0 && hidden(prefix) {
+                // The parent may not be searched: GNU names the parent.
+                cannot(name[0..ends[k - 1]], bore.permission_denied())
+            } else {
+                cannot(prefix, bore.reason_of(code))
+            }
+            return false
+        }
+        k += 1
+    }
+    true
+}
+
+fn options() -> List[bore.Opt] {
+    var s = List[bore.Opt]()
+    (mut s).push(bore.takes("m", "mode"))
+    (mut s).push(bore.flag("p", "parents"))
+    (mut s).push(bore.flag("v", "verbose"))
+    (mut s).push(bore.flag("Z", ""))
+    (mut s).push(bore.optional("", "context"))
+    (mut s).push(bore.flag("", "help"))
+    (mut s).push(bore.flag("", "version"))
+    s
+}
+
+fn help() -> str {
+    """
+    Usage: mkdir [OPTION]... DIRECTORY...
+    Make each DIRECTORY.
+
+      -p, --parents     make missing parents too, and do not mind a
+                        DIRECTORY that already exists
+      -v, --verbose     say which directories were made
+      -m, --mode=MODE   give the directory exactly MODE (as chmod reads
+                        one, from a=rwx), whatever the umask
+      -Z, --context[=CTX]  accepted; there is no security context to set
+          --help        print this help and exit
+          --version     print the version and exit
+
+    Without -m a new directory's mode is 777 less the umask; a parent
+    made by -p also gets u+wx.
+
+    boreutils: https://github.com/wolffe-lang/boreutils
+    """
+}
