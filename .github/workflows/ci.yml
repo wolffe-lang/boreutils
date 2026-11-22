@@ -281,11 +281,12 @@ jobs:
       # pass every step and one planted per step that must fail it by name,
       # so every step is seen red on both hosts (the signal dispositions on
       # linux alone: they are read from /proc). hyperfine is pinned by
-      # digest for this step; the job's own is the package manager's. The
-      # start-up verdict is the least wall time over ten alternating
-      # blocks of 20 runs, within max(1.5x, +1 ms) of the separate
-      # program's: the control is that same program (no difference) and
-      # the plant starts 50 ms late, so runner noise moves neither.
+      # digest for this step and the next; the job's own is the package
+      # manager's. The start-up verdict is the least wall time over ten
+      # alternating blocks of 20 runs, within max(+10 %, +0.5 ms) of the
+      # separate program's: the control is that same program (no
+      # difference) and the plant starts 50 ms late, so runner noise moves
+      # neither.
       - name: the multicall harness sees its plants
         shell: bash
         run: |
@@ -302,9 +303,51 @@ jobs:
           [ "$have" = "$sum" ] || { echo "::error::$a has sha256 $have, not the pinned $sum"; exit 1; }
           tar -xzf "$RUNNER_TEMP/$a" -C "$RUNNER_TEMP"
           export PATH="$RUNNER_TEMP/hyperfine-v$v-$t:$PATH"
+          echo "$RUNNER_TEMP/hyperfine-v$v-$t" >> "$GITHUB_PATH"
           hyperfine --version
           [ -x /usr/bin/time ] || { sudo apt-get install -y -qq time; }
           tools/multicalltest-selftest
+
+      # Then the harness on the program it guards: every multicalltest
+      # step against the `bore` the build made, beside the separate
+      # programs it replaces in target/release. census, refusals,
+      # dispositions (linux), size (loadable bytes, against the ceilings in
+      # tests/multicall/size.toml), pax-pages (a SKIP here, said by name:
+      # these builds are dynamic or Mach-O, and it judges a static one),
+      # startup (max(+10 %, +0.5 ms) and +2 MiB), no-hub, symbols (linux)
+      # and siblings. Then the corpus through `bore`, raw against the
+      # separate programs: by a link named after each utility (M2) and as
+      # `bore NAME` (M3). Linux runs the whole corpus. macOS runs a slice:
+      # ls, dir and vdir (the utilities told the name they run under) and
+      # cat, echo, true, sha256sum, [, test, base64 and chown, 4,335 cases.
+      # Its job has about ten minutes under its timeout and a corpus pass
+      # there takes four times linux's, so the whole corpus on macOS is the
+      # change's local record (16,290 cases each way).
+      - name: the multicall program against the separate programs
+        shell: bash
+        run: |
+          set -euo pipefail
+          rc=0
+          tools/multicalltest || rc=1
+          links="$RUNNER_TEMP/bore-links"
+          mkdir -p "$links"
+          for f in target/release/*; do
+            n=${f##*/}
+            case $n in *.*|bore) continue ;; esac
+            [ -f "$f" ] || continue
+            case " dd shred sleep sync tail timeout " in
+              *" $n "*) ln -s "$PWD/$f" "$links/$n" ;;
+              *) ln -s "$PWD/target/release/bore" "$links/$n" ;;
+            esac
+          done
+          slice=
+          if [ "$RUNNER_OS" = macOS ]; then
+            slice="cat echo ls dir vdir true sha256sum [ test base64 chown"
+          fi
+          set -f
+          tools/difftest --against target/release --bin "$links" $slice || rc=1
+          tools/difftest --against target/release --multicall target/release/bore $slice || rc=1
+          exit "$rc"
 
       - name: Text-tool shape plants and bounded codecs
         run: tools/texttest
