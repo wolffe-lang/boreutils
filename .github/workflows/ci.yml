@@ -191,11 +191,12 @@ jobs:
     runs-on: ${{ matrix.os }}
     # Run 40168612318: release alone took 33m Linux / 34m macOS.
     # macOS: the job took 56.1m in run 45020645280 and 61.0m in run
-    # 45028308303, which added the multicall step (1.4m of it). Its
-    # release build alone took 32.8, 35.8 and 39.4m across those runs and
-    # 45028851797, so the slowest build with the rest of the 61.0m run is
-    # 64.6m; 79m leaves 22% headroom. Keep all per-case bounds.
-    timeout-minutes: ${{ matrix.os == 'macos-latest' && 79 || 90 }}
+    # 45028308303, which added the multicall step (1.4m of it). Trunk run
+    # 45039004473 was cut at 66m: its release build alone took 45.8m
+    # (32.8 to 39.4m in the runs before). That build with the rest of the
+    # 61.0m run (25.2m) is 71.0m; 87m leaves 22% headroom. Keep all
+    # per-case bounds.
+    timeout-minutes: ${{ matrix.os == 'macos-latest' && 87 || 90 }}
     steps:
       - uses: actions/checkout@v4
 
@@ -544,8 +545,9 @@ jobs:
       matrix:
         include: ${{ fromJSON(needs.plan.outputs.matrix_links || '[]') }}
     runs-on: ${{ matrix.os }}
-    # Predicted, before its first run: linux 20-24m, macOS 16-20m.
-    timeout-minutes: ${{ matrix.os == 'macos-latest' && 30 || 40 }}
+    # Run 45040267095, its first: linux 10.0m, macOS 10.1m; each
+    # limit is that and at least 20% more.
+    timeout-minutes: ${{ matrix.os == 'macos-latest' && 13 || 12 }}
     steps:
       - uses: actions/checkout@v4
 
