@@ -37,10 +37,15 @@ cannot run (a missing program, a malformed file).
                 ceiling the size file records for this host
   startup       `true` and `cat SMALL`, separate against a link to `bore`:
                 the least wall time over ten alternating hyperfine blocks of
-                20 runs is within max(1.5x, +1 ms) of the separate
-                program's, and the peak resident size `/usr/bin/time`
-                reports (the small parent: its own size is the floor,
-                printed) is within +1 MiB
+                20 runs, and the peak resident size `/usr/bin/time` reports
+                (the small parent: its own size is the floor, printed). The
+                limits are the ruled ones on linux: the wall time within
+                max(+10 %, +0.5 ms) of the separate program's, the peak
+                within +2 MiB. On macOS (which ships the separate programs)
+                the wall time is held to the regression ceiling max(1.5x,
+                +1 ms), dyld's own cost, and the peak to +2 MiB.
+                `--judge-startup HOST SEP_S MC_S SEP_RSS MC_RSS` prints the
+                verdict on given figures (seconds, bytes) and exits 0 or 1
   no-hub        the six are not in `bore`: `bore --list` names none, and a
                 link named after one is an unknown program name; and no file
                 under src/ but the six entries and the tests names a call
@@ -419,6 +424,21 @@ def peak_rss(argv, runs=50):
     return values[len(values) // 2]
 
 
+def judge_startup(name, host, s, m, rs, rm):
+    """The verdict on a separate program's and the multicall's least wall
+    time (seconds) and peak resident size (bytes): (green, line). Whole
+    nanoseconds, so a figure on a limit is on it."""
+    s_ns, m_ns = int(round(s * 1e9)), int(round(m * 1e9))
+    if host == "Darwin":
+        limit_ns = max(s_ns * 3 // 2, s_ns + 1_000_000)
+    else:
+        limit_ns = max(s_ns * 11 // 10, s_ns + 500_000)
+    rss_limit = 2 * 1024 * 1024
+    line = (f"{name}: least wall separate {s_ns / 1e6:.3f} ms, multicall {m_ns / 1e6:.3f} ms "
+            f"(limit {limit_ns / 1e6:.3f}); peak separate {rs}, multicall {rm} bytes (limit +{rss_limit})")
+    return m_ns <= limit_ns and rm - rs <= rss_limit, line
+
+
 def step_startup(o):
     red = 0
     with tempfile.TemporaryDirectory(prefix="bore-startup-links.") as top:
@@ -434,11 +454,9 @@ def step_startup(o):
             mc = [os.path.join(links, name)] + args
             best = least_wall([("separate", " ".join(sep)), ("multicall", " ".join(mc))])
             s, m = best["separate"], best["multicall"]
-            limit = max(1.5 * s, s + 0.001)
             rs, rm = peak_rss(sep), peak_rss(mc)
-            line = (f"{name}: least wall separate {s * 1000:.3f} ms, multicall {m * 1000:.3f} ms "
-                    f"(limit {limit * 1000:.3f}); peak separate {rs}, multicall {rm} bytes (limit +1048576)")
-            if m <= limit and rm - rs <= 1048576:
+            green, line = judge_startup(name, platform.system(), s, m, rs, rm)
+            if green:
                 print(f"ok   bore-startup: {line}")
             else:
                 print(f"FAIL bore-startup: {line}")
@@ -740,6 +758,13 @@ def main(argv):
          "cases": os.path.join(ROOT, "tests", "multicall", "cases.toml"),
          "size": os.path.join(ROOT, "tests", "multicall", "size.toml"),
          "src": os.path.join(ROOT, "src")}
+    if argv[:1] == ["--judge-startup"]:
+        if len(argv) != 6:
+            print("multicalltest: --judge-startup HOST SEP_S MC_S SEP_RSS MC_RSS", file=sys.stderr)
+            return 2
+        green, line = judge_startup("judged", argv[1], float(argv[2]), float(argv[3]), int(argv[4]), int(argv[5]))
+        print(f"{'ok  ' if green else 'FAIL'} bore-startup: {line}")
+        return 0 if green else 1
     while argv[:1] in (["--bore"], ["--bin"], ["--cases"], ["--size"], ["--src"]):
         if len(argv) < 2:
             print(f"multicalltest: {argv[0]} needs a path", file=sys.stderr)
