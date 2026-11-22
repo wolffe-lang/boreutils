@@ -47,7 +47,15 @@ cannot run (a missing program, a malformed file).
                 20 runs, and the peak resident size `/usr/bin/time` reports
                 (the small parent: its own size is the floor, printed). On
                 every host the wall time is within max(+10 %, +0.5 ms) of
-                the separate program's, and the peak within +2 MiB.
+                the separate program's, and the peak within +2 MiB. Where
+                /usr/bin/time reports instructions retired (macOS), their
+                median for each side is printed as information.
+                `--wall-information`, on a hosted runner only (GITHUB_ACTIONS
+                is true): the wall-time arm is printed as information, the
+                line naming the bound and that it is judged for that host in
+                its record on a quiet host; the peak stays a verdict. Off a
+                hosted runner the option is refused, so a record always
+                judges both arms.
                 `--judge-startup HOST SEP_S MC_S SEP_RSS MC_RSS` prints the
                 verdict on given figures (seconds, bytes) and exits 0 or 1
   no-hub        the six are not in `bore`: `bore --list` names none, and a
@@ -461,11 +469,17 @@ def least_wall(commands, blocks=10, runs=20, warmup=5):
 def peak_rss(argv, runs=50):
     """The median peak resident size in bytes `/usr/bin/time` reports for
     `argv` (GNU time's %M is KiB; macOS's -l prints bytes)."""
+    return time_l(argv, runs)[0]
+
+
+def time_l(argv, runs=50):
+    """(the median peak resident size in bytes, the median instructions
+    retired or None where /usr/bin/time reports none) for `argv`."""
     time = "/usr/bin/time"
     if not os.access(time, os.X_OK):
         raise HarnessError("no /usr/bin/time (on linux, the `time` package)")
     macos = platform.system() == "Darwin"
-    values = []
+    values, instr = [], []
     for _ in range(runs):
         cmd = [time, "-l"] + argv if macos else [time, "-f", "PEAK %M"] + argv
         p = subprocess.run(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
@@ -479,21 +493,38 @@ def peak_rss(argv, runs=50):
         if v is None:
             raise HarnessError(f"/usr/bin/time printed no peak for {argv}: {p.stderr!r}")
         values.append(v)
+        n = re.search(r"(\d+)\s+instructions retired", p.stderr)
+        if n:
+            instr.append(int(n.group(1)))
     values.sort()
-    return values[len(values) // 2]
+    instr.sort()
+    return values[len(values) // 2], (instr[len(instr) // 2] if len(instr) == runs else None)
 
 
-def judge_startup(name, host, s, m, rs, rm):
+# The wall-time arm, when it is information on a hosted runner.
+WALL_RECORD = ("the wall-time bound, max(+10 %, +0.5 ms) of the separate program's, is judged for this host "
+               "in its record on a quiet host, not on this runner")
+
+
+def judge_startup(name, host, s, m, rs, rm, wall_information=False):
     """The verdict on a separate program's and the multicall's least wall
-    time (seconds) and peak resident size (bytes): (green, line). Whole
+    time (seconds) and peak resident size (bytes): (green, lines). Whole
     nanoseconds, so a figure on a limit is on it. The limits are the same on
-    every host; `host` names where the figures were taken."""
+    every host; `host` names where the figures were taken. With
+    `wall_information` the wall time is an information line naming its
+    bound and where it is judged, and the peak alone decides."""
     s_ns, m_ns = int(round(s * 1e9)), int(round(m * 1e9))
     limit_ns = max(s_ns * 11 // 10, s_ns + 500_000)
     rss_limit = 2 * 1024 * 1024
-    line = (f"{name}: least wall separate {s_ns / 1e6:.3f} ms, multicall {m_ns / 1e6:.3f} ms "
-            f"(limit {limit_ns / 1e6:.3f}); peak separate {rs}, multicall {rm} bytes (limit +{rss_limit})")
-    return m_ns <= limit_ns and rm - rs <= rss_limit, line
+    wall = (f"least wall separate {s_ns / 1e6:.3f} ms, multicall {m_ns / 1e6:.3f} ms "
+            f"(limit {limit_ns / 1e6:.3f})")
+    peak = f"peak separate {rs}, multicall {rm} bytes (limit +{rss_limit})"
+    peak_ok = rm - rs <= rss_limit
+    if wall_information:
+        return peak_ok, [f"info bore-startup: {name}: {wall}: {WALL_RECORD}",
+                         f"{'ok  ' if peak_ok else 'FAIL'} bore-startup: {name}: {peak}"]
+    green = m_ns <= limit_ns and peak_ok
+    return green, [f"{'ok  ' if green else 'FAIL'} bore-startup: {name}: {wall}; {peak}"]
 
 
 def step_startup(o):
@@ -511,12 +542,14 @@ def step_startup(o):
             mc = [os.path.join(links, name)] + args
             best = least_wall([("separate", " ".join(sep)), ("multicall", " ".join(mc))])
             s, m = best["separate"], best["multicall"]
-            rs, rm = peak_rss(sep), peak_rss(mc)
-            green, line = judge_startup(name, platform.system(), s, m, rs, rm)
-            if green:
-                print(f"ok   bore-startup: {line}")
-            else:
-                print(f"FAIL bore-startup: {line}")
+            (rs, isep), (rm, imc) = time_l(sep), time_l(mc)
+            if isep is not None and imc is not None:
+                print(f"bore-startup: {name}: instructions retired, the median of 50 (information): "
+                      f"separate {isep}, multicall {imc} ({imc - isep:+d})")
+            green, lines = judge_startup(name, platform.system(), s, m, rs, rm, o.get("wall_information", False))
+            for line in lines:
+                print(line)
+            if not green:
                 red = 1
     return red
 
@@ -815,12 +848,21 @@ def main(argv):
          "cases": os.path.join(ROOT, "tests", "multicall", "cases.toml"),
          "size": os.path.join(ROOT, "tests", "multicall", "size.toml"),
          "src": os.path.join(ROOT, "src")}
+    if "--wall-information" in argv:
+        argv = [a for a in argv if a != "--wall-information"]
+        if os.environ.get("GITHUB_ACTIONS") != "true":
+            print("multicalltest: --wall-information is for a hosted runner (GITHUB_ACTIONS=true); "
+                  "anywhere else, a record among them, the wall-time bound is a verdict", file=sys.stderr)
+            return 2
+        o["wall_information"] = True
     if argv[:1] == ["--judge-startup"]:
         if len(argv) != 6:
             print("multicalltest: --judge-startup HOST SEP_S MC_S SEP_RSS MC_RSS", file=sys.stderr)
             return 2
-        green, line = judge_startup("judged", argv[1], float(argv[2]), float(argv[3]), int(argv[4]), int(argv[5]))
-        print(f"{'ok  ' if green else 'FAIL'} bore-startup: {line}")
+        green, lines = judge_startup("judged", argv[1], float(argv[2]), float(argv[3]), int(argv[4]), int(argv[5]),
+                                     o.get("wall_information", False))
+        for line in lines:
+            print(line)
         return 0 if green else 1
     while argv[:1] in (["--bore"], ["--bin"], ["--cases"], ["--size"], ["--src"]):
         if len(argv) < 2:
