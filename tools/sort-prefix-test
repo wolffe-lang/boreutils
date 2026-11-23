@@ -1,0 +1,129 @@
+#!/usr/bin/env python3
+"""Check plain-prefix ordering and cache-ineligible sort modes.
+
+Without --reference, expected bytes come from the byte-order specification.
+With --reference, only GNU 9.11 is accepted for the additional identity check.
+"""
+import argparse
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+
+ROWS = ("sort-prefix-collision", "sort-prefix-high-bytes", "sort-prefix-stable",
+        "sort-prefix-zero-reverse", "sort-prefix-external-merge", "sort-cache-dispatch-modes")
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--binary", type=Path, required=True)
+    p.add_argument("--probe", type=Path)
+    p.add_argument("--reference", type=Path)
+    p.add_argument("--work", type=Path, required=True)
+    p.add_argument("--only", choices=ROWS, action="append")
+    args = p.parse_args()
+    work = args.work.resolve()
+    if work in (Path("/"), Path.home()):
+        raise ValueError("unsafe work directory")
+    for name in ("home", "tmp", "runs"):
+        (work / name).mkdir(parents=True, exist_ok=True)
+    env = {"PATH": "/usr/bin:/bin", "LC_ALL": "C", "_POSIX2_VERSION": "200112",
+           "SHELL": "/bin/sh", "HOME": str(work / "home"), "TMPDIR": str(work / "tmp")}
+    if args.reference:
+        version = subprocess.run([str(args.reference.absolute()), "--version"], env=env,
+                                 capture_output=True, check=True).stdout.splitlines()[0]
+        if version != b"sort (GNU coreutils) 9.11":
+            raise ValueError("identity reference must be GNU 9.11")
+    selected = args.only or ROWS
+    failures = []
+
+    def run(binary, options, data):
+        return subprocess.run([str(binary.absolute())] + options, input=data,
+                              env=env, cwd=work, capture_output=True)
+
+    def check(name, options, lines, delimiter=b"\n", key=None, reverse=False):
+        data = delimiter.join(lines) + delimiter
+        expected = delimiter.join(sorted(lines, key=key, reverse=reverse)) + delimiter
+        got = run(args.binary, options, data)
+        passed = got.returncode == 0 and got.stdout == expected and got.stderr == b""
+        if args.reference:
+            ref = run(args.reference, options, data)
+            passed &= (got.returncode, got.stdout, got.stderr) == (ref.returncode, ref.stdout, ref.stderr)
+        if not passed:
+            failures.append(name)
+        return passed
+
+    for row in selected:
+        start = len(failures)
+        if row == "sort-prefix-collision":
+            for name, population in (
+                ("eight-byte tie", [b"abcdefghz", b"abcdefgha", b"abcdefgh"]),
+                ("longer tie", [b"abcdefghijklmnopZ", b"abcdefghijklmnopA"]),
+                ("shorter zero-padded tie", [b"a\0", b"a", b"a\0\0", b"a\0b"])):
+                check(name, [], population * 2048)
+        elif row == "sort-prefix-high-bytes":
+            check("unsigned bytes", [], [b"\xffaa", b"\x80bb", b"\x7fcc", b"\0aa"] * 2048)
+        elif row == "sort-prefix-stable":
+            check("plain stable", ["-s"], [b"b", b"a", b"b", b"a"] * 2048)
+            check("keyed stable", ["-s", "-t:", "-k1,1"],
+                  [b"k:third", b"j:first", b"k:second"] * 2048,
+                  key=lambda x: x.split(b":", 1)[0])
+        elif row == "sort-prefix-zero-reverse":
+            check("reverse NUL records", ["-zr"],
+                  [b"b\nfirst", b"a\nsecond", b"b\nthird", b"c"] * 2048,
+                  delimiter=b"\0", reverse=True)
+        elif row == "sort-prefix-external-merge":
+            check("multiple external merge passes", ["-S64K", "--batch-size=2", "-T", str(work / "runs")],
+                  [f"{i:08x}".encode() for i in range(19999, -1, -1)])
+            if list((work / "runs").iterdir()):
+                failures.append("temporary runs remain")
+        else:
+            if not args.probe:
+                failures.append("allocation probe required")
+            else:
+                n = 4096
+                data = b"\n".join(f"{i:08x}:a".encode() for i in range(n)) + b"\n"
+                no_cache = (["-n"], ["-h"], ["-M"], ["-f"], ["-d"], ["-i"], ["-b"],
+                            ["-k1,1"], ["-k1n"], ["-k1", "-k2"], ["-nr"], ["-s", "-k1,1"],
+                            ["--sort=numeric"], ["--sort=human-numeric"], ["--sort=month"],
+                            ["--ignore-leading-blanks"], ["--dictionary-order"], ["--ignore-case"],
+                            ["--ignore-nonprinting"], ["--numeric-sort"], ["--month-sort"],
+                            ["--human-numeric-sort"])
+                for options in no_cache:
+                    got = run(args.probe, options, data)
+                    try:
+                        line = next(x for x in got.stderr.decode().splitlines() if x.startswith("PHASE "))
+                        metrics = {k: int(v) for k, v in (x.split("=") for x in line.split()[1:])}
+                        charged = metrics["sort_bytes"]
+                        passed = got.returncode == 0 and charged in (65536, 131040)
+                    except (StopIteration, ValueError, KeyError):
+                        passed = False
+                    if not passed:
+                        failures.append("cache entered " + " ".join(options))
+                for options, expected_status in ((["-c"], 0), (["-C"], 0), (["-m"], 0),
+                                                 (["-g"], 2), (["-R"], 2), (["-V"], 2),
+                                                 (["--debug"], 2)):
+                    got = run(args.probe, options, data)
+                    if got.returncode != expected_status or b"PHASE " in got.stderr:
+                        failures.append("sort dispatch entered " + " ".join(options))
+                small = run(args.probe, [], b"z\na\n" * 2047 + b"b\n")
+                try:
+                    line = next(x for x in small.stderr.decode().splitlines() if x.startswith("PHASE "))
+                    metrics = dict(x.split("=") for x in line.split()[1:])
+                    if small.returncode or int(metrics["sort_bytes"]) not in (65520, 131040):
+                        failures.append("cache entered a small input")
+                except (StopIteration, ValueError, KeyError):
+                    failures.append("small-input probe missing")
+        bad = failures[start:]
+        print(("FAIL" if bad else "PASS") + " " + row +
+              (" " + json.dumps(bad) if bad else ""), flush=True)
+    return int(bool(failures))
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        print("FAIL sort-prefix-inputs " + str(error))
+        raise SystemExit(1)
