@@ -172,9 +172,17 @@ def outer(args, run=subprocess.run):
             shutil.copyfile(source, target)
     if digest(root / "source.bundle") != args.bundle_sha:
         raise ValueError("staged source bundle digest differs")
+    if not args.engine.is_absolute() or not args.lock_tool.is_absolute():
+        raise ValueError("engine and lock tool must have absolute paths")
+    tool_ids = {}
+    for name in ("engine", "lock_tool"):
+        path = getattr(args, name)
+        tool_ids[name] = {"path": str(path), "sha256": digest(path) if path.is_file() else None}
     config = {"head": args.head, "bundle": args.bundle_sha, "image": args.image, "cpus": args.cpus,
               "oracle_pins": digest(root / "oracle-pins.json"), "rig": digest(root / "stage.py"),
-              "oracle_dir": str(args.oracle.resolve()), "taskset": args.taskset}
+              "oracle_dir": str(args.oracle.resolve()), "taskset": args.taskset,
+              "engine": tool_ids["engine"], "lock_tool": tool_ids["lock_tool"],
+              "outer_lock": str(args.outer_lock.resolve()), "inner_lock": str(args.inner_lock.resolve())}
     receipt = root / "dry-ok.json"
     if args.mode == "dry":
         receipt.unlink(missing_ok=True)
