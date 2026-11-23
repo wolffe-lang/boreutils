@@ -190,7 +190,10 @@ def outer(args, run=subprocess.run):
         raise ValueError("run requires a successful dry for these exact inputs")
     inspected = run([str(args.engine), "image", "inspect", "--format", "{{.Id}}", args.image],
                     capture_output=True, text=True)
-    if inspected.returncode or inspected.stdout.strip() != args.image:
+    actual_image = inspected.stdout.strip()
+    if re.fullmatch("[0-9a-f]{64}", actual_image):
+        actual_image = "sha256:" + actual_image
+    if inspected.returncode or actual_image != args.image:
         raise ValueError("container image identity differs")
     command = [str(args.lock_tool), "-w", "21600", str(args.outer_lock),
                str(args.lock_tool), "-w", "21600", str(args.inner_lock),
