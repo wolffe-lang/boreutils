@@ -1456,8 +1456,8 @@ fn merge_pass(
 }
 
 /// The first eight bytes, big-endian and zero-padded, are an unsigned
-/// ordering key. Equal prefixes still require a full byte comparison:
-/// a shorter line can share its prefix with a longer line containing NULs.
+/// ordering key. A tie still needs an exact complete-key decision:
+/// short keys compare lengths; longer keys compare the remaining bytes.
 fn prefix_keys(buf: List[byte], starts: List[int]) -> List[wrapping[u64]] {
     let n = starts.len - 1
     var keys = List[wrapping[u64]]()
@@ -1494,7 +1494,18 @@ fn prefix_less(
     if a != b {
         return if reverse then a > b else a < b
     }
-    let d = bytes_cmp(buf, starts[x], starts[x + 1] - 1, buf, starts[y], starts[y + 1] - 1)
+    let sx = starts[x]
+    let ex = starts[x + 1] - 1
+    let sy = starts[y]
+    let ey = starts[y + 1] - 1
+    let nx = ex - sx
+    let ny = ey - sy
+    // A tied prefix already contains every byte of a short key. Padding
+    // can hide a length difference, but all shared bytes are equal.
+    if nx <= 8 || ny <= 8 {
+        return if reverse then nx > ny else nx < ny
+    }
+    let d = bytes_cmp(buf, sx + 8, ex, buf, sy + 8, ey)
     if reverse then d > 0 else d < 0
 }
 
