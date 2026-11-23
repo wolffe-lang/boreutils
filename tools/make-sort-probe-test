@@ -1,0 +1,35 @@
+#!/usr/bin/env python3
+"""Check that probe generation is bounded to unique source anchors."""
+import importlib.machinery
+import importlib.util
+from pathlib import Path
+import unittest
+
+loader = importlib.machinery.SourceFileLoader("make_sort_probe", str(Path(__file__).with_name("make-sort-probe")))
+spec = importlib.util.spec_from_loader(loader.name, loader)
+module = importlib.util.module_from_spec(spec)
+loader.exec_module(module)
+
+
+class ProbeGeneration(unittest.TestCase):
+    def test_real_source_has_all_anchors(self):
+        source = (Path(__file__).parent.parent / "src/cmd/sort/sort.lu").read_text()
+        result = module.instrument(source)
+        self.assertEqual(result.count('eprint("PROBE cache-trace=1")'), 1)
+        self.assertEqual(result.count('eprint("PHASE '), 1)
+        expected = int("fn prefix_keys(" in source)
+        self.assertEqual(result.count('eprint("CACHE prefix")'), expected)
+
+    def test_missing_anchor_is_rejected(self):
+        with self.assertRaises(ValueError):
+            module.instrument("")
+
+    def test_ambiguous_anchor_is_rejected(self):
+        with self.assertRaises(ValueError):
+            module.replace_once("x x", "x", "y")
+
+
+if __name__ == "__main__":
+    result = unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromTestCase(ProbeGeneration))
+    print(("PASS" if result.wasSuccessful() else "FAIL") + " sort-probe-selftest")
+    raise SystemExit(0 if result.wasSuccessful() else 1)
