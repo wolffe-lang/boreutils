@@ -79,6 +79,23 @@ class Staging(unittest.TestCase):
         self.args.cpus = "6-11"
         with self.assertRaises(ValueError): self.outer()
 
+    def test_engine_and_lock_selection_are_bound_to_dry(self):
+        self.outer()
+        self.args.mode = "run"
+        for field in ("engine", "lock_tool", "outer_lock", "inner_lock"):
+            with self.subTest(field=field):
+                original = getattr(self.args, field)
+                setattr(self.args, field, self.base / ("other-" + field))
+                with self.assertRaises(ValueError):
+                    self.outer()
+                setattr(self.args, field, original)
+
+    def test_oracle_digest_drift_is_rejected(self):
+        root, _ = self.inner_fixture()
+        (self.oracle / "sort").write_bytes(b"changed oracle")
+        with self.assertRaises(ValueError), contextlib.redirect_stdout(io.StringIO()):
+            module.verify_oracle(root, self.oracle)
+
     def test_engine_error_invalidates_previous_dry(self):
         self.outer()
         def fail(command, **kwargs):
