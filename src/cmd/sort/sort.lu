@@ -1350,6 +1350,9 @@ fn month_of(a: List[byte], s: int, e: int) -> int {
 /// input's order.
 fn sort_index(c: Conf, buf: List[byte], starts: List[int]) -> List[int] {
     let n = starts.len - 1
+    if c.plain && n >= 4096 {
+        return sort_plain_index(c.reverse, buf, starts)
+    }
     var a = List[int]()
     var t = List[int]()
     var i = 0
@@ -1428,6 +1431,144 @@ fn merge_pass(
             let y = src[j]
             if compare(c, buf, starts[y], starts[y + 1] - 1, buf, starts[x], starts[x + 1] - 1) <
                 0 {
+                dst[k] = y
+                j += 1
+            } else {
+                dst[k] = x
+                i += 1
+            }
+            k += 1
+        }
+        while i < mid {
+            dst[k] = src[i]
+            i += 1
+            k += 1
+        }
+        while j < hi {
+            dst[k] = src[j]
+            j += 1
+            k += 1
+        }
+        lo = hi
+    }
+}
+
+/// The first eight bytes, big-endian and zero-padded, are an unsigned
+/// ordering key. Equal prefixes still require a full byte comparison:
+/// a shorter line can share its prefix with a longer line containing NULs.
+fn prefix_keys(buf: List[byte], starts: List[int]) -> List[wrapping[u64]] {
+    let n = starts.len - 1
+    var keys = List[wrapping[u64]]()
+    (mut keys).reserve(n)
+    var i = 0
+    while i < n {
+        let s = starts[i]
+        let e = starts[i + 1] - 1
+        var key: wrapping[u64] = 0
+        var j = 0
+        while j < 8 {
+            key = key << 8
+            if s + j < e {
+                key = key | buf[s + j] as int as wrapping[u64]
+            }
+            j += 1
+        }
+        (mut keys).push(key)
+        i += 1
+    }
+    keys
+}
+
+fn prefix_compare(
+    reverse: bool,
+    buf: List[byte],
+    starts: List[int],
+    keys: List[wrapping[u64]],
+    x: int,
+    y: int,
+) -> int {
+    let a = keys[x]
+    let b = keys[y]
+    var d = 0
+    if a == b {
+        d = bytes_cmp(buf, starts[x], starts[x + 1] - 1, buf, starts[y], starts[y + 1] - 1)
+    } else {
+        d = if a < b then -1 else 1
+    }
+    if reverse then -d else d
+}
+
+/// Keep the generic comparator out of the plain merge's hot path.
+/// Both paths take from the left on a tie and therefore stay stable.
+fn sort_plain_index(reverse: bool, buf: List[byte], starts: List[int]) -> List[int] {
+    let n = starts.len - 1
+    let keys = prefix_keys(buf, starts)
+    var a = List[int]()
+    var t = List[int]()
+    var i = 0
+    while i < n {
+        (mut a).push(i)
+        (mut t).push(0)
+        i += 1
+    }
+    let block = 16
+    var lo = 0
+    while lo < n {
+        let hi = if lo + block < n then lo + block else n
+        var k = lo + 1
+        while k < hi {
+            let v = a[k]
+            var j = k - 1
+            var moving = true
+            while moving && j >= lo {
+                let w = a[j]
+                if prefix_compare(reverse, buf, starts, keys, w, v) > 0 {
+                    a[j + 1] = w
+                    j -= 1
+                } else {
+                    moving = false
+                }
+            }
+            a[j + 1] = v
+            k += 1
+        }
+        lo = hi
+    }
+    var width = block
+    var in_a = true
+    while width < n {
+        if in_a {
+            merge_plain_pass(mut t, reverse, buf, starts, keys, a, width, n)
+        } else {
+            merge_plain_pass(mut a, reverse, buf, starts, keys, t, width, n)
+        }
+        in_a = !in_a
+        width = width * 2
+    }
+    if in_a then a else t
+}
+
+fn merge_plain_pass(
+    mut dst: List[int],
+    reverse: bool,
+    buf: List[byte],
+    starts: List[int],
+    keys: List[wrapping[u64]],
+    src: List[int],
+    width: int,
+    n: int,
+) {
+    var lo = 0
+    while lo < n {
+        let mid = if lo + width < n then lo + width else n
+        let hi = if mid + width < n then mid + width else n
+        var i = lo
+        var j = mid
+        var k = lo
+        while i < mid && j < hi {
+            let x = src[i]
+            let y = src[j]
+            if prefix_compare(reverse, buf, starts, keys, y, x) < 0 {
                 dst[k] = y
                 j += 1
             } else {
