@@ -99,11 +99,25 @@ os.rename(portfile + ".tmp", portfile)
 s.serve_forever()
 EOF
 
-# run PLAN: a fresh stand-in under PLAN, then the tool against it.
+# run PLAN [slow-names]: a fresh stand-in under PLAN, then the tool against
+# it. With slow-names every host name lookup in the stand-in takes 30
+# seconds, as reverse lookups can on a hosted macOS runner: the stand-in
+# must not look one up, so it still starts at once.
 run() {
     rm -rf "$work/root/.wolf-bin" "$work/port" "$work/log"
     : > "$work/log"
-    python3 -I "$work/serve.py" "$1" "$work/serve" "$work/port" "$work/log" &
+    if [ "${2:-}" = slow-names ]; then
+        python3 -I -c 'import socket, sys, time
+def slow(*a):
+    time.sleep(30)
+    return "slow"
+socket.getfqdn = slow
+socket.gethostbyaddr = slow
+sys.argv = sys.argv[1:]
+exec(compile(open(sys.argv[0]).read(), sys.argv[0], "exec"))' "$work/serve.py" "$1" "$work/serve" "$work/port" "$work/log" &
+    else
+        python3 -I "$work/serve.py" "$1" "$work/serve" "$work/port" "$work/log" &
+    fi
     server=$!
     i=0
     while [ ! -f "$work/port" ]; do
@@ -138,6 +152,12 @@ answered 1 200 lupin
 [ -f "$work/root/.wolf-bin/README" ] && [ -f "$work/root/.wolf-bin/std/README" ] \
     || refuse "the archives or std were not staged"
 proved "a refusal once per archive: retried, both staged and stamped"
+
+run once slow-names
+must 0 "the fetch against a stand-in whose name lookups take 30 seconds"
+answered 1 403 wolf
+answered 1 200 wolf
+proved "a stand-in that looks up no name: it starts at once where lookups are slow"
 
 run always
 must 22 "the fetch against a stand-in that refuses every request"
