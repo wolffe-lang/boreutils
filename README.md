@@ -112,6 +112,7 @@ The toolchain is pinned by digest and fetched, never built:
 tools/fetch-toolchain     # wolf + lupin release archives, sha256-checked
 tools/fetch-oracle        # GNU coreutils 9.11, sha256-checked, if needed
 tools/build               # every utility into target/release/
+tools/check-test          # native unit tests, sort controls and harness self-tests
 tools/difftest            # the differential suite against the oracle
 tools/texttest            # shuffle shape plants and bounded codec round-trips
 tools/checksumtest        # independent digest answers, manifests and bounded memory
@@ -1111,6 +1112,18 @@ that was measured rather than assumed.
 A single line that is the whole input is the other bound: a 64 MiB line
 with no newline in it costs `fold` 322 MB and `paste` 131 MB, against
 GNU's 2.0 MB and 1.7 MB, for the same reason.
+
+Large plain `sort` runs (at least 4,096 records) cache the first eight
+bytes of each record as an unsigned ordering prefix. Equal prefixes do
+not establish record equality: short records are decided by length,
+and longer records compare their remaining bytes. `-r`, `-s`, `-u` and
+`-z` retain this path; explicit keys and ordering transforms such as
+`-k`, `-n`, `-h`, `-M`, `-b`, `-f`, `-d` and `-i` do not. The two
+permutation buffers reserve their complete lengths. Sorting remains
+single-threaded.
+
+The timings and memory figures below describe the original byte-loop
+implementation, before prefix caching and permutation reservation.
 
 `sort` is B5, and the first utility here that may not hold its input:
 past a run budget (256 MiB by default, `-S` sets it) it sorts each run
