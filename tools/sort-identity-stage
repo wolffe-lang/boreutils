@@ -101,7 +101,7 @@ def inner(mode, root, oracle, head, run=subprocess.run):
         dry.mkdir(parents=True, exist_ok=True)
         (dry / "sort.toml").write_text('[[case]]\nname = "a file of words"\nargs = ["tests/fixtures/sortwords.txt"]\n')
         output = step("held-case", ["python3", "-I", repo / "tools/difftest", "--cases", dry, "sort"], repo)
-        if "PASS sort: a file of words" not in output or "difftest: 1 passed, 0 failed, 0 skipped" not in output:
+        if not re.search(r"(?m)^ok\s+sort: a file of words$", output) or "difftest: 1 passed, 0 failed, 0 skipped" not in output:
             raise ValueError("dry did not execute the real held case")
         print("PASS sort-identity-dry", flush=True)
         return
