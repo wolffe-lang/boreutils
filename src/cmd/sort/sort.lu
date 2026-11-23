@@ -1481,23 +1481,21 @@ fn prefix_keys(buf: List[byte], starts: List[int]) -> List[wrapping[u64]] {
     keys
 }
 
-fn prefix_compare(
+fn prefix_less(
     reverse: bool,
     buf: List[byte],
     starts: List[int],
     keys: List[wrapping[u64]],
     x: int,
     y: int,
-) -> int {
+) -> bool {
     let a = keys[x]
     let b = keys[y]
-    var d = 0
-    if a == b {
-        d = bytes_cmp(buf, starts[x], starts[x + 1] - 1, buf, starts[y], starts[y + 1] - 1)
-    } else {
-        d = if a < b then -1 else 1
+    if a != b {
+        return if reverse then a > b else a < b
     }
-    if reverse then -d else d
+    let d = bytes_cmp(buf, starts[x], starts[x + 1] - 1, buf, starts[y], starts[y + 1] - 1)
+    if reverse then d > 0 else d < 0
 }
 
 /// Keep the generic comparator out of the plain merge's hot path.
@@ -1526,7 +1524,7 @@ fn sort_plain_index(reverse: bool, buf: List[byte], starts: List[int]) -> List[i
             var moving = true
             while moving && j >= lo {
                 let w = a[j]
-                if prefix_compare(reverse, buf, starts, keys, w, v) > 0 {
+                if prefix_less(reverse, buf, starts, keys, v, w) {
                     a[j + 1] = w
                     j -= 1
                 } else {
@@ -1572,7 +1570,7 @@ fn merge_plain_pass(
         while i < mid && j < hi {
             let x = src[i]
             let y = src[j]
-            if prefix_compare(reverse, buf, starts, keys, y, x) < 0 {
+            if prefix_less(reverse, buf, starts, keys, y, x) {
                 dst[k] = y
                 j += 1
             } else {
