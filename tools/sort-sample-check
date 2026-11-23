@@ -1,0 +1,27 @@
+#!/usr/bin/env python3
+"""Reject sample reports that have no active sort stacks."""
+import argparse
+from pathlib import Path
+
+
+def has_active_sort(text):
+    try:
+        graph = text.split("Call graph:", 1)[1].split("Total number in stack", 1)[0]
+    except IndexError:
+        return False
+    return "__Wcmd.sort." in graph
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("report", type=Path)
+    args = parser.parse_args()
+    if not has_active_sort(args.report.read_text()):
+        print("FAIL sort-sample-active-content")
+        return 1
+    print("PASS sort-sample-active-content")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
