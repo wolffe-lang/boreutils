@@ -135,7 +135,7 @@ class Staging(unittest.TestCase):
                 self.assertIn("--cases", command)
                 case = json.loads(json.dumps(__import__("tomllib").loads((repo / "target/identity-dry-cases/sort.toml").read_text())))["case"][0]
                 self.assertEqual(case, {"name": "a file of words", "args": ["tests/fixtures/sortwords.txt"]})
-                return subprocess.CompletedProcess(command, 0, "PASS sort: a file of words\ndifftest: 1 passed, 0 failed, 0 skipped\n", "")
+                return subprocess.CompletedProcess(command, 0, "ok   sort: a file of words\ndifftest: 1 passed, 0 failed, 0 skipped\n", "")
             if command[:2] == ["git", "clone"]:
                 self.assertIn("--no-checkout", command)
                 self.assertNotIn("--branch", command)
