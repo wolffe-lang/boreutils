@@ -1,0 +1,76 @@
+#!/usr/bin/env python3
+"""Check sort speed arithmetic and execute the runner with stand-in children."""
+import hashlib
+import importlib.machinery
+import importlib.util
+import json
+import os
+from pathlib import Path
+import platform
+import subprocess
+import sys
+import tempfile
+import unittest
+
+loader = importlib.machinery.SourceFileLoader("sort_speed", str(Path(__file__).with_name("sort-speed")))
+spec = importlib.util.spec_from_loader(loader.name, loader)
+module = importlib.util.module_from_spec(spec)
+loader.exec_module(module)
+
+
+class SpeedCheck(unittest.TestCase):
+    def test_measurement_requires_child_success(self):
+        with self.assertRaises(ValueError):
+            module.measurement("MEASURE exit=2 user_us=2 system_us=1 wall_ns=3 rss_bytes=4 floor_bytes=1")
+
+    def test_measurement_requires_fields(self):
+        with self.assertRaises(ValueError):
+            module.measurement("MEASURE exit=0 user_us=2")
+
+    def test_negative_time_is_invalid(self):
+        with self.assertRaises(ValueError):
+            module.measurement("MEASURE exit=0 user_us=-2 system_us=1 wall_ns=3 rss_bytes=4 floor_bytes=1")
+
+    def test_total_cpu_is_user_plus_system(self):
+        row = module.measurement("MEASURE exit=0 user_us=7 system_us=3 wall_ns=10000 rss_bytes=4000 floor_bytes=1000")
+        self.assertEqual(row["cpu_us"], 10)
+        summary = module.summarize([row, dict(row, cpu_us=12)])
+        self.assertEqual(summary["cpu_us"], {"min": 10, "median": 11, "max": 12})
+
+    def test_utility_link_name_survives_command_construction(self):
+        with tempfile.TemporaryDirectory(dir=os.environ["TMPDIR"]) as td:
+            root = Path(td)
+            source = root / "bore"
+            source.write_text("not executed directly\n")
+            binary = root / "sort"
+            binary.symlink_to(source)
+            reference = root / "gsort"
+            reference.write_text(f"#!{sys.executable} -I\nprint('sort (GNU coreutils) 9.12')\n")
+            reference.chmod(0o755)
+            data = root / "input"
+            data.write_bytes(b"x\n")
+            child = root / "child"
+            child.write_text(f"#!{sys.executable} -I\nimport pathlib,sys\n"
+                             "name=pathlib.Path(sys.argv[2]).name\n"
+                             "if name not in ('sort','gsort'): sys.exit(6)\n"
+                             "print('MEASURE exit=0 user_us=50 system_us=10 wall_ns=60000 rss_bytes=100 floor_bytes=10')\n")
+            child.chmod(0o755)
+            baseline = root / "baseline.json"
+            baseline.write_text(json.dumps({"platform": platform.system(), "machine": platform.machine(),
+                "cpu_us": 100, "cpu_factor": 0.85, "rss_bytes": 100, "rss_extra_bytes": 20,
+                "input_sha256": hashlib.sha256(data.read_bytes()).hexdigest(),
+                "reference_sha256": hashlib.sha256(reference.read_bytes()).hexdigest(),
+                "reference_version": "sort (GNU coreutils) 9.12"}))
+            result = subprocess.run([sys.executable, "-I", str(Path(__file__).with_name("sort-speed")),
+                "--binary", str(binary), "--reference", str(reference), "--input", str(data),
+                "--child", str(child), "--baseline", str(baseline), "--work", str(root / "work"),
+                "--output", str(root / "result.json")], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("PASS sort-cpu-1m-plain-single", result.stdout)
+            self.assertIn("PASS sort-rss-1m-plain", result.stdout)
+
+
+if __name__ == "__main__":
+    result = unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromTestCase(SpeedCheck))
+    print(("PASS" if result.wasSuccessful() else "FAIL") + " sort-speed-selftest")
+    raise SystemExit(0 if result.wasSuccessful() else 1)
