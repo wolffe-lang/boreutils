@@ -1,0 +1,180 @@
+#!/usr/bin/env python3
+"""Prove identity staging fails closed with off-host stand-ins."""
+import argparse
+import contextlib
+import hashlib
+import importlib.machinery
+import importlib.util
+import io
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+from unittest import mock
+
+loader = importlib.machinery.SourceFileLoader("identity_stage", str(Path(__file__).with_name("sort-identity-stage")))
+spec = importlib.util.spec_from_loader(loader.name, loader)
+module = importlib.util.module_from_spec(spec)
+loader.exec_module(module)
+ROOT = Path(__file__).parent.parent
+HEAD = "1" * 40
+IMAGE = "sha256:" + "2" * 64
+
+
+class Staging(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory(dir=os.environ["TMPDIR"])
+        self.addCleanup(self.temp.cleanup)
+        self.base = Path(self.temp.name)
+        self.oracle = self.base / "oracle"
+        self.oracle.mkdir()
+        pins = {}
+        for name in ("sort", "true", "uniq"):
+            (self.oracle / name).write_bytes(("stand-in " + name).encode())
+            pins[name] = module.digest(self.oracle / name)
+        self.pins = self.base / "pins.json"
+        self.pins.write_text(json.dumps(pins))
+        self.bundle = self.base / "bundle"
+        self.bundle.write_bytes(b"stand-in source bundle")
+        self.args = argparse.Namespace(mode="dry", root=self.base / "work", oracle=self.oracle,
+            oracle_pins=self.pins, bundle=self.bundle, bundle_sha=module.digest(self.bundle),
+            head=HEAD, image=IMAGE, cpus="0-5", taskset="/usr/bin/taskset.real",
+            engine=Path("/stand-in/engine"), lock_tool=Path("/stand-in/lock"),
+            outer_lock=self.base / "outer.lock", inner_lock=self.base / "inner.lock")
+        self.calls = []
+
+    def engine(self, command, **kwargs):
+        self.calls.append(command)
+        if command[1:3] == ["image", "inspect"]:
+            return subprocess.CompletedProcess(command, 0, IMAGE + "\n", "")
+        marker = "dry" if self.args.mode == "dry" else "full"
+        return subprocess.CompletedProcess(command, 0, "PASS sort-identity-" + marker + "\n", "")
+
+    def outer(self, run=None):
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            module.outer(self.args, run or self.engine)
+
+    def test_real_engine_shape_locks_caps_and_cpu_pin(self):
+        self.outer()
+        command = self.calls[-1]
+        self.assertEqual(command[:8], ["/stand-in/lock", "-w", "21600", str(self.args.outer_lock),
+                                      "/stand-in/lock", "-w", "21600", str(self.args.inner_lock)])
+        self.assertIn("--init", command)
+        self.assertEqual(command[command.index("--memory") + 1], "12g")
+        self.assertEqual(command[command.index("--memory-swap") + 1], "12g")
+        self.assertEqual(command[-8:], ["python3", "-I", "/work/stage.py", "--inner", "dry", "/work", "/oracle", HEAD])
+        self.assertIn("/usr/bin/taskset.real", command)
+        self.assertIn("0-5", command)
+
+    def test_run_needs_matching_dry(self):
+        self.args.mode = "run"
+        with self.assertRaises(ValueError): self.outer()
+        self.assertFalse(self.calls)
+        self.args.mode = "dry"; self.outer()
+        self.args.mode = "run"; self.outer()
+        self.args.cpus = "6-11"
+        with self.assertRaises(ValueError): self.outer()
+
+    def test_engine_error_invalidates_previous_dry(self):
+        self.outer()
+        def fail(command, **kwargs):
+            if command[1:3] == ["image", "inspect"]: return self.engine(command, **kwargs)
+            return subprocess.CompletedProcess(command, 7, "FAIL real held case\n", "")
+        with self.assertRaises(RuntimeError): self.outer(fail)
+        self.args.mode = "run"
+        with self.assertRaises(ValueError): self.outer()
+
+    def test_zero_engine_exit_without_case_marker_is_not_success(self):
+        def missing(command, **kwargs):
+            if command[1:3] == ["image", "inspect"]: return self.engine(command, **kwargs)
+            return subprocess.CompletedProcess(command, 0, "nothing ran\n", "")
+        with self.assertRaises(RuntimeError): self.outer(missing)
+        self.assertFalse((self.args.root / "dry-ok.json").exists())
+
+    def test_wrong_bundle_and_mutable_image_refused(self):
+        self.args.bundle_sha = "0" * 64
+        with self.assertRaises(ValueError): self.outer()
+        self.args.bundle_sha = module.digest(self.bundle)
+        self.args.image = "latest"
+        with self.assertRaises(ValueError): self.outer()
+
+    def inner_fixture(self):
+        root = self.base / "inner"
+        repo = root / "repo"
+        (repo / "tests/cases").mkdir(parents=True)
+        shutil.copyfile(ROOT / "gnu-oracle.toml", repo / "gnu-oracle.toml")
+        shutil.copyfile(ROOT / "tests/cases/sort.toml", repo / "tests/cases/sort.toml")
+        shutil.copyfile(self.pins, root / "oracle-pins.json")
+        (root / "source.bundle").write_bytes(b"stand-in")
+        return root, repo
+
+    def inner_run(self, mode, callback):
+        root, repo = self.inner_fixture()
+        def run(command, **kwargs):
+            self.calls.append(command)
+            if command[:3] == ["git", "rev-parse", "HEAD"]:
+                return subprocess.CompletedProcess(command, 0, HEAD + "\n", "")
+            if command[0] == str(self.oracle / "sort"):
+                return subprocess.CompletedProcess(command, 0, "sort (GNU coreutils) 9.11\n", "")
+            return callback(command, repo, kwargs)
+        with mock.patch.object(module.platform, "system", return_value="Linux"), \
+             mock.patch.object(module.platform, "machine", return_value="x86_64"), \
+             mock.patch.object(module.shutil, "disk_usage", return_value=argparse.Namespace(free=40 * 1024**3)), \
+             mock.patch.object(module, "available_memory", return_value=16 * 1024**3), \
+             contextlib.redirect_stdout(io.StringIO()):
+            module.inner(mode, root, self.oracle, HEAD, run)
+        return repo
+
+    def test_dry_runs_real_case_path_and_does_not_depend_on_branch_name(self):
+        def commands(command, repo, kwargs):
+            if str(repo / "tools/difftest") in command:
+                self.assertIn("--cases", command)
+                case = json.loads(json.dumps(__import__("tomllib").loads((repo / "target/identity-dry-cases/sort.toml").read_text())))["case"][0]
+                self.assertEqual(case, {"name": "a file of words", "args": ["tests/fixtures/sortwords.txt"]})
+                return subprocess.CompletedProcess(command, 0, "PASS sort: a file of words\ndifftest: 1 passed, 0 failed, 0 skipped\n", "")
+            if command[:2] == ["git", "clone"]:
+                self.assertIn("--no-checkout", command)
+                self.assertNotIn("--branch", command)
+            return subprocess.CompletedProcess(command, 0, "", "")
+        self.inner_run("dry", commands)
+
+    def test_missing_real_case_pass_is_red_even_with_zero_exit(self):
+        def commands(command, repo, kwargs):
+            output = "difftest: 1 passed, 0 failed, 0 skipped\n" if str(repo / "tools/difftest") in command else ""
+            return subprocess.CompletedProcess(command, 0, output, "")
+        with self.assertRaises(ValueError): self.inner_run("dry", commands)
+
+    def test_full_run_rejects_a_skipped_held_case(self):
+        def commands(command, repo, kwargs):
+            output = "difftest: 325 passed, 0 failed, 1 skipped\n" if str(repo / "tools/difftest") in command else ""
+            return subprocess.CompletedProcess(command, 0, output, "")
+        with self.assertRaises(ValueError): self.inner_run("run", commands)
+
+    def test_cli_engine_failure_is_nonzero(self):
+        engine = self.base / "engine"
+        engine.write_text(f"#!{sys.executable} -I\nimport sys\n"
+                          f"if sys.argv[1:3]==['image','inspect']: print('{IMAGE}'); sys.exit(0)\n"
+                          "print('FAIL real held case'); sys.exit(9)\n")
+        engine.chmod(0o755)
+        lock = self.base / "lock"
+        lock.write_text(f"#!{sys.executable} -I\nimport os,sys\nos.execv(sys.argv[4],sys.argv[4:])\n")
+        lock.chmod(0o755)
+        command = [sys.executable, "-I", str(Path(__file__).with_name("sort-identity-stage")), "dry",
+                   "--engine", str(engine), "--lock-tool", str(lock), "--outer-lock", str(self.args.outer_lock),
+                   "--inner-lock", str(self.args.inner_lock), "--root", str(self.args.root), "--oracle", str(self.oracle),
+                   "--oracle-pins", str(self.pins), "--bundle", str(self.bundle), "--bundle-sha", self.args.bundle_sha,
+                   "--head", HEAD, "--image", IMAGE, "--cpus", "0-5"]
+        result = subprocess.run(command, capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("FAIL real held case", result.stdout)
+        self.assertFalse((self.args.root / "dry-ok.json").exists())
+
+
+if __name__ == "__main__":
+    result = unittest.TextTestRunner(verbosity=2).run(unittest.defaultTestLoader.loadTestsFromTestCase(Staging))
+    print(("PASS" if result.wasSuccessful() else "FAIL") + " sort-identity-stage-selftest")
+    raise SystemExit(0 if result.wasSuccessful() else 1)

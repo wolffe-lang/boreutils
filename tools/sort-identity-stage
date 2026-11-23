@@ -1,0 +1,197 @@
+#!/usr/bin/env python3
+"""Stage an immutable sort identity take in an existing Linux container image.
+
+The dry uses the real engine, compiler and first held differential case.
+A full run requires a successful dry receipt for these exact inputs.
+"""
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path
+import platform
+import re
+import shutil
+import subprocess
+import sys
+import time
+import tomllib
+
+REPOSITORY = "https://github.com/wolffe-lang/boreutils.git"
+CORPUS = "5de9746647bb02ba41b23e29b84ca2a45499fb595c16d6071edda91c2c2544b9"
+ORACLE_ARCHIVE = "394024eda0a5955217ceda9cd1201e65dc8fa3aa29c2951135a49521d57c3cc3"
+
+
+def digest(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as stream:
+        for block in iter(lambda: stream.read(1048576), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def available_memory():
+    text = Path("/proc/meminfo").read_text()
+    return int(re.search(r"^MemAvailable:\s+(\d+) kB$", text, re.M).group(1)) * 1024
+
+
+def verify_oracle(root, oracle):
+    pins = json.loads((root / "oracle-pins.json").read_text())
+    if set(pins) != {"sort", "true", "uniq"}:
+        raise ValueError("oracle pins must bind sort, true and uniq")
+    for name, expected in pins.items():
+        if not re.fullmatch("[0-9a-f]{64}", expected):
+            raise ValueError("invalid oracle digest")
+        if digest(oracle / name) != expected or digest(oracle / name) != expected:
+            raise ValueError("oracle digest mismatch: " + name)
+        print("ORACLE " + name + " sha256=" + expected, flush=True)
+
+
+def inner(mode, root, oracle, head, run=subprocess.run):
+    if platform.system() != "Linux" or platform.machine() != "x86_64":
+        raise ValueError("the staged take requires Linux x86-64")
+    if shutil.disk_usage(root).free < 35 * 1024**3 or available_memory() < 8 * 1024**3:
+        raise ValueError("disk or memory floor not met")
+    for name in ("home", "tmp", "scratch"):
+        (root / name).mkdir(parents=True, exist_ok=True)
+    env = {"PATH": "/usr/bin:/bin", "SHELL": "/bin/sh", "HOME": str(root / "home"),
+           "TMPDIR": str(root / "tmp"), "LC_ALL": "C", "_POSIX2_VERSION": "200112",
+           "BORE_GNU_PREFIX": str(oracle) + "/", "BORE_SCRATCH_ROOT": str(root / "scratch"),
+           "CARGO_BUILD_JOBS": "2"}
+    repo = root / "repo"
+
+    def step(name, command, cwd=None):
+        print("START " + name, flush=True)
+        result = run([str(x) for x in command], cwd=cwd or root, env=env,
+                     capture_output=True, text=True)
+        for line in (result.stdout + result.stderr).splitlines():
+            print(("" if line.startswith("FAIL ") else "  ") + line, flush=True)
+        print("END " + name + " exit=" + str(result.returncode), flush=True)
+        if result.returncode:
+            raise RuntimeError(name + " failed")
+        return result.stdout
+
+    if not (repo / ".git").exists():
+        step("clone", ["git", "clone", "--branch", "trunk", root / "source.bundle", repo])
+    step("origin", ["git", "remote", "set-url", "origin", REPOSITORY], repo)
+    step("git-config", ["git", "config", "commit.gpgsign", "false"], repo)
+    actual = step("head", ["git", "rev-parse", "HEAD"], repo).strip()
+    if actual != head or step("clean", ["git", "status", "--porcelain"], repo).strip():
+        raise ValueError("source is not the requested clean head")
+    table = tomllib.loads((repo / "gnu-oracle.toml").read_text())["oracle"]
+    if table["version"] != "9.11" or table["sha256"] != ORACLE_ARCHIVE:
+        raise ValueError("source oracle pin differs")
+    casefile = repo / "tests/cases/sort.toml"
+    cases = tomllib.loads(casefile.read_text())["case"]
+    if digest(casefile) != CORPUS or len(cases) != 326 or len({tuple(x.get("args", [])) for x in cases}) != 289:
+        raise ValueError("held cases or argument vectors changed")
+    verify_oracle(root, oracle)
+    version = step("oracle-version", [oracle / "sort", "--version"]).splitlines()[0]
+    if version != "sort (GNU coreutils) 9.11":
+        raise ValueError("identity reference is not GNU 9.11")
+    step("toolchain", [repo / "tools/fetch-toolchain"], repo)
+    if mode == "dry":
+        step("build", [repo / "tools/build", "sort"], repo)
+        dry = repo / "target/identity-dry-cases"
+        dry.mkdir(parents=True, exist_ok=True)
+        (dry / "sort.toml").write_text('[[case]]\nname = "a file of words"\nargs = ["tests/fixtures/sortwords.txt"]\n')
+        output = step("held-case", ["python3", "-I", repo / "tools/difftest", "--cases", dry, "sort"], repo)
+        if "PASS sort: a file of words" not in output or "difftest: 1 passed, 0 failed, 0 skipped" not in output:
+            raise ValueError("dry did not execute the real held case")
+        print("PASS sort-identity-dry", flush=True)
+        return
+    step("validator-tests", ["python3", "-I", repo / "tools/sort-sample-check-test"], repo)
+    step("speed-runner-tests", ["python3", "-I", repo / "tools/sort-speed-selftest"], repo)
+    step("probe-generator-tests", ["python3", "-I", repo / "tools/make-sort-probe-test"], repo)
+    for tier in ("release", "dev"):
+        flags = [] if tier == "release" else ["--dev"]
+        step("build-" + tier, [repo / "tools/build"] + flags + ["sort", "bore"], repo)
+        binary = repo / "target" / tier
+        for form in ("separate", "multicall"):
+            select = ["--bin", binary] if form == "separate" else ["--multicall", binary / "bore"]
+            output = step("held-" + tier + "-" + form,
+                          ["python3", "-I", repo / "tools/difftest"] + select + ["sort"], repo)
+            if "difftest: 326 passed, 0 failed, 0 skipped" not in output:
+                raise ValueError("held identity rows are missing, skipped or red")
+        probe = repo / "target" / ("identity-probe-" + tier + "-" + str(time.time_ns()))
+        step("generate-probe-" + tier, ["python3", "-I", repo / "tools/make-sort-probe", repo, probe], repo)
+        wolf = repo / ".wolf-bin/wolf"
+        release = ["--release"] if tier == "release" else []
+        step("build-probe-" + tier, [wolf, "build"] + release + ["--deny-warnings", probe / "src/sort.lu", "-o", probe / "sort"], repo)
+        step("prefix-" + tier, ["python3", "-I", repo / "tools/sort-prefix-test", "--binary", binary / "sort",
+                              "--probe", probe / "sort", "--reference", oracle / "sort", "--work", probe / "work"], repo)
+    print("PASS sort-identity-full", flush=True)
+
+
+def outer(args, run=subprocess.run):
+    if not re.fullmatch("sha256:[0-9a-f]{64}", args.image):
+        raise ValueError("an immutable image id is required")
+    if not re.fullmatch("[0-9a-f]{40}", args.head):
+        raise ValueError("a full source head is required")
+    if not re.fullmatch(r"[0-9,-]+", args.cpus):
+        raise ValueError("invalid CPU range")
+    root = args.root.resolve()
+    if root in (Path("/"), Path.home(), Path(__file__).resolve().parent.parent):
+        raise ValueError("unsafe staging root")
+    root.mkdir(parents=True, exist_ok=True)
+    if digest(args.bundle) != args.bundle_sha:
+        raise ValueError("source bundle digest differs")
+    for source, name in ((args.bundle, "source.bundle"), (args.oracle_pins, "oracle-pins.json"),
+                         (Path(__file__), "stage.py")):
+        target = root / name
+        if source.resolve() != target.resolve():
+            shutil.copyfile(source, target)
+    if digest(root / "source.bundle") != args.bundle_sha:
+        raise ValueError("staged source bundle digest differs")
+    config = {"head": args.head, "bundle": args.bundle_sha, "image": args.image, "cpus": args.cpus,
+              "oracle_pins": digest(root / "oracle-pins.json"), "rig": digest(root / "stage.py"),
+              "oracle_dir": str(args.oracle.resolve()), "taskset": args.taskset}
+    receipt = root / "dry-ok.json"
+    if args.mode == "dry":
+        receipt.unlink(missing_ok=True)
+    elif not receipt.exists() or json.loads(receipt.read_text()) != config:
+        raise ValueError("run requires a successful dry for these exact inputs")
+    inspected = run([str(args.engine), "image", "inspect", "--format", "{{.Id}}", args.image],
+                    capture_output=True, text=True)
+    if inspected.returncode or inspected.stdout.strip() != args.image:
+        raise ValueError("container image identity differs")
+    command = [str(args.lock_tool), "-w", "21600", str(args.outer_lock),
+               str(args.lock_tool), "-w", "21600", str(args.inner_lock),
+               str(args.engine), "run", "--rm", "--init", "--memory", "12g", "--memory-swap", "12g",
+               "--pids-limit", "16384", "--ulimit", "nproc=32768:32768", "--volume", str(root) + ":/work:rw",
+               "--volume", str(args.oracle.resolve()) + ":/oracle:ro", args.image, args.taskset, "-c", args.cpus,
+               "python3", "-I", "/work/stage.py", "--inner", args.mode, "/work", "/oracle", args.head]
+    result = run(command, capture_output=True, text=True)
+    print(result.stdout, end="", flush=True)
+    print(result.stderr, end="", file=sys.stderr, flush=True)
+    marker = "PASS sort-identity-dry" if args.mode == "dry" else "PASS sort-identity-full"
+    if result.returncode or marker not in result.stdout:
+        raise RuntimeError("engine or identity step failed")
+    if args.mode == "dry":
+        temp = root / ("dry-ok.tmp-" + str(os.getpid()))
+        temp.write_text(json.dumps(config, sort_keys=True) + "\n")
+        temp.replace(receipt)
+
+
+def main():
+    if sys.argv[1:2] == ["--inner"]:
+        if len(sys.argv) != 6 or sys.argv[2] not in ("dry", "run"):
+            raise ValueError("invalid inner invocation")
+        inner(sys.argv[2], Path(sys.argv[3]), Path(sys.argv[4]), sys.argv[5])
+        return
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("mode", choices=("dry", "run"))
+    for option in ("engine", "lock-tool", "outer-lock", "inner-lock", "root", "bundle", "oracle", "oracle-pins"):
+        p.add_argument("--" + option, type=Path, required=True)
+    for option in ("image", "head", "bundle-sha", "cpus"):
+        p.add_argument("--" + option, required=True)
+    p.add_argument("--taskset", default="/usr/bin/taskset.real")
+    outer(p.parse_args())
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (OSError, ValueError, RuntimeError, KeyError, subprocess.SubprocessError) as error:
+        print("FAIL sort-identity-stage " + str(error), file=sys.stderr)
+        raise SystemExit(1)
