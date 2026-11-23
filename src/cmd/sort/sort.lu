@@ -1494,19 +1494,7 @@ fn prefix_less(
     if a != b {
         return if reverse then a > b else a < b
     }
-    let sx = starts[x]
-    let ex = starts[x + 1] - 1
-    let sy = starts[y]
-    let ey = starts[y + 1] - 1
-    let nx = ex - sx
-    let ny = ey - sy
-    // A tied prefix already contains every byte of a short key. Padding
-    // can hide a length difference, but all shared bytes are equal.
-    if nx <= 8 || ny <= 8 {
-        return if reverse then nx > ny else nx < ny
-    }
-    let d = bytes_cmp(buf, sx + 8, ex, buf, sy + 8, ey)
-    if reverse then d > 0 else d < 0
+    false
 }
 
 /// Keep the generic comparator out of the plain merge's hot path.
