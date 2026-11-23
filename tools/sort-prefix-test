@@ -60,8 +60,11 @@ def main():
             for name, population in (
                 ("eight-byte tie", [b"abcdefghz", b"abcdefgha", b"abcdefgh"]),
                 ("longer tie", [b"abcdefghijklmnopZ", b"abcdefghijklmnopA"]),
-                ("shorter zero-padded tie", [b"a\0", b"a", b"a\0\0", b"a\0b"])):
+                ("shorter zero-padded tie", [b"a\0", b"a", b"a\0\0", b"a\0b"]),
+                ("complete eight-byte key", [b"abcdefgh", b"abcdefgh\0", b"abcdefgh\0a"]),
+                ("empty and all-zero keys", [b"\0", b"", b"\0\0", b"\0" * 8, b"\0" * 9, b"\0" * 8 + b"a"])):
                 check(name, [], population * 2048)
+                check(name + " reversed", ["-r"], population * 2048, reverse=True)
         elif row == "sort-prefix-high-bytes":
             check("unsigned bytes", [], [b"\xffaa", b"\x80bb", b"\x7fcc", b"\0aa"] * 2048)
         elif row == "sort-prefix-stable":
