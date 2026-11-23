@@ -1,0 +1,61 @@
+#!/usr/bin/env python3
+"""Generate diagnostic sort source from an immutable source snapshot.
+
+The probe adds stage clocks, region-charge reads and a cache-construction
+marker. It is never the binary used for speed or output-identity verdicts.
+"""
+import argparse
+from pathlib import Path
+import shutil
+
+
+def replace_once(text, old, new):
+    if text.count(old) != 1:
+        raise ValueError("probe source anchor is missing or ambiguous")
+    return text.replace(old, new, 1)
+
+
+def instrument(text):
+    text = replace_once(text, "pub fn main(args: List[str]) -> int {\n",
+                        'pub fn main(args: List[str]) -> int {\n    eprint("PROBE cache-trace=1")\n')
+    text = replace_once(text, "    let dir = temp_dir(o)\n    var carry = List[byte]()",
+                        "    let measure_begin = os_clock_ns()\n    let dir = temp_dir(o)\n    var carry = List[byte]()")
+    text = replace_once(text, "            if status == 0 {\n                var starts = List[int]()",
+                        "            if status == 0 {\n                let measure_read = os_clock_ns()\n                let measure_read_bytes = region_bytes(run)\n                var starts = List[int]()")
+    text = replace_once(text, "                let perm = sort_index(c, buf, starts)\n",
+                        "                let measure_index = os_clock_ns()\n                let measure_index_bytes = region_bytes(run)\n                let perm = sort_index(c, buf, starts)\n                let measure_sort = os_clock_ns()\n                let measure_sort_bytes = region_bytes(run)\n")
+    text = replace_once(text, "                    done = true\n                } else {\n                    var tfd = -1",
+                        "                    let measure_emit = os_clock_ns()\n"
+                        "                    let measure_emit_bytes = region_bytes(run)\n"
+                        "                    let read_ns = measure_read - measure_begin\n"
+                        "                    let index_ns = measure_index - measure_read\n"
+                        "                    let sort_ns = measure_sort - measure_index\n"
+                        "                    let emit_ns = measure_emit - measure_sort\n"
+                        "                    let read_bytes = measure_read_bytes\n"
+                        "                    let index_bytes = measure_index_bytes - measure_read_bytes\n"
+                        "                    let sort_bytes = measure_sort_bytes - measure_index_bytes\n"
+                        "                    let emit_bytes = measure_emit_bytes - measure_sort_bytes\n"
+                        '                    eprint("PHASE read_ns={read_ns} index_ns={index_ns} sort_ns={sort_ns} emit_ns={emit_ns} read_bytes={read_bytes} index_bytes={index_bytes} sort_bytes={sort_bytes} emit_bytes={emit_bytes}")\n'
+                        "                    done = true\n                } else {\n                    var tfd = -1")
+    anchor = "fn prefix_keys(buf: List[byte], starts: List[int]) -> List[wrapping[u64]] {\n"
+    if anchor in text:
+        text = replace_once(text, anchor, anchor + '    eprint("CACHE prefix")\n')
+    return text
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("source", type=Path)
+    p.add_argument("output", type=Path)
+    args = p.parse_args()
+    if args.output.exists():
+        raise ValueError("probe output must not already exist")
+    source = args.source / "src"
+    text = instrument((source / "cmd/sort/sort.lu").read_text())
+    shutil.copytree(source, args.output / "src")
+    (args.output / "src/cmd/sort/sort.lu").write_text(text)
+    print("Generated sort allocation and dispatch probe")
+
+
+if __name__ == "__main__":
+    main()

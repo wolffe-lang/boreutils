@@ -92,29 +92,24 @@ def main():
                             ["--human-numeric-sort"])
                 for options in no_cache:
                     got = run(args.probe, options, data)
-                    try:
-                        line = next(x for x in got.stderr.decode().splitlines() if x.startswith("PHASE "))
-                        metrics = {k: int(v) for k, v in (x.split("=") for x in line.split()[1:])}
-                        charged = metrics["sort_bytes"]
-                        passed = got.returncode == 0 and charged in (65536, 131040)
-                    except (StopIteration, ValueError, KeyError):
-                        passed = False
+                    passed = (got.returncode == 0 and b"PROBE cache-trace=1" in got.stderr
+                              and b"PHASE " in got.stderr and b"CACHE prefix" not in got.stderr)
                     if not passed:
                         failures.append("cache entered " + " ".join(options))
                 for options, expected_status in ((["-c"], 0), (["-C"], 0), (["-m"], 0),
                                                  (["-g"], 2), (["-R"], 2), (["-V"], 2),
-                                                 (["--debug"], 2)):
+                                                 (["--debug"], 2), (["--help"], 0), (["--version"], 0),
+                                                 (["--files0-from=/nonexistent"], 2),
+                                                 (["--random-source=/nonexistent"], 2),
+                                                 (["--compress-program=unused"], 2)):
                     got = run(args.probe, options, data)
-                    if got.returncode != expected_status or b"PHASE " in got.stderr:
+                    if (got.returncode != expected_status or b"PHASE " in got.stderr
+                            or b"CACHE prefix" in got.stderr or b"PROBE cache-trace=1" not in got.stderr):
                         failures.append("sort dispatch entered " + " ".join(options))
                 small = run(args.probe, [], b"z\na\n" * 2047 + b"b\n")
-                try:
-                    line = next(x for x in small.stderr.decode().splitlines() if x.startswith("PHASE "))
-                    metrics = dict(x.split("=") for x in line.split()[1:])
-                    if small.returncode or int(metrics["sort_bytes"]) not in (65520, 131040):
-                        failures.append("cache entered a small input")
-                except (StopIteration, ValueError, KeyError):
-                    failures.append("small-input probe missing")
+                if (small.returncode or b"CACHE prefix" in small.stderr
+                        or b"PROBE cache-trace=1" not in small.stderr):
+                    failures.append("cache entered a small input")
         bad = failures[start:]
         print(("FAIL" if bad else "PASS") + " " + row +
               (" " + json.dumps(bad) if bad else ""), flush=True)
