@@ -67,9 +67,12 @@ rev = "$std_rev"
 EOF
 
 # The stand-in server: PLAN once|always|wrong; it writes its port to a file
-# and one line per request (path and answer) to its log.
+# and one line per request (path and answer) to its log. It is a plain
+# socketserver.TCPServer: http.server.HTTPServer looks up the host's name
+# when it binds (socket.getfqdn), which can take seconds on a hosted macOS
+# runner and once kept the stand-in from starting.
 cat > "$work/serve.py" <<'EOF'
-import http.server, os, sys
+import http.server, os, socketserver, sys
 plan, root, portfile, log = sys.argv[1:5]
 seen = set()
 class H(http.server.BaseHTTPRequestHandler):
@@ -93,7 +96,7 @@ class H(http.server.BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
-s = http.server.HTTPServer(("127.0.0.1", 0), H)
+s = socketserver.TCPServer(("127.0.0.1", 0), H)
 open(portfile + ".tmp", "w").write(str(s.server_address[1]))
 os.rename(portfile + ".tmp", portfile)
 s.serve_forever()
@@ -114,15 +117,15 @@ def slow(*a):
 socket.getfqdn = slow
 socket.gethostbyaddr = slow
 sys.argv = sys.argv[1:]
-exec(compile(open(sys.argv[0]).read(), sys.argv[0], "exec"))' "$work/serve.py" "$1" "$work/serve" "$work/port" "$work/log" &
+exec(compile(open(sys.argv[0]).read(), sys.argv[0], "exec"))' "$work/serve.py" "$1" "$work/serve" "$work/port" "$work/log" 2>"$work/serve.err" &
     else
-        python3 -I "$work/serve.py" "$1" "$work/serve" "$work/port" "$work/log" &
+        python3 -I "$work/serve.py" "$1" "$work/serve" "$work/port" "$work/log" 2>"$work/serve.err" &
     fi
     server=$!
     i=0
     while [ ! -f "$work/port" ]; do
         i=$((i + 1))
-        [ "$i" -le 100 ] || { out="no port from the stand-in"; refuse "the stand-in did not start"; }
+        [ "$i" -le 400 ] || { out="no port from the stand-in in 20 seconds; its errors: $(cat "$work/serve.err")"; refuse "the stand-in did not start"; }
         sleep 0.05
     done
     out=$(cd "$work/root" && BORE_RELEASE_BASE="http://127.0.0.1:$(cat "$work/port")" \
