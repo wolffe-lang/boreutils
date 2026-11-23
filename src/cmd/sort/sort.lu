@@ -1355,6 +1355,8 @@ fn sort_index(c: Conf, buf: List[byte], starts: List[int]) -> List[int] {
     }
     var a = List[int]()
     var t = List[int]()
+    (mut a).reserve(n)
+    (mut t).reserve(n)
     var i = 0
     while i < n {
         (mut a).push(i)
@@ -1505,6 +1507,8 @@ fn sort_plain_index(reverse: bool, buf: List[byte], starts: List[int]) -> List[i
     let keys = prefix_keys(buf, starts)
     var a = List[int]()
     var t = List[int]()
+    (mut a).reserve(n)
+    (mut t).reserve(n)
     var i = 0
     while i < n {
         (mut a).push(i)
