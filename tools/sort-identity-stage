@@ -5,12 +5,14 @@ The dry uses the real engine, compiler and first held differential case.
 A full run requires a successful dry receipt for these exact inputs.
 """
 import argparse
+import codecs
 import hashlib
 import json
 import os
 from pathlib import Path
 import platform
 import re
+import selectors
 import shutil
 import subprocess
 import sys
@@ -71,10 +73,13 @@ def inner(mode, root, oracle, head, run=subprocess.run):
             raise RuntimeError(name + " failed")
         return result.stdout
 
-    if not (repo / ".git").exists():
-        step("clone", ["git", "clone", "--branch", "trunk", root / "source.bundle", repo])
+    fresh = not (repo / ".git").exists()
+    if fresh:
+        step("clone", ["git", "clone", "--no-checkout", root / "source.bundle", repo])
     step("origin", ["git", "remote", "set-url", "origin", REPOSITORY], repo)
     step("git-config", ["git", "config", "commit.gpgsign", "false"], repo)
+    if fresh:
+        step("checkout", ["git", "checkout", "--detach", head], repo)
     actual = step("head", ["git", "rev-parse", "HEAD"], repo).strip()
     if actual != head or step("clean", ["git", "status", "--porcelain"], repo).strip():
         raise ValueError("source is not the requested clean head")
@@ -123,6 +128,30 @@ def inner(mode, root, oracle, head, run=subprocess.run):
     print("PASS sort-identity-full", flush=True)
 
 
+def stream_engine(command):
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=0)
+    captured = []
+    decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
+    with selectors.DefaultSelector() as ready:
+        ready.register(process.stdout, selectors.EVENT_READ)
+        while True:
+            events = ready.select(timeout=60)
+            if not events:
+                print("WAIT sort identity staging: lock or engine still running", flush=True)
+                continue
+            chunk = os.read(process.stdout.fileno(), 65536)
+            if not chunk:
+                break
+            text = decoder.decode(chunk)
+            captured.append(text)
+            print(text, end="", flush=True)
+    tail = decoder.decode(b"", final=True)
+    captured.append(tail)
+    print(tail, end="", flush=True)
+    process.stdout.close()
+    return subprocess.CompletedProcess(command, process.wait(), "".join(captured), "")
+
+
 def outer(args, run=subprocess.run):
     if not re.fullmatch("sha256:[0-9a-f]{64}", args.image):
         raise ValueError("an immutable image id is required")
@@ -161,9 +190,12 @@ def outer(args, run=subprocess.run):
                "--pids-limit", "16384", "--ulimit", "nproc=32768:32768", "--volume", str(root) + ":/work:rw",
                "--volume", str(args.oracle.resolve()) + ":/oracle:ro", args.image, args.taskset, "-c", args.cpus,
                "python3", "-I", "/work/stage.py", "--inner", args.mode, "/work", "/oracle", args.head]
-    result = run(command, capture_output=True, text=True)
-    print(result.stdout, end="", flush=True)
-    print(result.stderr, end="", file=sys.stderr, flush=True)
+    if run is subprocess.run:
+        result = stream_engine(command)
+    else:
+        result = run(command, capture_output=True, text=True)
+        print(result.stdout, end="", flush=True)
+        print(result.stderr, end="", file=sys.stderr, flush=True)
     marker = "PASS sort-identity-dry" if args.mode == "dry" else "PASS sort-identity-full"
     if result.returncode or marker not in result.stdout:
         raise RuntimeError("engine or identity step failed")
