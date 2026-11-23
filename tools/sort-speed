@@ -76,9 +76,9 @@ def main():
                              text=True, capture_output=True, check=True).stdout.splitlines()[0]
     if version != baseline["reference_version"]:
         raise ValueError("timing reference version differs")
-    commands = {"candidate": [str(args.binary.resolve()), "--parallel=1", str(args.input.resolve())],
-                "reference-default": [str(args.reference.resolve()), str(args.input.resolve())],
-                "reference-single": [str(args.reference.resolve()), "--parallel=1", str(args.input.resolve())]}
+    commands = {"candidate": [str(args.binary.absolute()), "--parallel=1", str(args.input.resolve())],
+                "reference-default": [str(args.reference.absolute()), str(args.input.resolve())],
+                "reference-single": [str(args.reference.absolute()), "--parallel=1", str(args.input.resolve())]}
 
     def timed(who):
         result = subprocess.run([str(args.child.resolve()), "/dev/null"] + commands[who],
