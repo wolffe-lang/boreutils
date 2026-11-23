@@ -1350,9 +1350,6 @@ fn month_of(a: List[byte], s: int, e: int) -> int {
 /// input's order.
 fn sort_index(c: Conf, buf: List[byte], starts: List[int]) -> List[int] {
     let n = starts.len - 1
-    if c.plain && n >= 4096 {
-        return sort_plain_index(c.reverse, buf, starts)
-    }
     var a = List[int]()
     var t = List[int]()
     (mut a).reserve(n)
