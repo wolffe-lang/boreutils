@@ -1,0 +1,131 @@
+#!/usr/bin/env python3
+"""Measure the held sort workload with an explicit single-thread reference.
+
+A baseline belongs to its platform and architecture. This is a timing check,
+not an output-identity verdict; that uses the pinned oracle separately.
+"""
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path
+import platform
+import statistics
+import subprocess
+import sys
+
+
+def sha(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as stream:
+        for chunk in iter(lambda: stream.read(1048576), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def measurement(line):
+    if not line.startswith("MEASURE "):
+        raise ValueError("missing native-parent measurement")
+    row = {k: int(v) for k, v in (x.split("=", 1) for x in line.split()[1:])}
+    for key in ("exit", "user_us", "system_us", "wall_ns", "rss_bytes", "floor_bytes"):
+        if key not in row or row[key] < 0:
+            raise ValueError("invalid measurement field " + key)
+    if row["exit"]:
+        raise ValueError("sort child failed with status " + str(row["exit"]))
+    row["cpu_us"] = row["user_us"] + row["system_us"]
+    return row
+
+
+def summarize(rows):
+    return {key: {"min": min(r[key] for r in rows),
+                  "median": statistics.median(r[key] for r in rows),
+                  "max": max(r[key] for r in rows)}
+            for key in ("user_us", "system_us", "cpu_us", "wall_ns", "rss_bytes", "floor_bytes")}
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--binary", type=Path, required=True)
+    p.add_argument("--reference", type=Path, required=True)
+    p.add_argument("--input", type=Path, required=True)
+    p.add_argument("--child", type=Path, required=True)
+    p.add_argument("--baseline", type=Path, required=True)
+    p.add_argument("--work", type=Path, required=True)
+    p.add_argument("--output", type=Path, required=True)
+    p.add_argument("--runs", type=int, default=10)
+    p.add_argument("--warm", type=int, default=2)
+    p.add_argument("--only", choices=("cpu", "rss", "all"), default="all")
+    args = p.parse_args()
+    if args.runs < 10 or args.warm < 2:
+        raise ValueError("at least ten counted runs and two warm-ups are required")
+    baseline = json.loads(args.baseline.read_text())
+    if (baseline["platform"], baseline["machine"]) != (platform.system(), platform.machine()):
+        raise ValueError("baseline does not belong to this platform and architecture")
+    if sha(args.input) != baseline["input_sha256"]:
+        raise ValueError("held input digest differs")
+    if sha(args.reference) != baseline["reference_sha256"]:
+        raise ValueError("timing reference digest differs")
+    work = args.work.resolve()
+    if work in (Path("/"), Path.home()):
+        raise ValueError("unsafe work directory")
+    for name in ("home", "tmp"):
+        (work / name).mkdir(parents=True, exist_ok=True)
+    env = {"PATH": "/usr/bin:/bin", "LC_ALL": "C", "_POSIX2_VERSION": "200112",
+           "SHELL": "/bin/sh", "HOME": str(work / "home"), "TMPDIR": str(work / "tmp")}
+    version = subprocess.run([str(args.reference), "--version"], env=env,
+                             text=True, capture_output=True, check=True).stdout.splitlines()[0]
+    if version != baseline["reference_version"]:
+        raise ValueError("timing reference version differs")
+    commands = {"candidate": [str(args.binary.resolve()), "--parallel=1", str(args.input.resolve())],
+                "reference-default": [str(args.reference.resolve()), str(args.input.resolve())],
+                "reference-single": [str(args.reference.resolve()), "--parallel=1", str(args.input.resolve())]}
+
+    def timed(who):
+        result = subprocess.run([str(args.child.resolve()), "/dev/null"] + commands[who],
+                                env=env, capture_output=True, text=True, check=True)
+        if result.stderr:
+            raise ValueError("unexpected child diagnostic: " + result.stderr)
+        row = measurement(result.stdout.strip())
+        row["participant"] = who
+        return row
+
+    for _ in range(args.warm):
+        for who in commands:
+            timed(who)
+    rows = []
+    order = list(commands)
+    for i in range(args.runs):
+        for who in order[i % 3:] + order[:i % 3]:
+            rows.append(dict(timed(who), run=i))
+    summaries = {who: summarize([r for r in rows if r["participant"] == who]) for who in commands}
+    cpu = summaries["candidate"]["cpu_us"]["median"]
+    rss = summaries["candidate"]["rss_bytes"]["max"]
+    cpu_limit = baseline["cpu_us"] * baseline["cpu_factor"]
+    rss_limit = baseline["rss_bytes"] + baseline["rss_extra_bytes"]
+    report = {"schema": "sort-speed/1", "rows": rows, "summary": summaries,
+              "candidate_sha256": sha(args.binary), "reference_sha256": sha(args.reference),
+              "baseline": baseline, "cpu_limit_us": cpu_limit, "rss_limit_bytes": rss_limit}
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(json.dumps(report, indent=2) + "\n")
+    failed = False
+    if args.only in ("cpu", "all"):
+        passed = cpu <= cpu_limit
+        print(("PASS" if passed else "FAIL") + " sort-cpu-1m-plain-single" +
+              f" cpu_us={cpu} bound_us={cpu_limit} reference=--parallel=1" +
+              f" ratio={cpu / summaries['reference-single']['cpu_us']['median']:.6f}" +
+              f" default_wall_ratio={summaries['candidate']['wall_ns']['median'] / summaries['reference-default']['wall_ns']['median']:.6f}")
+        failed |= not passed
+    if args.only in ("rss", "all"):
+        passed = rss <= rss_limit
+        print(("PASS" if passed else "FAIL") + " sort-rss-1m-plain" +
+              f" peak_bytes={rss} bound_bytes={rss_limit}")
+        failed |= not passed
+    return int(failed)
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except (OSError, ValueError, KeyError, subprocess.SubprocessError) as error:
+        print("FAIL sort-speed-inputs " + str(error))
+        raise SystemExit(1)
