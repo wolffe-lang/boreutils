@@ -1,8 +1,22 @@
 #!/bin/sh
-# check-test — the unit tests (`*_test.lu`) on the native tier.
+# check-test — unit tests and the sort harness's bounded integration rows.
 set -eu
 BORE_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 export BORE_ROOT
 cd "$BORE_ROOT"
 . tools/lib-toolchain.sh
+mkdir -p target
+scratch=$(mktemp -d "$BORE_ROOT/target/sort-check.XXXXXX")
+trap 'rm -rf "$scratch"' EXIT
+mkdir -p "$scratch/home" "$scratch/tmp"
+export HOME="$scratch/home" TMPDIR="$scratch/tmp" SHELL=/bin/sh CARGO_BUILD_JOBS=2
+python3 -I tools/sort-sample-check-test
+python3 -I tools/sort-speed-selftest
+python3 -I tools/sort-speed-child-test
+python3 -I tools/make-sort-probe-test
+python3 -I tools/sort-identity-stage-test
 "$WOLF" test
+python3 -I tools/make-sort-probe "$BORE_ROOT" "$scratch/probe"
+"$WOLF" build --release --deny-warnings src/sort.lu -o "$scratch/sort"
+"$WOLF" build --release --deny-warnings "$scratch/probe/src/sort.lu" -o "$scratch/probe-sort"
+python3 -I tools/sort-prefix-test --binary "$scratch/sort" --probe "$scratch/probe-sort" --work "$scratch/controls"
