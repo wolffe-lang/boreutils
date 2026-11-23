@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+"""Check resident-size units for both native rusage conventions."""
+import argparse
+import os
+from pathlib import Path
+import subprocess
+import tempfile
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--cc", default="cc")
+    args = p.parse_args()
+    source = Path(__file__).with_name("sort-speed-child.c").resolve()
+    with tempfile.TemporaryDirectory(dir=os.environ["TMPDIR"]) as td:
+        root = Path(td)
+        test = root / "units.c"
+        test.write_text('#define main measurement_main\n#include ' + '"' + str(source) + '"\n'
+                        '#undef main\nint main(void) {\n'
+                        '  long expected = SORT_SPEED_NATIVE_RSS_KIB ? 7168 : 7;\n'
+                        '  return rss_bytes_of_native(7) == expected ? 0 : 1;\n}\n')
+        for units in (0, 1):
+            binary = root / ("units-" + str(units))
+            result = subprocess.run([args.cc, "-O2", "-DSORT_SPEED_NATIVE_RSS_KIB=" + str(units),
+                                     str(test), "-o", str(binary)], capture_output=True, text=True)
+            if result.returncode:
+                print(result.stdout + result.stderr, end="")
+                print("FAIL sort-speed-resident-units")
+                return 1
+            if subprocess.run([str(binary)]).returncode:
+                print("FAIL sort-speed-resident-units")
+                return 1
+    print("PASS sort-speed-resident-units")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
