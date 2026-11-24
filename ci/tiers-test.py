@@ -40,10 +40,16 @@ ci/tiers-test.py, tl21, cut to boreutils). python3, git and bash only.
   T8  ci/nightly-red.sh against a stand-in `gh`: no open issue opens one,
       labelled, under the one title; an open one gets a comment and no new
       issue; a label that already exists is no failure.
+  T10 a job leg recorded in ci/job-limits.json has a limit at least its
+      longest healthy run there plus a third, rounded up to the next 5
+      minutes; a recorded leg the job does not have fails too (#94). The
+      check is shown to say no to a limit under that bound and to pass one
+      at it.
 
 Exit 0 when every check passes, 1 otherwise.
 """
 import json
+import math
 import os
 import re
 import shutil
@@ -599,6 +605,56 @@ written = "\n".join(c for e in ("", "41") for c in _log_lines(nightly_red(existi
 said = sorted({m.group(0) for m in PLAIN.finditer(written)}) + ["listed word %d" % n for n, rx in LISTED if rx.search(written)]
 say(bool(written) and not said, "T8 nothing the reporter writes in public carries an internal word (%s)%s" % (
     "the plain rule and %d listed words" % len(LISTED) if LISTED else "the plain rule", ": " + ", ".join(said) if said else ""))
+
+# T10 a recorded leg's limit is its longest healthy run plus a third, rounded up to 5 minutes (#94). The Linux leg
+# of `links` had 12 minutes, from one run of 10.0: its successes reached 10.8, and four executions were cut at 12
+# with every step before the cut passed. ci/job-limits.json holds the runs; a cut run's minutes are a lower bound.
+LIMITS = json.load(open(os.path.join(ROOT, "ci", "job-limits.json"), encoding="utf-8"))
+
+
+def limit_floor(longest):
+    """The least limit the rule allows: the longest healthy run plus a third, rounded up to the next 5 minutes."""
+    return math.ceil(round(longest * 4 / 3, 6) / 5) * 5
+
+
+def host_limits(block):
+    """{host: limit in minutes} from a job's timeout-minutes: one number for every host, or the
+    `matrix.os == 'macos-latest' && A || B` form, A on macOS and B on the Linux runner."""
+    own = re.search(r"^    timeout-minutes: (.+)$", block, re.M)
+    own = own.group(1).strip() if own else ""
+    if own.isdigit():
+        return {"macos-latest": int(own), "ubuntu-24.04": int(own)}
+    m = re.fullmatch(r"\$\{\{ matrix\.os == 'macos-latest' && (\d+) \|\| (\d+) \}\}", own)
+    return {"macos-latest": int(m.group(1)), "ubuntu-24.04": int(m.group(2))} if m else {}
+
+
+def limit_problems(limits, record):
+    found = []
+    for host, r in sorted(record.items()):
+        want = limit_floor(r["longest_minutes"])
+        if host not in limits:
+            found.append("%s: no limit read" % host)
+        elif limits[host] < want:
+            found.append("%s: limit %d under %d (longest healthy %.1f, plus a third, rounded up to 5)"
+                         % (host, limits[host], want, r["longest_minutes"]))
+    return found
+
+
+lim_problems = []
+for job, record in sorted((k, v) for k, v in LIMITS.items() if isinstance(v, dict)):
+    lim_problems += ["%s %s" % (job, p) for p in limit_problems(host_limits(blocks.get(job, "")), record)]
+lim_says_no = (limit_floor(12.3) == 20 and limit_floor(10.8) == 15 and limit_floor(15.0) == 20
+               and limit_problems({"ubuntu-24.04": 19}, {"ubuntu-24.04": {"longest_minutes": 12.3}})
+               and not limit_problems({"ubuntu-24.04": 20}, {"ubuntu-24.04": {"longest_minutes": 12.3}})
+               and limit_problems({}, {"ubuntu-24.04": {"longest_minutes": 12.3}})
+               and host_limits("    timeout-minutes: ${{ matrix.os == 'macos-latest' && 13 || 20 }}\n")
+               == {"macos-latest": 13, "ubuntu-24.04": 20})
+say(bool(LIMITS) and not lim_problems and lim_says_no,
+    "T10 each recorded leg's limit is at least its longest healthy run plus a third, rounded up to 5 (%s)%s%s"
+    % (", ".join("%s %s %s" % (j, h, host_limits(blocks.get(j, "")).get(h)) for j, rec in sorted(LIMITS.items())
+                 if isinstance(rec, dict) for h in sorted(rec)),
+       ("; " + "; ".join(lim_problems)) if lim_problems else "",
+       "" if lim_says_no else "; the check does not say no to a limit under the rule"))
 
 print("tiers-test: %s" % ("PASS" if fails == 0 else "FAIL (%d)" % fails))
 sys.exit(1 if fails else 0)
