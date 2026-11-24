@@ -552,9 +552,14 @@ jobs:
       matrix:
         include: ${{ fromJSON(needs.plan.outputs.matrix_links || '[]') }}
     runs-on: ${{ matrix.os }}
-    # Run 45040267095, its first: linux 10.0m, macOS 10.1m; each
-    # limit is that and at least 20% more.
-    timeout-minutes: ${{ matrix.os == 'macos-latest' && 13 || 12 }}
+    # The Linux limit is at least its longest healthy run plus a third,
+    # rounded up to the next 5 minutes (#94): 12.3 -> 20. Its 17 executions
+    # to 2026-11-24 ran 10.1 minutes at the median and 10.8 at most when
+    # they finished; four were cut at 12 with every step before the cut
+    # passed, so 12.3 is a lower bound. The runs are in ci/job-limits.json;
+    # ci/tiers-test.py T10 fails a limit under it. macOS keeps 13, from run
+    # 45040267095, its first (10.1m, and at least 20% more).
+    timeout-minutes: ${{ matrix.os == 'macos-latest' && 13 || 20 }}
     steps:
       - uses: actions/checkout@v4
 
