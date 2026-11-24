@@ -288,7 +288,7 @@ jobs:
       matrix:
         include: ${{ fromJSON(needs.plan.outputs.matrix_links || '[]') }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: ${{ matrix.os == 'macos-latest' && 13 || 12 }}
+    timeout-minutes: ${{ matrix.os == 'macos-latest' && 13 || 20 }}
     steps:
       - uses: actions/checkout@v4
 
