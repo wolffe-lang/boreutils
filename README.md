@@ -39,9 +39,10 @@ known; preparation does not imply that either package is already available.
 
 The archive contains separate utility executables, not one multicall binary.
 Try them by explicit path; do not replace your system core utilities.
-The `test` utility treats `--version` as a string operand, not a version query.
-Release checks record that unavailable option explicitly; the other utilities
-identify the shared family version.
+The `test` utility treats `--version` as a string operand, not a version query,
+and `false --version` prints the version but exits 1, as GNU's does. Release
+checks name both explicitly; the other utilities identify the shared family
+version.
 
 When the Homebrew/AUR recipes are published, only the packaging dispatcher
 `bore` is installed on PATH: `bore cat FILE`, for example. Utilities stay under
