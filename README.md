@@ -283,15 +283,15 @@ Every shipped utility below is byte-for-byte identical to GNU coreutils 9.11 on
 its differential corpus, except where a case says otherwise and is
 skipped with its reason. The combined corpus holds **16,803 cases across 105 case files**; `kill` has
 365 more that SEND, each run in a container of its own (`tests/kill/`,
-`tools/killtest`: **365 passed, 0 failed** on hasu at bu30, groups,
+`tools/killtest`: **365 passed, 0 failed** on the Linux test host at bu30, groups,
 `kill 0` and `kill -1` among them), `timeout` 163 more that run a
 command (`tests/timeout/`, `tools/timeouttest`: **150 passed, 0
-failed** on hasu at bu30, and 13 skipped there: twelve that need a
+failed** on the Linux test host at bu30, and 13 skipped there: twelve that need a
 core written as a file, which run on CI's ubuntu runner, and one of
 macOS's), and the six identity tools and `hostid` 1,136 more that
 run as root and as users, change an owner, or write the files `hostid`
 reads (`tests/ids/`,
-`tools/idtest`: 28 of them only on CI's macOS runner). The prior text-tool measurement in an unprivileged Ubuntu 24.04 container on hasu
+`tools/idtest`: 28 of them only on CI's macOS runner). The prior text-tool measurement in an unprivileged Ubuntu 24.04 container on the Linux test host
 (linux x86-64, CPUs 0–5), at wolf 0.2.35 / lupin 0.1.56 with bundled
 std `2386522e`, answers **8,005 passed, 0 failed, 157 skipped** on both
 release and dev (before: 7,020 / 0 / 130). Six utilities add 1,012 cases:
@@ -301,7 +301,7 @@ alphabet, object kind and private mode, never compared byte for byte.
 `tty` has standard-input pty cases, separate from standard-output ptys.
 
 The latest option pass adds **308 registered rows**, without adding a utility
-or moving a pin. On hasu block B (Linux x86-64, Ubuntu 24.04), the seven
+or moving a pin. On the Linux test host's block B (Linux x86-64, Ubuntu 24.04), the seven
 requested families at the first full checkpoint measure **2,006 passed / 0 failed / 41 named skips** on
 both native tiers, versus **1,663 / 0 / 77** before the pass. These are scoped
 family counts. The later query-boundary repair adds one STOP row; `env`
@@ -395,7 +395,7 @@ Before the disk/process pass, the combined tree had **10,380 differential cases*
 counted directly from the checked-in TOML records. All six text tools and
 the checksum family are included. The checksum pass adds nine command binaries and **2,218 cases**: 2,213
 passed and five named skips on both native tiers. That earlier whole differential
-combined corpus was **10,218 passed, 0 failed, 162 skipped** in the hasu B Ubuntu
+combined corpus was **10,218 passed, 0 failed, 162 skipped** in the Linux test host's block B Ubuntu
 24.04 container. The new commands are `cksum`, `sum`, `md5sum`, `sha1sum`,
 `sha224sum`, `sha256sum`, `sha384sum`, `sha512sum` and `b2sum`. Their
 algorithms are written from POSIX's CRC definition, RFC 1321, FIPS 180-4
@@ -411,7 +411,7 @@ the two CRCs and BSD/SysV sums compare with GNU on that input too.
 The disk/process pass adds `du`, `dd`, `install`, `mknod`, `shred`,
 `dir`, `vdir`, `dircolors`, `chroot`, `nice`, `nohup` and `stdbuf`:
 **317 new differential cases**, with 19 named surface/implementation skips.
-The complete rootless Ubuntu 24.04 run on hasu (CPUs 6–11) at
+The complete rootless Ubuntu 24.04 run on the Linux test host (CPUs 6–11) at
 `a443350` passed **10,516 cases, 0 failed, 181 skipped** on both
 release and dev; the full unit and auxiliary gates passed too. The
 separate four-CPU process integration passed **74 checks, 0 failed,
@@ -451,7 +451,7 @@ physical erasure on flash, CoW, snapshots or backups.
 
 The pin alone preserved **6,668 / 0 / 120** on both tiers, as at
 0.2.34 (bu29, `notes/bu29-the-pin-0234.md`). The container-suite
-figures above were re-measured on hasu; inouttest is 104 / 0 / 0 and
+figures above were re-measured on the Linux test host; inouttest is 104 / 0 / 0 and
 roottest 178 / 0. `timeout` now disables
 its own core with `os_core_off()` before re-raising; the three core rows
 compare directly with GNU, with `-s 33` still a named design difference.
@@ -468,7 +468,7 @@ The edition before bu23's `kill` said 5,646 cases and 5,527 passed, 0
 failed, 119 skipped (bu22's figures and CI's are in
 `notes/bu22-the-modes-and-links.md` and its PR). The edition before
 bu22's `chmod`, `touch`, `ln`, `mkdir -m` and
-`cp -p` said: a run on kasumi (linux x86-64) at this pin answers
+`cp -p` said: a run on the Linux bench host (x86-64) at this pin answers
 **4,476 passed, 0 failed, 118 skipped** of 4,594, the same list on the
 release and the dev tier, and CI's
 macOS leg skips the `/dev/full` and `/proc` cases besides, because
@@ -477,14 +477,14 @@ Mac's accounts are not in `/etc/passwd`: run 38124071375 answers 4,477
 and 117 skipped on ubuntu and 4,337 and 257 skipped on macOS, none
 failed (bu21's figures are in `notes/bu21-the-file-changers.md`). (The previous edition of this
 sentence, before bu21's five utilities that change the file system,
-said 3,855 cases, 3,788 and 67 on kasumi, and 3,789 and 66 on ubuntu
+said 3,855 cases, 3,788 and 67 on the Linux bench host, and 3,789 and 66 on ubuntu
 and 3,649 and 206 on macOS, run 38116093735; before bu20's long format and its three utilities, it said 3,077
-cases, 3,017 and 60 on kasumi; before bu19, 3,048 cases, 2,986 and 62; before
-bu18's `ls` it said 2,674 cases, 2,642 and 32 on kasumi, and 2,618 and 56
+cases, 3,017 and 60 on the Linux bench host; before bu19, 3,048 cases, 2,986 and 62; before
+bu18's `ls` it said 2,674 cases, 2,642 and 32 on the Linux bench host, and 2,618 and 56
 on macOS, run 37060771131; before bu14's six utilities it said 2,114
-cases, 2,094 and 20 on kasumi, and 2,077 and 37 on macOS, run
+cases, 2,094 and 20 on the Linux bench host, and 2,077 and 37 on macOS, run
 36044150121; before that it said 1,753 and 19 for the 1,772-case
-corpus, and "five more" on macOS; kasumi answered 1,752 and 20 at that
+corpus, and "five more" on macOS; the Linux bench host answered 1,752 and 20 at that
 commit, `eac2a32`, and macOS 37 at that lane's first green, run
 36029854007.) The corpus
 and the run are stated separately on purpose: an earlier edition of this
@@ -537,7 +537,7 @@ of the working directory (no file identity, wolf-lang#536), and `tee`'s
 seven — five broken-pipe branches of `-p` and `--output-error`, and
 `-i` twice, all of which need a signal ignored (wolf-lang#423).
 
-**`ls` now has 748 cases: 734 pass and 14 name their skip on hasu**
+**`ls` now has 748 cases: 734 pass and 14 name their skip on the Linux test host**
 (bu36, both native tiers). `--author`, `--block-size`,
 `--time-style=+FORMAT` and `-Q` are implemented. Names still come only from
 `/etc/passwd` and `/etc/group`; ACL/context marks need wolf-lang#685,
@@ -624,17 +624,17 @@ number.
 Release tier, 5 runs, GNU coreutils 9.11. `yes` writes 1 GiB of `y`
 into `head -c`; the rest start up, write a few bytes and exit.
 
-| bench | nomad-1 (macOS arm64, load 6.7) | kasumi (linux x86-64, load 1.6) |
+| bench | macOS arm64 development machine (load 6.7) | Linux x86-64 bench host (load 1.6) |
 |---|---|---|
 | `yes`, 1 GiB | 238 ms vs GNU 652 ms (**2.74x**) | 198 ms vs GNU 124 ms (0.63x) |
 | `echo`, one string | 1.9 ms vs GNU 2.0 ms (1.04x) | — |
 | `basename`, one path | 1.6 ms vs GNU 1.7 ms (1.04x) | — |
 
 `wc` has a table of its own too. Release tier, GNU coreutils 9.11, 5
-runs, 256 MiB of generated text under `LC_ALL=C`, nomad-1 at load 13.9
-and kasumi idle.
+runs, 256 MiB of generated text under `LC_ALL=C`, the macOS machine at load 13.9
+and the Linux bench host idle.
 
-| bench | nomad-1 (macOS arm64) | kasumi (linux x86-64) |
+| bench | macOS arm64 development machine | Linux x86-64 bench host |
 |---|---|---|
 | `wc -w` | 466 ms vs GNU 592 ms (**1.27x**) | 529 ms vs GNU 464 ms (0.88x) |
 | `wc`, the default counts | 463 ms vs GNU 574 ms (**1.24x**) | 528 ms vs GNU 465 ms (0.88x) |
@@ -647,32 +647,32 @@ and kasumi idle.
 because each takes a different path, and the first whose locale had to
 be stated: the C loop reads a byte where the UTF-8 loop decodes a
 character, and under `LC_ALL=C.UTF-8` the same four rows read 0.91x to
-0.95x on nomad-1 and 0.71x on kasumi.
+0.95x on the macOS machine and 0.71x on the Linux bench host.
 
 Where the work is a byte-at-a-time state machine that GNU cannot
 vectorize either — `-w`, and the default counts — wolf is ahead of C.
 Where GNU reaches for SIMD it wins by a lot: `wc --debug -l` reports
-`using avx512 hardware support` on kasumi, and no bulk byte scan is
+`using avx512 hardware support` on the Linux bench host, and no bulk byte scan is
 expressible in pure wolf today (wolf-lang#411, filed with every
 alternative measured). `-c` on a file operand is an `fstat` on both
 sides, so it measures start-up. Through a redirect GNU `fstat`s and
 asks the offset, because `wc -c` owes size minus the current offset;
 before wolf 0.2.22 we could ask neither and read the whole input
 (34 ms on 256 MiB). Since bu15 we ask both, and the row is start-up
-too: 0.43 ms against 0.39 ms, hyperfine 50 runs, kasumi at load 5–7.
+too: 0.43 ms against 0.39 ms, hyperfine 50 runs, the Linux bench host at load 5–7.
 The size is believed only when two positional reads confirm it, so a
 sysfs or `/proc` file, whose size lies, is read and counted as GNU
 counts it (trunk said 4096 and 0 for two of them, where GNU said 23
 and 144).
 
-**Read the macOS column with its load.** nomad-1 was at load 13.9 with
+**Read the macOS column with its load.** The macOS machine was at load 13.9 with
 other lanes on it, and contention flatters every ratio there, because
 GNU's vectorized line counter loses more to a busy machine than our
 scalar loop does: the same `-l` comparison read 0.55x at load 6.7.
-kasumi was idle.
+The Linux bench host was idle.
 
 Memory is flat in the size of the input: counting 256 MiB peaks at
-5.7 MB of RSS on nomad-1 against GNU's 1.8 MB, and 4.3 MB on kasumi
+5.7 MB of RSS on the macOS machine against GNU's 1.8 MB, and 4.3 MB on the Linux bench host
 against 2.8 MB, and 16 MiB peaks at the same 5.7 MB. That costs one
 `region` per chunk, and about 5% of the time; without it the same count
 peaked at **271 MB**, because the ambient region never frees what each
@@ -681,11 +681,11 @@ read allocates (wolf-lang#416). `-c` never reads at all and peaks at
 
 `cat` has a table of its own, because it is the first utility that moves
 bulk data and the two hosts disagree sharply about it. Release tier, GNU
-coreutils 9.11, 10 runs (50 for start-up), nomad-1 at load 7.4 and
-kasumi at load 5.9. The large file is 256 MiB of text; the short-line
+coreutils 9.11, 10 runs (50 for start-up), the macOS machine at load 7.4 and
+the Linux bench host at load 5.9. The large file is 256 MiB of text; the short-line
 file is 16 MiB of nought-to-seven-letter lines.
 
-| bench | nomad-1 (macOS arm64) | kasumi (linux x86-64) |
+| bench | macOS arm64 development machine | Linux x86-64 bench host |
 |---|---|---|
 | `cat`, start-up | 1.82 ms vs GNU 2.14 ms (**1.18x**) | 0.26 ms vs GNU 0.25 ms (0.97x) |
 | `cat`, 256 MiB to /dev/null | 27.4 ms vs GNU 17.6 ms (0.64x) | 54.1 ms vs GNU 8.5 ms (0.16x) |
@@ -702,7 +702,7 @@ byte was read into a list and written back out.
 is `fs_copy_chunk` to descriptor 1 (`copy_file_range`, `sendfile`,
 `splice`, then a loop), `wc -l` counts newlines with `bytes_count`, and
 `head`, `tail`, `nl`, `uniq` and `cut` find their lines with
-`bytes_find`/`bytes_count`. kasumi, release tier, GNU 9.11, the bench's
+`bytes_find`/`bytes_count`. The Linux bench host, release tier, GNU 9.11, the bench's
 full-size inputs, one hyperfine call per row with every build and GNU
 in it (10 runs; load 4 to 11, other lanes): 0.2.25 is trunk `50d8907`,
 "before" the same tree at 0.2.26 with descriptors 0..2 adopted, "after"
@@ -736,8 +736,8 @@ there were 10, glibc trimming and regrowing the heap as each chunk's
 (wolf-lang#644). `uniq` moved 11% the other way for the same reason.
 
 Memory is level, and flat in the size of the input either way: copying
-256 MiB peaks at 2.4 MB of RSS on nomad-1 against GNU's 1.9 MB, and at
-2.8 MB on kasumi against 2.3 MB; `cat -n` peaks at 3.9 MB against
+256 MiB peaks at 2.4 MB of RSS on the macOS machine against GNU's 1.9 MB, and at
+2.8 MB on the Linux bench host against 2.3 MB; `cat -n` peaks at 3.9 MB against
 2.2 MB, and at 3.7 MB against 2.7 MB. That costs one `region` block per
 chunk — without it the same copy peaked at 340 MB and `cat -n` at
 1.1 GB, because the ambient region never frees what each read allocates.
@@ -745,7 +745,7 @@ chunk — without it the same copy peaked at 340 MB and `cat -n` at
 `head`, `tail` and `cut` have a table of their own, because they are
 the first utilities where reading the whole file is a defect rather than
 a style choice. **These numbers are linux only**: wave 45 forbids
-builds on nomad-1, so macOS is CI's job and not a column here.
+builds on the macOS development machine, so macOS is CI's job and not a column here.
 
 **`tail` and `head` read from the end since wolf 0.2.22** (bu15,
 boreutils#19). Until then wolf had no seek, no tell and no positional
@@ -798,9 +798,9 @@ positional reads that verify the end before trusting it, and its
 `tail -n 10` copies the last 941 bytes with one more read where GNU
 writes them from the block it already holds.)
 
-Release tier, GNU coreutils 9.11, kasumi (linux x86-64, 16 cpus),
+Release tier, GNU coreutils 9.11, the Linux bench host (x86-64, 16 cpus),
 256 MiB of generated text (16 MiB of short lines where a row says so),
-**hyperfine 20 runs, kasumi at load 5 to 9** with other lanes running
+**hyperfine 20 runs, the Linux bench host at load 5 to 9** with other lanes running
 (the load at each table's start and end is in bu15's notes). The
 "before" column is trunk `010f3144` built by wolf 0.2.20, the last
 release without the seek.
@@ -852,7 +852,7 @@ a loop that never needs it. The window now places the offset once, from
 the reader's offset less what the window holds, and the A/B reads
 303.4 ms against 303.3 ms.
 
-| cut | kasumi (linux x86-64) |
+| cut | Linux x86-64 bench host |
 |---|---|
 | `-b1-10`, C | 206 ms vs GNU 101 ms (0.49x) |
 | `-c1-10`, C, where a character is a byte | 206 ms vs GNU 100 ms (0.49x) |
@@ -885,8 +885,8 @@ regular file there is no window at all.
 
 The transform set — `tr`, `uniq`, `seq` and `nl` — has a table of its
 own, and it is the first one taken on ONE host. Wave 45 forbids builds
-on nomad-1, this project's macOS box, so there is no macOS binary to
-measure; every number below is kasumi (linux x86-64, 16 cpus) at load
+on this project's macOS development machine, so there is no macOS binary to
+measure; every number below is the Linux bench host (x86-64, 16 cpus) at load
 1.3, release tier, GNU coreutils 9.11, 5 runs, 256 MiB of generated
 text for the `tr`, `uniq` and `nl` rows and 16 MiB of very short lines
 where the row says so. `seq` reads nothing, so its rows are a million
@@ -991,9 +991,9 @@ eight times over on the way through, and GNU holds one copy.
 
 The text-tools set — `tac`, `paste`, `fold`, `expand` and `unexpand` —
 finishes B3, and its table is the first in this repository where wolf is
-AHEAD of GNU on most rows. kasumi (linux x86-64, 16 cpus) at load 2–5,
+AHEAD of GNU on most rows. The Linux bench host (x86-64, 16 cpus) at load 2–5,
 release tier, GNU coreutils 9.11, 5 runs, 256 MiB of generated text and
-16 MiB of very short lines. Wave 45 forbids builds on nomad-1, so there
+16 MiB of very short lines. Wave 45 forbids builds on the macOS development machine, so there
 is no macOS column.
 
 **The predictions were written into `notes/bu07-the-pin-and-the-rest-of-b3.md`
@@ -1036,7 +1036,7 @@ function's IR did not change either. The release tier's codegen
 partition moved `flush_run` into the same unit as the loop that calls
 it. That happened because unrelated functions grew. With the callee's
 body visible, clang compiles the loop into code that runs 14% more
-instructions and 63% more cycles. The measurement is kasumi, GNU 9.11,
+instructions and 63% more cycles. The measurement is the Linux bench host, GNU 9.11,
 the bench's full-size inputs, and 0.2.23 and 0.2.25 in one hyperfine
 run:
 
@@ -1132,7 +1132,7 @@ comparison is on bytes — GNU's behaviour under `LC_ALL=C`, which is the
 oracle's environment — and the sort is a merge sort of line indices,
 stable by construction; GNU's last-resort whole-line comparison makes
 that unobservable except under `-s` and `-u`, where input order decides
-on both sides. kasumi (linux x86-64, 16 cpus), release tier, GNU
+on both sides. The Linux bench host (x86-64, 16 cpus), release tier, GNU
 coreutils 9.11, 5 runs, generated text: 10 MB is `tools/bench --scale
 0.01`, 100 MB is `--scale 0.1`, load 2–3, at the commit that carries
 this table's code.
@@ -1215,7 +1215,7 @@ thing is a filed issue rather than a quiet difference:
   `0.10000000000000000000`), IEEE double on macOS
   (`0.10000000000000000555`), rounded and printed in big integers. Two
   random runs of 2,300 and 2,500 floating and integer conversions
-  against GNU on kasumi found no difference.
+  against GNU on the Linux bench host found no difference.
 - **`printenv`** prints a named variable exactly and the bare listing
   sorted (wolf-lang#535).
 - **`pwd`** is physical by default as GNU's is; `-L` decides whether
@@ -1227,10 +1227,10 @@ thing is a filed issue rather than a quiet difference:
   rounds down and GNU up (wolf-lang#537; the whole `nproc` file under
   `CPUQuota=150%` is 55 passed and 23 failed, under 200% 78 of 78).
 
-kasumi (linux x86-64, 16 cpus) at load 1.2–1.4, release tier built by
+The Linux bench host (x86-64, 16 cpus) at load 1.2–1.4, release tier built by
 wolf 0.2.20 with the host's clang 22.1.8, GNU coreutils 9.11-2, all
 taken between 16:20 and 16:30 EDT on 2026-10-02 — an hour before a
-system upgrade moved kasumi to clang 23.1.1 and GNU coreutils 9.12, so
+system upgrade moved the bench host to clang 23.1.1 and GNU coreutils 9.12, so
 both sides of every row are on the same side of it. The start-up rows are `hyperfine -N` over 300 runs, so
 the ratio is real at a fraction of a millisecond; `true` (249 µs
 against 177 µs, 0.71x) is the floor every wolf binary here pays. The
@@ -1272,7 +1272,7 @@ over 256 MiB is 2.9 MB against GNU's 2.2 MB, one `region` per 256 KiB
 chunk.
 
 **`ls` is faster than GNU at listing and slower at stat'ing**, and the
-difference is one system call per name. kasumi (linux x86-64, load
+difference is one system call per name. The Linux bench host (x86-64, load
 under 1), release tier, GNU 9.11, `tools/bench --scale 10 --runs 20 ls`
 twice (`notes/bu18-ls.md`): `flat/` is 100,000 names, `deep/` 316
 directories of 316.
@@ -1297,7 +1297,7 @@ directory, so a walk keeps only the directories it is inside (the first
 draft held every listing it had made, 70 MB).
 
 **The long format, and what else a record buys (bu20, wolf 0.2.27).**
-kasumi, release tier, GNU 9.11, `hyperfine -N`, 15 runs, every side of
+The Linux bench host, release tier, GNU 9.11, `hyperfine -N`, 15 runs, every side of
 a row in one call, at this branch's head `9633593` from a clean tree
 (`~/lanes/bu20/bench.sh`, log `~/lanes/bu20/ev/bench.log`; the trees are
 `tools/bench --scale 10`'s). The load was NOT quiet — 2.3 when the run
@@ -1341,7 +1341,7 @@ doubling and nothing is given back until the listing ends, and no call
 can reserve a list's room (wolf-lang#416). A plain listing holds 33 MB
 (0.2.26: 37 MB; GNU: 28 MB).
 
-| start-up and small work (kasumi, load 8, at `9633593`) | boreutils | GNU | GNU / boreutils |
+| start-up and small work (Linux bench host, load 8, at `9633593`) | boreutils | GNU | GNU / boreutils |
 |---|---:|---:|---:|
 | `stat -c %s` of one file (`hyperfine -N`, 300 runs) | 279 µs | 215 µs | 0.77x |
 | `stat -c '%s %n'` of 10,000 files | 19.4 ms | 13.3 ms | 0.69x |
@@ -1349,7 +1349,7 @@ can reserve a list's room (wolf-lang#416). A plain listing holds 33 MB
 | `readlink` of one link (300 runs) | 275 µs | 211 µs | 0.77x |
 | `env true` (300 runs) | 438 µs | 341 µs | 0.78x |
 
-**The file changers (bu21, wolf 0.2.27).** kasumi (btrfs), release
+**The file changers (bu21, wolf 0.2.27).** The Linux bench host (btrfs), release
 tier, GNU 9.11, `tools/bench` with its new `prepare` step — every timed
 run starts from a tree put back by the host's own `cp` or `rm` — ten
 runs a side, at `546a656` (`~/lanes/bu21/bench.sh`, log
@@ -1402,7 +1402,7 @@ depth is start-up on both sides.
 
 ## Checksums on a 256 MiB input
 
-Hasu, Linux x86-64, CPUs 6–11 inside Ubuntu 24.04, 12 GiB cap; wolf
+The Linux test host (x86-64), CPUs 6–11 inside Ubuntu 24.04, 12 GiB cap; wolf
 0.2.35 release tier against GNU 9.11. These are three-run medians on a
 warm, sparse zero-filled file, rebuilt at `d6f0fbb` before the text-tool
 rebase and portable errno-diagnostic changes; the digest algorithms are
@@ -1497,15 +1497,15 @@ new security-sensitive designs.
 | `join` | done: selected fields, unpaired rows, output lists/auto, separators, ignore-case, headers and order checks | not benched |
 | `tsort` | done for DAGs and residual unions of simple cycles; complex cyclic components and cycles with outgoing tails refused | not benched |
 | `shuf` | done: echo, full-u64 ranges, count, repeat, output and NUL records; random-source refused by name | not benched |
-| `cksum` | POSIX CRC, crc32b, BSD/SysV, MD5, SHA-1/SHA-2 and BLAKE2b; `--base64`, `--raw`, tags, reverse form and verification modes; not SHA-3, SM3 or hardware `--debug`; UTF-8 names only | 0.05x to 0.94x (hasu) |
-| `sum` | BSD and SysV, `-r` and `-s` | 0.14x to 0.94x (hasu) |
-| `md5sum` | RFC 1321; binary/text markers, tags, NUL output, verification modes and escaped UTF-8 names | 0.32x (hasu) |
-| `sha1sum` | FIPS 180-4 SHA-1; the checksum command modes, UTF-8 names | 0.29x (hasu) |
-| `sha224sum` | FIPS 180-4 SHA-224; the checksum command modes, UTF-8 names | 0.34x (hasu) |
-| `sha256sum` | FIPS 180-4 SHA-256; the checksum command modes, UTF-8 names | 0.35x (hasu) |
-| `sha384sum` | FIPS 180-4 SHA-384; the checksum command modes, UTF-8 names | 0.40x (hasu) |
-| `sha512sum` | FIPS 180-4 SHA-512; the checksum command modes, UTF-8 names | 0.40x (hasu) |
-| `b2sum` | RFC 7693 BLAKE2b, variable digest lengths and the checksum command modes, UTF-8 names | 0.24x (hasu) |
+| `cksum` | POSIX CRC, crc32b, BSD/SysV, MD5, SHA-1/SHA-2 and BLAKE2b; `--base64`, `--raw`, tags, reverse form and verification modes; not SHA-3, SM3 or hardware `--debug`; UTF-8 names only | 0.05x to 0.94x (test host) |
+| `sum` | BSD and SysV, `-r` and `-s` | 0.14x to 0.94x (test host) |
+| `md5sum` | RFC 1321; binary/text markers, tags, NUL output, verification modes and escaped UTF-8 names | 0.32x (test host) |
+| `sha1sum` | FIPS 180-4 SHA-1; the checksum command modes, UTF-8 names | 0.29x (test host) |
+| `sha224sum` | FIPS 180-4 SHA-224; the checksum command modes, UTF-8 names | 0.34x (test host) |
+| `sha256sum` | FIPS 180-4 SHA-256; the checksum command modes, UTF-8 names | 0.35x (test host) |
+| `sha384sum` | FIPS 180-4 SHA-384; the checksum command modes, UTF-8 names | 0.40x (test host) |
+| `sha512sum` | FIPS 180-4 SHA-512; the checksum command modes, UTF-8 names | 0.40x (test host) |
+| `b2sum` | RFC 7693 BLAKE2b, variable digest lengths and the checksum command modes, UTF-8 names | 0.24x (test host) |
 | `split` | byte, line, bounded-record and numbered/round-robin partitions; suffix growth, filters and named GNU divergences below | not benched |
 | `csplit` | numeric/BRE patterns, offsets and repetitions; suffix formats, counts, cleanup and empty suppression | not benched |
 | `fmt` | paragraph/sentence reflow; width, goal, prefixes, split-only, tagged/crown margins and spacing | not benched |
@@ -1651,10 +1651,10 @@ table answers it per utility, from the evidence and from nothing else.
   when a passing differential case exercises the option and this
   program does not refuse it. An option that appears only in a case
   where GNU refuses it too — `sort -ng` — is not counted as covered.
-- **Cases** are Linux measurements: existing rows from kasumi, the small-file/checksum and bu36 option rows from hasu; passed / skipped. Scoped bu36 rows have no failures; the full-repository run is separate.
+- **Cases** are Linux measurements: existing rows from the Linux bench host, the small-file/checksum and bu36 option rows from the Linux test host; passed / skipped. Scoped bu36 rows have no failures; the full-repository run is separate.
   CI's macOS leg runs the same cases and skips the `/dev/full` ones as
   well, and the `/proc` and `/sys` ones (`requires`, bu15).
-- **vs GNU** is the band of the rows in the tables above, kasumi only,
+- **vs GNU** is the band of the rows in the tables above, the bench host only,
   GNU's time over ours. A start-up row is `hyperfine -N` over 300 runs.
 - **The verdict is mechanical.** *Drop-in* when every option is covered
   and every skip is one of the two hosts' C libraries or devices
@@ -1663,7 +1663,7 @@ table answers it per utility, from the evidence and from nothing else.
   yet* when the utility's central job does not hold. Slowness never
   lowers a verdict; it is the third column.
 
-| utility | GNU options | cases | vs GNU (kasumi unless stated) | verdict |
+| utility | GNU options | cases | vs GNU (bench host unless stated) | verdict |
 |---|---:|---:|---|---|
 | `true` | 2 / 2 | 13 / 0 | start-up 0.71x | drop-in |
 | `false` | 2 / 2 | 11 / 0 | start-up 0.72x | drop-in |
@@ -1692,88 +1692,88 @@ table answers it per utility, from the evidence and from nothing else.
 | `pwd` | 4 / 4 | 44 / 1 | start-up 0.80x | drop-in for scripts that avoid `-L` with a `$PWD` naming a same-time twin of the working directory (wolf-lang#536) |
 | `sleep` | 2 / 2 | 61 / 0 | start-up 0.88x, `sleep 0.1` 1.00x | drop-in |
 | `nproc` | 4 / 4 | 78 / 0 | start-up 0.80x | drop-in outside a fractional cgroup cpu quota (wolf-lang#537) |
-| `ls` | 51 / 60 | 734 / 14 (hasu bu36) | 0.60x to 1.99x; the long format 1.22x beside a GNU that also asks for each name's ACL | drop-in for scripts that avoid `-v`, quoting styles beyond `-N`/`-b`/`-Q`, `-Z`, the colour and filtering options (each refused by name), do not list files with ACLs in the long format (no `+`, wolf-lang#685), and do not need `.` and `..` placed by `-f` on ext4 (#692); owners named from `/etc/passwd` and `/etc/group` only; on a terminal, one 80 wide or reporting no size (#643) |
+| `ls` | 51 / 60 | 734 / 14 (test host, bu36) | 0.60x to 1.99x; the long format 1.22x beside a GNU that also asks for each name's ACL | drop-in for scripts that avoid `-v`, quoting styles beyond `-N`/`-b`/`-Q`, `-Z`, the colour and filtering options (each refused by name), do not list files with ACLs in the long format (no `+`, wolf-lang#685), and do not need `.` and `..` placed by `-f` on ext4 (#692); owners named from `/etc/passwd` and `/etc/group` only; on a terminal, one 80 wide or reporting no size (#643) |
 | `stat` | 7 / 8 | 152 / 8 | start-up 0.77x; 0.69x to 0.75x over many operands | drop-in for scripts that avoid `-f` (wolf-lang#686), `-` (#536), `%C`, and `%o` or the default format's `IO Block:` field, which prints `?` (#684) |
 | `readlink` | 10 / 10 | 100 / 0 | start-up 0.77x | drop-in |
 | `env` | 11 / 14 complete; 2 partial | 126 / 8 (Linux bu36) | `env true` 0.78x | drop-in for scripts that avoid nonempty `--block-signal`; `--default-signal` needs a known, already unblocked Linux mask and `--list-signal-handling` needs Linux /proc; these limits are refused by name, and do not read the ORDER of the environment they did not start from `-i` (wolf-lang#535) |
 | `mkdir` | 7 / 7 | 262 / 0 | start-up 0.72x; a thousand deep 0.37x | drop-in |
 | `rmdir` | 5 / 5 | 70 / 0 | start-up 0.72x | drop-in |
-| `rm` | 12 / 12 | 224 / 2 (hasu bu36) | start-up 0.87x; `-r` 0.94x to 1.02x | drop-in for scripts that avoid `--no-preserve-root` (refused on purpose: this `rm` does not remove `/`); at a terminal, "write-protected" is the owner's write bit (#633); a tree deeper than the host's path limit is not removed (#707) |
-| `mv` | 17 / 18 | 186 / 1 (hasu bu36) | start-up 1.01x | drop-in for scripts that stay on ONE file system (a move to another is refused, where GNU copies and removes) and avoid `--exchange` (refused by name); update modes, backups and debug are implemented; `-n` is a look and then a rename (#706) |
-| `cp` | 29 / 36 | 366 / 12 (hasu bu36) | start-up 0.92x; 1 GiB 1.00x; `-r` 0.72x to 0.75x | drop-in for scripts that avoid `-a`, `-d`, `--preserve=links`/`xattr`/`context`/`all`, a special file met under `-r`, `--sparse`/`--reflink` beyond `auto`, each refused by name; explicit links, updates, backups, parents, attributes-only and one-file-system are implemented, and do not `-p` a file owned by someone else (the owner is refused by name, #701) |
+| `rm` | 12 / 12 | 224 / 2 (test host, bu36) | start-up 0.87x; `-r` 0.94x to 1.02x | drop-in for scripts that avoid `--no-preserve-root` (refused on purpose: this `rm` does not remove `/`); at a terminal, "write-protected" is the owner's write bit (#633); a tree deeper than the host's path limit is not removed (#707) |
+| `mv` | 17 / 18 | 186 / 1 (test host, bu36) | start-up 1.01x | drop-in for scripts that stay on ONE file system (a move to another is refused, where GNU copies and removes) and avoid `--exchange` (refused by name); update modes, backups and debug are implemented; `-n` is a look and then a rename (#706) |
+| `cp` | 29 / 36 | 366 / 12 (test host, bu36) | start-up 0.92x; 1 GiB 1.00x; `-r` 0.72x to 0.75x | drop-in for scripts that avoid `-a`, `-d`, `--preserve=links`/`xattr`/`context`/`all`, a special file met under `-r`, `--sparse`/`--reflink` beyond `auto`, each refused by name; explicit links, updates, backups, parents, attributes-only and one-file-system are implemented, and do not `-p` a file owned by someone else (the owner is refused by name, #701) |
 | `chmod` | 14 / 14 | 532 / 0 | not benched | drop-in on linux; on macOS a link named by `-h`/`-P` or met by `-R` is left alone where GNU changes its own mode |
-| `touch` | 11 / 11 | 181 / 4 (hasu bu36) | not benched | drop-in for scripts whose `-d` dates fit the [documented grammar](docs/touch-date-grammar.txt); `touch -` (#714), leap-second zones, noon and unknown date words remain named refusals |
-| `ln` | 16 / 16 | 190 / 0 (hasu bu36) | not benched | drop-in on the tested hard/symbolic link and backup surface |
+| `touch` | 11 / 11 | 181 / 4 (test host, bu36) | not benched | drop-in for scripts whose `-d` dates fit the [documented grammar](docs/touch-date-grammar.txt); `touch -` (#714), leap-second zones, noon and unknown date words remain named refusals |
+| `ln` | 16 / 16 | 190 / 0 (test host, bu36) | not benched | drop-in on the tested hard/symbolic link and backup surface |
 | `kill` | 5 / 5 | 894 / 1, and 365 / 0 that send | not benched | drop-in for scripts that do not `kill 0` from process group 1 (a container's first process and what it starts without job control; refused by name) |
-| `timeout` | 7 / 7 | 116 / 0 (7 skipped on macOS), and 150 / 0 that run a command (13 skipped on kasumi, run on CI) | not benched | drop-in for scripts that do not send timeout itself a fault or host-only signal, nor `-s 33` its group (glibc's own: GNU's timeout dies of it, this one lives) |
+| `timeout` | 7 / 7 | 116 / 0 (7 skipped on macOS), and 150 / 0 that run a command (13 skipped on the Linux bench host, run on CI) | not benched | drop-in for scripts that do not send timeout itself a fault or host-only signal, nor `-s 33` its group (glibc's own: GNU's timeout dies of it, this one lives) |
 | `id` | 7 / 8 | 64 / 0, and 428 / 0 as root and as users | not benched | drop-in where the accounts are in `/etc/passwd` and `/etc/group` (not macOS's directory service, LDAP or NIS); `-Z` is refused as GNU without SELinux refuses it |
 | `whoami` | 0 / 0 | 10 / 0, and 19 / 0 | not benched | drop-in where the accounts are in `/etc/passwd` |
 | `groups` | 0 / 0 | 12 / 0, and 62 / 0 | not benched | drop-in where the accounts are in `/etc/passwd` and `/etc/group` |
 | `logname` | 0 / 0 | 11 / 0, and 46 / 0 | not benched | drop-in on linux; refused by name on macOS |
 | `chown` | 13 / 13 | 17 / 0, and 373 / 0 as root and as users | not benched | drop-in where the accounts are in `/etc/passwd` and `/etc/group`; `-v` on a link to nothing it follows says `failed to change ownership of 'F' to …` where GNU prints an uninitialized owner |
 | `chgrp` | 13 / 13 | 17 / 0, and 170 / 0 | not benched | as `chown` |
-| `mkfifo` | 3 / 5 | 32 / 2 | not benched (hasu cases) | drop-in for scripts that avoid SELinux contexts (`-Z`/`--context` refused by name) |
-| `link` | 2 / 2 | 17 / 0 on Linux; two source-symlink cases skipped on Darwin | not benched (hasu cases) | drop-in for scripts that avoid source symlinks on macOS; fs_link never follows them, unlike macOS link(1) |
-| `unlink` | 2 / 2 | 16 / 0 | not benched (hasu cases) | drop-in |
-| `truncate` | 5 / 6 | 92 / 4 | not benched (hasu cases) | drop-in for scripts that avoid `-o`/`--io-blocks` (#684), FIFOs, and `-c` where another process removes or replaces the operand during the stat/open window |
-| `sync` | 3 / 4 | 15 / 4 | not benched (hasu cases) | drop-in for scripts that name readable operands and avoid `-f`/`--file-system`; write-only operands are refused by name |
-| `mktemp` | 8 / 8 | 49 / 0 | not benched (hasu cases) | drop-in |
-| `realpath` | 12 / 12 | 116 / 0 | not benched (hasu cases) | drop-in |
-| `tty` | 3 / 3 | 12 / 0 | not benched (hasu cases) | drop-in |
-| `base64` | 5 / 5 | 218 / 0 | not benched (hasu) | drop-in |
-| `base32` | 5 / 5 | 218 / 0 | not benched (hasu) | drop-in |
-| `comm` | 10 / 10 | 150 / 0 | not benched (hasu) | drop-in under LC_ALL=C |
-| `join` | 15 / 15 | 233 / 0 | not benched (hasu) | drop-in under LC_ALL=C |
-| `tsort` | 2 / 2 | 69 / 26 | not benched (hasu) | drop-in for DAGs and residual unions of simple cycles; complex cyclic components and cycles with outgoing tails refused by name |
-| `shuf` | 8 / 9 | 97 / 1 | not benched (hasu) | drop-in for scripts that avoid --random-source, refused by name |
-| `cksum` | 15 / 16 | 383 / 3 | 0.05x to 0.94x (hasu) | drop-in for UTF-8 file names and scripts that avoid `-a sha3`, `-a sm3` and hardware `--debug`, each refused by name |
-| `sum` | 4 / 4 | 58 / 0 | 0.14x to 0.94x (hasu) | drop-in; command-line file names are UTF-8 |
-| `md5sum` | 12 / 12 | 253 / 2 | 0.32x (hasu) | drop-in for UTF-8 file names; valid raw-byte name records refuse by name |
-| `sha1sum` | 12 / 12 | 248 / 0 | 0.29x (hasu) | drop-in for UTF-8 file names |
-| `sha224sum` | 12 / 12 | 248 / 0 | 0.34x (hasu) | drop-in for UTF-8 file names |
-| `sha256sum` | 12 / 12 | 248 / 0 | 0.35x (hasu) | drop-in for UTF-8 file names |
-| `sha384sum` | 12 / 12 | 248 / 0 | 0.40x (hasu) | drop-in for UTF-8 file names |
-| `sha512sum` | 12 / 12 | 248 / 0 | 0.40x (hasu) | drop-in for UTF-8 file names |
-| `b2sum` | 13 / 13 | 279 / 0 | 0.24x (hasu) | drop-in for UTF-8 file names |
-| `du` | scoped above | 65 / 0 | not benched (hasu) | drop-in for scripts that avoid the named limits above |
-| `dd` | scoped above | 71 / 8 | not benched (hasu) | drop-in for scripts that avoid the named limits above |
-| `install` | scoped above | 33 / 4 | not benched (hasu) | drop-in for scripts that avoid the named limits above |
-| `mknod` | scoped above | 12 / 3 | not benched (hasu) | drop-in for scripts that avoid the named limits above |
-| `shred` | scoped above | 21 / 2 | not benched (hasu) | drop-in for scripts that avoid the named limits above |
-| `dir` | scoped above | 18 / 0 | not benched (hasu) | drop-in for scripts that avoid the named limits above |
-| `vdir` | scoped above | 18 / 0 | not benched (hasu) | drop-in for scripts that avoid the named limits above |
-| `dircolors` | scoped above | 27 / 0 | not benched (hasu) | drop-in for scripts that avoid the named limits above |
-| `chroot` | scoped above | 3 / 1 | not benched (hasu) | not yet |
-| `nice` | scoped above | 9 / 1 | not benched (hasu) | not yet |
-| `nohup` | scoped above | 12 / 0 | not benched (hasu) | drop-in |
-| `stdbuf` | scoped above | 9 / 0 | not benched (hasu) | not yet |
-| `split` | 15 / 15 | 196 / 3 | not benched (hasu) | documented correct behavior at the two named GNU defects below; other measured modes compare directly |
-| `csplit` | 9 / 9 | 118 / 3 | not benched (hasu) | refuses input-inode collisions without losing data, unlike GNU; other measured modes compare directly |
-| `fmt` | 9 / 9 | 329 / 0 | not benched (hasu) | drop-in under LC_ALL=C |
-| `pr` | 26 / 26 | 144 / 0 | not benched (hasu) | drop-in under LC_ALL=C |
-| `ptx` | 18 / 19 | 87 / 1 | not benched (hasu) | drop-in for GNU mode; `-G` refused by name |
-| `od` | 21 / 21 | 150 / 0 | not benched (hasu) | drop-in on the measured native type layouts under LC_ALL=C |
-| `expr` | 2 / 2, plus expression grammar | 433 / 1 | not benched (hasu) | drop-in for arithmetic operands/results through 64 magnitude bits; strings and comparisons are unrestricted, unsupported arithmetic is refused by name |
-| `numfmt` | 17 / 18 | 209 / 1 | not benched (hasu) | drop-in under LC_ALL=C for scripts that avoid `--debug`, refused by name |
-| `factor` | 3 / 3 | 59 / 1, including 10,000 random u64 values | not benched (hasu) | drop-in through 2^64−1; larger integers refused by name |
-| `basenc` | 13 / 14, eight encodings | 404 / 1 | not benched (hasu) | drop-in for scripts that avoid `--base58`, refused by name |
+| `mkfifo` | 3 / 5 | 32 / 2 | not benched (test host cases) | drop-in for scripts that avoid SELinux contexts (`-Z`/`--context` refused by name) |
+| `link` | 2 / 2 | 17 / 0 on Linux; two source-symlink cases skipped on Darwin | not benched (test host cases) | drop-in for scripts that avoid source symlinks on macOS; fs_link never follows them, unlike macOS link(1) |
+| `unlink` | 2 / 2 | 16 / 0 | not benched (test host cases) | drop-in |
+| `truncate` | 5 / 6 | 92 / 4 | not benched (test host cases) | drop-in for scripts that avoid `-o`/`--io-blocks` (#684), FIFOs, and `-c` where another process removes or replaces the operand during the stat/open window |
+| `sync` | 3 / 4 | 15 / 4 | not benched (test host cases) | drop-in for scripts that name readable operands and avoid `-f`/`--file-system`; write-only operands are refused by name |
+| `mktemp` | 8 / 8 | 49 / 0 | not benched (test host cases) | drop-in |
+| `realpath` | 12 / 12 | 116 / 0 | not benched (test host cases) | drop-in |
+| `tty` | 3 / 3 | 12 / 0 | not benched (test host cases) | drop-in |
+| `base64` | 5 / 5 | 218 / 0 | not benched (test host) | drop-in |
+| `base32` | 5 / 5 | 218 / 0 | not benched (test host) | drop-in |
+| `comm` | 10 / 10 | 150 / 0 | not benched (test host) | drop-in under LC_ALL=C |
+| `join` | 15 / 15 | 233 / 0 | not benched (test host) | drop-in under LC_ALL=C |
+| `tsort` | 2 / 2 | 69 / 26 | not benched (test host) | drop-in for DAGs and residual unions of simple cycles; complex cyclic components and cycles with outgoing tails refused by name |
+| `shuf` | 8 / 9 | 97 / 1 | not benched (test host) | drop-in for scripts that avoid --random-source, refused by name |
+| `cksum` | 15 / 16 | 383 / 3 | 0.05x to 0.94x (test host) | drop-in for UTF-8 file names and scripts that avoid `-a sha3`, `-a sm3` and hardware `--debug`, each refused by name |
+| `sum` | 4 / 4 | 58 / 0 | 0.14x to 0.94x (test host) | drop-in; command-line file names are UTF-8 |
+| `md5sum` | 12 / 12 | 253 / 2 | 0.32x (test host) | drop-in for UTF-8 file names; valid raw-byte name records refuse by name |
+| `sha1sum` | 12 / 12 | 248 / 0 | 0.29x (test host) | drop-in for UTF-8 file names |
+| `sha224sum` | 12 / 12 | 248 / 0 | 0.34x (test host) | drop-in for UTF-8 file names |
+| `sha256sum` | 12 / 12 | 248 / 0 | 0.35x (test host) | drop-in for UTF-8 file names |
+| `sha384sum` | 12 / 12 | 248 / 0 | 0.40x (test host) | drop-in for UTF-8 file names |
+| `sha512sum` | 12 / 12 | 248 / 0 | 0.40x (test host) | drop-in for UTF-8 file names |
+| `b2sum` | 13 / 13 | 279 / 0 | 0.24x (test host) | drop-in for UTF-8 file names |
+| `du` | scoped above | 65 / 0 | not benched (test host) | drop-in for scripts that avoid the named limits above |
+| `dd` | scoped above | 71 / 8 | not benched (test host) | drop-in for scripts that avoid the named limits above |
+| `install` | scoped above | 33 / 4 | not benched (test host) | drop-in for scripts that avoid the named limits above |
+| `mknod` | scoped above | 12 / 3 | not benched (test host) | drop-in for scripts that avoid the named limits above |
+| `shred` | scoped above | 21 / 2 | not benched (test host) | drop-in for scripts that avoid the named limits above |
+| `dir` | scoped above | 18 / 0 | not benched (test host) | drop-in for scripts that avoid the named limits above |
+| `vdir` | scoped above | 18 / 0 | not benched (test host) | drop-in for scripts that avoid the named limits above |
+| `dircolors` | scoped above | 27 / 0 | not benched (test host) | drop-in for scripts that avoid the named limits above |
+| `chroot` | scoped above | 3 / 1 | not benched (test host) | not yet |
+| `nice` | scoped above | 9 / 1 | not benched (test host) | not yet |
+| `nohup` | scoped above | 12 / 0 | not benched (test host) | drop-in |
+| `stdbuf` | scoped above | 9 / 0 | not benched (test host) | not yet |
+| `split` | 15 / 15 | 196 / 3 | not benched (test host) | documented correct behavior at the two named GNU defects below; other measured modes compare directly |
+| `csplit` | 9 / 9 | 118 / 3 | not benched (test host) | refuses input-inode collisions without losing data, unlike GNU; other measured modes compare directly |
+| `fmt` | 9 / 9 | 329 / 0 | not benched (test host) | drop-in under LC_ALL=C |
+| `pr` | 26 / 26 | 144 / 0 | not benched (test host) | drop-in under LC_ALL=C |
+| `ptx` | 18 / 19 | 87 / 1 | not benched (test host) | drop-in for GNU mode; `-G` refused by name |
+| `od` | 21 / 21 | 150 / 0 | not benched (test host) | drop-in on the measured native type layouts under LC_ALL=C |
+| `expr` | 2 / 2, plus expression grammar | 433 / 1 | not benched (test host) | drop-in for arithmetic operands/results through 64 magnitude bits; strings and comparisons are unrestricted, unsupported arithmetic is refused by name |
+| `numfmt` | 17 / 18 | 209 / 1 | not benched (test host) | drop-in under LC_ALL=C for scripts that avoid `--debug`, refused by name |
+| `factor` | 3 / 3 | 59 / 1, including 10,000 random u64 values | not benched (test host) | drop-in through 2^64−1; larger integers refused by name |
+| `basenc` | 13 / 14, eight encodings | 404 / 1 | not benched (test host) | drop-in for scripts that avoid `--base58`, refused by name |
 
 
-| `date` | scoped above | 403 / 0 on Linux | not benched (hasu) | drop-in for the named C-locale grammar, formatting and zone scope above; clock setting/resolution and debug are refused |
-| `test` | grammar and predicates | 1,490 / 0 | not benched (hasu) | drop-in; kernel access for equal ids and mode-bit fallback for differing ids both match GNU 9.11 |
-| `[` | grammar and closing bracket | 1,490 / 0 | not benched (hasu) | drop-in; same measured access behavior as test |
-| `uname` | all documented switches | 98 / 0 | not benched (hasu) | drop-in for Linux raw fields; macOS raw fields are refused (#907) |
-| `hostname` | print only | 5 / 0 | not benched (hasu) | Linux print operation; setting and raw macOS name refused |
-| `hostid` | scoped above | 6 / 0 (5 / 1 on a host where neither source answers, boreutils#70), and 10 / 0 in containers | not benched (hasu) | Linux persisted ID or files-first hosts address; missing resolver refused |
-| `arch` | common options | 5 / 0 | not benched (hasu) | drop-in |
-| `uptime` | scoped above | 6 / 0 plus clock shape | not benched (hasu) | Linux procfs/utmp, with independent elapsed-time bounds |
-| `users` | FILE and common options | 9 / 0 | not benched (hasu) | Linux utmp with UTF-8 text; default stale-pid filtering included |
-| `who` | scoped above | 27 / 0 | not benched (hasu) | Linux utmp with UTF-8 text; --lookup needs a resolver |
-| `pinky` | scoped above | 15 / 0 plus synthetic live sessions | not benched (hasu) | Linux utmp and /etc/passwd; --lookup needs a resolver |
-| `pathchk` | -p, -P, --portability | 75 / 0 | not benched (hasu) | portable limits and measured native kernel checks; no pathconf builtin |
-| `stty` | exact setters above | 29 / 0 plus full-state pty checks | not benched (hasu) | partial termios surface only; every other setting refused by name |
-| `chcon` | SELinux-disabled paths | 9 field rows | not benched (hasu) | field-only GNU 9.4; no GNU 9.11 parity claim |
-| `runcon` | current label / refused changes | 6 field rows | not benched (hasu) | field-only GNU 9.4, status 125; no GNU 9.11 parity claim |
+| `date` | scoped above | 403 / 0 on Linux | not benched (test host) | drop-in for the named C-locale grammar, formatting and zone scope above; clock setting/resolution and debug are refused |
+| `test` | grammar and predicates | 1,490 / 0 | not benched (test host) | drop-in; kernel access for equal ids and mode-bit fallback for differing ids both match GNU 9.11 |
+| `[` | grammar and closing bracket | 1,490 / 0 | not benched (test host) | drop-in; same measured access behavior as test |
+| `uname` | all documented switches | 98 / 0 | not benched (test host) | drop-in for Linux raw fields; macOS raw fields are refused (#907) |
+| `hostname` | print only | 5 / 0 | not benched (test host) | Linux print operation; setting and raw macOS name refused |
+| `hostid` | scoped above | 6 / 0 (5 / 1 on a host where neither source answers, boreutils#70), and 10 / 0 in containers | not benched (test host) | Linux persisted ID or files-first hosts address; missing resolver refused |
+| `arch` | common options | 5 / 0 | not benched (test host) | drop-in |
+| `uptime` | scoped above | 6 / 0 plus clock shape | not benched (test host) | Linux procfs/utmp, with independent elapsed-time bounds |
+| `users` | FILE and common options | 9 / 0 | not benched (test host) | Linux utmp with UTF-8 text; default stale-pid filtering included |
+| `who` | scoped above | 27 / 0 | not benched (test host) | Linux utmp with UTF-8 text; --lookup needs a resolver |
+| `pinky` | scoped above | 15 / 0 plus synthetic live sessions | not benched (test host) | Linux utmp and /etc/passwd; --lookup needs a resolver |
+| `pathchk` | -p, -P, --portability | 75 / 0 | not benched (test host) | portable limits and measured native kernel checks; no pathconf builtin |
+| `stty` | exact setters above | 29 / 0 plus full-state pty checks | not benched (test host) | partial termios surface only; every other setting refused by name |
+| `chcon` | SELinux-disabled paths | 9 field rows | not benched (test host) | field-only GNU 9.4; no GNU 9.11 parity claim |
+| `runcon` | current label / refused changes | 6 field rows | not benched (test host) | field-only GNU 9.4, status 125; no GNU 9.11 parity claim |
 
 **35 drop-in, 67 drop-in for scripts that avoid a named thing, 3 not yet, 2 SELinux-disabled field-only** (command rows, not the manual's grouped utility units; new checksum
 rows explicitly require UTF-8 names). (bu28: `kill`'s two named things became one, and `timeout`'s four
@@ -1970,7 +1970,7 @@ These are explicit divergences, not changed differential expectations.
 The documented split interface promises hexadecimal suffixes and says `-e`
 does not generate empty output files with `-n`; csplit promises pieces of
 the original input, not truncation and deletion of that input. The isolated witnesses ran in an Ubuntu
-24.04 container on hasu, using the digest-built GNU 9.11 oracle. Evidence:
+24.04 container on the Linux test host, using the digest-built GNU 9.11 oracle. Evidence:
 `/home/mfwolffe/lanes/bu33/ev/split-oracle-anomalies.log` and
 `/home/mfwolffe/lanes/bu33/ev/split-input-collision.log`.
 These preserve the documented behavior and publish GNU's disagreement,
@@ -2009,6 +2009,6 @@ complete differences and issue drafts are in `tests/gaps/bu35/darwin-*.txt`.
 Host GNU9.12 was not selected as the oracle. The extra install-program
 flags and the identity pass's shared code do not move these verdicts.
 
-The bu36 option checkpoint measures `ls` on hasu block B in Ubuntu 24.04, GNU 9.11: **734 passed / 0 failed / 14 named skips**, on both native tiers. It adds 38 cases and retires four option skips; account lookup, ACLs, directory order, devices and terminal-width qualifications remain. Numeric explicit block sizes and unit suffixes are supported; display-size environment variables are still not read.
+The bu36 option checkpoint measures `ls` on the Linux test host's block B in Ubuntu 24.04, GNU 9.11: **734 passed / 0 failed / 14 named skips**, on both native tiers. It adds 38 cases and retires four option skips; account lookup, ACLs, directory order, devices and terminal-width qualifications remain. Numeric explicit block sizes and unit suffixes are supported; display-size environment variables are still not read.
 
 The bu36 `od` repair uses the exact GNU 9.11 Darwin NaN spelling measured in attribution run 40165219687 (boreutils#60), with both platform rules tested independently. Twelve exact Darwin skips are retired, not masked; native Darwin validation is left to CI. The account-name (#58, eleven rows) and numfmt-boundary (#59, seven rows) qualifications remain attributed and explicit.
