@@ -13,3 +13,4 @@
 - The utilities' code moves into modules under `src/cmd/`, each `src/NAME.lu` a short entry; no utility's behaviour changes.
 - `tools/multicalltest` holds `bore` to the separate programs (census, refusals, signal dispositions, size in loadable bytes, the PAX page bound, start-up, no signal hub or thread path, the six beside it); the gauntlet runs it and the corpus through `bore` by link and by name, and a `links` job runs the kill, identity, root and in-out tests through its links.
 - `tools/fetch-toolchain` tries a refused download three more times, five seconds apart; the pinned digests still decide what is accepted.
+- Known differences from GNU are listed in the README's "Differences from GNU". Open ones include `stty rows` and `cols`, which are refused (#74), and macOS-only differences in `dir` and `vdir` owner names, `numfmt`, `od`, `printf` and `tee` (#58, #59, #60, #91, #92).
