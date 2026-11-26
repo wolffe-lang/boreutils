@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0 — 2026-11-20
+## 0.1.0 — 2026-11-27
 
 - First 0.1.0 release of the implemented core utilities. Existing per-utility compatibility boundaries and named refusals remain; this is not a claim of complete GNU coreutils parity.
 - Align the package manifest with the existing shared 0.1.0 CLI version. Every version-capable archived utility is checked for that version. POSIX `test` keeps its operand grammar, and `false` exits 1 after printing its version as GNU's does; the release check names both explicitly.
